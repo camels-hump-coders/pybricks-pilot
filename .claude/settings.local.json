@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(npm run typecheck:*)",
+      "WebFetch(domain:docs.pybricks.com)",
+      "Bash(npm run build:*)",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(GITHUB_PAGES=true npm run build)"
+    ],
+    "deny": []
+  }
+}
