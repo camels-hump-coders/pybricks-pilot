@@ -9,6 +9,8 @@ import {
   ScrollRestoration,
 } from "react-router";
 
+import faviconUrl from "../public/favicon.svg?url";
+import socialShareUrl from "../public/social-share.svg?url";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -24,7 +26,7 @@ export const links: Route.LinksFunction = () => [
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
-  { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+  { rel: "icon", href: faviconUrl, type: "image/svg+xml" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -61,10 +63,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           property="og:description"
           content="Control your LEGO Spike Prime robots with PyBricks firmware through your web browser. Real-time telemetry, remote control, competition mat visualization, and more for FLL teams."
         />
-        <meta
-          property="og:image"
-          content="https://camels-hump-coders.github.io/pybricks-pilot/social-share.svg"
-        />
+        <meta property="og:image" content={socialShareUrl} />
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
@@ -80,10 +79,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           property="twitter:description"
           content="Control your LEGO Spike Prime robots with PyBricks firmware through your web browser. Real-time telemetry, remote control, competition mat visualization, and more for FLL teams."
         />
-        <meta
-          property="twitter:image"
-          content="https://camels-hump-coders.github.io/pybricks-pilot/social-share.svg"
-        />
+        <meta property="twitter:image" content={socialShareUrl} />
 
         <Meta />
         <Links />
