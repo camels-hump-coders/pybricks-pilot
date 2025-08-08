@@ -1,0 +1,110 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="1200" y2="630">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+    <linearGradient id="robotGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF6B35"/>
+      <stop offset="100%" stop-color="#D4501F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Grid pattern for tech feel -->
+  <defs>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  
+  <!-- Main robot/brick -->
+  <rect x="150" y="200" width="300" height="200" rx="20" fill="url(#robotGradient)" stroke="#B8431C" stroke-width="4"/>
+  
+  <!-- Brick studs -->
+  <circle cx="200" cy="250" r="15" fill="#E55A2B"/>
+  <circle cx="250" cy="250" r="15" fill="#E55A2B"/>
+  <circle cx="300" cy="250" r="15" fill="#E55A2B"/>
+  <circle cx="400" cy="250" r="15" fill="#E55A2B"/>
+  
+  <circle cx="200" cy="320" r="15" fill="#E55A2B"/>
+  <circle cx="250" cy="320" r="15" fill="#E55A2B"/>
+  <circle cx="300" cy="320" r="15" fill="#E55A2B"/>
+  <circle cx="400" cy="320" r="15" fill="#E55A2B"/>
+  
+  <!-- Robot head -->
+  <rect x="200" y="120" width="150" height="100" rx="50" fill="#4ECDC4" stroke="#3CBBB3" stroke-width="3"/>
+  
+  <!-- Eyes -->
+  <circle cx="230" cy="160" r="12" fill="#2C3E50"/>
+  <circle cx="270" cy="160" r="12" fill="#2C3E50"/>
+  <circle cx="230" cy="160" r="4" fill="#FFFFFF"/>
+  <circle cx="270" cy="160" r="4" fill="#FFFFFF"/>
+  
+  <!-- Antenna -->
+  <circle cx="250" cy="90" r="8" fill="#FFE66D"/>
+  <line x1="250" y1="98" x2="250" y2="120" stroke="#FFE66D" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Signal waves -->
+  <circle cx="250" cy="90" r="20" fill="none" stroke="#FFE66D" stroke-width="2" opacity="0.6"/>
+  <circle cx="250" cy="90" r="35" fill="none" stroke="#FFE66D" stroke-width="2" opacity="0.4"/>
+  <circle cx="250" cy="90" r="50" fill="none" stroke="#FFE66D" stroke-width="2" opacity="0.2"/>
+  
+  <!-- Competition mat mockup -->
+  <rect x="550" y="200" width="500" height="250" rx="10" fill="#2ECC71" stroke="#27AE60" stroke-width="3"/>
+  
+  <!-- Mat grid lines -->
+  <line x1="650" y1="200" x2="650" y2="450" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  <line x1="750" y1="200" x2="750" y2="450" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  <line x1="850" y1="200" x2="850" y2="450" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  <line x1="950" y1="200" x2="950" y2="450" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  
+  <line x1="550" y1="250" x2="1050" y2="250" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  <line x1="550" y1="300" x2="1050" y2="300" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  <line x1="550" y1="350" x2="1050" y2="350" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  <line x1="550" y1="400" x2="1050" y2="400" stroke="#27AE60" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Robot on mat -->
+  <rect x="620" y="280" width="60" height="40" rx="5" fill="#FF6B35"/>
+  <circle cx="635" cy="290" r="3" fill="#E55A2B"/>
+  <circle cx="650" cy="290" r="3" fill="#E55A2B"/>
+  <circle cx="665" cy="290" r="3" fill="#E55A2B"/>
+  
+  <!-- Movement trail -->
+  <path d="M 600 300 Q 700 280 800 320 Q 900 360 950 300" fill="none" stroke="#FFE66D" stroke-width="4" stroke-dasharray="10,5" opacity="0.8"/>
+  
+  <!-- Title -->
+  <text x="600" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white">
+    PyBricks Pilot
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" fill="rgba(255,255,255,0.9)">
+    Web-based LEGO Robot Programming &amp; Control
+  </text>
+  
+  <!-- Feature highlights -->
+  <text x="100" y="520" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="white">
+    ✓ Real-time Telemetry
+  </text>
+  <text x="100" y="560" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="white">
+    ✓ Remote Control
+  </text>
+  
+  <text x="400" y="520" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="white">
+    ✓ Competition Mat
+  </text>
+  <text x="400" y="560" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="white">
+    ✓ FLL Support
+  </text>
+  
+  <text x="700" y="520" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="white">
+    ✓ Web Bluetooth
+  </text>
+  <text x="700" y="560" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="white">
+    ✓ Python in Browser
+  </text>
+</svg>

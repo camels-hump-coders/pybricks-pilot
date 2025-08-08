@@ -1,0 +1,33 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Robot brick body -->
+  <rect x="6" y="12" width="20" height="14" rx="2" fill="#FF6B35" stroke="#D4501F" stroke-width="1"/>
+  
+  <!-- Brick studs -->
+  <circle cx="10" cy="16" r="1.5" fill="#E55A2B"/>
+  <circle cx="14" cy="16" r="1.5" fill="#E55A2B"/>
+  <circle cx="18" cy="16" r="1.5" fill="#E55A2B"/>
+  <circle cx="22" cy="16" r="1.5" fill="#E55A2B"/>
+  
+  <!-- Robot head/sensor -->
+  <rect x="10" y="6" width="12" height="8" rx="4" fill="#4ECDC4" stroke="#3CBBB3" stroke-width="1"/>
+  
+  <!-- Eyes -->
+  <circle cx="14" cy="10" r="1.5" fill="#2C3E50"/>
+  <circle cx="18" cy="10" r="1.5" fill="#2C3E50"/>
+  
+  <!-- Pilot navigation elements -->
+  <path d="M12 22 L16 20 L20 22 L16 24 Z" fill="#FFE66D" stroke="#E6CF5D" stroke-width="0.5"/>
+  
+  <!-- Antenna/signal -->
+  <circle cx="16" cy="4" r="1" fill="#FFE66D"/>
+  <line x1="16" y1="5" x2="16" y2="6" stroke="#FFE66D" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Motion lines for "pilot" effect -->
+  <path d="M2 18 L4 18" stroke="#95A5A6" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  <path d="M2 20 L5 20" stroke="#95A5A6" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  <path d="M2 22 L4 22" stroke="#95A5A6" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  
+  <path d="M28 18 L30 18" stroke="#95A5A6" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  <path d="M27 20 L30 20" stroke="#95A5A6" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+  <path d="M28 22 L30 22" stroke="#95A5A6" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
+</svg>
