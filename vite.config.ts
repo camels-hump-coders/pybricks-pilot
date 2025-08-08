@@ -6,7 +6,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig(({ command, mode }) => {
   // Use repository name as base for GitHub Pages deployment
   const base = process.env.GITHUB_PAGES === 'true' 
-    ? '/fll-pybricks-ui/' 
+    ? '/pybricks-pilot/' 
     : '/';
 
   return {
