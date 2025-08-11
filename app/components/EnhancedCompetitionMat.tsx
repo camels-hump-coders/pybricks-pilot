@@ -1293,7 +1293,29 @@ export function EnhancedCompetitionMat({
             <div>
               <span className="text-gray-300">Time:</span>
               <span className="ml-2">
-                {new Date(hoveredPoint.timestamp).toLocaleTimeString()}
+                {(() => {
+                  const currentPath = telemetryHistory.getCurrentPath();
+                  const allPaths = telemetryHistory.getAllPaths();
+                  
+                  // Find the recording start time
+                  let recordingStartTime = hoveredPoint.timestamp;
+                  
+                  // Check if this point is in the current path
+                  if (currentPath && currentPath.points.some(p => p.timestamp === hoveredPoint.timestamp)) {
+                    recordingStartTime = currentPath.startTime;
+                  } else {
+                    // Check completed paths
+                    for (const path of allPaths) {
+                      if (path.points.some(p => p.timestamp === hoveredPoint.timestamp)) {
+                        recordingStartTime = path.startTime;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  const relativeTime = (hoveredPoint.timestamp - recordingStartTime) / 1000;
+                  return `${relativeTime.toFixed(1)}s`;
+                })()}
               </span>
             </div>
             <div>
@@ -1317,6 +1339,54 @@ export function EnhancedCompetitionMat({
                 </span>
               </div>
             )}
+            {hoveredPoint.data.motors &&
+              Object.keys(hoveredPoint.data.motors).length > 0 && (
+                <>
+                  <div className="border-t border-gray-600 pt-2 mt-2">
+                    <div className="text-gray-300 font-medium mb-1">
+                      Motors:
+                    </div>
+                    {Object.entries(hoveredPoint.data.motors)
+                      .filter(([name]) => !['left', 'right'].includes(name.toLowerCase()))
+                      .map(([name, motor]) => (
+                        <div key={name} className="ml-2 mb-1">
+                          <span className="text-green-300 font-medium">
+                            {name}:
+                          </span>
+                          <div className="ml-2 text-xs">
+                            <div className="flex justify-between">
+                              <span>Angle:</span>
+                              <span>{Math.round(motor.angle)}°</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Speed:</span>
+                              <span>{Math.round(motor.speed)}°/s</span>
+                            </div>
+                            {motor.load !== undefined && (
+                              <div className="flex justify-between">
+                                <span>Load:</span>
+                                <span className={motor.load > 80 ? "text-red-300" : motor.load > 50 ? "text-yellow-300" : "text-green-300"}>
+                                  {Math.round(motor.load)}%
+                                </span>
+                              </div>
+                            )}
+                            {motor.error && (
+                              <div className="text-red-300 text-xs">
+                                Error: {motor.error}
+                              </div>
+                            )}
+                            {Math.abs(motor.speed) < 1 && Math.abs(motor.load || 0) > 20 && (
+                              <div className="text-orange-300 text-xs">
+                                ⚠ Stalled
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </>
+              )}
             {hoveredPoint.data.sensors &&
               Object.keys(hoveredPoint.data.sensors).length > 0 && (
                 <>
