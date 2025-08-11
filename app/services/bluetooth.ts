@@ -1,5 +1,6 @@
 export interface BluetoothService {
   requestDevice(): Promise<BluetoothDevice | null>;
+  connectToDevice(deviceId: string): Promise<BluetoothDevice | null>;
   connect(device: BluetoothDevice): Promise<BluetoothRemoteGATTServer>;
   disconnect(server: BluetoothRemoteGATTServer): Promise<void>;
   isConnected(device: BluetoothDevice): boolean;
@@ -21,6 +22,8 @@ export interface BluetoothService {
     characteristic: BluetoothRemoteGATTCharacteristic,
     callback: (data: DataView) => void
   ): Promise<void>;
+  addEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void;
+  removeEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void;
 }
 
 // Pybricks service UUIDs (official Pybricks protocol)
@@ -40,6 +43,7 @@ export class WebBluetoothService implements BluetoothService {
     BluetoothDevice,
     BluetoothRemoteGATTServer
   >();
+  private disconnectListeners = new Set<(device: BluetoothDevice) => void>();
 
   async requestDevice(): Promise<BluetoothDevice | null> {
     if (!navigator.bluetooth) {
@@ -65,10 +69,34 @@ export class WebBluetoothService implements BluetoothService {
     }
   }
 
+  async connectToDevice(deviceId: string): Promise<BluetoothDevice | null> {
+    if (!navigator.bluetooth) {
+      throw new Error("Web Bluetooth API is not supported in this browser");
+    }
+
+    try {
+      // Check if getDevices is available (Chrome 85+)
+      if (navigator.bluetooth.getDevices) {
+        const devices = await navigator.bluetooth.getDevices();
+        const device = devices.find(d => d.id === deviceId);
+        return device || null;
+      } else {
+        console.warn("navigator.bluetooth.getDevices is not supported in this browser");
+        return null;
+      }
+    } catch (error) {
+      console.warn("Failed to get previously paired device:", error);
+      return null;
+    }
+  }
+
   async connect(device: BluetoothDevice): Promise<BluetoothRemoteGATTServer> {
     if (!device.gatt) {
       throw new Error("Device does not support GATT");
     }
+
+    // Add disconnect listener before connecting
+    device.addEventListener('gattserverdisconnected', this.onDeviceDisconnected);
 
     const server = await device.gatt.connect();
     this.connectedDevices.set(device, server);
@@ -85,6 +113,7 @@ export class WebBluetoothService implements BluetoothService {
     )?.[0];
 
     if (device) {
+      device.removeEventListener('gattserverdisconnected', this.onDeviceDisconnected);
       this.connectedDevices.delete(device);
     }
   }
@@ -156,10 +185,20 @@ export class WebBluetoothService implements BluetoothService {
     return info;
   }
 
+  addEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void {
+    this.disconnectListeners.add(callback);
+  }
+
+  removeEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void {
+    this.disconnectListeners.delete(callback);
+  }
+
   private onDeviceDisconnected = (event: Event) => {
-    const device = event.target;
-    if (device && 'name' in device) {
-      this.connectedDevices.delete(device as any);
+    const device = event.target as BluetoothDevice;
+    if (device && device.id) {
+      this.connectedDevices.delete(device);
+      // Notify all disconnect listeners
+      this.disconnectListeners.forEach(listener => listener(device));
     }
   };
 }

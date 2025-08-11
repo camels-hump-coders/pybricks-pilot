@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameMatConfig, Mission } from "../schemas/GameMatConfig";
 import type { TelemetryData } from "../services/pybricksHub";
+import {
+  telemetryHistory,
+  type ColorMode,
+  type PathVisualizationOptions,
+  type TelemetryPoint,
+} from "../services/telemetryHistory";
 
 interface RobotPosition {
   x: number; // mm from left edge of mat (0 = left edge)
@@ -105,7 +111,7 @@ export function EnhancedCompetitionMat({
     null
   );
   const [currentPosition, setCurrentPosition] = useState<RobotPosition>({
-    x: 2355, // Bottom right X position
+    x: 2140, // Bottom right X position
     y: 108, // Bottom right Y position
     heading: 0,
   });
@@ -131,6 +137,21 @@ export function EnhancedCompetitionMat({
   const [missionBounds, setMissionBounds] = useState<
     Map<string, { x: number; y: number; width: number; height: number }>
   >(new Map());
+
+  // Path visualization state
+  const [pathOptions, setPathOptions] = useState<PathVisualizationOptions>({
+    showPath: true,
+    showMarkers: true,
+    colorMode: "none",
+    opacity: 0.8,
+    strokeWidth: 3,
+  });
+  const [hoveredPoint, setHoveredPoint] = useState<TelemetryPoint | null>(null);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number>(-1);
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Load and process mat image
   useEffect(() => {
@@ -182,21 +203,36 @@ export function EnhancedCompetitionMat({
     });
   };
 
-  // Convert mm to canvas pixels (includes border offset)
+  // Convert mm to canvas pixels (accounts for mat position within table)
   const mmToCanvas = (mmX: number, mmY: number): { x: number; y: number } => {
-    // Add border wall offset and scale
-    const canvasX = (mmX + BORDER_WALL_THICKNESS_MM) * scale;
-    const canvasY = (TABLE_HEIGHT_MM - mmY + BORDER_WALL_THICKNESS_MM) * scale; // Flip Y
+    // Use exact same calculation as drawMissions function
+    const matOffset = BORDER_WALL_THICKNESS_MM * scale;
+    const matX =
+      matOffset + (TABLE_WIDTH_MM * scale - MAT_WIDTH_MM * scale) / 2;
+    const matY = matOffset + (TABLE_HEIGHT_MM * scale - MAT_HEIGHT_MM * scale);
+
+    // Convert mm coordinates to mat canvas coordinates
+    const canvasX = matX + mmX * scale;
+    const canvasY = matY + (MAT_HEIGHT_MM * scale - mmY * scale); // Flip Y coordinate
+
     return { x: canvasX, y: canvasY };
   };
 
-  // Convert canvas pixels to mm (removes border offset)
+  // Convert canvas pixels to mm (accounts for mat position within table)
   const canvasToMm = (
     canvasX: number,
     canvasY: number
   ): { x: number; y: number } => {
-    const mmX = canvasX / scale - BORDER_WALL_THICKNESS_MM;
-    const mmY = TABLE_HEIGHT_MM - (canvasY / scale - BORDER_WALL_THICKNESS_MM);
+    // Use exact same calculation as drawMissions function
+    const matOffset = BORDER_WALL_THICKNESS_MM * scale;
+    const matX =
+      matOffset + (TABLE_WIDTH_MM * scale - MAT_WIDTH_MM * scale) / 2;
+    const matY = matOffset + (TABLE_HEIGHT_MM * scale - MAT_HEIGHT_MM * scale);
+
+    // Convert canvas coordinates to mm within the mat
+    const mmX = (canvasX - matX) / scale;
+    const mmY = (MAT_HEIGHT_MM * scale - (canvasY - matY)) / scale; // Flip Y coordinate
+
     return { x: mmX, y: mmY };
   };
 
@@ -269,6 +305,11 @@ export function EnhancedCompetitionMat({
     // Draw missions if custom mat
     if (customMatConfig && showScoring) {
       drawMissions(ctx);
+    }
+
+    // Draw telemetry path
+    if (pathOptions.showPath) {
+      drawTelemetryPath(ctx);
     }
 
     // Draw robot
@@ -587,6 +628,89 @@ export function EnhancedCompetitionMat({
     ctx.textAlign = "left";
   };
 
+  const drawTelemetryPath = (ctx: CanvasRenderingContext2D) => {
+    const currentPath = telemetryHistory.getCurrentPath();
+    const allPaths = telemetryHistory.getAllPaths();
+
+    // Draw all completed paths first
+    allPaths.forEach((path) => {
+      drawPath(ctx, path.points, pathOptions.opacity * 0.7);
+    });
+
+    // Draw current recording path
+    if (currentPath && currentPath.points.length > 0) {
+      drawPath(ctx, currentPath.points, pathOptions.opacity);
+    }
+  };
+
+  const drawPath = (
+    ctx: CanvasRenderingContext2D,
+    points: TelemetryPoint[],
+    opacity: number
+  ) => {
+    if (points.length < 2) return;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.lineWidth = pathOptions.strokeWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Draw path segments
+    for (let i = 0; i < points.length - 1; i++) {
+      const point1 = points[i];
+      const point2 = points[i + 1];
+
+      const pos1 = mmToCanvas(point1.x, point1.y);
+      const pos2 = mmToCanvas(point2.x, point2.y);
+
+      // Get color based on visualization mode
+      const color = telemetryHistory.getColorForPoint(
+        point1,
+        pathOptions.colorMode
+      );
+      ctx.strokeStyle = color;
+
+      ctx.beginPath();
+      ctx.moveTo(pos1.x, pos1.y);
+      ctx.lineTo(pos2.x, pos2.y);
+      ctx.stroke();
+    }
+
+    // Draw markers if enabled
+    if (pathOptions.showMarkers) {
+      points.forEach((point, index) => {
+        const pos = mmToCanvas(point.x, point.y);
+        const color = telemetryHistory.getColorForPoint(
+          point,
+          pathOptions.colorMode
+        );
+
+        // Draw marker circle
+        ctx.fillStyle = color;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 1;
+
+        const markerSize = hoveredPointIndex === index ? 6 : 4;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, markerSize, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+
+        // Highlight hovered point
+        if (hoveredPointIndex === index) {
+          ctx.strokeStyle = "rgba(255, 255, 0, 1)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, markerSize + 2, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+      });
+    }
+
+    ctx.restore();
+  };
+
   const checkScoringCollisions = useCallback(
     (robotPos: RobotPosition) => {
       if (!customMatConfig) return;
@@ -677,7 +801,7 @@ export function EnhancedCompetitionMat({
         // The telemetry appears to be reporting distances that result in 2x movement on the virtual mat
         const scalingFactor = 0.5; // Reduce movement by half to correct the 2x issue
         const scaledDeltaDistance = deltaDistance * scalingFactor;
-        
+
         const deltaX = scaledDeltaDistance * Math.sin(movementHeadingRad);
         const deltaY = scaledDeltaDistance * Math.cos(movementHeadingRad);
 
@@ -686,6 +810,16 @@ export function EnhancedCompetitionMat({
           y: Math.max(0, Math.min(MAT_HEIGHT_MM, prevPos.y + deltaY)),
           heading: currentHeading,
         };
+
+        // Add telemetry point to history if recording
+        if (telemetryHistory.isRecordingActive() && telemetryData) {
+          telemetryHistory.addTelemetryPoint(
+            telemetryData,
+            newPosition.x,
+            newPosition.y,
+            newPosition.heading
+          );
+        }
 
         // Check for mission collisions
         if (customMatConfig && showScoring) {
@@ -737,8 +871,11 @@ export function EnhancedCompetitionMat({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const canvasX = event.clientX - rect.left;
-    const canvasY = event.clientY - rect.top;
+    // Account for canvas scaling: convert display coordinates to actual canvas coordinates
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (event.clientX - rect.left) * scaleX;
+    const canvasY = (event.clientY - rect.top) * scaleY;
 
     // Check for mission clicks first (if scoring is enabled)
     if (showScoring && !isSettingPosition) {
@@ -786,8 +923,20 @@ export function EnhancedCompetitionMat({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const canvasX = event.clientX - rect.left;
-    const canvasY = event.clientY - rect.top;
+    // Account for canvas scaling: convert display coordinates to actual canvas coordinates
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (event.clientX - rect.left) * scaleX;
+    const canvasY = (event.clientY - rect.top) * scaleY;
+
+    // Check for telemetry point hover (if path visualization is enabled and not setting position)
+    if (pathOptions.showMarkers && !isSettingPosition) {
+      checkTelemetryPointHover(canvasX, canvasY, event.pageX, event.pageY);
+    } else {
+      setHoveredPoint(null);
+      setHoveredPointIndex(-1);
+      setTooltipPosition(null);
+    }
 
     // Check for mission hover
     if (showScoring && !isSettingPosition) {
@@ -812,6 +961,63 @@ export function EnhancedCompetitionMat({
         y: mm.y,
         heading: currentPosition.heading,
       });
+    }
+  };
+
+  const checkTelemetryPointHover = (
+    canvasX: number,
+    canvasY: number,
+    pageX: number,
+    pageY: number
+  ) => {
+    const currentPath = telemetryHistory.getCurrentPath();
+    const allPaths = telemetryHistory.getAllPaths();
+    const allPoints: {
+      point: TelemetryPoint;
+      pathIndex: number;
+      pointIndex: number;
+    }[] = [];
+
+    // Collect all points from all paths
+    allPaths.forEach((path, pathIndex) => {
+      path.points.forEach((point, pointIndex) => {
+        allPoints.push({ point, pathIndex: pathIndex + 1, pointIndex });
+      });
+    });
+
+    // Add current path points
+    if (currentPath && currentPath.points.length > 0) {
+      currentPath.points.forEach((point, pointIndex) => {
+        allPoints.push({ point, pathIndex: 0, pointIndex }); // 0 for current path
+      });
+    }
+
+    // Find closest point within hover radius
+    let closestPoint = null;
+    let closestDistance = Infinity;
+    let closestIndex = -1;
+    const hoverRadius = 10; // pixels
+
+    allPoints.forEach(({ point, pointIndex }) => {
+      const pos = mmToCanvas(point.x, point.y);
+      const distance = Math.sqrt(
+        Math.pow(canvasX - pos.x, 2) + Math.pow(canvasY - pos.y, 2)
+      );
+
+      if (distance <= hoverRadius && distance < closestDistance) {
+        closestDistance = distance;
+        closestPoint = point;
+        closestIndex = pointIndex;
+      }
+    });
+
+    setHoveredPoint(closestPoint);
+    setHoveredPointIndex(closestIndex);
+
+    if (closestPoint) {
+      setTooltipPosition({ x: pageX, y: pageY });
+    } else {
+      setTooltipPosition(null);
     }
   };
 
@@ -912,6 +1118,10 @@ export function EnhancedCompetitionMat({
     showScoring,
     matImageRef.current,
     hoveredObject,
+    pathOptions,
+    hoveredPointIndex,
+    telemetryHistory.getCurrentPath(),
+    telemetryHistory.getAllPaths(),
   ]);
 
   return (
@@ -930,6 +1140,76 @@ export function EnhancedCompetitionMat({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Path Visualization Controls */}
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 px-2 py-1 rounded">
+              <label className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                Path:
+              </label>
+
+              {/* Show Path Toggle */}
+              <label
+                className="flex items-center gap-1 cursor-pointer"
+                title="Show/hide path lines"
+              >
+                <input
+                  type="checkbox"
+                  checked={pathOptions.showPath}
+                  onChange={(e) =>
+                    setPathOptions((prev) => ({
+                      ...prev,
+                      showPath: e.target.checked,
+                    }))
+                  }
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-gray-600 dark:text-gray-300">
+                  Lines
+                </span>
+              </label>
+
+              {/* Show Markers Toggle */}
+              <label
+                className="flex items-center gap-1 cursor-pointer"
+                title="Show/hide interactive markers"
+              >
+                <input
+                  type="checkbox"
+                  checked={pathOptions.showMarkers}
+                  onChange={(e) =>
+                    setPathOptions((prev) => ({
+                      ...prev,
+                      showMarkers: e.target.checked,
+                    }))
+                  }
+                  className="w-3 h-3"
+                />
+                <span className="text-xs text-gray-600 dark:text-gray-300">
+                  Dots
+                </span>
+              </label>
+
+              {/* Color Mode Selector */}
+              <select
+                value={pathOptions.colorMode}
+                onChange={(e) =>
+                  setPathOptions((prev) => ({
+                    ...prev,
+                    colorMode: e.target.value as ColorMode,
+                  }))
+                }
+                className="px-2 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                title="Choose how to color the robot's path: Solid (blue), Speed (green→red), Motor Load (blue→red), Color Sensor (actual colors), Distance (red=close, green=far), Reflection (black→white), Force (light→dark)"
+              >
+                <option value="none">Solid</option>
+                <option value="speed">Speed</option>
+                <option value="motorLoad">Motor Load</option>
+                <option value="colorSensor">Color Sensor</option>
+                <option value="distanceSensor">Distance</option>
+                <option value="reflectionSensor">Reflection</option>
+                <option value="forceSensor">Force</option>
+              </select>
+            </div>
+
             <button
               onClick={() => setIsSettingPosition(!isSettingPosition)}
               className={`px-3 py-1 text-sm rounded transition-colors ${
@@ -949,6 +1229,7 @@ export function EnhancedCompetitionMat({
                 setScoringState({});
                 onResetTelemetry?.();
                 onScoreUpdate?.(0);
+                telemetryHistory.clearHistory();
               }}
               className="px-3 py-1 text-sm bg-orange-500 text-white rounded hover:bg-orange-600"
             >
@@ -969,6 +1250,9 @@ export function EnhancedCompetitionMat({
           onMouseLeave={() => {
             setMousePosition(null);
             setHoveredObject(null);
+            setHoveredPoint(null);
+            setHoveredPointIndex(-1);
+            setTooltipPosition(null);
           }}
           className={`block mx-auto rounded shadow-2xl ${
             isSettingPosition
@@ -991,6 +1275,103 @@ export function EnhancedCompetitionMat({
           </div>
         )}
       </div>
+
+      {/* Telemetry Tooltip */}
+      {hoveredPoint && tooltipPosition && (
+        <div
+          className="fixed z-50 bg-black bg-opacity-90 text-white text-xs rounded-lg p-3 pointer-events-none max-w-xs"
+          style={{
+            left: `${tooltipPosition.x + 10}px`,
+            top: `${tooltipPosition.y - 10}px`,
+            transform: "translateY(-100%)",
+          }}
+        >
+          <div className="space-y-1">
+            <div className="font-semibold text-yellow-300 border-b border-gray-600 pb-1 mb-2">
+              Telemetry Point
+            </div>
+            <div>
+              <span className="text-gray-300">Time:</span>
+              <span className="ml-2">
+                {new Date(hoveredPoint.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-300">Position:</span>
+              <span className="ml-2">
+                {Math.round(hoveredPoint.x)}, {Math.round(hoveredPoint.y)}mm
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-300">Heading:</span>
+              <span className="ml-2">{Math.round(hoveredPoint.heading)}°</span>
+            </div>
+            {hoveredPoint.data.drivebase && (
+              <div>
+                <span className="text-gray-300">Speed:</span>
+                <span className="ml-2">
+                  {Math.round(
+                    hoveredPoint.data.drivebase.state?.drive_speed || 0
+                  )}
+                  mm/s
+                </span>
+              </div>
+            )}
+            {hoveredPoint.data.sensors &&
+              Object.keys(hoveredPoint.data.sensors).length > 0 && (
+                <>
+                  <div className="border-t border-gray-600 pt-2 mt-2">
+                    <div className="text-gray-300 font-medium mb-1">
+                      Sensors:
+                    </div>
+                    {Object.entries(hoveredPoint.data.sensors).map(
+                      ([name, data]) => (
+                        <div key={name} className="ml-2">
+                          <span className="text-blue-300 font-medium">
+                            {name}:
+                          </span>
+                          {data.color && (
+                            <div className="ml-2 flex items-center gap-2">
+                              <span>Color:</span>
+                              <div
+                                className="w-4 h-4 rounded border border-white/30 inline-block"
+                                style={{
+                                  backgroundColor:
+                                    telemetryHistory.getColorForPoint(
+                                      hoveredPoint,
+                                      "colorSensor"
+                                    ),
+                                }}
+                              ></div>
+                              <span>
+                                {data.color.toString().replace("Color.", "")}
+                              </span>
+                            </div>
+                          )}
+                          {data.distance !== undefined && (
+                            <div className="ml-2">
+                              Distance: {Math.round(data.distance)}mm
+                            </div>
+                          )}
+                          {data.reflection !== undefined && (
+                            <div className="ml-2">
+                              Reflection: {Math.round(data.reflection)}%
+                            </div>
+                          )}
+                          {data.force !== undefined && (
+                            <div className="ml-2">
+                              Force: {data.force.toFixed(1)}N
+                            </div>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </>
+              )}
+          </div>
+        </div>
+      )}
 
       {/* Missions List */}
       {customMatConfig && showScoring && (

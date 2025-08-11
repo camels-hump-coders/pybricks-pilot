@@ -8,6 +8,7 @@ import {
   type TelemetryData,
 } from "../services/pybricksHub";
 import { mpyCrossCompiler } from "../services/mpyCrossCompiler";
+import { bluetoothDeviceStorage } from "../services/bluetoothDeviceStorage";
 
 export function usePybricksHub() {
   const [hubInfo, setHubInfo] = useState<HubInfo | null>(null);
@@ -41,6 +42,21 @@ export function usePybricksHub() {
 
     const handleDebugEvent = (event: CustomEvent<DebugEvent>) => {
       setDebugEvents((prev) => [...prev, event.detail].slice(-100)); // Keep last 100 events
+      
+      // Update connection status based on debug events
+      if (event.detail.type === 'connection') {
+        const isNowConnected = pybricksHubService.isConnected();
+        setIsConnected(isNowConnected);
+        
+        // Update hub info on successful connection/disconnection
+        if (event.detail.message.includes('connected successfully')) {
+          // Hub info will be set by the connect mutation
+        } else if (event.detail.message.includes('Disconnected') || event.detail.message.includes('disconnected')) {
+          setHubInfo(null);
+          setTelemetryData(null);
+          setProgramStatus({ running: false });
+        }
+      }
     };
 
     // Add event listeners
@@ -52,14 +68,37 @@ export function usePybricksHub() {
     mpyCrossCompiler.addEventListener('debugEvent', handleDebugEvent as EventListener);
 
     const checkConnection = () => {
-      setIsConnected(pybricksHubService.isConnected());
+      const connectionStatus = pybricksHubService.isConnected();
+      setIsConnected(connectionStatus);
     };
 
-    const interval = setInterval(checkConnection, 1000);
+    // Check connection more frequently for responsive UI
+    const interval = setInterval(checkConnection, 500);
+    
+    // Try auto-reconnect on initial load
+    const tryInitialAutoReconnect = async () => {
+      try {
+        const lastDevice = await bluetoothDeviceStorage.getLastDevice();
+        if (lastDevice) {
+          console.log('Found last connected device, attempting auto-reconnect:', lastDevice.name);
+          const hubInfo = await pybricksHubService.tryAutoReconnect();
+          if (hubInfo) {
+            setHubInfo(hubInfo);
+            setIsConnected(true);
+          }
+        }
+      } catch (error) {
+        console.log('Auto-reconnect on load failed:', error.message);
+      }
+    };
+    
+    // Try auto-reconnect after a short delay to let the page load
+    const autoReconnectTimeout = setTimeout(tryInitialAutoReconnect, 1000);
     
     // Cleanup function
     return () => {
       clearInterval(interval);
+      clearTimeout(autoReconnectTimeout);
       pybricksHubService.removeEventListener('telemetry', handleTelemetry as EventListener);
       pybricksHubService.removeEventListener('statusChange', handleStatusChange as EventListener);
       pybricksHubService.removeEventListener('debugEvent', handleDebugEvent as EventListener);
@@ -200,6 +239,42 @@ export function usePybricksHub() {
     [sendControlCommandMutation]
   );
 
+  const sendMotorCommand = useCallback(
+    async (motor: string, angle: number, speed: number) => {
+      const command = JSON.stringify({
+        action: "motor",
+        motor,
+        angle,
+        speed,
+      });
+      await sendControlCommandMutation.mutateAsync(command);
+    },
+    [sendControlCommandMutation]
+  );
+
+  const sendContinuousMotorCommand = useCallback(
+    async (motor: string, speed: number) => {
+      const command = JSON.stringify({
+        action: "motor",
+        motor,
+        speed,
+      });
+      await sendControlCommandMutation.mutateAsync(command);
+    },
+    [sendControlCommandMutation]
+  );
+
+  const sendMotorStopCommand = useCallback(
+    async (motor: string) => {
+      const command = JSON.stringify({
+        action: "stop",
+        motor,
+      });
+      await sendControlCommandMutation.mutateAsync(command);
+    },
+    [sendControlCommandMutation]
+  );
+
   // Reset telemetry function
   const resetTelemetry = useCallback(() => {
     // Reset telemetry data to null
@@ -258,6 +333,9 @@ export function usePybricksHub() {
     sendTurnCommand,
     sendStopCommand,
     sendContinuousDriveCommand,
+    sendMotorCommand,
+    sendContinuousMotorCommand,
+    sendMotorStopCommand,
     sendControlCommand: sendControlCommandMutation.mutateAsync,
     isSendingCommand: sendControlCommandMutation.isPending,
 

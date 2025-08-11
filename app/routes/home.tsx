@@ -3,7 +3,6 @@ import { ConnectionStatus } from "../components/ConnectionStatus";
 import { DebugPanel } from "../components/DebugPanel";
 import { NotificationContainer } from "../components/ErrorNotification";
 import { ProgramManager } from "../components/ProgramManager";
-import { RobotController } from "../components/RobotController";
 import { TelemetryDashboard } from "../components/TelemetryDashboard";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useFileSystem } from "../hooks/useFileSystem";
@@ -81,8 +80,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
-  const [isDebugPanelVisible, setIsDebugPanelVisible] = useState(true);
-  const [isControlsExpanded, setIsControlsExpanded] = useState(true);
+  const [isDebugPanelVisible, setIsDebugPanelVisible] = useState(false);
   const [isTelemetryExpanded, setIsTelemetryExpanded] = useState(true);
   const [isProgramsExpanded, setIsProgramsExpanded] = useState(false);
 
@@ -103,6 +101,9 @@ export default function Home() {
     sendTurnCommand,
     sendStopCommand,
     sendContinuousDriveCommand,
+    sendMotorCommand,
+    sendContinuousMotorCommand,
+    sendMotorStopCommand,
     sendControlCommand,
     isUploadingProgram,
     isRunningProgram,
@@ -292,7 +293,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Compact Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="w-full px-4">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-3">
               <div className="text-xl">🤖</div>
@@ -378,31 +379,12 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
-        {/* 1. Manual Controls Section (Priority 1) */}
-        <CollapsibleSection
-          title="Manual Controls"
-          icon="🎮"
-          priority={1}
-          isExpanded={isControlsExpanded}
-          onToggle={() => setIsControlsExpanded(!isControlsExpanded)}
-          disabled={!isConnected}
-        >
-          <RobotController
-            onDriveCommand={sendDriveCommand}
-            onTurnCommand={sendTurnCommand}
-            onStopCommand={sendStopCommand}
-            onContinuousDriveCommand={sendContinuousDriveCommand}
-            onCustomCommand={sendControlCommand}
-            isConnected={isConnected}
-          />
-        </CollapsibleSection>
-
-        {/* 2. Telemetry Section (Priority 2) */}
+      <main className="w-full px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
+        {/* 1. Telemetry Section (Priority 1) */}
         <CollapsibleSection
           title="Robot Telemetry"
           icon="📊"
-          priority={2}
+          priority={1}
           isExpanded={isTelemetryExpanded}
           onToggle={() => setIsTelemetryExpanded(!isTelemetryExpanded)}
           disabled={!isConnected}
@@ -414,14 +396,21 @@ export default function Home() {
             programOutputLog={programOutputLog}
             onClearProgramOutput={clearProgramOutputLog}
             onResetTelemetry={resetTelemetry}
+            onDriveCommand={sendDriveCommand}
+            onTurnCommand={sendTurnCommand}
+            onStopCommand={sendStopCommand}
+            onContinuousDriveCommand={sendContinuousDriveCommand}
+            onMotorCommand={sendMotorCommand}
+            onContinuousMotorCommand={sendContinuousMotorCommand}
+            onMotorStopCommand={sendMotorStopCommand}
           />
         </CollapsibleSection>
 
-        {/* 3. Program Management Section (Priority 3) */}
+        {/* 2. Program Management Section (Priority 2) */}
         <CollapsibleSection
           title="Program Management"
           icon="📝"
-          priority={3}
+          priority={2}
           isExpanded={isProgramsExpanded}
           onToggle={() => setIsProgramsExpanded(!isProgramsExpanded)}
           disabled={!isConnected}
@@ -479,7 +468,7 @@ export default function Home() {
 
       {/* Compact Footer */}
       <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-8">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+        <div className="w-full px-4 py-3">
           <div className="text-center text-xs text-gray-400 dark:text-gray-500">
             PyBricks Pilot - Built with React Router & Web APIs
           </div>

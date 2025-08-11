@@ -24,71 +24,25 @@ Usage:
 
 # MicroPython compatible imports
 import ujson as json
-import usys
 
-# Pybricks timing - use StopWatch since utime is not available
-try:
-    from pybricks.tools import StopWatch
+from pybricks.tools import StopWatch
 
-    _stopwatch = None
-
-    def get_time_ms():
-        global _stopwatch
-        if _stopwatch is None:
-            _stopwatch = StopWatch()
-        return _stopwatch.time()
-
-except ImportError:
-    # Fallback if StopWatch not available
-    _time_counter = 0
-
-    def get_time_ms():
-        global _time_counter
-        _time_counter += 1
-        return _time_counter * 100  # Simple counter fallback
-
-# Pybricks non-blocking input
-try:
-    from pybricks.tools import read_input_byte
-    _has_read_input_byte = True
-except ImportError:
-    _has_read_input_byte = False
-    def read_input_byte():
-        return None
-
-# Pybricks multitasking - for parallel execution
-try:
-    from pybricks.tools import run_task, multitask, wait
-    _has_multitask = True
-    print("[PILOT] Multitasking support available")
-except ImportError:
-    _has_multitask = False
-    print("[PILOT] Warning: Multitasking not available, using sequential approach")
-    def run_task(task):
-        return task
-    def multitask(*tasks):
-        # Fallback: run tasks sequentially
-        for task in tasks:
-            task()
-    try:
-        from pybricks.tools import wait
-    except ImportError:
-        def wait(ms):
-            pass
+_stopwatch = None
 
 
-# Import Color enum for LED commands
-try:
-    from pybricks.parameters import Color
-except ImportError:
-    # Fallback if Color not available
-    class Color:
-        RED = 1
-        GREEN = 2
-        BLUE = 3
-        YELLOW = 4
-        ORANGE = 5
-        WHITE = 6
+def get_time_ms():
+    global _stopwatch
+    if _stopwatch is None:
+        _stopwatch = StopWatch()
+    return _stopwatch.time()
+
+
+from pybricks.tools import read_input_byte
+
+_has_read_input_byte = True
+
+from pybricks.tools import run_task, multitask, wait
+from pybricks.parameters import Color
 
 
 # Global registry for hardware components
@@ -182,7 +136,7 @@ def _get_motor_telemetry():
     return motor_data
 
 
-def _get_sensor_telemetry():
+async def _get_sensor_telemetry():
     """Collect telemetry data from all registered sensors."""
     sensor_data = {}
 
@@ -190,35 +144,76 @@ def _get_sensor_telemetry():
         try:
             # Try common sensor methods
             if hasattr(sensor, "color"):
-                color_value = sensor.color()
-                sensor_data[name] = {
-                    "type": "color",
-                    "color": str(color_value),  # Convert Color enum to string
-                }
-                if hasattr(sensor, "reflection"):
-                    sensor_data[name]["reflection"] = float(sensor.reflection())
-                if hasattr(sensor, "ambient"):
-                    sensor_data[name]["ambient"] = float(sensor.ambient())
+                try:
+                    color_value = await sensor.color(True)
+                    sensor_data[name] = {
+                        "type": "color",
+                        "color": str(color_value),  # Convert Color enum to string
+                    }
+                    if hasattr(sensor, "reflection"):
+                        try:
+                            reflection_value = await sensor.reflection()
+                            if isinstance(reflection_value, (int, float)):
+                                sensor_data[name]["reflection"] = float(
+                                    reflection_value
+                                )
+                        except Exception as e:
+                            sensor_data[name]["reflection_error"] = str(e)
+                    if hasattr(sensor, "ambient"):
+                        try:
+                            ambient_value = await sensor.ambient()
+                            if isinstance(ambient_value, (int, float)):
+                                sensor_data[name]["ambient"] = float(ambient_value)
+                        except Exception as e:
+                            sensor_data[name]["ambient_error"] = str(e)
+                except Exception as e:
+                    sensor_data[name] = {
+                        "type": "color",
+                        "error": f"Color read error: {str(e)}",
+                    }
 
             elif hasattr(sensor, "distance"):
-                sensor_data[name] = {
-                    "type": "ultrasonic",
-                    "distance": float(sensor.distance()),
-                }
+                try:
+                    distance_value = None
+
+                    try:
+                        distance_value = await sensor.distance()
+                    except (TypeError, AttributeError):
+                        distance_value = f"All methods failed: {str(e2)}, {str(e3)}"
+
+                    # Ensure we have a numeric value, not a string or wait object
+                    if isinstance(distance_value, (int, float)):
+                        sensor_data[name] = {
+                            "type": "ultrasonic",
+                            "distance": float(distance_value),
+                        }
+                    else:
+                        sensor_data[name] = {
+                            "type": "ultrasonic",
+                            "error": f"Invalid distance value: {distance_value}",
+                            "raw_value": str(distance_value),
+                        }
+                except Exception as e:
+                    sensor_data[name] = {
+                        "type": "ultrasonic",
+                        "error": f"Distance read error: {str(e)}",
+                    }
 
             elif hasattr(sensor, "force"):
                 sensor_data[name] = {
                     "type": "force",
-                    "force": float(sensor.force()),
-                    "pressed": bool(sensor.pressed()),
+                    "force": float(await sensor.force()),
+                    "pressed": bool(await sensor.pressed()),
                 }
 
             elif hasattr(sensor, "angle"):
                 sensor_data[name] = {
                     "type": "rotation",
-                    "angle": float(sensor.angle()),
+                    "angle": float(await sensor.angle()),
                     "speed": (
-                        float(sensor.speed()) if hasattr(sensor, "speed") else None
+                        float(await sensor.speed())
+                        if hasattr(sensor, "speed")
+                        else None
                     ),
                 }
 
@@ -320,7 +315,7 @@ def _get_hub_telemetry():
     return hub_data
 
 
-def send_telemetry():
+async def send_telemetry():
     """Send telemetry data if enabled and interval has passed."""
     global _last_telemetry_time
 
@@ -346,7 +341,7 @@ def send_telemetry():
         telemetry["motors"] = motor_data
 
     # Add sensor data
-    sensor_data = _get_sensor_telemetry()
+    sensor_data = await _get_sensor_telemetry()
     if sensor_data:
         telemetry["sensors"] = sensor_data
 
@@ -378,12 +373,6 @@ def send_telemetry():
         print(json.dumps(telemetry))
     except Exception as e:
         print("[PILOT] Telemetry error:", e)
-
-
-def _check_stdin():
-    """Check if there's data available on stdin without blocking."""
-    # Simplified for MicroPython - always return False to avoid blocking
-    return False
 
 
 def _execute_command(command):
@@ -424,10 +413,17 @@ def _execute_command(command):
             _drivebase.turn(angle, wait=False)
             print("[PILOT] Executed turn:", angle, "° at", speed, "°/s (non-blocking)")
 
-        elif action == "stop" and _drivebase:
-            # Stop command: {"action": "stop"}
-            _drivebase.stop()
-            print("[PILOT] Executed stop")
+        elif action == "stop":
+            # Stop command: {"action": "stop"} or {"action": "stop", "motor": "motor_name"}
+            motor_name = command.get("motor")
+            if motor_name and motor_name in _motors:
+                # Stop specific motor
+                motor = _motors[motor_name]
+                motor.stop()
+                print("[PILOT] Stopped motor '" + motor_name + "'")
+            elif _drivebase:
+                _drivebase.stop()
+                print("[PILOT] Executed stop")
 
         elif action == "drive_continuous" and _drivebase:
             # Continuous drive command: {"action": "drive_continuous", "speed": 100, "turn_rate": 0}
@@ -537,37 +533,33 @@ def _execute_command(command):
 def process_commands():
     """Process any incoming commands from stdin using non-blocking read_input_byte."""
     global _command_buffer
-    
-    if not _has_read_input_byte:
-        # Fallback: skip if read_input_byte not available
-        return
-    
+
     try:
         # Read available bytes one at a time (non-blocking)
         bytes_read = 0
         max_bytes_per_call = 50  # Limit bytes read per call to avoid long blocking
-        
+
         while bytes_read < max_bytes_per_call:
             try:
                 byte = read_input_byte()
                 if byte is None:
                     # No more data available
                     break
-                    
+
                 # Convert byte to character and add to buffer
                 char = chr(byte)
                 _command_buffer += char
                 bytes_read += 1
-                
+
                 # Check for complete command (newline terminated)
-                if char == '\n':
+                if char == "\n":
                     # Process complete commands in buffer
                     _process_buffered_commands()
-                    
+
             except Exception as e:
                 # Error reading byte, stop reading
                 break
-                
+
     except Exception as e:
         print("[PILOT] Command processing error:", e)
 
@@ -575,20 +567,20 @@ def process_commands():
 def _process_buffered_commands():
     """Process all complete commands in the buffer."""
     global _command_buffer
-    
+
     try:
         # Split buffer by newlines to get complete commands
-        lines = _command_buffer.split('\n')
-        
+        lines = _command_buffer.split("\n")
+
         # Keep the last incomplete line in the buffer
         _command_buffer = lines[-1] if lines else ""
-        
+
         # Process each complete command (all but the last line)
         for i in range(len(lines) - 1):
             command_line = lines[i].strip()
             if command_line:
                 _process_command_line(command_line)
-                
+
     except Exception as e:
         print("[PILOT] Buffer processing error:", e)
 
@@ -597,7 +589,7 @@ def process_commands_blocking():
     """Process commands with blocking stdin read (use when stdin input is expected)."""
     try:
         import usys
-        
+
         # This version can block - use only when expecting input
         try:
             line = usys.stdin.readline()
@@ -605,7 +597,7 @@ def process_commands_blocking():
                 _process_command_line(line.strip())
         except:
             pass
-            
+
     except Exception as e:
         print("[PILOT] Blocking command processing error:", e)
 
@@ -634,38 +626,30 @@ def _process_command_line(command_text):
         print("[PILOT] Command parse/execute error:", e)
 
 
-
 async def background_telemetry_task():
     """
     Async task for continuous background telemetry and command processing.
     Runs in parallel with user program using multitask.
     """
     print("[PILOT] Starting parallel telemetry task")
-    
-    if _has_read_input_byte:
-        print(
-            "[PILOT] Parallel telemetry active with non-blocking command processing - data every",
-            _telemetry_interval_ms,
-            "ms",
-        )
-    else:
-        print(
-            "[PILOT] Parallel telemetry active (read_input_byte not available) - data every",
-            _telemetry_interval_ms,
-            "ms",
-        )
+
+    print(
+        "[PILOT] Parallel telemetry active with non-blocking command processing - data every",
+        _telemetry_interval_ms,
+        "ms",
+    )
 
     # Send initial telemetry
-    send_telemetry()
+    await send_telemetry()
 
     try:
         while True:
             # Send telemetry data
-            send_telemetry()
-            
+            await send_telemetry()
+
             # Process any available commands (non-blocking with read_input_byte)
             process_commands()
-            
+
             # Wait for the configured interval (async)
             await wait(_telemetry_interval_ms)
 
@@ -673,48 +657,6 @@ async def background_telemetry_task():
         print("[PILOT] Parallel telemetry stopped")
     except Exception as e:
         print("[PILOT] Parallel telemetry error:", e)
-
-
-def start_background_telemetry():
-    """
-    Start background telemetry that runs continuously.
-    This creates a persistent telemetry loop that continues even after user program ends.
-    Fallback for when multitask is not available.
-    """
-    print("[PILOT] Starting background telemetry system (fallback mode)")
-
-    # Continuous telemetry loop that runs indefinitely
-    if _has_read_input_byte:
-        print(
-            "[PILOT] Background telemetry active with non-blocking command processing - data every",
-            _telemetry_interval_ms,
-            "ms",
-        )
-    else:
-        print(
-            "[PILOT] Background telemetry active (read_input_byte not available) - data every",
-            _telemetry_interval_ms,
-            "ms",
-        )
-
-    # Send initial telemetry
-    send_telemetry()
-
-    try:
-        while True:
-            # Send telemetry data
-            send_telemetry()
-            
-            # Process any available commands (non-blocking with read_input_byte)
-            process_commands()
-            
-            # Wait for the configured interval
-            wait(_telemetry_interval_ms)
-
-    except KeyboardInterrupt:
-        print("[PILOT] Background telemetry stopped")
-    except Exception as e:
-        print("[PILOT] Background telemetry error:", e)
 
 
 def start_parallel_instrumentation():
@@ -748,10 +690,6 @@ async def run_with_parallel_instrumentation(user_main_function):
 
         await run_with_parallel_instrumentation(my_program)
     """
-    if not _has_multitask:
-        print("[PILOT] Multitask not available, falling back to sequential execution")
-        return await run_with_instrumentation_fallback(user_main_function)
-
     print("[PILOT] Running program with parallel instrumentation")
 
     try:
@@ -767,10 +705,7 @@ async def run_with_parallel_instrumentation(user_main_function):
 
         # Run both tasks in parallel using multitask
         print("[PILOT] Starting parallel execution: user program + telemetry")
-        await multitask(
-            background_telemetry_task(),
-            user_task()
-        )
+        await multitask(background_telemetry_task(), user_task())
 
     except KeyboardInterrupt:
         print("[PILOT] Program interrupted")
@@ -785,48 +720,19 @@ def run_with_instrumentation(user_main_function):
     Run user's complete program with automatic instrumentation.
     Legacy function for backwards compatibility.
     """
-    if _has_multitask:
-        print("[PILOT] Using parallel execution mode")
-        # Convert sync function to async if needed
-        if hasattr(user_main_function, '__code__') and user_main_function.__code__.co_flags & 0x80:
-            # Function is already async
-            return run_task(run_with_parallel_instrumentation(user_main_function))
-        else:
-            # Convert sync function to async
-            async def async_wrapper():
-                user_main_function()
-            return run_task(run_with_parallel_instrumentation(async_wrapper))
+    # Convert sync function to async if needed
+    if (
+        hasattr(user_main_function, "__code__")
+        and user_main_function.__code__.co_flags & 0x80
+    ):
+        # Function is already async
+        return run_task(run_with_parallel_instrumentation(user_main_function))
     else:
-        return run_with_instrumentation_fallback(user_main_function)
+        # Convert sync function to async
+        async def async_wrapper():
+            user_main_function()
 
-
-def run_with_instrumentation_fallback(user_main_function):
-    """
-    Fallback instrumentation for when multitask is not available.
-    """
-    print("[PILOT] Running program with instrumentation (fallback mode)")
-
-    try:
-        # Start instrumentation
-        start_parallel_instrumentation()
-
-        # Send initial telemetry
-        send_telemetry()
-
-        # Run the user's complete program
-        user_main_function()
-
-        # Send final telemetry
-        send_telemetry()
-
-        print("[PILOT] User program completed")
-
-    except KeyboardInterrupt:
-        print("[PILOT] Program interrupted")
-    except Exception as e:
-        print("[PILOT] Program error:", e)
-    finally:
-        print("[PILOT] Instrumentation terminated")
+        return run_task(run_with_parallel_instrumentation(async_wrapper))
 
 
 # Convenience functions for quick setup

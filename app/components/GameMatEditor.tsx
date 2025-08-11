@@ -2,14 +2,14 @@ import { TarWriter } from "@gera2ld/tarjs";
 import { useEffect, useRef, useState } from "react";
 import type {
   GameMatConfig,
-  Point,
   Mission,
   MissionObjective,
+  Point,
 } from "../schemas/GameMatConfig";
 import { deSkewImage } from "../utils/perspectiveTransform";
 
-// Re-export types for backward compatibility  
-export type { GameMatConfig, Point, Mission, MissionObjective };
+// Re-export types for backward compatibility
+export type { GameMatConfig, Mission, MissionObjective, Point };
 
 interface GameMatEditorProps {
   onSave: (config: GameMatConfig) => void;
@@ -316,7 +316,7 @@ export function GameMatEditor({
     imgHeight: number
   ) => {
     missions.forEach((obj) => {
-      // Direct mapping since image is already normalized  
+      // Direct mapping since image is already normalized
       const canvasX = imgX + obj.position.x * imgWidth;
       const canvasY = imgY + obj.position.y * imgHeight;
       const canvasPos = { x: canvasX, y: canvasY };
@@ -344,26 +344,26 @@ export function GameMatEditor({
       }
 
       // Draw object marker
-      const radius = (isHovered || isSelected || isDragging) ? 12 : 10;
+      const radius = isHovered || isSelected || isDragging ? 12 : 10;
       ctx.fillStyle = isDragging
         ? "rgba(255, 165, 0, 0.9)"
         : isSelected
-        ? "rgba(255, 0, 0, 0.8)"
-        : isHovered
-        ? "rgba(100, 150, 255, 0.9)"
-        : "rgba(0, 100, 255, 0.8)";
+          ? "rgba(255, 0, 0, 0.8)"
+          : isHovered
+            ? "rgba(100, 150, 255, 0.9)"
+            : "rgba(0, 100, 255, 0.8)";
       ctx.beginPath();
       ctx.arc(canvasPos.x, canvasPos.y, radius, 0, 2 * Math.PI);
       ctx.fill();
 
       // Draw border
-      ctx.strokeStyle = isDragging 
-        ? "#ff8800" 
-        : isSelected 
-        ? "#cc0000" 
-        : isHovered
-        ? "#4080ff"
-        : "#0066cc";
+      ctx.strokeStyle = isDragging
+        ? "#ff8800"
+        : isSelected
+          ? "#cc0000"
+          : isHovered
+            ? "#4080ff"
+            : "#0066cc";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(canvasPos.x, canvasPos.y, radius, 0, 2 * Math.PI);
@@ -381,7 +381,6 @@ export function GameMatEditor({
       const text = `${obj.name} (${totalPoints}pts)`;
       ctx.strokeText(text, canvasPos.x + 12, canvasPos.y - 5);
       ctx.fillText(text, canvasPos.x + 12, canvasPos.y - 5);
-      
     });
   };
 
@@ -433,23 +432,32 @@ export function GameMatEditor({
     img.src = originalImageData;
   };
 
-  const getObjectAtPosition = (x: number, y: number, imgX: number, imgY: number, imgWidth: number, imgHeight: number): string | null => {
+  const getObjectAtPosition = (
+    x: number,
+    y: number,
+    imgX: number,
+    imgY: number,
+    imgWidth: number,
+    imgHeight: number
+  ): string | null => {
     const clickRadius = 15; // pixels
-    
+
     for (const obj of missions) {
       const objX = imgX + obj.position.x * imgWidth;
       const objY = imgY + obj.position.y * imgHeight;
       const distance = Math.sqrt(Math.pow(x - objX, 2) + Math.pow(y - objY, 2));
-      
+
       if (distance <= clickRadius) {
         return obj.id;
       }
     }
-    
+
     return null;
   };
 
-  const handleCanvasMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasMouseDown = (
+    event: React.MouseEvent<HTMLCanvasElement>
+  ) => {
     const canvas = canvasRef.current;
     if (!canvas || mode !== "objects") return;
 
@@ -463,21 +471,28 @@ export function GameMatEditor({
     const imgHeight = parseFloat(canvas.dataset.imgHeight || "0");
 
     // Check if clicking on an existing object
-    const clickedObjectId = getObjectAtPosition(x, y, imgX, imgY, imgWidth, imgHeight);
-    
+    const clickedObjectId = getObjectAtPosition(
+      x,
+      y,
+      imgX,
+      imgY,
+      imgWidth,
+      imgHeight
+    );
+
     if (clickedObjectId && !placingObject) {
       // Start dragging the object
       setDraggingObject(clickedObjectId);
       setSelectedObject(clickedObjectId);
-      
+
       // Calculate offset between mouse and object center
-      const obj = missions.find(o => o.id === clickedObjectId);
+      const obj = missions.find((o) => o.id === clickedObjectId);
       if (obj) {
         const objX = imgX + obj.position.x * imgWidth;
         const objY = imgY + obj.position.y * imgHeight;
         setDragOffset({ x: x - objX, y: y - objY });
       }
-      
+
       event.preventDefault();
       event.stopPropagation();
     }
@@ -546,8 +561,15 @@ export function GameMatEditor({
       }
     } else if (mode === "objects") {
       // Check if clicking on an existing object
-      const clickedObjectId = getObjectAtPosition(x, y, imgX, imgY, imgWidth, imgHeight);
-      
+      const clickedObjectId = getObjectAtPosition(
+        x,
+        y,
+        imgX,
+        imgY,
+        imgWidth,
+        imgHeight
+      );
+
       if (clickedObjectId) {
         // Select the clicked object
         setSelectedObject(clickedObjectId);
@@ -592,7 +614,6 @@ export function GameMatEditor({
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    
 
     setMousePos({ x, y });
     setShowMagnifier(mode === "corners" && currentCorner !== null);
@@ -605,7 +626,7 @@ export function GameMatEditor({
     // Handle object dragging
     if (draggingObject && mode === "objects") {
       setHasDragged(true);
-      
+
       // Calculate new position (accounting for drag offset)
       const newX = (x - dragOffset.x - imgX) / imgWidth;
       const newY = (y - dragOffset.y - imgY) / imgHeight;
@@ -615,7 +636,7 @@ export function GameMatEditor({
       const clampedY = Math.max(0, Math.min(1, newY));
 
       // Update the object's position
-      setScoringObjects((prev) =>
+      setmissions((prev) =>
         prev.map((obj) =>
           obj.id === draggingObject
             ? { ...obj, position: { x: clampedX, y: clampedY } }
@@ -627,7 +648,14 @@ export function GameMatEditor({
       drawCanvas();
     } else if (mode === "objects" && !placingObject) {
       // Update hover state when not dragging
-      const hoveredObjectId = getObjectAtPosition(x, y, imgX, imgY, imgWidth, imgHeight);
+      const hoveredObjectId = getObjectAtPosition(
+        x,
+        y,
+        imgX,
+        imgY,
+        imgWidth,
+        imgHeight
+      );
       if (hoveredObjectId !== hoveredObject) {
         setHoveredObject(hoveredObjectId);
         drawCanvas(); // Redraw to show/hide hover effects
@@ -716,9 +744,7 @@ export function GameMatEditor({
   const deleteSelectedObject = () => {
     if (!selectedObject) return;
 
-    setMissions((prev) =>
-      prev.filter((obj) => obj.id !== selectedObject)
-    );
+    setMissions((prev) => prev.filter((obj) => obj.id !== selectedObject));
     setSelectedObject(null);
   };
 
@@ -783,8 +809,9 @@ export function GameMatEditor({
       version: "1.0",
       name: matName,
       displayName: matName,
-      imageUrl: normalizedImageData || originalImageData || initialConfig?.imageUrl,
-      scoringObjects,
+      imageUrl:
+        normalizedImageData || originalImageData || initialConfig?.imageUrl,
+      missions,
       dimensions: {
         widthMm: MAT_WIDTH_MM,
         heightMm: MAT_HEIGHT_MM,
@@ -819,7 +846,7 @@ export function GameMatEditor({
 
       // Convert image to binary data - handle both base64 data URLs and regular URLs
       let imageBytes: Uint8Array;
-      
+
       if (normalizedImageData.startsWith("data:")) {
         // Handle base64 data URLs (uploaded images)
         const base64Data = normalizedImageData.split(",")[1];
@@ -932,7 +959,7 @@ ${new Date().toISOString()}
       bottomLeft: { x: 0, y: 1 },
       bottomRight: { x: 1, y: 1 },
     });
-    setScoringObjects([]);
+    setmissions([]);
     setCurrentCorner(null);
     setSelectedObject(null);
     setPlacingObject(false);
@@ -1136,13 +1163,13 @@ ${new Date().toISOString()}
                       ? draggingObject
                         ? "cursor-move"
                         : hoveredObject
-                        ? "cursor-pointer"
-                        : "cursor-default"
+                          ? "cursor-pointer"
+                          : "cursor-default"
                       : mode === "objects" && placingObject
-                      ? "cursor-crosshair"
-                      : mode === "corners"
-                      ? "cursor-crosshair"
-                      : "cursor-default"
+                        ? "cursor-crosshair"
+                        : mode === "corners"
+                          ? "cursor-crosshair"
+                          : "cursor-default"
                   }`}
                 />
                 {drawMagnifier()}
@@ -1241,7 +1268,8 @@ ${new Date().toISOString()}
                   Scoring Objects
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Click "Add New Object" to place markers. Click and drag existing markers to move them.
+                  Click "Add New Object" to place markers. Click and drag
+                  existing markers to move them.
                 </p>
                 <button
                   onClick={() => setPlacingObject(true)}
@@ -1259,9 +1287,8 @@ ${new Date().toISOString()}
                       <input
                         type="text"
                         value={
-                          scoringObjects.find(
-                            (obj) => obj.id === selectedObject
-                          )?.name
+                          missions.find((obj) => obj.id === selectedObject)
+                            ?.name
                         }
                         onChange={(e) =>
                           updateSelectedObject({ name: e.target.value })
@@ -1271,9 +1298,8 @@ ${new Date().toISOString()}
                       />
                       <textarea
                         value={
-                          scoringObjects.find(
-                            (obj) => obj.id === selectedObject
-                          )?.description
+                          missions.find((obj) => obj.id === selectedObject)
+                            ?.description
                         }
                         onChange={(e) =>
                           updateSelectedObject({ description: e.target.value })
@@ -1290,19 +1316,29 @@ ${new Date().toISOString()}
                         </label>
                         <select
                           value={
-                            scoringObjects.find((obj) => obj.id === selectedObject)?.scoringMode || "multi-select"
+                            missions.find((obj) => obj.id === selectedObject)
+                              ?.scoringMode || "multi-select"
                           }
                           onChange={(e) =>
-                            updateSelectedObject({ scoringMode: e.target.value as "multi-select" | "single-select" })
+                            updateSelectedObject({
+                              scoringMode: e.target.value as
+                                | "multi-select"
+                                | "single-select",
+                            })
                           }
                           className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                         >
-                          <option value="multi-select">Multi-select (check any/all objectives)</option>
-                          <option value="single-select">Single-select (radio buttons - one objective only)</option>
+                          <option value="multi-select">
+                            Multi-select (check any/all objectives)
+                          </option>
+                          <option value="single-select">
+                            Single-select (radio buttons - one objective only)
+                          </option>
                         </select>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Multi-select allows multiple objectives to be completed simultaneously. 
-                          Single-select allows only one objective at a time (like Precision Tokens).
+                          Multi-select allows multiple objectives to be
+                          completed simultaneously. Single-select allows only
+                          one objective at a time (like Precision Tokens).
                         </p>
                       </div>
 
@@ -1321,7 +1357,7 @@ ${new Date().toISOString()}
                         </div>
 
                         <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {scoringObjects
+                          {missions
                             .find((obj) => obj.id === selectedObject)
                             ?.objectives.map((objective, index) => (
                               <div
@@ -1381,9 +1417,8 @@ ${new Date().toISOString()}
                                 </div>
                               </div>
                             ))}
-                          {!scoringObjects.find(
-                            (obj) => obj.id === selectedObject
-                          )?.objectives.length && (
+                          {!missions.find((obj) => obj.id === selectedObject)
+                            ?.objectives.length && (
                             <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
                               No objectives yet. Click "Add Objective" to get
                               started.
@@ -1401,7 +1436,7 @@ ${new Date().toISOString()}
                   )}
 
                 <div className="space-y-2">
-                  {scoringObjects.map((obj) => (
+                  {missions.map((obj) => (
                     <button
                       key={obj.id}
                       onClick={() => setSelectedObject(obj.id)}

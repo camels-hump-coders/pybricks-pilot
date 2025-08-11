@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "name": "submerged",
-  "displayName": "submerged",
+  "displayName": "FLL 2023-2024 Submerged",
   "missions": [
     {
       "id": "equipment-inspection",

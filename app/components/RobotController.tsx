@@ -296,8 +296,9 @@ export function RobotController({
                       </label>
                       <input
                         type="range"
-                        min="15"
+                        min="5"
                         max="180"
+                        step="5"
                         value={angle}
                         onChange={(e) => setAngle(Number(e.target.value))}
                         className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer slider"

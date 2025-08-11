@@ -91,7 +91,7 @@ export function generateInstrumentationCode(
 
   // Configure pilot settings
   if (options.enableTelemetry !== undefined) {
-    instrumentationCode += `set_telemetry_enabled(${options.enableTelemetry ? 'True' : 'False'})\n`;
+    instrumentationCode += `set_telemetry_enabled(${options.enableTelemetry ? "True" : "False"})\n`;
   }
 
   if (options.telemetryInterval) {
@@ -99,22 +99,23 @@ export function generateInstrumentationCode(
   }
 
   instrumentationCode += "\n# Auto-detected hardware registration:\n";
-  
+
   // Determine whether to use basic or advanced setup
   const hasMultipleMotors = analysis.motors.length > 2;
   const hasMultipleSensors = analysis.sensors.length > 1;
   const useAdvancedSetup = hasMultipleMotors || hasMultipleSensors;
-  
+
   if (useAdvancedSetup) {
-    instrumentationCode += "# Using advanced setup for multiple motors/sensors\n";
+    instrumentationCode +=
+      "# Using advanced setup for multiple motors/sensors\n";
     instrumentationCode += "try:\n";
-    
+
     // Build motors dictionary
     instrumentationCode += "    _motors_dict = {}\n";
     const motorNames = ["left", "right", "arm", "lift", "grab"];
     analysis.motors.forEach((motorVar, index) => {
       let motorName = motorNames[index] || `motor${index + 1}`;
-      
+
       // Try to infer name from variable name
       const varLower = motorVar.toLowerCase();
       if (varLower.includes("left")) motorName = "left";
@@ -122,29 +123,32 @@ export function generateInstrumentationCode(
       else if (varLower.includes("arm")) motorName = "arm";
       else if (varLower.includes("lift")) motorName = "lift";
       else if (varLower.includes("grab")) motorName = "grab";
-      
+
       instrumentationCode += `    try: _motors_dict["${motorName}"] = ${motorVar}\n`;
       instrumentationCode += `    except: pass\n`;
     });
-    
-    // Build sensors dictionary  
+
+    // Build sensors dictionary
     instrumentationCode += "    _sensors_dict = {}\n";
     const sensorNames = ["color", "distance", "force", "rotation", "gyro"];
     analysis.sensors.forEach((sensorVar, index) => {
       let sensorName = sensorNames[index] || `sensor${index + 1}`;
-      
+
       // Try to infer name from variable name
       const varLower = sensorVar.toLowerCase();
       if (varLower.includes("color")) sensorName = "color";
-      else if (varLower.includes("distance") || varLower.includes("ultrasonic")) sensorName = "distance";
-      else if (varLower.includes("force") || varLower.includes("touch")) sensorName = "force";
-      else if (varLower.includes("rotation") || varLower.includes("angle")) sensorName = "rotation";
+      else if (varLower.includes("distance") || varLower.includes("ultrasonic"))
+        sensorName = "distance";
+      else if (varLower.includes("force") || varLower.includes("touch"))
+        sensorName = "force";
+      else if (varLower.includes("rotation") || varLower.includes("angle"))
+        sensorName = "rotation";
       else if (varLower.includes("gyro")) sensorName = "gyro";
-      
+
       instrumentationCode += `    try: _sensors_dict["${sensorName}"] = ${sensorVar}\n`;
       instrumentationCode += `    except: pass\n`;
     });
-    
+
     // Find drivebase variable
     instrumentationCode += "    _drivebase = None\n";
     if (analysis.hasDrivebase) {
@@ -155,7 +159,7 @@ export function generateInstrumentationCode(
       instrumentationCode += "            try: _drivebase = drivebase\n";
       instrumentationCode += "            except: pass\n";
     }
-    
+
     // Call setup_advanced_robot
     if (analysis.hasHub) {
       instrumentationCode += "    setup_advanced_robot(\n";
@@ -165,25 +169,27 @@ export function generateInstrumentationCode(
       instrumentationCode += "        drivebase=_drivebase\n";
       instrumentationCode += "    )\n";
     }
-    
+
     instrumentationCode += "except Exception as e:\n";
     instrumentationCode += "    print('[PILOT] Advanced setup failed:', e)\n";
-    instrumentationCode += "    print('[PILOT] Falling back to individual registration')\n";
+    instrumentationCode +=
+      "    print('[PILOT] Falling back to individual registration')\n";
     // Fallback to individual registration
     instrumentationCode += "    try: register_hub(hub)\n";
     instrumentationCode += "    except: pass\n";
     instrumentationCode += "except:\n";
-    instrumentationCode += "    print('[PILOT] Hardware registration failed')\n";
-    
+    instrumentationCode +=
+      "    print('[PILOT] Hardware registration failed')\n";
   } else {
     // Use basic setup for simple robots (hub + 2 motors + drivebase)
-    instrumentationCode += "# Using basic setup for simple robot configuration\n";
+    instrumentationCode +=
+      "# Using basic setup for simple robot configuration\n";
     instrumentationCode += "try:\n";
-    
+
     // Find left/right motors
     let leftMotor = "None";
     let rightMotor = "None";
-    
+
     analysis.motors.forEach((motorVar) => {
       const varLower = motorVar.toLowerCase();
       if (varLower.includes("left")) {
@@ -196,11 +202,11 @@ export function generateInstrumentationCode(
         rightMotor = motorVar; // Second motor becomes right
       }
     });
-    
+
     // Find drivebase
     let drivebaseVar = "None";
     if (analysis.hasDrivebase) {
-      drivebaseVar = "robot";  // Try common names
+      drivebaseVar = "robot"; // Try common names
       instrumentationCode += "    _drivebase = None\n";
       instrumentationCode += "    try: _drivebase = robot\n";
       instrumentationCode += "    except:\n";
@@ -210,7 +216,7 @@ export function generateInstrumentationCode(
       instrumentationCode += "            except: _drivebase = None\n";
       drivebaseVar = "_drivebase";
     }
-    
+
     if (analysis.hasHub && leftMotor !== "None" && rightMotor !== "None") {
       instrumentationCode += `    setup_basic_robot(\n`;
       instrumentationCode += `        hub=hub,\n`;
@@ -218,32 +224,40 @@ export function generateInstrumentationCode(
       instrumentationCode += `        right_motor=${rightMotor},\n`;
       instrumentationCode += `        drivebase=${drivebaseVar}\n`;
       instrumentationCode += `    )\n`;
-      
+
       // Register any additional sensors
       analysis.sensors.forEach((sensorVar, index) => {
         const sensorNames = ["color", "distance", "force", "rotation", "gyro"];
         let sensorName = sensorNames[index] || `sensor${index + 1}`;
-        
+
         const varLower = sensorVar.toLowerCase();
         if (varLower.includes("color")) sensorName = "color";
-        else if (varLower.includes("distance") || varLower.includes("ultrasonic")) sensorName = "distance";
-        else if (varLower.includes("force") || varLower.includes("touch")) sensorName = "force";
-        else if (varLower.includes("rotation") || varLower.includes("angle")) sensorName = "rotation";
+        else if (
+          varLower.includes("distance") ||
+          varLower.includes("ultrasonic")
+        )
+          sensorName = "distance";
+        else if (varLower.includes("force") || varLower.includes("touch"))
+          sensorName = "force";
+        else if (varLower.includes("rotation") || varLower.includes("angle"))
+          sensorName = "rotation";
         else if (varLower.includes("gyro")) sensorName = "gyro";
-        
+
         instrumentationCode += `    try: register_sensor("${sensorName}", ${sensorVar})\n`;
         instrumentationCode += `    except: pass\n`;
       });
     }
-    
+
     instrumentationCode += "except Exception as e:\n";
     instrumentationCode += "    print('[PILOT] Basic setup failed:', e)\n";
-    instrumentationCode += "    print('[PILOT] Falling back to individual registration')\n";
-    // Fallback to individual registration  
+    instrumentationCode +=
+      "    print('[PILOT] Falling back to individual registration')\n";
+    // Fallback to individual registration
     instrumentationCode += "    try: register_hub(hub)\n";
     instrumentationCode += "    except: pass\n";
     instrumentationCode += "except:\n";
-    instrumentationCode += "    print('[PILOT] Hardware registration failed')\n";
+    instrumentationCode +=
+      "    print('[PILOT] Hardware registration failed')\n";
   }
 
   instrumentationCode += "\n# === End Auto-Instrumentation ===\n\n";
@@ -259,18 +273,18 @@ export function addSmartTelemetry(
   options: InstrumentationOptions = {}
 ): string {
   let instrumentedCode = code;
-  
+
   // Add telemetry calls after wait() statements - this is safe and preserves indentation
   const waitPattern = /(wait\s*\([^)]+\))/g;
   instrumentedCode = instrumentedCode.replace(waitPattern, (match) => {
-    return match + '; auto_send_telemetry()';
+    return match + "; auto_send_telemetry()";
   });
-  
+
   // If no wait() calls found, add periodic telemetry at the end of the program
-  if (!instrumentedCode.includes('auto_send_telemetry')) {
-    instrumentedCode += '\n\n# Send final telemetry\nauto_send_telemetry()\n';
+  if (!instrumentedCode.includes("auto_send_telemetry")) {
+    instrumentedCode += "\n\n# Send final telemetry\nauto_send_telemetry()\n";
   }
-  
+
   return instrumentedCode;
 }
 
@@ -284,34 +298,38 @@ export function wrapWithInstrumentation(
   // Check if the user code already has a main() function (sync or async)
   const hasMainFunction = /(async\s+)?def\s+main\s*\(/.test(code);
   const isMainAsync = /async\s+def\s+main\s*\(/.test(code);
-  
+
   let wrappedCode = "# PybricksPilot Standard Contract Wrapper\n";
   wrappedCode += "# User hardware initialization happens at module level\n";
   wrappedCode += "# User main() function runs in parallel with telemetry\n\n";
-  
+
   if (hasMainFunction) {
     // User already follows the contract - just add the user code as-is
     wrappedCode += "# User code (already has main() function)\n";
-    
+
     // Convert main() to async_main() without using inspect module
     // Parse user code to extract main function content
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     let setupLines: string[] = [];
     let mainFunctionLines: string[] = [];
     let inMainFunction = false;
     let mainIndentLevel = 0;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
-      
+
       // Detect main function start (sync or async)
-      if ((trimmedLine.startsWith('def main(') || trimmedLine.startsWith('async def main(')) && trimmedLine.includes(':')) {
+      if (
+        (trimmedLine.startsWith("def main(") ||
+          trimmedLine.startsWith("async def main(")) &&
+        trimmedLine.includes(":")
+      ) {
         inMainFunction = true;
         mainIndentLevel = line.length - line.trimStart().length; // Get indentation level
         continue; // Skip the def main(): line
       }
-      
+
       // If we're in main function
       if (inMainFunction) {
         // Check if this line ends the function (unindented non-empty line)
@@ -326,7 +344,7 @@ export function wrapWithInstrumentation(
             const unindentedLine = line.substring(mainIndentLevel + 4); // Remove main function indentation
             mainFunctionLines.push(unindentedLine);
           } else {
-            mainFunctionLines.push(''); // Keep empty lines
+            mainFunctionLines.push(""); // Keep empty lines
           }
         }
       } else {
@@ -334,58 +352,62 @@ export function wrapWithInstrumentation(
         setupLines.push(line);
       }
     }
-    
+
     // Replace user code with just the setup portion
-    wrappedCode += setupLines.join('\n');
+    wrappedCode += setupLines.join("\n");
     wrappedCode += "\n\n";
-    
+
     // Create async version of main function
     wrappedCode += "# Async version of main() for parallel execution\n";
     wrappedCode += "async def async_main():\n";
-    wrappedCode += `    \"\"\"User's main program ${isMainAsync ? '(already async)' : 'converted to async'}\"\"\"\n`;
-    
+    wrappedCode += `    \"\"\"User's main program ${isMainAsync ? "(already async)" : "converted to async"}\"\"\"\n`;
+
     // Add main function content with proper indentation and await conversion
     const asyncMainCode = mainFunctionLines
-      .map(line => {
-        if (line.trim() === '') return line;
-        const indented = '    ' + line; // Add async function indentation
+      .map((line) => {
+        if (line.trim() === "") return line;
+        const indented = "    " + line; // Add async function indentation
         if (isMainAsync) {
           // Function is already async, don't modify wait() calls
           return indented;
         } else {
           // Convert wait() to await wait() for sync functions
-          return indented.replace(/(^|\s)wait\s*\(/g, '$1await wait(');
+          // Be very specific: only convert standalone wait() calls, not method calls or parameters
+          return indented.replace(
+            /(\s|^)wait\s*\(\s*(\d+)/g,
+            "$1await wait($2"
+          );
         }
       })
-      .join('\n');
-    
+      .join("\n");
+
     wrappedCode += asyncMainCode;
     wrappedCode += "\n\n";
-    
   } else {
     // User doesn't have main() function - wrap their code in one
     // Separate imports/hardware setup from main program logic
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     const setupLines: string[] = [];
     const mainLines: string[] = [];
-    
+
     let inMainSection = false;
-    
+
     for (const line of lines) {
       const trimmedLine = line.trim();
-      
+
       // Detect start of main program logic
-      if (!inMainSection && (
-          trimmedLine.startsWith('print(') ||
-          trimmedLine.startsWith('for ') ||
-          trimmedLine.startsWith('while ') ||
-          (trimmedLine.includes('drive') && trimmedLine.includes('(')) ||
-          (trimmedLine.includes('turn') && trimmedLine.includes('(')) ||
-          (trimmedLine.includes('light.') && trimmedLine.includes('('))
-        )) {
+      if (
+        !inMainSection &&
+        (trimmedLine.startsWith("print(") ||
+          trimmedLine.startsWith("for ") ||
+          trimmedLine.startsWith("while ") ||
+          (trimmedLine.includes("drive") && trimmedLine.includes("(")) ||
+          (trimmedLine.includes("turn") && trimmedLine.includes("(")) ||
+          (trimmedLine.includes("light.") && trimmedLine.includes("(")))
+      ) {
         inMainSection = true;
       }
-      
+
       // Hardware/imports go in setup
       if (!inMainSection) {
         setupLines.push(line);
@@ -393,62 +415,56 @@ export function wrapWithInstrumentation(
         mainLines.push(line);
       }
     }
-    
+
     // Add user setup code
     wrappedCode += "# User hardware setup (module level)\n";
-    wrappedCode += setupLines.join('\n');
+    wrappedCode += setupLines.join("\n");
     wrappedCode += "\n\n";
-    
+
     // Create main() function from their program logic
     wrappedCode += "# User main() function (auto-generated)\n";
     wrappedCode += "def main():\n";
-    wrappedCode += "    \"\"\"User's main program logic\"\"\"\n";
-    
+    wrappedCode += '    """User\'s main program logic"""\n';
+
     // Add main program logic, properly indented
     const indentedMainCode = mainLines
-      .map(line => line.trim() === '' ? line : '    ' + line)
-      .join('\n');
-    
+      .map((line) => (line.trim() === "" ? line : "    " + line))
+      .join("\n");
+
     wrappedCode += indentedMainCode;
     wrappedCode += "\n\n";
-    
+
     // Create async version for parallel execution
     wrappedCode += "# Async version of main() for parallel execution\n";
     wrappedCode += "async def async_main():\n";
-    wrappedCode += "    \"\"\"Async version of user's main program\"\"\"\n";
-    
+    wrappedCode += '    """Async version of user\'s main program"""\n';
+
     // Convert wait() calls and indent for async function
     const asyncMainCode = mainLines
-      .map(line => {
-        if (line.trim() === '') return line;
-        const indented = '    ' + line;
+      .map((line) => {
+        if (line.trim() === "") return line;
+        const indented = "    " + line;
         // Convert wait() to await wait()
-        return indented.replace(/(\s*)wait\s*\(/g, '$1await wait(');
+        // Be very specific: only convert standalone wait() calls, not method calls or parameters
+        return indented.replace(/(\s|^)wait\s*\(\s*(\d+)/g, "$1await wait($2");
       })
-      .join('\n');
-    
+      .join("\n");
+
     wrappedCode += asyncMainCode;
     wrappedCode += "\n\n";
   }
-  
+
   // Add the parallel execution logic
   wrappedCode += "# PybricksPilot Parallel Execution\n";
   wrappedCode += "print('[PILOT] Initializing with standard contract...')\n";
   wrappedCode += "\n";
   wrappedCode += "try:\n";
-  wrappedCode += "    if _has_multitask:\n";
-  wrappedCode += "        print('[PILOT] Starting parallel execution: main() + telemetry')\n";
-  wrappedCode += "        run_task(run_with_parallel_instrumentation(async_main))\n";
-  wrappedCode += "    else:\n";
-  wrappedCode += "        print('[PILOT] Using fallback mode: main() then telemetry')\n";
-  wrappedCode += "        def sync_main():\n";
-  wrappedCode += "            main()  # Call the synchronous version\n";
-  wrappedCode += "        run_with_instrumentation_fallback(sync_main)\n";
+  ("    print('[PILOT] Starting parallel execution: main() + telemetry')\n");
+  wrappedCode +=
+    "    run_task(run_with_parallel_instrumentation(async_main))\n";
   wrappedCode += "except Exception as e:\n";
   wrappedCode += "    print('[PILOT] Contract execution error:', e)\n";
-  wrappedCode += "    print('[PILOT] Falling back to basic telemetry')\n";
-  wrappedCode += "    start_background_telemetry()\n";
-  
+
   return wrappedCode;
 }
 

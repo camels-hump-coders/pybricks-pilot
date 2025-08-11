@@ -10,6 +10,8 @@ import { IMUDisplay } from "./IMUDisplay";
 import { MotorStatus } from "./MotorStatus";
 import { ProgramOutputLog } from "./ProgramOutputLog";
 import { SensorDisplay } from "./SensorDisplay";
+import { CompactRobotController } from "./CompactRobotController";
+import { telemetryHistory } from "../services/telemetryHistory";
 
 // Load built-in maps using the same logic as MapSelector
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
@@ -84,6 +86,15 @@ interface TelemetryDashboardProps {
   onClearProgramOutput: () => void;
   onResetTelemetry?: () => void;
   className?: string;
+  // Robot control props
+  onDriveCommand?: (direction: number, speed: number) => Promise<void>;
+  onTurnCommand?: (angle: number, speed: number) => Promise<void>;
+  onStopCommand?: () => Promise<void>;
+  onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
+  onCustomCommand?: (command: string) => Promise<void>;
+  onMotorCommand?: (motor: string, angle: number, speed: number) => Promise<void>;
+  onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
+  onMotorStopCommand?: (motor: string) => Promise<void>;
 }
 
 export function TelemetryDashboard({
@@ -94,6 +105,14 @@ export function TelemetryDashboard({
   onClearProgramOutput,
   onResetTelemetry,
   className = "",
+  onDriveCommand,
+  onTurnCommand,
+  onStopCommand,
+  onContinuousDriveCommand,
+  onCustomCommand,
+  onMotorCommand,
+  onContinuousMotorCommand,
+  onMotorStopCommand,
 }: TelemetryDashboardProps) {
   const [showMatEditor, setShowMatEditor] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
@@ -102,7 +121,6 @@ export function TelemetryDashboard({
   const [showScoring, setShowScoring] = useState(false);
   const [currentScore, setCurrentScore] = useState(0);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-
   // Load saved config from IndexedDB on mount, or use default
   useEffect(() => {
     const loadConfig = async () => {
@@ -187,6 +205,23 @@ export function TelemetryDashboard({
     setShowScoring(true);
     setCurrentScore(0);
   };
+
+  // Automatic recording based on program status
+  useEffect(() => {
+    if (!programStatus) return;
+    
+    if (programStatus.running) {
+      telemetryHistory.onProgramStart();
+    } else {
+      telemetryHistory.onProgramStop();
+    }
+  }, [programStatus?.running]);
+
+  // Handle telemetry reset (mat reset)
+  const handleTelemetryReset = () => {
+    telemetryHistory.onMatReset();
+    onResetTelemetry?.();
+  };
   if (!isConnected) {
     return (
       <div className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center ${className}`}>
@@ -213,128 +248,158 @@ export function TelemetryDashboard({
         />
       )}
 
-      {/* Map Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Map Selector */}
-        {showMapSelector ? (
-          <div className="lg:col-span-1">
-            <MapSelector
-              currentMap={customMatConfig}
-              onMapChange={handleMapChange}
-            />
+      {/* Map Selector Modal */}
+      {showMapSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden mx-4">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                Select Game Mat
+              </h2>
+              <button
+                onClick={() => setShowMapSelector(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <span className="text-xl text-gray-500">×</span>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(90vh-4rem)]">
+              <MapSelector
+                currentMap={customMatConfig}
+                onMapChange={(config) => {
+                  handleMapChange(config);
+                  setShowMapSelector(false); // Close modal after selection
+                }}
+                className="border-0 shadow-none rounded-none"
+              />
+            </div>
           </div>
-        ) : (
-          <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-            <div className="p-4">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                Game Mat
+        </div>
+      )}
+
+      {/* Map and Controls Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Competition Mat - Takes up 3/4 of the width */}
+        <div className="lg:col-span-3">
+          <EnhancedCompetitionMat
+            telemetryData={telemetryData || null}
+            customMatConfig={customMatConfig}
+            showScoring={showScoring}
+            onScoreUpdate={setCurrentScore}
+            isConnected={isConnected}
+            onResetTelemetry={handleTelemetryReset}
+          />
+        </div>
+
+        {/* Right Sidebar - Robot Controls and Mat Controls */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Robot Controls */}
+          <CompactRobotController
+            onDriveCommand={onDriveCommand}
+            onTurnCommand={onTurnCommand}
+            onStopCommand={onStopCommand}
+            onContinuousDriveCommand={onContinuousDriveCommand}
+            onMotorCommand={onMotorCommand}
+            onContinuousMotorCommand={onContinuousMotorCommand}
+            onMotorStopCommand={onMotorStopCommand}
+            telemetryData={telemetryData}
+            isConnected={isConnected}
+          />
+
+          {/* Mat Controls Panel */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                Mat Controls
               </h3>
+            </div>
+            <div className="p-3 space-y-3">
+              {/* Current Mat Info */}
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Current: <span className="font-medium text-gray-800 dark:text-gray-200">
+                  {customMatConfig ? customMatConfig.name : "Loading..."}
+                </span>
+              </div>
+
+              {/* Map Selection/Creation Buttons */}
               <div className="space-y-2">
                 <button
                   onClick={() => setShowMapSelector(true)}
                   disabled={isLoadingConfig}
                   className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isLoadingConfig ? "Loading..." : "🗺️ Select Map"}
+                  🗺️ Select Map
                 </button>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      setMatEditorMode('edit');
-                      setShowMatEditor(true);
-                    }}
-                    disabled={isLoadingConfig}
-                    className="px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoadingConfig ? "Loading..." : "✏️ Edit Mat"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMatEditorMode('new');
-                      setShowMatEditor(true);
-                    }}
-                    disabled={isLoadingConfig}
-                    className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoadingConfig ? "Loading..." : "➕ New Mat"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Mat Controls */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="p-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                {showMapSelector && (
-                  <button
-                    onClick={() => setShowMapSelector(false)}
-                    className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm"
-                  >
-                    ← Back
-                  </button>
-                )}
-                {customMatConfig && (
-                  <>
-                    <button
-                      onClick={() => setShowScoring(!showScoring)}
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
-                        showScoring
-                          ? "bg-green-500 text-white hover:bg-green-600"
-                          : "bg-gray-500 text-white hover:bg-gray-600"
-                      }`}
-                    >
-                      {showScoring ? "🎯 Scoring On" : "🎯 Scoring Off"}
-                    </button>
-                    <button
-                      onClick={handleClearCustomMat}
-                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                    >
-                      ❌ Clear Mat
-                    </button>
-                  </>
-                )}
-              </div>
-              {showScoring && (
-                <div className="text-lg font-bold text-gray-800 dark:text-gray-200">
-                  Score: {currentScore}
-                </div>
-              )}
-            </div>
-            <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Current: <span className="font-medium">
-                {customMatConfig ? customMatConfig.name : "Loading..."}
-              </span>
-              {customMatConfig?.rulebookUrl && (
-                <a
-                  href={customMatConfig.rulebookUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-3 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline text-sm"
-                  title="Open rulebook in new tab"
+                <button
+                  onClick={() => {
+                    setMatEditorMode('edit');
+                    setShowMatEditor(true);
+                  }}
+                  disabled={!customMatConfig || isLoadingConfig}
+                  className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  📖 Rulebook
-                </a>
+                  ✏️ Edit Mat
+                </button>
+                <button
+                  onClick={() => {
+                    setMatEditorMode('new');
+                    setShowMatEditor(true);
+                  }}
+                  className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+                >
+                  ➕ New Mat
+                </button>
+              </div>
+
+              {/* Scoring and Mat Actions */}
+              {customMatConfig && (
+                <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                  <button
+                    onClick={() => setShowScoring(!showScoring)}
+                    className={`w-full px-3 py-2 rounded text-sm transition-colors ${
+                      showScoring
+                        ? "bg-green-500 text-white hover:bg-green-600"
+                        : "bg-gray-500 text-white hover:bg-gray-600"
+                    }`}
+                  >
+                    {showScoring ? "🎯 Scoring On" : "🎯 Scoring Off"}
+                  </button>
+                  
+                  {showScoring && (
+                    <div className="text-center py-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      <div className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                        Score: {currentScore}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleClearCustomMat}
+                    className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                  >
+                    ❌ Clear Mat
+                  </button>
+
+                  {customMatConfig.rulebookUrl && (
+                    <a
+                      href={customMatConfig.rulebookUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm text-center"
+                      title="Open rulebook in new tab"
+                    >
+                      📖 Rulebook
+                    </a>
+                  )}
+                </div>
               )}
+
             </div>
           </div>
         </div>
       </div>
 
-      {/* Competition Mat - Full Width */}
-      <EnhancedCompetitionMat
-        telemetryData={telemetryData || null}
-        customMatConfig={customMatConfig}
-        showScoring={showScoring}
-        onScoreUpdate={setCurrentScore}
-        isConnected={isConnected}
-        onResetTelemetry={onResetTelemetry}
-      />
-
-      {/* Main telemetry grid */}
+      {/* Telemetry Data Grid Below */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Motors and sensors column */}
         <div className="space-y-6">
@@ -352,16 +417,6 @@ export function TelemetryDashboard({
             outputLog={programOutputLog}
             onClear={onClearProgramOutput}
           />
-
-          {/* Additional data display */}
-          {false && telemetryData && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Raw Data</h4>
-              <pre className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-3 rounded overflow-x-auto">
-                {JSON.stringify(telemetryData, null, 2)}
-              </pre>
-            </div>
-          )}
         </div>
       </div>
 
