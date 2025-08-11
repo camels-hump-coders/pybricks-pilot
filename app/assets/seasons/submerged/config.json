@@ -1,0 +1,423 @@
+{
+  "version": "1.0",
+  "name": "submerged",
+  "displayName": "submerged",
+  "missions": [
+    {
+      "id": "equipment-inspection",
+      "name": "Equipment Inspection",
+      "position": {
+        "x": 0.0225,
+        "y": 0.944032541776605
+      },
+      "objectives": [
+        {
+          "id": "fit-single-launch-area",
+          "description": "All equipment fits in one launch area under height limit",
+          "points": 20,
+          "type": "primary"
+        }
+      ],
+      "description": "Robot and all equipment must fit completely in one launch area under 12 in. (305 mm) height limit"
+    },
+    {
+      "id": "coral-nursery",
+      "name": "01: Coral Nursery",
+      "position": {
+        "x": 0.04125,
+        "y": 0.4547229551451187
+      },
+      "objectives": [
+        {
+          "id": "coral-tree-hanging",
+          "description": "Coral tree is hanging on the coral tree support",
+          "points": 20,
+          "type": "primary"
+        },
+        {
+          "id": "coral-tree-in-holder",
+          "description": "Bonus: Bottom of coral tree is in its holder",
+          "points": 10,
+          "type": "bonus"
+        },
+        {
+          "id": "coral-buds-flipped",
+          "description": "Coral buds are flipped up",
+          "points": 20,
+          "type": "primary"
+        }
+      ],
+      "description": "Secure new coral structures to grow in the nursery until they are strong enough for transport to the reef"
+    },
+    {
+      "id": "shark",
+      "name": "02: Shark",
+      "position": {
+        "x": 0.0475,
+        "y": 0.07216798592788039
+      },
+      "objectives": [
+        {
+          "id": "shark-not-touching-cave",
+          "description": "Shark is no longer touching the cave",
+          "points": 20,
+          "type": "primary"
+        },
+        {
+          "id": "shark-in-habitat",
+          "description": "Shark is touching the mat and at least partly in the shark habitat",
+          "points": 10,
+          "type": "primary"
+        }
+      ],
+      "description": "The shark was just tagged for research - release it back into its habitat"
+    },
+    {
+      "id": "coral-reef",
+      "name": "03: Coral Reef",
+      "position": {
+        "x": 0.255,
+        "y": 0.08197009674582222
+      },
+      "objectives": [
+        {
+          "id": "coral-reef-flipped",
+          "description": "Coral reef is flipped up, not touching the mat",
+          "points": 20,
+          "type": "primary"
+        },
+        {
+          "id": "reef-segments-standing",
+          "description": "Reef segment is standing upright, outside of home, and touching the mat",
+          "points": 5,
+          "type": "primary"
+        }
+      ],
+      "description": "Carefully mount the new coral structure without damaging other nearby reef segments"
+    },
+    {
+      "id": "scuba-diver",
+      "name": "04: Scuba Diver",
+      "position": {
+        "x": 0.03,
+        "y": 0.25629727352682496
+      },
+      "objectives": [
+        {
+          "id": "diver-not-touching-nursery",
+          "description": "Scuba diver is no longer touching the coral nursery",
+          "points": 20,
+          "type": "primary"
+        },
+        {
+          "id": "diver-hanging-on-reef",
+          "description": "Scuba diver is hanging on the coral reef support",
+          "points": 20,
+          "type": "primary"
+        }
+      ],
+      "description": "Help the scuba diver transport new coral from the nursery to the reef"
+    },
+    {
+      "id": "angler-fish",
+      "name": "05: Angler Fish",
+      "position": {
+        "x": 0.4725,
+        "y": 0.426688654353562
+      },
+      "objectives": [
+        {
+          "id": "angler-fish-latched",
+          "description": "Angler fish is latched within the shipwreck",
+          "points": 30,
+          "type": "primary"
+        }
+      ],
+      "description": "Guide the angler fish back to its unexpected home within the shipwreck"
+    },
+    {
+      "id": "raise-the-mast",
+      "name": "06: Raise the Mast",
+      "position": {
+        "x": 0.29,
+        "y": 0.4388522427440634
+      },
+      "objectives": [
+        {
+          "id": "mast-completely-raised",
+          "description": "Shipwreck's mast is completely raised",
+          "points": 30,
+          "type": "primary"
+        }
+      ],
+      "description": "Raise the mast to restore the sunken shipwreck and explore what is inside"
+    },
+    {
+      "id": "krakens-treasure",
+      "name": "07: Kraken's Treasure",
+      "position": {
+        "x": 0.325,
+        "y": 0.48468777484608616
+      },
+      "objectives": [
+        {
+          "id": "treasure-chest-outside-nest",
+          "description": "Treasure chest is completely outside the kraken's nest",
+          "points": 20,
+          "type": "primary"
+        }
+      ],
+      "description": "Retrieve the chest from the shipwreck to reveal the history and treasure it holds"
+    },
+    {
+      "id": "artificial-habitat",
+      "name": "08: Artificial Habitat",
+      "position": {
+        "x": 0.6,
+        "y": 0.8379639401934916
+      },
+      "objectives": [
+        {
+          "id": "habitat-segment-upright",
+          "description": "Artificial habitat stack segment is completely flat and upright",
+          "points": 10,
+          "type": "primary"
+        }
+      ],
+      "description": "Rearrange the artificial habitat stacks to create safe homes for the crabs and other sea creatures"
+    },
+    {
+      "id": "unexpected-encounter",
+      "name": "09: Unexpected Encounter",
+      "position": {
+        "x": 0.6225,
+        "y": 0.6349164467897978
+      },
+      "objectives": [
+        {
+          "id": "unknown-creature-released",
+          "description": "Unknown creature is released",
+          "points": 20,
+          "type": "primary"
+        },
+        {
+          "id": "creature-in-cold-seep",
+          "description": "Unknown creature is at least partly in the cold seep",
+          "points": 10,
+          "type": "primary"
+        }
+      ],
+      "description": "An unknown creature has attached itself to the AUV! Safely release it and deliver it to the cold seep"
+    },
+    {
+      "id": "send-submersible",
+      "name": "10: Send over the Submersible",
+      "position": {
+        "x": 0.53875,
+        "y": 0.03737906772207567
+      },
+      "objectives": [
+        {
+          "id": "yellow-flag-down",
+          "description": "Your team's yellow flag is down",
+          "points": 30,
+          "type": "primary"
+        },
+        {
+          "id": "submersible-closer-to-opposing",
+          "description": "Submersible is clearly closer to the opposing field",
+          "points": 10,
+          "type": "primary"
+        }
+      ],
+      "description": "Some waters are too difficult to reach with larger ships. Send the submersible to explore the opposing field's waters"
+    },
+    {
+      "id": "sonar-discovery",
+      "name": "11: Sonar Discovery",
+      "position": {
+        "x": 0.7275,
+        "y": 0.09751099384344755
+      },
+      "objectives": [
+        {
+          "id": "one-whale-revealed",
+          "description": "One whale is revealed",
+          "points": 20,
+          "type": "primary"
+        },
+        {
+          "id": "both-whales-revealed",
+          "description": "Bonus: Both whales are revealed",
+          "points": 10,
+          "type": "bonus"
+        }
+      ],
+      "description": "Use the ship's sonar technology to scan the surroundings for nearby objects or animals"
+    },
+    {
+      "id": "feed-the-whale",
+      "name": "12: Feed the Whale",
+      "position": {
+        "x": 0.94,
+        "y": 0.11901934916446788
+      },
+      "objectives": [
+        {
+          "id": "krill-in-whale-mouth",
+          "description": "Krill at least partly in the whale's mouth",
+          "points": 10,
+          "type": "primary"
+        }
+      ],
+      "description": "Krill are a whale's favorite food! Collect the krill and feed them to the hungry whale"
+    },
+    {
+      "id": "change-shipping-lanes",
+      "name": "13: Change Shipping Lanes",
+      "position": {
+        "x": 0.92875,
+        "y": 0.44042656112576956
+      },
+      "objectives": [
+        {
+          "id": "ship-in-new-lane",
+          "description": "Ship is in the new shipping lane, touching the mat",
+          "points": 20,
+          "type": "primary"
+        }
+      ],
+      "description": "Adjust the cargo ship's route to safely avoid whale migration routes by moving to another shipping lane"
+    },
+    {
+      "id": "sample-collection",
+      "name": "14: Sample Collection",
+      "position": {
+        "x": 0.95125,
+        "y": 0.27026385224274413
+      },
+      "objectives": [
+        {
+          "id": "water-sample-outside-area",
+          "description": "Water sample is completely outside the water sample area",
+          "points": 5,
+          "type": "primary"
+        },
+        {
+          "id": "seabed-sample-not-touching",
+          "description": "Seabed sample is no longer touching the seabed",
+          "points": 10,
+          "type": "primary"
+        },
+        {
+          "id": "plankton-sample-not-touching",
+          "description": "Plankton sample is no longer touching the kelp forest",
+          "points": 10,
+          "type": "primary"
+        },
+        {
+          "id": "trident-piece-not-touching",
+          "description": "Trident piece is no longer touching the shipwreck",
+          "points": 20,
+          "type": "primary"
+        },
+        {
+          "id": "both-trident-pieces",
+          "description": "Bonus: Both trident pieces are no longer touching the shipwreck",
+          "points": 10,
+          "type": "bonus"
+        }
+      ],
+      "description": "Collect samples and artifacts from around the mat so they can be analyzed by scientists in the lab"
+    },
+    {
+      "id": "research-vessel",
+      "name": "15: Research Vessel",
+      "position": {
+        "x": 0.29125,
+        "y": 0.9441600703605981
+      },
+      "objectives": [
+        {
+          "id": "samples-in-cargo",
+          "description": "Sample(s) at least partly in the research vessel's cargo area",
+          "points": 5,
+          "type": "primary"
+        },
+        {
+          "id": "trident-parts-in-cargo",
+          "description": "Trident part(s) at least partly in the research vessel's cargo area",
+          "points": 5,
+          "type": "primary"
+        },
+        {
+          "id": "treasure-chest-in-cargo",
+          "description": "Treasure chest at least partly in the research vessel's cargo area",
+          "points": 5,
+          "type": "primary"
+        },
+        {
+          "id": "port-latch-in-loop",
+          "description": "Port's latch is at least partly in the research vessel's loop",
+          "points": 20,
+          "type": "primary"
+        }
+      ],
+      "description": "Securely dock the ship that contains the samples and artifacts your team has collected"
+    },
+    {
+      "id": "precision-tokens",
+      "name": "Precision Tokens",
+      "scoringMode": "single-select",
+      "position": {
+        "x": 0.805,
+        "y": 0.9469788918205805
+      },
+      "objectives": [
+        {
+          "id": "six-tokens-remaining",
+          "description": "6 precision tokens remaining",
+          "points": 50,
+          "type": "primary"
+        },
+        {
+          "id": "five-tokens-remaining",
+          "description": "5 precision tokens remaining",
+          "points": 50,
+          "type": "primary"
+        },
+        {
+          "id": "four-tokens-remaining",
+          "description": "4 precision tokens remaining",
+          "points": 35,
+          "type": "primary"
+        },
+        {
+          "id": "three-tokens-remaining",
+          "description": "3 precision tokens remaining",
+          "points": 25,
+          "type": "primary"
+        },
+        {
+          "id": "two-tokens-remaining",
+          "description": "2 precision tokens remaining",
+          "points": 15,
+          "type": "primary"
+        },
+        {
+          "id": "one-token-remaining",
+          "description": "1 precision token remaining",
+          "points": 10,
+          "type": "primary"
+        }
+      ],
+      "description": "You begin with six precision tokens worth 50 points. Lose one for each interruption outside home"
+    }
+  ],
+  "dimensions": {
+    "widthMm": 2356,
+    "heightMm": 1137
+  },
+  "createdAt": "2025-08-11T13:46:02.246Z",
+  "updatedAt": "2025-08-11T18:14:38.159Z"
+}

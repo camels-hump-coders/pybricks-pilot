@@ -10,7 +10,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(GITHUB_PAGES=true npm run build)"
+      "Bash(GITHUB_PAGES=true npm run build)",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.npmjs.com)"
     ],
     "deny": []
   }

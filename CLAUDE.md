@@ -110,3 +110,60 @@ PyBricks Pilot requires Web Bluetooth API support, which limits browser compatib
 - ✅ Chrome 56+, Edge 79+, Opera 43+
 - ❌ Firefox, Safari (no Web Bluetooth support)
 - ✅ Must be served over HTTPS in production
+
+## Testing with Connected Robot
+
+When testing UI features or debugging robot connectivity, follow this workflow:
+
+### Setup Process
+1. Start the development server with `npm run dev` (runs on http://localhost:5173)
+2. Use Playwright MCP to open a browser and navigate to the development URL
+3. Notify the user that the browser is ready for robot connection
+4. The user will connect the physical robot to the webpage
+5. You can then automate UI testing and observe console logs directly
+
+### Testing Workflow with Playwright MCP
+
+```javascript
+// Example testing workflow
+// 1. Open browser and navigate to the app
+await playwright.navigate('http://localhost:5173');
+
+// 2. Wait for user to connect robot
+console.log("Browser ready - please connect the robot to the webpage");
+
+// 3. After robot is connected, you can:
+// - Test UI interactions
+// - Monitor telemetry data
+// - Execute robot commands
+// - Observe console logs for debugging
+// - Test mat editor features
+// - Verify scoring functionality
+
+// 4. Use screenshots to verify visual elements
+await playwright.screenshot();
+```
+
+### Key Testing Areas
+- **Connection Flow**: Test hub connection/disconnection
+- **Telemetry**: Verify real-time data updates from the robot
+- **Commands**: Test manual control commands (drive, turn, stop)
+- **Program Upload**: Test code upload and execution
+- **Mat Visualization**: Verify robot position tracking on virtual mat
+- **Custom Mats**: Test mat editor, corner selection, and de-skewing
+- **Scoring**: Test scoring object placement and collision detection
+
+### Console Monitoring
+When using Playwright MCP, you have direct access to browser console logs, which is essential for:
+- Debugging Bluetooth connection issues
+- Monitoring telemetry data flow
+- Tracking command execution
+- Identifying JavaScript errors
+- Viewing debug output from `window.DEBUG` flag
+
+### Important Notes
+- Always inform the user when the browser is ready for robot connection
+- The robot must have Pybricks firmware installed
+- Web Bluetooth requires user interaction to initiate connection
+- The user will handle the physical robot connection process
+- Use Playwright's wait functions to handle async operations

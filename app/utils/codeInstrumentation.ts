@@ -281,8 +281,9 @@ export function wrapWithInstrumentation(
   code: string,
   options: InstrumentationOptions = {}
 ): string {
-  // Check if the user code already has a main() function
-  const hasMainFunction = /def\s+main\s*\(/.test(code);
+  // Check if the user code already has a main() function (sync or async)
+  const hasMainFunction = /(async\s+)?def\s+main\s*\(/.test(code);
+  const isMainAsync = /async\s+def\s+main\s*\(/.test(code);
   
   let wrappedCode = "# PybricksPilot Standard Contract Wrapper\n";
   wrappedCode += "# User hardware initialization happens at module level\n";
@@ -304,8 +305,8 @@ export function wrapWithInstrumentation(
       const line = lines[i];
       const trimmedLine = line.trim();
       
-      // Detect main function start
-      if (trimmedLine.startsWith('def main(') && trimmedLine.includes(':')) {
+      // Detect main function start (sync or async)
+      if ((trimmedLine.startsWith('def main(') || trimmedLine.startsWith('async def main(')) && trimmedLine.includes(':')) {
         inMainFunction = true;
         mainIndentLevel = line.length - line.trimStart().length; // Get indentation level
         continue; // Skip the def main(): line
@@ -341,15 +342,20 @@ export function wrapWithInstrumentation(
     // Create async version of main function
     wrappedCode += "# Async version of main() for parallel execution\n";
     wrappedCode += "async def async_main():\n";
-    wrappedCode += '    \"\"\"User\'s main program converted to async\"\"\"\n';
+    wrappedCode += `    \"\"\"User's main program ${isMainAsync ? '(already async)' : 'converted to async'}\"\"\"\n`;
     
     // Add main function content with proper indentation and await conversion
     const asyncMainCode = mainFunctionLines
       .map(line => {
         if (line.trim() === '') return line;
         const indented = '    ' + line; // Add async function indentation
-        // Convert wait() to await wait()
-        return indented.replace(/(^|\s)wait\s*\(/g, '$1await wait(');
+        if (isMainAsync) {
+          // Function is already async, don't modify wait() calls
+          return indented;
+        } else {
+          // Convert wait() to await wait() for sync functions
+          return indented.replace(/(^|\s)wait\s*\(/g, '$1await wait(');
+        }
       })
       .join('\n');
     
