@@ -5,10 +5,10 @@ import { ProgramManager } from "../components/ProgramManager";
 import { RobotConnectionSelector } from "../components/RobotConnectionSelector";
 import { TelemetryDashboard } from "../components/TelemetryDashboard";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { useFileSystem } from "../hooks/useFileSystem";
+import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useNotifications } from "../hooks/useNotifications";
 import { usePythonCompiler } from "../hooks/usePythonCompiler";
-import { useRobotConnection } from "../hooks/useRobotConnection";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import type { Route } from "./+types/home";
 
 // Helper component for collapsible sections - defined outside to prevent re-creation
@@ -84,6 +84,10 @@ export default function Home() {
   const [isTelemetryExpanded, setIsTelemetryExpanded] = useState(true);
   const [isProgramsExpanded, setIsProgramsExpanded] = useState(false);
 
+  const robotConnection = useJotaiRobotConnection();
+  const fileSystem = useJotaiFileSystem();
+
+  // Destructure robot connection properties for backward compatibility
   const {
     isConnected,
     hubInfo,
@@ -115,8 +119,9 @@ export default function Home() {
     resetTelemetry,
     resetRobotType,
     isBluetoothSupported,
-  } = useRobotConnection();
+  } = robotConnection;
 
+  // Destructure file system properties
   const {
     hasDirectoryAccess,
     directoryName,
@@ -128,7 +133,7 @@ export default function Home() {
     refreshFiles,
     isRestoring,
     isSupported: isFileSystemSupported,
-  } = useFileSystem();
+  } = fileSystem;
 
   const { compileCode, isCompiling, compilationError } = usePythonCompiler();
 
@@ -367,25 +372,7 @@ export default function Home() {
             onToggle={() => setIsTelemetryExpanded(!isTelemetryExpanded)}
             disabled={!isConnected}
           >
-            <TelemetryDashboard
-              telemetryData={telemetryData}
-              programStatus={programStatus}
-              isConnected={isConnected}
-              programOutputLog={programOutputLog}
-              onClearProgramOutput={clearProgramOutputLog}
-              onResetTelemetry={resetTelemetry}
-              robotType={robotType}
-              onDriveCommand={sendDriveCommand}
-              onTurnCommand={sendTurnCommand}
-              onStopCommand={sendStopCommand}
-              onContinuousDriveCommand={sendContinuousDriveCommand}
-              onMotorCommand={sendMotorCommand}
-              onContinuousMotorCommand={sendContinuousMotorCommand}
-              onMotorStopCommand={sendMotorStopCommand}
-              onRunProgram={handleRunProgram}
-              onStopProgram={handleStopProgram}
-              onUploadAndRun={handleUploadAndRun}
-            />
+            <TelemetryDashboard />
           </CollapsibleSection>
         )}
 

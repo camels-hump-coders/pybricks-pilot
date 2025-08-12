@@ -1,0 +1,316 @@
+import { useAtomValue, useSetAtom } from "jotai";
+import { useCallback, useEffect } from "react";
+import { virtualRobotService } from "../services/virtualRobot";
+import type { InstrumentationOptions } from "../utils/codeInstrumentation";
+
+// Import virtual robot specific atoms
+import {
+  virtualRobotCapabilitiesAtom,
+  virtualRobotPositionAtom,
+  virtualRobotStateAtom,
+} from "../store/atoms/virtualRobot";
+
+// Import shared atoms that virtual robot uses
+import {
+  batteryLevelAtom,
+  clearDebugEventsAtom,
+  clearProgramOutputLogAtom,
+  debugEventsAtom,
+  imuDataAtom,
+  isRunningProgramAtom,
+  isSendingCommandAtom,
+  isStoppingProgramAtom,
+  isUploadingProgramAtom,
+  motorDataAtom,
+  programOutputLogAtom,
+  programStatusAtom,
+  sensorDataAtom,
+  telemetryDataAtom,
+} from "../store/atoms/robotConnection";
+
+import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+
+export function useJotaiVirtualHub() {
+  // Virtual robot specific state
+  const virtualPosition = useAtomValue(virtualRobotPositionAtom);
+  const virtualState = useAtomValue(virtualRobotStateAtom);
+
+  // Program state
+  const programStatus = useAtomValue(programStatusAtom);
+  const isUploadingProgram = useAtomValue(isUploadingProgramAtom);
+  const isRunningProgram = useAtomValue(isRunningProgramAtom);
+  const isStoppingProgram = useAtomValue(isStoppingProgramAtom);
+  const isSendingCommand = useAtomValue(isSendingCommandAtom);
+
+  // Telemetry
+  const telemetryData = useAtomValue(telemetryDataAtom);
+  const batteryLevel = useAtomValue(batteryLevelAtom);
+  const motorData = useAtomValue(motorDataAtom);
+  const sensorData = useAtomValue(sensorDataAtom);
+  const imuData = useAtomValue(imuDataAtom);
+  const capabilities = useAtomValue(virtualRobotCapabilitiesAtom);
+
+  // Debug and output
+  const debugEvents = useAtomValue(debugEventsAtom);
+  const programOutputLog = useAtomValue(programOutputLogAtom);
+  const clearDebugEvents = useSetAtom(clearDebugEventsAtom);
+  const clearProgramOutputLog = useSetAtom(clearProgramOutputLogAtom);
+
+  // Setters for updating state from virtual robot events
+  const setTelemetryData = useSetAtom(telemetryDataAtom);
+  const setProgramStatus = useSetAtom(programStatusAtom);
+  const setProgramOutputLog = useSetAtom(programOutputLogAtom);
+  const setVirtualRobotState = useSetAtom(virtualRobotStateAtom);
+
+  // Connect virtual robot service events to Jotai atoms
+  useEffect(() => {
+    const handleTelemetry = (event: CustomEvent<TelemetryData>) => {
+      setTelemetryData(event.detail);
+
+      // Also update virtual robot state
+      const state = virtualRobotService.getState();
+      setVirtualRobotState(state);
+
+      // Forward telemetry event to document for global listeners (e.g., EnhancedCompetitionMat)
+      const globalEvent = new CustomEvent("telemetry", {
+        detail: event.detail,
+      });
+      document.dispatchEvent(globalEvent);
+    };
+
+    const handleStatusChange = (event: CustomEvent<ProgramStatus>) => {
+      const status = event.detail;
+      setProgramStatus(status);
+
+      // If there's program output, add it to the log
+      if (status.output && status.output.trim()) {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = `[${timestamp}] ${status.output.trim()}`;
+        setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
+      }
+    };
+
+    // Add event listeners to virtual robot service
+    virtualRobotService.addEventListener(
+      "telemetry",
+      handleTelemetry as EventListener
+    );
+    virtualRobotService.addEventListener(
+      "statusChange",
+      handleStatusChange as EventListener
+    );
+
+    return () => {
+      virtualRobotService.removeEventListener(
+        "telemetry",
+        handleTelemetry as EventListener
+      );
+      virtualRobotService.removeEventListener(
+        "statusChange",
+        handleStatusChange as EventListener
+      );
+    };
+  }, [
+    setTelemetryData,
+    setProgramStatus,
+    setProgramOutputLog,
+    setVirtualRobotState,
+  ]);
+
+  // Virtual robot connection management
+  const connect = useCallback(async () => {
+    return await virtualRobotService.connect();
+  }, []);
+
+  const disconnect = useCallback(async () => {
+    await virtualRobotService.disconnect();
+  }, []);
+
+  const isConnected = useCallback(() => {
+    return virtualRobotService.isConnected();
+  }, []);
+
+  // Virtual robot program management
+  const uploadProgram = useCallback(async (code: string) => {
+    await virtualRobotService.uploadProgram(code);
+  }, []);
+
+  const runProgram = useCallback(async () => {
+    await virtualRobotService.runProgram();
+  }, []);
+
+  const stopProgram = useCallback(async () => {
+    await virtualRobotService.stopProgram();
+  }, []);
+
+  const uploadAndRunProgram = useCallback(async (code: string) => {
+    await virtualRobotService.uploadProgram(code);
+    await virtualRobotService.runProgram();
+  }, []);
+
+  // Virtual robot control commands
+  const sendDriveCommand = useCallback(
+    async (distance: number, speed: number) => {
+      await virtualRobotService.drive(distance, speed);
+    },
+    []
+  );
+
+  const sendTurnCommand = useCallback(async (angle: number, speed: number) => {
+    await virtualRobotService.turn(angle, speed);
+  }, []);
+
+  const sendStopCommand = useCallback(async () => {
+    await virtualRobotService.stop();
+  }, []);
+
+  const sendContinuousDriveCommand = useCallback(
+    async (speed: number, turnRate: number) => {
+      await virtualRobotService.driveContinuous(speed, turnRate);
+    },
+    []
+  );
+
+  const sendMotorCommand = useCallback(
+    async (motor: string, angle: number, speed: number) => {
+      await virtualRobotService.setMotorAngle(motor, angle, speed);
+    },
+    []
+  );
+
+  const sendContinuousMotorCommand = useCallback(
+    async (motor: string, speed: number) => {
+      await virtualRobotService.setMotorSpeed(motor, speed);
+    },
+    []
+  );
+
+  const sendMotorStopCommand = useCallback(async (motor: string) => {
+    await virtualRobotService.setMotorSpeed(motor, 0);
+  }, []);
+
+  const sendControlCommand = useCallback(async (command: string) => {
+    await virtualRobotService.sendControlCommand(command);
+  }, []);
+
+  // Virtual robot specific utilities
+  const resetPosition = useCallback(() => {
+    virtualRobotService.resetPosition();
+  }, []);
+
+  const setPosition = useCallback((x: number, y: number, heading: number) => {
+    virtualRobotService.setPosition(x, y, heading);
+  }, []);
+
+  const getCurrentPosition = useCallback(() => {
+    return virtualRobotService.getCurrentPosition();
+  }, []);
+
+  const getCapabilities = useCallback(() => {
+    return virtualRobotService.getCapabilities();
+  }, []);
+
+  // Reset telemetry (virtual robot specific)
+  const resetTelemetry = useCallback(async () => {
+    const resetCommand = JSON.stringify({ action: "reset_drivebase" });
+    try {
+      await virtualRobotService.sendControlCommand(resetCommand);
+    } catch {
+      // Ignore errors - this is a best-effort reset
+    }
+  }, []);
+
+  // Mock instrumentation settings for compatibility
+  const setInstrumentationEnabled = useCallback((enabled: boolean) => {
+    console.log(
+      `[VirtualHub] Instrumentation ${enabled ? "enabled" : "disabled"} (mock)`
+    );
+  }, []);
+
+  const setInstrumentationOptions = useCallback(
+    (options: Partial<InstrumentationOptions>) => {
+      console.log("[VirtualHub] Instrumentation options set (mock):", options);
+    },
+    []
+  );
+
+  const getInstrumentationOptions =
+    useCallback(async (): Promise<InstrumentationOptions> => {
+      return {
+        enableTelemetry: true,
+        enableRemoteControl: true,
+        telemetryInterval: 100,
+        autoDetectHardware: true,
+      };
+    }, []);
+
+  return {
+    // Robot type identification
+    getRobotType: () => "virtual" as const,
+
+    // Connection management
+    connect,
+    disconnect,
+    isConnected,
+    isConnecting: false, // Virtual robot connects instantly
+    isDisconnecting: false, // Virtual robot disconnects instantly
+    connectionError: null, // Virtual robot doesn't have connection errors
+    hubInfo: null, // Virtual robot doesn't have hub info
+
+    // Program management
+    uploadProgram,
+    runProgram,
+    stopProgram,
+    uploadAndRunProgram,
+
+    // Program state
+    programStatus,
+    isUploadingProgram,
+    isRunningProgram,
+    isStoppingProgram,
+
+    // Telemetry
+    telemetryData,
+    batteryLevel,
+    motorData,
+    sensorData,
+    imuData,
+    resetTelemetry,
+
+    // Remote control
+    sendDriveCommand,
+    sendTurnCommand,
+    sendStopCommand,
+    sendContinuousDriveCommand,
+    sendMotorCommand,
+    sendContinuousMotorCommand,
+    sendMotorStopCommand,
+    sendControlCommand,
+    isSendingCommand,
+
+    // Virtual robot specific
+    virtualPosition,
+    virtualState,
+    resetPosition,
+    setPosition,
+    getCurrentPosition,
+
+    // Capabilities
+    capabilities,
+    getCapabilities,
+    isSupported: true, // Virtual robot is always supported
+
+    // Code instrumentation (mock)
+    setInstrumentationEnabled,
+    setInstrumentationOptions,
+    getInstrumentationOptions,
+
+    // Debug events
+    debugEvents,
+    clearDebugEvents,
+
+    // Program output log
+    programOutputLog,
+    clearProgramOutputLog,
+  };
+}

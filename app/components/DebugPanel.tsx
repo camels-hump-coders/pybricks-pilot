@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { usePybricksHub } from "../hooks/usePybricksHub";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 
 interface DebugPanelProps {
   isVisible: boolean;
@@ -17,7 +17,7 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
     setInstrumentationEnabled,
     setInstrumentationOptions,
     getInstrumentationOptions,
-  } = usePybricksHub();
+  } = useJotaiRobotConnection();
   const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
   const [showInstrumentationSettings, setShowInstrumentationSettings] =
     useState(false);
@@ -172,11 +172,11 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
               </span>
             </div>
           )}
-          {telemetryData?.battery && (
+          {telemetryData?.hub?.battery?.voltage && (
             <div className="flex justify-between">
               <span>Battery:</span>
               <span className="text-gray-800 dark:text-gray-200">
-                {telemetryData.battery}%
+                {Math.round(telemetryData.hub.battery.voltage * 100)}%
               </span>
             </div>
           )}
@@ -195,30 +195,34 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
               <span>Auto-Instrumentation:</span>
               <button
                 onClick={() => {
-                  const options = getInstrumentationOptions();
-                  setInstrumentationEnabled(
-                    !(options.enableTelemetry && options.enableRemoteControl)
-                  );
+                  const options = getInstrumentationOptions?.();
+                  if (options && setInstrumentationEnabled) {
+                    setInstrumentationEnabled(
+                      !(options.enableTelemetry && options.enableRemoteControl)
+                    );
+                  }
                 }}
                 className={`text-xs px-2 py-1 rounded ${
-                  getInstrumentationOptions().enableTelemetry
+                  getInstrumentationOptions?.()?.enableTelemetry
                     ? "bg-green-600 text-white"
                     : "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
-                {getInstrumentationOptions().enableTelemetry ? "ON" : "OFF"}
+                {getInstrumentationOptions?.()?.enableTelemetry ? "ON" : "OFF"}
               </button>
             </div>
 
             <div className="flex items-center justify-between">
               <span>Telemetry Interval:</span>
               <select
-                value={getInstrumentationOptions().telemetryInterval || 100}
-                onChange={(e) =>
-                  setInstrumentationOptions({
-                    telemetryInterval: parseInt(e.target.value),
-                  })
-                }
+                value={getInstrumentationOptions?.()?.telemetryInterval || 100}
+                onChange={(e) => {
+                  if (setInstrumentationOptions) {
+                    setInstrumentationOptions({
+                      telemetryInterval: parseInt(e.target.value),
+                    });
+                  }
+                }}
                 className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               >
                 <option value={50}>50ms</option>
@@ -234,16 +238,18 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
               <button
                 onClick={() => {
                   const current =
-                    getInstrumentationOptions().autoDetectHardware;
-                  setInstrumentationOptions({ autoDetectHardware: !current });
+                    getInstrumentationOptions?.()?.autoDetectHardware;
+                  if (setInstrumentationOptions && current !== undefined) {
+                    setInstrumentationOptions({ autoDetectHardware: !current });
+                  }
                 }}
                 className={`text-xs px-2 py-1 rounded ${
-                  getInstrumentationOptions().autoDetectHardware
+                  getInstrumentationOptions?.()?.autoDetectHardware
                     ? "bg-green-600 text-white"
                     : "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
-                {getInstrumentationOptions().autoDetectHardware ? "ON" : "OFF"}
+                {getInstrumentationOptions?.()?.autoDetectHardware ? "ON" : "OFF"}
               </button>
             </div>
           </div>

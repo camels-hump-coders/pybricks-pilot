@@ -216,11 +216,14 @@ class WebBluetoothService implements BluetoothService {
   }
 
   private onDeviceDisconnected = (event: Event) => {
-    const device = event.target as BluetoothDevice;
-    if (device && device.id) {
-      this.connectedDevices.delete(device);
-      // Notify all disconnect listeners
-      this.disconnectListeners.forEach((listener) => listener(device));
+    const target = event.target;
+    if (target && typeof target === 'object' && 'device' in target) {
+      const device = (target as any).device;
+      if (device && device.id) {
+        this.connectedDevices.delete(device);
+        // Notify all disconnect listeners
+        this.disconnectListeners.forEach((listener) => listener(device));
+      }
     }
   };
 }

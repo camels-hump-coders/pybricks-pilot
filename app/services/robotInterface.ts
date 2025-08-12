@@ -53,6 +53,11 @@ class RobotConnectionManager {
   }
 
   private setupGlobalEventListeners(): void {
+    // Only set up event listeners in the browser
+    if (typeof document === "undefined") {
+      return;
+    }
+
     // Forward events from the current robot to global listeners
     const forwardEvent = (event: Event) => {
       const listeners = this.eventListeners.get(event.type);
@@ -128,6 +133,11 @@ class RobotConnectionManager {
 
   private setupRobotEventForwarding(): void {
     if (!this.currentRobot) return;
+    
+    // Only set up event forwarding in the browser
+    if (typeof document === "undefined") {
+      return;
+    }
 
     // Forward robot events to global listeners
     ["telemetry", "statusChange", "debugEvent"].forEach((eventType) => {

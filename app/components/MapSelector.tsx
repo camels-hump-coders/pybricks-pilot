@@ -8,11 +8,11 @@ const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
 const seasonMats = import.meta.glob("../assets/seasons/**/mat.png", {
   query: "?url",
   eager: true,
-});
+}) as Record<string, { default: string }>;
 const seasonRulebooks = import.meta.glob("../assets/seasons/**/rulebook.pdf", {
   query: "?url",
   eager: true,
-});
+}) as Record<string, { default: string }>;
 
 interface MapSelectorProps {
   currentMap: GameMatConfig | null;

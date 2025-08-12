@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import type { GameMatConfig, Mission } from "../schemas/GameMatConfig";
 import type { TelemetryData } from "../services/pybricksHub";
 import {
@@ -17,21 +19,9 @@ interface RobotPosition {
 interface EnhancedCompetitionMatProps {
   telemetryData: TelemetryData | null;
   isConnected: boolean;
-  onRobotPositionSet?: (position: RobotPosition) => void;
-  onResetTelemetry?: () => void;
   customMatConfig?: GameMatConfig | null;
   showScoring?: boolean;
-  onScoreUpdate?: (score: number) => void;
-  movementPreview?: {
-    type: "drive" | "turn" | null;
-    direction: "forward" | "backward" | "left" | "right" | null;
-    positions: {
-      primary: RobotPosition | null;
-      secondary: RobotPosition | null;
-    };
-  } | null;
   controlMode?: "incremental" | "continuous";
-  onRobotPositionChange?: (position: RobotPosition) => void;
 }
 
 // FLL Competition Mat and Table dimensions (all in mm)
@@ -131,36 +121,46 @@ const migrateMissionFormat = (mission: any): Mission => {
 export function EnhancedCompetitionMat({
   telemetryData,
   isConnected,
-  onRobotPositionSet,
-  onResetTelemetry,
   customMatConfig,
   showScoring = false,
-  onScoreUpdate,
-  movementPreview,
   controlMode = "incremental",
-  onRobotPositionChange,
 }: EnhancedCompetitionMatProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const matImageRef = useRef<HTMLCanvasElement | HTMLImageElement | null>(null);
-  const [isSettingPosition, setIsSettingPosition] = useState(false);
-  const [mousePosition, setMousePosition] = useState<RobotPosition | null>(
-    null
-  );
-  const [currentPosition, setCurrentPosition] = useState<RobotPosition>({
-    x: 2140, // Bottom right X position
-    y: 108, // Bottom right Y position
-    heading: 0,
-  });
-  const [telemetryReference, setTelemetryReference] =
-    useState<RobotPosition>(currentPosition);
+
+  const robotConnection = useJotaiRobotConnection();
+  const { resetTelemetry, clearProgramOutputLog } = robotConnection;
+
+  // Use Jotai for game mat state management
+  const gameMat = useJotaiGameMat();
+  const {
+    robotPosition: currentPosition,
+    setRobotPosition: setCurrentPosition,
+    isSettingPosition,
+    setIsSettingPosition,
+    mousePosition,
+    setMousePosition,
+    telemetryReference,
+    setTelemetryReference,
+    manualHeadingAdjustment,
+    setManualHeadingAdjustment,
+    scoringState,
+    setScoringState,
+    updateScoring,
+    resetScoring,
+    updateRobotPositionFromTelemetry,
+    movementPreview,
+    setMovementPreview,
+    currentScore,
+  } = gameMat;
+
+  // Local state that doesn't need to be in Jotai
+  const [selectedMission, setSelectedMission] = useState<string | null>(null);
+  const [showObjectivesModal, setShowObjectivesModal] = useState(false);
   const [accumulatedTelemetry, setAccumulatedTelemetry] = useState({
     distance: 0,
     angle: 0,
   });
-  const [manualHeadingAdjustment, setManualHeadingAdjustment] = useState(0);
-  const [scoringState, setScoringState] = useState<ScoringState>({});
-  const [selectedMission, setSelectedMission] = useState<string | null>(null);
-  const [showObjectivesModal, setShowObjectivesModal] = useState(false);
   const [popoverObject, setPopoverObject] = useState<string | null>(null);
   const [popoverPosition, setPopoverPosition] = useState<{
     x: number;
@@ -199,9 +199,12 @@ export function EnhancedCompetitionMat({
     };
   }, [customMatConfig]);
 
-  // Start telemetry recording when robot connects
+  // Track if we've already initialized recording for this connection
+  const recordingInitializedRef = useRef(false);
+
+  // Start telemetry recording when robot connects (only once per connection)
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && currentPosition && !recordingInitializedRef.current) {
       console.log(
         "[EnhancedCompetitionMat] Robot connected, starting telemetry recording"
       );
@@ -214,10 +217,15 @@ export function EnhancedCompetitionMat({
         currentPosition.heading
       );
 
-      // Notify parent of initial robot position
-      onRobotPositionChange?.(currentPosition);
+      // Robot position is now managed by Jotai atoms
+
+      // Mark as initialized
+      recordingInitializedRef.current = true;
+    } else if (!isConnected) {
+      // Reset the flag when disconnected
+      recordingInitializedRef.current = false;
     }
-  }, [isConnected]); // Only depend on isConnected, not currentPosition
+  }, [isConnected, currentPosition]);
 
   // Load and process mat image
   useEffect(() => {
@@ -382,12 +390,15 @@ export function EnhancedCompetitionMat({
     if (isSettingPosition && mousePosition) {
       drawRobot(ctx, mousePosition, true);
     }
-    drawRobot(ctx, currentPosition, false);
+    if (currentPosition) {
+      drawRobot(ctx, currentPosition, false);
+    }
 
     // Draw movement preview robots (dual previews)
     if (
       movementPreview?.positions &&
       controlMode === "incremental" &&
+      currentPosition &&
       currentPosition.x > 0 &&
       currentPosition.y > 0
     ) {
@@ -398,12 +409,12 @@ export function EnhancedCompetitionMat({
           movementPreview.positions.primary,
           true,
           "primary",
-          movementPreview.direction
+          movementPreview.direction || undefined
         );
       }
 
       // Draw secondary preview robot
-      if (movementPreview.positions.secondary) {
+      if (movementPreview.positions.secondary && movementPreview.direction) {
         // Determine the opposite direction for secondary preview
         let oppositeDirection: "forward" | "backward" | "left" | "right";
         if (movementPreview.type === "drive") {
@@ -868,116 +879,160 @@ export function EnhancedCompetitionMat({
     ctx.restore();
   };
 
-  const checkScoringCollisions = useCallback(
-    (robotPos: RobotPosition) => {
-      if (!customMatConfig) return;
+  // Use refs to track previous telemetry values and avoid circular dependencies
+  const prevTelemetryRef = useRef({ distance: 0, angle: 0 });
 
-      const robotRadius = Math.max(ROBOT_WIDTH_MM, ROBOT_LENGTH_MM) / 2;
-      const collisionRadius = robotRadius + 50; // 50mm collision buffer
+  // Use refs to access current values without causing useEffect re-runs
+  const telemetryReferenceRef = useRef(telemetryReference);
+  const currentPositionRef = useRef(currentPosition);
+  const manualHeadingAdjustmentRef = useRef(manualHeadingAdjustment);
+  const migratedMatConfigRef = useRef(migratedMatConfig);
+  const showScoringRef = useRef(showScoring);
 
-      migratedMatConfig?.missions.forEach((obj) => {
-        const objX = obj.position.x * MAT_WIDTH_MM;
-        const objY = (1 - obj.position.y) * MAT_HEIGHT_MM;
-
-        const distance = Math.sqrt(
-          Math.pow(robotPos.x - objX, 2) + Math.pow(robotPos.y - objY, 2)
-        );
-
-        // Check for collision but don't auto-complete
-        // Missions must be manually scored by the user
-      });
-    },
-    [migratedMatConfig, onScoreUpdate]
-  );
-
-  // Handle telemetry updates
+  // Update refs when values change
   useEffect(() => {
-    if (!telemetryData?.drivebase || !isConnected) return;
+    telemetryReferenceRef.current = telemetryReference;
+  }, [telemetryReference]);
 
-    // Ensure recording is active when we have telemetry data
-    telemetryHistory.ensureRecordingActive();
+  useEffect(() => {
+    currentPositionRef.current = currentPosition;
+  }, [currentPosition]);
 
-    const { drivebase } = telemetryData;
-    const currentDistance = drivebase.distance || 0;
-    const currentAngle = drivebase.angle || 0;
+  useEffect(() => {
+    manualHeadingAdjustmentRef.current = manualHeadingAdjustment;
+  }, [manualHeadingAdjustment]);
 
-    setAccumulatedTelemetry((prev) => {
-      const deltaDistance = currentDistance - prev.distance;
-      const deltaAngle = currentAngle - prev.angle;
+  useEffect(() => {
+    migratedMatConfigRef.current = migratedMatConfig;
+  }, [migratedMatConfig]);
 
-      if (Math.abs(deltaDistance) < 0.01 && Math.abs(deltaAngle) < 0.01) {
-        // No significant change, don't update
-        return prev;
+  useEffect(() => {
+    showScoringRef.current = showScoring;
+  }, [showScoring]);
+
+  // Initialize telemetry reference when robot position is available but reference is not set
+  useEffect(() => {
+    if (currentPosition && !telemetryReference && isConnected) {
+      console.log(
+        "[EnhancedCompetitionMat] Initializing telemetry reference from robot position",
+        currentPosition
+      );
+      setTelemetryReference({
+        distance: 0,
+        angle: 0,
+        position: currentPosition,
+      });
+    }
+  }, [currentPosition, telemetryReference, isConnected, setTelemetryReference]);
+
+  // Handle telemetry updates using event subscription instead of reactive useEffect
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handleTelemetryEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const receivedTelemetryData = customEvent.detail;
+
+      // Early return if we don't have required data
+      if (!receivedTelemetryData?.drivebase || !currentPositionRef.current) {
+        return;
       }
 
-      return {
-        distance: currentDistance,
-        angle: currentAngle,
-      };
-    });
+      // Ensure recording is active when we have telemetry data
+      telemetryHistory.ensureRecordingActive();
 
-    // Calculate and update position in a separate effect to avoid nested state updates
-    const deltaDistance = currentDistance - accumulatedTelemetry.distance;
-    const deltaAngle = currentAngle - accumulatedTelemetry.angle;
+      const { drivebase } = receivedTelemetryData;
+      const currentDistance = drivebase.distance || 0;
+      const currentAngle = drivebase.angle || 0;
 
-    if (Math.abs(deltaDistance) >= 0.01 || Math.abs(deltaAngle) >= 0.01) {
-      setCurrentPosition((prevPos) => {
-        const totalHeadingChange = currentAngle + manualHeadingAdjustment;
+      // Initialize telemetry reference if not set
+      if (!telemetryReferenceRef.current) {
+        // Initialize telemetry reference
+
+        telemetryReferenceRef.current = {
+          distance: currentDistance,
+          angle: currentAngle,
+          position: { ...currentPositionRef.current },
+        };
+
+        // Reference initialized, no need for previous tracking
+
+        return; // Don't process movement on first telemetry data
+      }
+
+      // Calculate deltas from the telemetry reference (like working version)
+      const deltaDistance =
+        currentDistance - telemetryReferenceRef.current.distance;
+      const deltaAngle = currentAngle - telemetryReferenceRef.current.angle;
+
+      // Only process if there's significant change
+      if (Math.abs(deltaDistance) >= 0.01 || Math.abs(deltaAngle) >= 0.01) {
+        // Calculate heading using delta from reference + manual adjustment
         const currentHeading =
-          (telemetryReference.heading + totalHeadingChange) % 360;
+          (telemetryReferenceRef.current.position.heading +
+            deltaAngle +
+            manualHeadingAdjustmentRef.current) %
+          360;
 
-        // Use the current heading from telemetry, not the previous position heading
-        // This ensures movement is calculated based on the robot's current orientation
-        const movementHeading = currentHeading;
-        const movementHeadingRad = (movementHeading * Math.PI) / 180;
+        // Calculate movement using the current heading (matches working version)
+        const headingRad = (currentHeading * Math.PI) / 180;
 
-        // Apply scaling factor to correct for the 2x distance issue
-        // The telemetry appears to be reporting distances that result in 2x movement on the virtual mat
-        const scalingFactor = 1; // We might need to reduce movement by half to correct the 2x issue
-        const scaledDeltaDistance = deltaDistance * scalingFactor;
-
-        const deltaX = scaledDeltaDistance * Math.sin(movementHeadingRad);
-        const deltaY = scaledDeltaDistance * Math.cos(movementHeadingRad);
+        const newX =
+          telemetryReferenceRef.current.position.x +
+          deltaDistance * Math.sin(headingRad);
+        const newY =
+          telemetryReferenceRef.current.position.y +
+          deltaDistance * Math.cos(headingRad);
 
         const newPosition: RobotPosition = {
-          x: Math.max(0, Math.min(MAT_WIDTH_MM, prevPos.x + deltaX)),
-          y: Math.max(0, Math.min(MAT_HEIGHT_MM, prevPos.y + deltaY)),
+          x: newX,
+          y: newY,
           heading: currentHeading,
         };
 
+        // Remove verbose logging to save context
+
         // Add telemetry point to history if recording
-        if (telemetryHistory.isRecordingActive() && telemetryData) {
+        if (telemetryHistory.isRecordingActive() && receivedTelemetryData) {
           telemetryHistory.addTelemetryPoint(
-            telemetryData,
+            receivedTelemetryData,
             newPosition.x,
             newPosition.y,
             newPosition.heading
           );
         }
 
-        // Check for mission collisions
-        if (migratedMatConfig && showScoring) {
-          checkScoringCollisions(newPosition);
-        }
+        // Update robot position using action atom
+        setCurrentPosition(newPosition);
 
-        // Notify parent component of position change
-        onRobotPositionChange?.(newPosition);
+        // Update telemetry reference to new position so next movement calculates from here
+        setTelemetryReference({
+          distance: currentDistance,
+          angle: currentAngle,
+          position: newPosition,
+        });
 
-        return newPosition;
-      });
-    }
-  }, [
-    telemetryData?.drivebase?.distance,
-    telemetryData?.drivebase?.angle,
-    isConnected,
-    telemetryReference.heading,
-    manualHeadingAdjustment,
-    accumulatedTelemetry.distance,
-    accumulatedTelemetry.angle,
-    customMatConfig,
-    showScoring,
-    checkScoringCollisions,
-  ]);
+        // Update accumulated telemetry state for external consumption
+        setAccumulatedTelemetry({
+          distance: currentDistance,
+          angle: currentAngle,
+        });
+
+        // Robot position is now managed by Jotai atoms automatically
+      }
+    };
+
+    // Subscribe to telemetry events from the global document
+    document.addEventListener("telemetry", handleTelemetryEvent);
+    console.log("[EnhancedCompetitionMat] Subscribed to telemetry events");
+
+    return () => {
+      document.removeEventListener("telemetry", handleTelemetryEvent);
+      console.log(
+        "[EnhancedCompetitionMat] Unsubscribed from telemetry events"
+      );
+    };
+  }, [isConnected]); // Only depend on isConnected, everything else uses refs
 
   const checkMissionClick = (
     canvasX: number,
@@ -1026,7 +1081,7 @@ export function EnhancedCompetitionMat({
     }
 
     // Handle position setting (existing logic)
-    if (!isSettingPosition) return;
+    if (!isSettingPosition || !currentPosition) return;
 
     const mm = canvasToMm(canvasX, canvasY);
 
@@ -1043,10 +1098,14 @@ export function EnhancedCompetitionMat({
       };
 
       setCurrentPosition(newPosition);
-      setTelemetryReference(newPosition);
+      setTelemetryReference({
+        distance: 0,
+        angle: 0,
+        position: newPosition,
+      });
       setAccumulatedTelemetry({ distance: 0, angle: 0 });
       setManualHeadingAdjustment(0);
-      onRobotPositionSet?.(newPosition);
+      // Robot position is set via Jotai atoms
     }
   };
 
@@ -1080,7 +1139,7 @@ export function EnhancedCompetitionMat({
       setHoveredObject(null);
     }
 
-    if (!isSettingPosition) return;
+    if (!isSettingPosition || !currentPosition) return;
 
     const mm = canvasToMm(canvasX, canvasY);
 
@@ -1206,7 +1265,7 @@ export function EnhancedCompetitionMat({
           (sum, object) => sum + getTotalPointsForMission(object, newState),
           0
         ) || 0;
-      onScoreUpdate?.(newTotal);
+      // Score is automatically tracked via Jotai currentScore atom
 
       return newState;
     });
@@ -1322,14 +1381,20 @@ export function EnhancedCompetitionMat({
             </button>
 
             <button
-              onClick={() => {
-                setCurrentPosition(telemetryReference);
+              onClick={async () => {
+                await resetTelemetry();
+                await clearProgramOutputLog();
+                // Reset to default position instead of hardcoded values
+                setCurrentPosition({
+                  x: 2266, // Bottom right X position (mat width - robot width/2)
+                  y: 100, // Bottom edge + robot length/2 to keep robot on mat
+                  heading: 0, // Facing north (forward)
+                });
                 setAccumulatedTelemetry({ distance: 0, angle: 0 });
                 setManualHeadingAdjustment(0);
                 setScoringState({});
-                onResetTelemetry?.();
-                onScoreUpdate?.(0);
-                telemetryHistory.clearHistory();
+                // Reset handled via Jotai atoms and telemetry history
+                telemetryHistory.onMatReset();
               }}
               className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-orange-500 text-white rounded hover:bg-orange-600"
             >

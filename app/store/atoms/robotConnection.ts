@@ -1,0 +1,77 @@
+import { atom } from "jotai";
+import type { HubInfo } from "../../services/bluetooth";
+import type { ProgramStatus, TelemetryData, DebugEvent } from "../../services/pybricksHub";
+import type { RobotConnectionOptions } from "../../services/robotInterface";
+import { virtualRobotCapabilitiesAtom } from "./virtualRobot";
+import { pybricksHubCapabilitiesAtom } from "./pybricksHub";
+
+// Robot type and connection state atoms
+export const robotTypeAtom = atom<"real" | "virtual" | null>(null);
+export const hubInfoAtom = atom<HubInfo | null>(null);
+export const isConnectedAtom = atom<boolean>(false);
+export const connectionErrorAtom = atom<Error | null>(null);
+
+// Telemetry atoms
+export const telemetryDataAtom = atom<TelemetryData | null>(null);
+export const telemetryHistoryAtom = atom<TelemetryData[]>([]);
+
+// Program state atoms
+export const programStatusAtom = atom<ProgramStatus>({ running: false });
+export const programOutputLogAtom = atom<string[]>([]);
+
+// Debug atoms
+export const debugEventsAtom = atom<DebugEvent[]>([]);
+
+// Connection status atoms
+export const isConnectingAtom = atom<boolean>(false);
+export const isDisconnectingAtom = atom<boolean>(false);
+
+// Program operation status atoms
+export const isUploadingProgramAtom = atom<boolean>(false);
+export const isRunningProgramAtom = atom<boolean>(false);
+export const isStoppingProgramAtom = atom<boolean>(false);
+export const isSendingCommandAtom = atom<boolean>(false);
+
+
+// Derived atoms for convenience
+export const batteryLevelAtom = atom((get) => get(telemetryDataAtom)?.hub?.battery);
+export const motorDataAtom = atom((get) => get(telemetryDataAtom)?.motors);
+export const sensorDataAtom = atom((get) => get(telemetryDataAtom)?.sensors);
+export const imuDataAtom = atom((get) => get(telemetryDataAtom)?.hub?.imu);
+
+// Capabilities atom - delegates to robot-specific capability atoms
+export const robotCapabilitiesAtom = atom((get) => {
+  const robotType = get(robotTypeAtom);
+  
+  if (robotType === "virtual") {
+    return get(virtualRobotCapabilitiesAtom);
+  } else if (robotType === "real") {
+    return get(pybricksHubCapabilitiesAtom);
+  }
+  
+  return null;
+});
+
+// Action atoms for clearing data
+export const clearDebugEventsAtom = atom(null, (get, set) => {
+  set(debugEventsAtom, []);
+});
+
+export const clearProgramOutputLogAtom = atom(null, (get, set) => {
+  set(programOutputLogAtom, []);
+});
+
+export const resetTelemetryAtom = atom(null, (get, set) => {
+  set(telemetryDataAtom, null);
+  set(telemetryHistoryAtom, []);
+  set(programStatusAtom, { running: false });
+  set(programOutputLogAtom, []);
+});
+
+export const resetRobotTypeAtom = atom(null, (get, set) => {
+  set(robotTypeAtom, null);
+  set(hubInfoAtom, null);
+  set(isConnectedAtom, false);
+  set(telemetryDataAtom, null);
+  set(programStatusAtom, { running: false });
+});

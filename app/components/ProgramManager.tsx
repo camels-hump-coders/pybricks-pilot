@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { PythonFile } from "../hooks/useFileSystem";
 import type { ProgramStatus } from "../services/pybricksHub";
+import type { PythonFile } from "../types/fileSystem";
 import { generatePybricksTemplate } from "../utils/pybricksAnalyzer";
 import { FileBrowser } from "./FileBrowser";
 

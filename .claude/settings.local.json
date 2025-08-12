@@ -21,7 +21,10 @@
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_hover",
       "mcp__playwright__browser_console_messages",
-      "mcp__playwright__browser_take_screenshot"
+      "mcp__playwright__browser_take_screenshot",
+      "Bash(npm run knip:*)",
+      "mcp__playwright__browser_close",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

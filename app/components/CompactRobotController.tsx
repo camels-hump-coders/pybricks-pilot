@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { useAtomValue } from "jotai";
+import { robotPositionAtom } from "../store/atoms/gameMat";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { calculatePreviewPosition } from "./MovementPreview";
 
@@ -25,7 +27,7 @@ interface CompactRobotControllerProps {
   telemetryData?: any;
   isConnected: boolean;
   className?: string;
-  currentRobotPosition?: RobotPosition;
+  // Robot position now comes from Jotai atoms
   robotType?: "real" | "virtual" | null;
   onPreviewUpdate?: (preview: {
     type: "drive" | "turn" | null;
@@ -51,13 +53,14 @@ export function CompactRobotController({
   telemetryData,
   isConnected,
   className = "",
-  currentRobotPosition,
   robotType,
   onPreviewUpdate,
   onRunProgram,
   onStopProgram,
   onUploadAndRun,
 }: CompactRobotControllerProps) {
+  // Get current robot position from Jotai
+  const currentRobotPosition = useAtomValue(robotPositionAtom);
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
   const [driveSpeed, setDriveSpeed] = useState(50);
   const [distance, setDistance] = useState(100);

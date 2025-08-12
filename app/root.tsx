@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Provider as JotaiProvider } from "jotai";
 import { useState } from "react";
 import {
   isRouteErrorResponse,
@@ -14,6 +15,7 @@ import "./app.css";
 import faviconUrl from "./assets/favicon.svg?url";
 import socialShareUrl from "./assets/social-share.png?url";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { ServiceEventSync } from "./components/ServiceEventSync";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -113,11 +115,15 @@ export default function App() {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <Outlet />
-      </ThemeProvider>
-    </QueryClientProvider>
+    <JotaiProvider>
+      <QueryClientProvider client={queryClient}>
+        <ServiceEventSync>
+          <ThemeProvider>
+            <Outlet />
+          </ThemeProvider>
+        </ServiceEventSync>
+      </QueryClientProvider>
+    </JotaiProvider>
   );
 }
 

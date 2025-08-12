@@ -1,11 +1,13 @@
+import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import {
   GameMatConfigSchema,
   type GameMatConfig,
 } from "../schemas/GameMatConfig";
 import { matConfigStorage } from "../services/matConfigStorage";
 import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
-import { telemetryHistory } from "../services/telemetryHistory";
+import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
 import { CompactRobotController } from "./CompactRobotController";
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
@@ -23,11 +25,11 @@ const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
 const seasonMats = import.meta.glob("../assets/seasons/**/mat.png", {
   query: "?url",
   eager: true,
-});
+}) as Record<string, { default: string }>;
 const seasonRulebooks = import.meta.glob("../assets/seasons/**/rulebook.pdf", {
   query: "?url",
   eager: true,
-});
+}) as Record<string, { default: string }>;
 
 interface BuiltInMap {
   id: string;
@@ -80,34 +82,6 @@ const getDefaultUnearthedMap = (): GameMatConfig | null => {
   }
   return null;
 };
-
-interface TelemetryDashboardProps {
-  telemetryData?: TelemetryData | null;
-  programStatus?: ProgramStatus;
-  isConnected: boolean;
-  programOutputLog: string[];
-  onClearProgramOutput: () => void;
-  onResetTelemetry?: () => void;
-  className?: string;
-  robotType?: "real" | "virtual" | null;
-  // Robot control props
-  onDriveCommand?: (direction: number, speed: number) => Promise<void>;
-  onTurnCommand?: (angle: number, speed: number) => Promise<void>;
-  onStopCommand?: () => Promise<void>;
-  onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
-  onCustomCommand?: (command: string) => Promise<void>;
-  onMotorCommand?: (
-    motor: string,
-    angle: number,
-    speed: number
-  ) => Promise<void>;
-  onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
-  onMotorStopCommand?: (motor: string) => Promise<void>;
-  // Program management props
-  onRunProgram?: () => Promise<void>;
-  onStopProgram?: () => Promise<void>;
-  onUploadAndRun?: (code: string) => Promise<void>;
-}
 
 // Sub-component for Mat Controls Panel
 interface MatControlsPanelProps {
@@ -226,12 +200,6 @@ interface RobotControlsSectionProps {
   onMotorStopCommand?: (motor: string) => Promise<void>;
   telemetryData?: TelemetryData | null;
   isConnected: boolean;
-  currentRobotPosition?: {
-    x: number;
-    y: number;
-    heading: number;
-  };
-  onPreviewUpdate?: (preview: any) => void;
   robotType?: "real" | "virtual" | null;
   onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
@@ -248,13 +216,13 @@ function RobotControlsSection({
   onMotorStopCommand,
   telemetryData,
   isConnected,
-  currentRobotPosition,
-  onPreviewUpdate,
   robotType,
   onRunProgram,
   onStopProgram,
   onUploadAndRun,
 }: RobotControlsSectionProps) {
+  // Use Jotai atoms directly instead of prop drilling
+  const [, setMovementPreview] = useAtom(movementPreviewAtom);
   return (
     <CompactRobotController
       onDriveCommand={onDriveCommand}
@@ -266,8 +234,8 @@ function RobotControlsSection({
       onMotorStopCommand={onMotorStopCommand}
       telemetryData={telemetryData}
       isConnected={isConnected}
-      currentRobotPosition={currentRobotPosition}
-      onPreviewUpdate={onPreviewUpdate}
+      // Robot position automatically available via Jotai in CompactRobotController
+      onPreviewUpdate={setMovementPreview}
       robotType={robotType}
       onRunProgram={onRunProgram}
       onStopProgram={onStopProgram}
@@ -437,27 +405,27 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
   );
 }
 
-export function TelemetryDashboard({
-  telemetryData,
-  programStatus,
-  isConnected,
-  programOutputLog,
-  onClearProgramOutput,
-  onResetTelemetry,
-  className = "",
-  robotType,
-  onDriveCommand,
-  onTurnCommand,
-  onStopCommand,
-  onContinuousDriveCommand,
-  onCustomCommand,
-  onMotorCommand,
-  onContinuousMotorCommand,
-  onMotorStopCommand,
-  onRunProgram,
-  onStopProgram,
-  onUploadAndRun,
-}: TelemetryDashboardProps) {
+export function TelemetryDashboard({ className = "" }: { className?: string }) {
+  // Use Jotai robot connection hook directly instead of prop drilling
+  const robotConnection = useJotaiRobotConnection();
+  const {
+    telemetryData,
+    programStatus,
+    isConnected,
+    programOutputLog,
+    clearProgramOutputLog,
+    robotType,
+    sendDriveCommand,
+    sendTurnCommand,
+    sendStopCommand,
+    sendContinuousDriveCommand,
+    sendMotorCommand,
+    sendContinuousMotorCommand,
+    sendMotorStopCommand,
+    runProgram,
+    stopProgram,
+    uploadAndRunProgram,
+  } = robotConnection;
   const [showMatEditor, setShowMatEditor] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
   const [matEditorMode, setMatEditorMode] = useState<"edit" | "new">("edit");
@@ -465,33 +433,12 @@ export function TelemetryDashboard({
     null
   );
   const [showScoring, setShowScoring] = useState(false);
-  const [currentScore, setCurrentScore] = useState(0);
+  // Use Jotai for current score instead of local state
+  const currentScore = useAtomValue(currentScoreAtom);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
-  // Movement preview state - now supports dual previews
-  const [movementPreview, setMovementPreview] = useState<{
-    type: "drive" | "turn" | null;
-    direction: "forward" | "backward" | "left" | "right" | null;
-    positions: {
-      primary: {
-        x: number;
-        y: number;
-        heading: number;
-      } | null;
-      secondary: {
-        x: number;
-        y: number;
-        heading: number;
-      } | null;
-    };
-  } | null>(null);
-
-  // Robot position state
-  const [robotPosition, setRobotPosition] = useState<{
-    x: number;
-    y: number;
-    heading: number;
-  } | null>(null);
+  // Use Jotai atoms for movement preview and robot position
+  const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
 
   // Always start with default unearthed mat, don't auto-load custom configs
   useEffect(() => {
@@ -555,7 +502,7 @@ export function TelemetryDashboard({
       setCustomMatConfig(null);
       setShowScoring(false);
     }
-    setCurrentScore(0);
+    // Score is automatically reset via Jotai atoms
   };
 
   const handleClearCustomMat = async () => {
@@ -573,29 +520,10 @@ export function TelemetryDashboard({
       setCustomMatConfig(null);
       setShowScoring(false);
     }
-    setCurrentScore(0);
+    // Score is automatically reset via Jotai atoms
   };
 
-  const handleMovementPreviewUpdate = (preview: any) => {
-    setMovementPreview(preview);
-  };
-
-  const handleRobotPositionChange = (position: {
-    x: number;
-    y: number;
-    heading: number;
-  }) => {
-    setRobotPosition(position);
-  };
-
-  const handleTelemetryReset = () => {
-    telemetryHistory.onMatReset();
-    onResetTelemetry?.();
-    // Clear robot position state - this will force the preview system to wait
-    // for the next actual robot movement to get the new position
-    setRobotPosition(null);
-    setMovementPreview(null);
-  };
+  // Telemetry reset is now handled within EnhancedCompetitionMat via Jotai atoms
 
   // Early return if not connected
   if (!isConnected) {
@@ -660,33 +588,27 @@ export function TelemetryDashboard({
           telemetryData={telemetryData || null}
           customMatConfig={customMatConfig}
           showScoring={showScoring}
-          onScoreUpdate={setCurrentScore}
           isConnected={isConnected}
-          onResetTelemetry={handleTelemetryReset}
-          movementPreview={movementPreview}
           controlMode="incremental"
-          onRobotPositionChange={handleRobotPositionChange}
         />
       </div>
 
       {/* Mobile Layout - Robot Controls below mat on mobile */}
       <div className="xl:hidden space-y-2 sm:space-y-4">
         <RobotControlsSection
-          onDriveCommand={onDriveCommand}
-          onTurnCommand={onTurnCommand}
-          onStopCommand={onStopCommand}
-          onContinuousDriveCommand={onContinuousDriveCommand}
-          onMotorCommand={onMotorCommand}
-          onContinuousMotorCommand={onContinuousMotorCommand}
-          onMotorStopCommand={onMotorStopCommand}
+          onDriveCommand={sendDriveCommand}
+          onTurnCommand={sendTurnCommand}
+          onStopCommand={sendStopCommand}
+          onContinuousDriveCommand={sendContinuousDriveCommand}
+          onMotorCommand={sendMotorCommand}
+          onContinuousMotorCommand={sendContinuousMotorCommand}
+          onMotorStopCommand={sendMotorStopCommand}
           telemetryData={telemetryData}
           isConnected={isConnected}
-          currentRobotPosition={robotPosition || undefined}
-          onPreviewUpdate={handleMovementPreviewUpdate}
           robotType={robotType}
-          onRunProgram={onRunProgram}
-          onStopProgram={onStopProgram}
-          onUploadAndRun={onUploadAndRun}
+          onRunProgram={runProgram}
+          onStopProgram={stopProgram}
+          onUploadAndRun={uploadAndRunProgram}
         />
 
         <MatControlsPanel
@@ -709,33 +631,27 @@ export function TelemetryDashboard({
             telemetryData={telemetryData || null}
             customMatConfig={customMatConfig}
             showScoring={showScoring}
-            onScoreUpdate={setCurrentScore}
             isConnected={isConnected}
-            onResetTelemetry={handleTelemetryReset}
-            movementPreview={movementPreview}
             controlMode="incremental"
-            onRobotPositionChange={handleRobotPositionChange}
           />
         </div>
 
         {/* Right Sidebar - Robot Controls and Mat Controls */}
         <div className="col-span-1 space-y-4">
           <RobotControlsSection
-            onDriveCommand={onDriveCommand}
-            onTurnCommand={onTurnCommand}
-            onStopCommand={onStopCommand}
-            onContinuousDriveCommand={onContinuousDriveCommand}
-            onMotorCommand={onMotorCommand}
-            onContinuousMotorCommand={onContinuousMotorCommand}
-            onMotorStopCommand={onMotorStopCommand}
+            onDriveCommand={sendDriveCommand}
+            onTurnCommand={sendTurnCommand}
+            onStopCommand={sendStopCommand}
+            onContinuousDriveCommand={sendContinuousDriveCommand}
+            onMotorCommand={sendMotorCommand}
+            onContinuousMotorCommand={sendContinuousMotorCommand}
+            onMotorStopCommand={sendMotorStopCommand}
             telemetryData={telemetryData}
             isConnected={isConnected}
-            currentRobotPosition={robotPosition || undefined}
-            onPreviewUpdate={handleMovementPreviewUpdate}
             robotType={robotType}
-            onRunProgram={onRunProgram}
-            onStopProgram={onStopProgram}
-            onUploadAndRun={onUploadAndRun}
+            onRunProgram={runProgram}
+            onStopProgram={stopProgram}
+            onUploadAndRun={uploadAndRunProgram}
           />
 
           <MatControlsPanel
@@ -767,7 +683,7 @@ export function TelemetryDashboard({
           {/* Program Output Log */}
           <ProgramOutputLog
             outputLog={programOutputLog}
-            onClear={onClearProgramOutput}
+            onClear={clearProgramOutputLog}
           />
         </div>
       </div>

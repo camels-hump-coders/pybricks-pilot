@@ -543,21 +543,26 @@ class VirtualRobotService extends EventTarget {
           this.state.driveAngle = 0;
           this.state.heading = 0;
           this.config.imuHeading = 0;
-          
+
           // Abort any ongoing commands
           this.abortController.abort();
           this.abortController = new AbortController();
-          
-          console.log("[VirtualRobot] Drivebase reset - telemetry cleared and commands aborted");
+
+          console.log(
+            "[VirtualRobot] Drivebase reset - telemetry cleared and commands aborted"
+          );
           break;
-          
+
         case "stop":
           // Stop all movement
           await this.stop();
           break;
-          
+
         default:
-          console.log("[VirtualRobot] Unknown control command:", command.action);
+          console.log(
+            "[VirtualRobot] Unknown control command:",
+            command.action
+          );
       }
     } catch (error) {
       console.error("[VirtualRobot] Error processing control command:", error);

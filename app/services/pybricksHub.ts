@@ -353,10 +353,11 @@ class PybricksHubService extends EventTarget {
       await this.writeUserProgramMetadataWithConfirmation(0);
       this.emitDebugEvent("upload", "Program invalidated");
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.emitDebugEvent("error", "Program invalidation failed", {
-        error: error.message,
+        error: errorMessage,
       });
-      throw new Error(`Program invalidation failed: ${error.message}`);
+      throw new Error(`Program invalidation failed: ${errorMessage}`);
     }
 
     // Step 2: Upload program data in chunks
@@ -388,11 +389,12 @@ class PybricksHubService extends EventTarget {
           );
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.emitDebugEvent("error", `Chunk ${chunkIndex} upload failed`, {
           offset: i,
-          error: error.message,
+          error: errorMessage,
         });
-        throw new Error(`Chunk upload failed at offset ${i}: ${error.message}`);
+        throw new Error(`Chunk upload failed at offset ${i}: ${errorMessage}`);
       }
     }
 
@@ -401,10 +403,11 @@ class PybricksHubService extends EventTarget {
       await this.writeUserProgramMetadataWithConfirmation(programBlob.size);
       this.emitDebugEvent("upload", "Program validated successfully");
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.emitDebugEvent("error", "Program validation failed", {
-        error: error.message,
+        error: errorMessage,
       });
-      throw new Error(`Program validation failed: ${error.message}`);
+      throw new Error(`Program validation failed: ${errorMessage}`);
     }
 
     // Step 4: If shouldRun, immediately start the program (atomic like Pybricks Code)
@@ -420,10 +423,11 @@ class PybricksHubService extends EventTarget {
         // await new Promise((resolve) => setTimeout(resolve, 1000));
         this.emitDebugEvent("upload", "Upload and run completed successfully");
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.emitDebugEvent("error", "Failed to start program", {
-          error: error.message,
+          error: errorMessage,
         });
-        throw new Error(`Failed to start program: ${error.message}`);
+        throw new Error(`Failed to start program: ${errorMessage}`);
       }
     } else {
       this.emitDebugEvent("upload", "Upload completed successfully");

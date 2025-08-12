@@ -55,7 +55,7 @@ class MpyCrossCompiler extends EventTarget {
       );
 
       // Compile using mpy-cross v6 with options that might be needed for Pybricks
-      const options = [
+      const options: string[] = [
         // Add any compilation options that Pybricks might use
         // Try to match what Pybricks Code does for compilation
       ];
@@ -134,8 +134,8 @@ class MpyCrossCompiler extends EventTarget {
       });
 
       blobParts.push(lengthBytes);
-      blobParts.push(nameBytes);
-      blobParts.push(result.mpy);
+      blobParts.push(nameBytes as BlobPart);
+      blobParts.push(result.mpy as BlobPart);
 
       // Create the final blob
       const file = new Blob(blobParts);
