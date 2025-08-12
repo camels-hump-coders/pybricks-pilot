@@ -2,9 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -25,18 +25,39 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Git LFS
+        run: |
+          git lfs version
+          git lfs install
+          git lfs pull
+          echo "Git LFS setup complete"
+
+      - name: Verify LFS files
+        run: |
+          git lfs ls-files
+          echo "LFS files downloaded successfully"
+          echo "Checking file sizes for LFS files:"
+          find . -name "*.png" -o -name "*.pdf" | head -10 | xargs ls -lh
+          echo "Repository size information:"
+          du -sh . 2>/dev/null || echo "du command not available"
+          git count-objects -vH
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build application
-        run: npm run build
+        run: |
+          echo "Building application with LFS files available..."
+          npm run build
         env:
           NODE_ENV: production
           GITHUB_PAGES: true
@@ -44,10 +65,17 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
+      - name: Verify built files
+        run: |
+          echo "Checking built application for LFS files:"
+          find ./build -name "*.png" -o -name "*.pdf" | head -10
+          echo "Build directory contents:"
+          ls -la ./build/client
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './build/client'
+          path: "./build/client"
 
   # Deployment job
   deploy:
