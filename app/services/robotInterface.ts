@@ -1,6 +1,6 @@
 import type { HubInfo } from "./bluetooth";
 
-export interface RobotInterface {
+interface RobotInterface {
   // Connection management
   connect(): Promise<HubInfo>;
   disconnect(): Promise<void>;
@@ -28,7 +28,7 @@ export interface RobotInterface {
   getCapabilities(): RobotCapabilities;
 }
 
-export interface RobotCapabilities {
+interface RobotCapabilities {
   maxMotorCount: number;
   maxSensorCount: number;
   drivebaseSupported: boolean;
@@ -41,7 +41,7 @@ export interface RobotConnectionOptions {
   robotType: "real" | "virtual";
 }
 
-export class RobotConnectionManager {
+class RobotConnectionManager {
   private currentRobot: RobotInterface | null = null;
   private robotType: "real" | "virtual" = "real";
   private eventListeners = new Map<string, Set<EventListener>>();

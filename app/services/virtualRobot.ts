@@ -1,6 +1,6 @@
-import { EventTarget } from "../utils/eventTarget";
+import { EventTarget } from "../utils/eventTarget.js";
 
-export interface VirtualRobotConfig {
+interface VirtualRobotConfig {
   name: string;
   batteryVoltage: number;
   batteryCurrent: number;
@@ -13,7 +13,7 @@ export interface VirtualRobotConfig {
   telemetryInterval: number;
 }
 
-export interface VirtualRobotState {
+interface VirtualRobotState {
   // Simple accumulated values like real robot encoders
   driveDistance: number; // Total distance traveled (mm)
   driveAngle: number; // Total angle turned (degrees)
@@ -37,7 +37,7 @@ export interface VirtualRobotState {
   };
 }
 
-export class VirtualRobotService extends EventTarget {
+class VirtualRobotService extends EventTarget {
   private config: VirtualRobotConfig;
   private state: VirtualRobotState;
   private telemetryInterval: NodeJS.Timeout | null = null;
