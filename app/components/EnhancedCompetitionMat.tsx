@@ -153,6 +153,16 @@ export function EnhancedCompetitionMat({
     y: number;
   } | null>(null);
 
+  // Start telemetry recording when robot connects
+  useEffect(() => {
+    if (isConnected) {
+      console.log(
+        "[EnhancedCompetitionMat] Robot connected, starting telemetry recording"
+      );
+      telemetryHistory.onMatReset(); // This will start a new recording session
+    }
+  }, [isConnected]);
+
   // Load and process mat image
   useEffect(() => {
     if (customMatConfig) {
@@ -791,18 +801,30 @@ export function EnhancedCompetitionMat({
         return prev;
       }
 
-      // Update position based on movement
+      return {
+        distance: currentDistance,
+        angle: currentAngle,
+      };
+    });
+
+    // Calculate and update position in a separate effect to avoid nested state updates
+    const deltaDistance = currentDistance - accumulatedTelemetry.distance;
+    const deltaAngle = currentAngle - accumulatedTelemetry.angle;
+
+    if (Math.abs(deltaDistance) >= 0.01 || Math.abs(deltaAngle) >= 0.01) {
       setCurrentPosition((prevPos) => {
         const totalHeadingChange = currentAngle + manualHeadingAdjustment;
         const currentHeading =
           (telemetryReference.heading + totalHeadingChange) % 360;
 
-        const movementHeading = prevPos.heading;
+        // Use the current heading from telemetry, not the previous position heading
+        // This ensures movement is calculated based on the robot's current orientation
+        const movementHeading = currentHeading;
         const movementHeadingRad = (movementHeading * Math.PI) / 180;
 
         // Apply scaling factor to correct for the 2x distance issue
         // The telemetry appears to be reporting distances that result in 2x movement on the virtual mat
-        const scalingFactor = 0.5; // Reduce movement by half to correct the 2x issue
+        const scalingFactor = 1; // We might need to reduce movement by half to correct the 2x issue
         const scaledDeltaDistance = deltaDistance * scalingFactor;
 
         const deltaX = scaledDeltaDistance * Math.sin(movementHeadingRad);
@@ -831,18 +853,15 @@ export function EnhancedCompetitionMat({
 
         return newPosition;
       });
-
-      return {
-        distance: currentDistance,
-        angle: currentAngle,
-      };
-    });
+    }
   }, [
     telemetryData?.drivebase?.distance,
     telemetryData?.drivebase?.angle,
     isConnected,
     telemetryReference.heading,
     manualHeadingAdjustment,
+    accumulatedTelemetry.distance,
+    accumulatedTelemetry.angle,
     customMatConfig,
     showScoring,
     checkScoringCollisions,

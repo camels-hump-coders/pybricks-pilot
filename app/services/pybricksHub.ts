@@ -182,7 +182,7 @@ class PybricksHubService extends EventTarget {
       return hubInfo;
     } catch (error) {
       this.emitDebugEvent("error", "Failed to connect to hub", {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -201,7 +201,7 @@ class PybricksHubService extends EventTarget {
       this.emitDebugEvent(
         "connection",
         "Failed to stop program before disconnect",
-        { error: error.message }
+        { error: error instanceof Error ? error.message : String(error) }
       );
     }
 
@@ -272,7 +272,7 @@ class PybricksHubService extends EventTarget {
       return hubInfo;
     } catch (error) {
       this.emitDebugEvent("error", "Auto-reconnect failed", {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         attempt: this.reconnectAttempts + 1,
         maxAttempts: this.maxReconnectAttempts,
       });
@@ -947,6 +947,91 @@ class PybricksHubService extends EventTarget {
       detail: { running: true, output: outputLine },
     });
     this.dispatchEvent(statusEvent);
+  }
+
+  // Robot control methods for RobotInterface compatibility
+  // These methods send JSON commands to the PyBricks pilot via stdin
+  async drive(distance: number, speed: number): Promise<void> {
+    const command = JSON.stringify({
+      action: "drive",
+      distance: distance,
+      speed: speed,
+    });
+    await this.sendControlCommand(command);
+  }
+
+  async turn(angle: number, speed: number): Promise<void> {
+    const command = JSON.stringify({
+      action: "turn",
+      angle: angle,
+      speed: speed,
+    });
+    await this.sendControlCommand(command);
+  }
+
+  async stop(): Promise<void> {
+    const command = JSON.stringify({
+      action: "stop",
+    });
+    await this.sendControlCommand(command);
+  }
+
+  async setMotorSpeed(motorName: string, speed: number): Promise<void> {
+    const command = JSON.stringify({
+      action: "motor",
+      motor: motorName,
+      speed: speed,
+    });
+    await this.sendControlCommand(command);
+  }
+
+  async setMotorAngle(
+    motorName: string,
+    angle: number,
+    speed: number
+  ): Promise<void> {
+    const command = JSON.stringify({
+      action: "motor",
+      motor: motorName,
+      angle: angle,
+      speed: speed,
+    });
+    await this.sendControlCommand(command);
+  }
+
+  // Additional method for continuous drive (not in RobotInterface but useful)
+  async driveContinuous(speed: number, turnRate: number): Promise<void> {
+    const command = JSON.stringify({
+      action: "drive_continuous",
+      speed: speed,
+      turn_rate: turnRate,
+    });
+    await this.sendControlCommand(command);
+  }
+
+  // RobotInterface compatibility methods
+  getRobotType(): "real" | "virtual" {
+    return "real";
+  }
+
+  getCapabilities(): any {
+    return {
+      maxMotorCount: 4,
+      maxSensorCount: 4,
+      drivebaseSupported: true,
+      imuSupported: true,
+      batteryMonitoring: true,
+      programStorage: true,
+    };
+  }
+
+  // Alias for connect method to match RobotInterface
+  async connect(): Promise<HubInfo> {
+    const hubInfo = await this.requestAndConnect();
+    if (!hubInfo) {
+      throw new Error("Failed to connect to hub");
+    }
+    return hubInfo;
   }
 }
 

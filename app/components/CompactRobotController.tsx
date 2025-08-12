@@ -8,7 +8,11 @@ interface CompactRobotControllerProps {
   onTurnCommand?: (angle: number, speed: number) => Promise<void>;
   onStopCommand?: () => Promise<void>;
   onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
-  onMotorCommand?: (motor: string, angle: number, speed: number) => Promise<void>;
+  onMotorCommand?: (
+    motor: string,
+    angle: number,
+    speed: number
+  ) => Promise<void>;
   onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand?: (motor: string) => Promise<void>;
   telemetryData?: any;
@@ -43,12 +47,16 @@ export function CompactRobotController({
   const isFullyConnected = hasControlCode;
 
   // Get non-drive motors from telemetry data
-  const availableMotors = telemetryData?.motors 
-    ? Object.keys(telemetryData.motors).filter(name => !['left', 'right'].includes(name))
+  const availableMotors = telemetryData?.motors
+    ? Object.keys(telemetryData.motors).filter(
+        (name) => !["left", "right"].includes(name)
+      )
     : [];
 
   return (
-    <div className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}>
+    <div
+      className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}
+    >
       <div className="p-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -57,20 +65,21 @@ export function CompactRobotController({
             </h3>
             {/* Connection Status Indicator */}
             <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${
-                isFullyConnected 
-                  ? "bg-green-500" 
-                  : isConnected 
-                    ? "bg-yellow-500" 
-                    : "bg-red-500"
-              }`} />
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isFullyConnected
+                    ? "bg-green-500"
+                    : isConnected
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
+                }`}
+              />
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {isFullyConnected 
-                  ? "Ready" 
-                  : isConnected 
-                    ? "Loading..." 
-                    : "Disconnected"
-                }
+                {isFullyConnected
+                  ? "Ready"
+                  : isConnected
+                    ? "Waiting for robot program to run..."
+                    : "Disconnected"}
                 {telemetryHistory.isRecordingActive() && (
                   <span className="ml-1 text-red-500">● Rec</span>
                 )}
@@ -80,22 +89,21 @@ export function CompactRobotController({
         </div>
       </div>
 
-      <div className={`p-3 space-y-4 relative ${!isFullyConnected ? 'opacity-50' : ''}`}>
+      <div
+        className={`p-3 space-y-4 relative ${!isFullyConnected ? "opacity-50" : ""}`}
+      >
         {/* Disabled Overlay */}
         {!isFullyConnected && (
           <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 flex items-center justify-center z-10 rounded">
             <div className="text-center">
-              <div className="text-2xl mb-2">
-                {!isConnected ? "🔌" : "⏳"}
-              </div>
+              <div className="text-2xl mb-2">{!isConnected ? "🔌" : "⏳"}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
                 {!isConnected ? "Connect Hub" : "Loading Control Code..."}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                {!isConnected 
-                  ? "Pair and connect your robot hub" 
-                  : "Upload a program with robot controls"
-                }
+                {!isConnected
+                  ? "Pair and connect your robot hub"
+                  : "Upload a program with robot controls"}
               </div>
             </div>
           </div>
@@ -106,7 +114,7 @@ export function CompactRobotController({
           <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
             Drive Base
           </div>
-          
+
           {/* Control Mode Toggle */}
           <div className="flex items-center gap-2 mb-3">
             <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-md p-1">
@@ -134,11 +142,15 @@ export function CompactRobotController({
           </div>
 
           {/* Compact sliders */}
-          <div className={`grid gap-2 mb-3 text-xs ${
-            controlMode === "incremental" ? "grid-cols-3" : "grid-cols-2"
-          }`}>
+          <div
+            className={`grid gap-2 mb-3 text-xs ${
+              controlMode === "incremental" ? "grid-cols-3" : "grid-cols-2"
+            }`}
+          >
             <div>
-              <label className="block text-gray-600 dark:text-gray-400 mb-1">Speed: {driveSpeed}%</label>
+              <label className="block text-gray-600 dark:text-gray-400 mb-1">
+                Speed: {driveSpeed}%
+              </label>
               <input
                 type="range"
                 min="10"
@@ -150,7 +162,9 @@ export function CompactRobotController({
             </div>
             {controlMode === "incremental" && (
               <div>
-                <label className="block text-gray-600 dark:text-gray-400 mb-1">Dist: {distance}mm</label>
+                <label className="block text-gray-600 dark:text-gray-400 mb-1">
+                  Dist: {distance}mm
+                </label>
                 <input
                   type="range"
                   min="50"
@@ -164,7 +178,9 @@ export function CompactRobotController({
             )}
             {controlMode === "incremental" && (
               <div>
-                <label className="block text-gray-600 dark:text-gray-400 mb-1">Angle: {angle}°</label>
+                <label className="block text-gray-600 dark:text-gray-400 mb-1">
+                  Angle: {angle}°
+                </label>
                 <input
                   type="range"
                   min="5"
@@ -203,7 +219,7 @@ export function CompactRobotController({
               </button>
             )}
             <div></div>
-            
+
             {controlMode === "incremental" ? (
               <button
                 onClick={() => sendStepTurn(-angle, driveSpeed)}
@@ -253,7 +269,7 @@ export function CompactRobotController({
                 ↷
               </button>
             )}
-            
+
             <div></div>
             {controlMode === "incremental" ? (
               <button
@@ -286,13 +302,17 @@ export function CompactRobotController({
             <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide border-t border-gray-200 dark:border-gray-700 pt-3">
               Motors ({availableMotors.length})
             </div>
-            
+
             {/* Motor settings */}
-            <div className={`grid gap-2 mb-3 text-xs ${
-              controlMode === "incremental" ? "grid-cols-2" : "grid-cols-1"
-            }`}>
+            <div
+              className={`grid gap-2 mb-3 text-xs ${
+                controlMode === "incremental" ? "grid-cols-2" : "grid-cols-1"
+              }`}
+            >
               <div>
-                <label className="block text-gray-600 dark:text-gray-400 mb-1">Speed: {motorSpeed}%</label>
+                <label className="block text-gray-600 dark:text-gray-400 mb-1">
+                  Speed: {motorSpeed}%
+                </label>
                 <input
                   type="range"
                   min="10"
@@ -304,7 +324,9 @@ export function CompactRobotController({
               </div>
               {controlMode === "incremental" && (
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1">Angle: {motorAngle}°</label>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1">
+                    Angle: {motorAngle}°
+                  </label>
                   <input
                     type="range"
                     min="5"
@@ -328,7 +350,9 @@ export function CompactRobotController({
                   <div className="grid grid-cols-2 gap-1">
                     {controlMode === "incremental" ? (
                       <button
-                        onClick={() => sendMotorCommand(motorName, -motorAngle, motorSpeed)}
+                        onClick={() =>
+                          sendMotorCommand(motorName, -motorAngle, motorSpeed)
+                        }
                         className="px-1 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors"
                         title={`${motorName} CCW ${motorAngle}°`}
                       >
@@ -336,10 +360,14 @@ export function CompactRobotController({
                       </button>
                     ) : (
                       <button
-                        onMouseDown={() => startContinuousMotor(motorName, "ccw")}
+                        onMouseDown={() =>
+                          startContinuousMotor(motorName, "ccw")
+                        }
                         onMouseUp={stopContinuousMotor}
                         onMouseLeave={stopContinuousMotor}
-                        onTouchStart={() => startContinuousMotor(motorName, "ccw")}
+                        onTouchStart={() =>
+                          startContinuousMotor(motorName, "ccw")
+                        }
                         onTouchEnd={stopContinuousMotor}
                         className="px-1 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
                         title={`${motorName} CCW (Hold)`}
@@ -349,7 +377,9 @@ export function CompactRobotController({
                     )}
                     {controlMode === "incremental" ? (
                       <button
-                        onClick={() => sendMotorCommand(motorName, motorAngle, motorSpeed)}
+                        onClick={() =>
+                          sendMotorCommand(motorName, motorAngle, motorSpeed)
+                        }
                         className="px-1 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors"
                         title={`${motorName} CW ${motorAngle}°`}
                       >
@@ -357,10 +387,14 @@ export function CompactRobotController({
                       </button>
                     ) : (
                       <button
-                        onMouseDown={() => startContinuousMotor(motorName, "cw")}
+                        onMouseDown={() =>
+                          startContinuousMotor(motorName, "cw")
+                        }
                         onMouseUp={stopContinuousMotor}
                         onMouseLeave={stopContinuousMotor}
-                        onTouchStart={() => startContinuousMotor(motorName, "cw")}
+                        onTouchStart={() =>
+                          startContinuousMotor(motorName, "cw")
+                        }
                         onTouchEnd={stopContinuousMotor}
                         className="px-1 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
                         title={`${motorName} CW (Hold)`}
@@ -380,9 +414,11 @@ export function CompactRobotController({
                   const motor = telemetryData?.motors?.[motorName];
                   return (
                     <div key={motorName} className="text-center">
-                      <div className="text-gray-500 dark:text-gray-400">{motorName}</div>
+                      <div className="text-gray-500 dark:text-gray-400">
+                        {motorName}
+                      </div>
                       <div className="font-mono text-gray-800 dark:text-gray-200">
-                        {motor ? `${Math.round(motor.angle)}°` : '--'}
+                        {motor ? `${Math.round(motor.angle)}°` : "--"}
                       </div>
                     </div>
                   );
@@ -399,7 +435,9 @@ export function CompactRobotController({
   function queueCommand(commandFn: () => Promise<any>) {
     // Prevent command execution if not fully connected
     if (!isFullyConnected) {
-      console.warn("Robot controls disabled: Hub not connected or control code not loaded");
+      console.warn(
+        "Robot controls disabled: Hub not connected or control code not loaded"
+      );
       return Promise.resolve();
     }
 
@@ -425,7 +463,9 @@ export function CompactRobotController({
   // Helper functions for step-mode commands
   function sendStepDrive(distance: number, speed: number) {
     if (!isFullyConnected) {
-      console.warn("Robot controls disabled: Hub not connected or control code not loaded");
+      console.warn(
+        "Robot controls disabled: Hub not connected or control code not loaded"
+      );
       return;
     }
     onDriveCommand?.(distance, speed);
@@ -433,7 +473,9 @@ export function CompactRobotController({
 
   function sendStepTurn(angle: number, speed: number) {
     if (!isFullyConnected) {
-      console.warn("Robot controls disabled: Hub not connected or control code not loaded");
+      console.warn(
+        "Robot controls disabled: Hub not connected or control code not loaded"
+      );
       return;
     }
     onTurnCommand?.(angle, speed);
@@ -441,7 +483,9 @@ export function CompactRobotController({
 
   function sendStop() {
     if (!isFullyConnected) {
-      console.warn("Robot controls disabled: Hub not connected or control code not loaded");
+      console.warn(
+        "Robot controls disabled: Hub not connected or control code not loaded"
+      );
       return;
     }
     onStopCommand?.();
@@ -449,7 +493,9 @@ export function CompactRobotController({
 
   function sendMotorCommand(motorName: string, angle: number, speed: number) {
     if (!isFullyConnected) {
-      console.warn("Robot controls disabled: Hub not connected or control code not loaded");
+      console.warn(
+        "Robot controls disabled: Hub not connected or control code not loaded"
+      );
       return;
     }
     onMotorCommand?.(motorName, angle, speed);
@@ -471,7 +517,8 @@ export function CompactRobotController({
 
   function startContinuousTurn(direction: "left" | "right") {
     if (controlMode !== "continuous") return;
-    const turnRate = direction === "left" ? -driveSpeed * 3.6 : driveSpeed * 3.6;
+    const turnRate =
+      direction === "left" ? -driveSpeed * 3.6 : driveSpeed * 3.6;
     sendContinuousMovement(0, turnRate);
   }
 

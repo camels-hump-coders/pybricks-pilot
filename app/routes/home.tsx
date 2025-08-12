@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { ConnectionStatus } from "../components/ConnectionStatus";
 import { DebugPanel } from "../components/DebugPanel";
 import { NotificationContainer } from "../components/ErrorNotification";
 import { ProgramManager } from "../components/ProgramManager";
+import { RobotConnectionSelector } from "../components/RobotConnectionSelector";
 import { TelemetryDashboard } from "../components/TelemetryDashboard";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useFileSystem } from "../hooks/useFileSystem";
 import { useNotifications } from "../hooks/useNotifications";
-import { usePybricksHub } from "../hooks/usePybricksHub";
 import { usePythonCompiler } from "../hooks/usePythonCompiler";
+import { useRobotConnection } from "../hooks/useRobotConnection";
 import type { Route } from "./+types/home";
 
 // Helper component for collapsible sections - defined outside to prevent re-creation
@@ -87,6 +87,7 @@ export default function Home() {
   const {
     isConnected,
     hubInfo,
+    robotType,
     connect,
     disconnect,
     isConnecting,
@@ -113,7 +114,7 @@ export default function Home() {
     clearProgramOutputLog,
     resetTelemetry,
     isSupported: isBluetoothSupported,
-  } = usePybricksHub();
+  } = useRobotConnection();
 
   const {
     hasDirectoryAccess,
@@ -148,14 +149,21 @@ export default function Home() {
   }, [isConnected]);
 
   // Enhanced error handling with notifications
-  const handleConnect = async () => {
+  const handleConnect = async (options: any) => {
     try {
-      await connect();
-      showSuccess("Connected", "Successfully connected to the hub!");
+      await connect(options);
+      const robotTypeText =
+        options.robotType === "virtual" ? "virtual robot" : "hub";
+      showSuccess(
+        "Connected",
+        `Successfully connected to the ${robotTypeText}!`
+      );
     } catch (error) {
       showError(
         "Connection Failed",
-        error instanceof Error ? error.message : "Failed to connect to the hub"
+        error instanceof Error
+          ? error.message
+          : "Failed to connect to the robot"
       );
     }
   };
@@ -302,7 +310,7 @@ export default function Home() {
               </h1>
               {hubInfo && (
                 <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
-                  {hubInfo.name}
+                  {hubInfo.name} {robotType === "virtual" && "(Virtual)"}
                 </span>
               )}
             </div>
@@ -351,16 +359,9 @@ export default function Home() {
                   Disconnect
                 </button>
               ) : (
-                <button
-                  onClick={handleConnect}
-                  disabled={isConnecting}
-                  className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isConnecting && (
-                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                  )}
-                  Connect
-                </button>
+                <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                  {robotType === "virtual" ? "🖥️ Virtual" : "🤖 Real"}
+                </div>
               )}
 
               {/* Theme Toggle */}
@@ -380,6 +381,15 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="w-full px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
+        {/* Robot Connection Selector - Always visible at top */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <RobotConnectionSelector
+            onConnect={handleConnect}
+            isConnecting={isConnecting}
+            robotType={robotType}
+          />
+        </div>
+
         {/* 1. Telemetry Section (Priority 1) */}
         <CollapsibleSection
           title="Robot Telemetry"
@@ -438,20 +448,6 @@ export default function Home() {
             isCompiling={isCompiling}
           />
         </CollapsibleSection>
-
-        {/* Connection Status for Disconnected State */}
-        {!isConnected && (
-          <div className="mt-8">
-            <ConnectionStatus
-              isConnected={isConnected}
-              isConnecting={isConnecting}
-              hubInfo={hubInfo}
-              connectionError={connectionError}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-            />
-          </div>
-        )}
       </main>
 
       {/* Notification System */}
