@@ -1,17 +1,20 @@
-import { useState, useEffect } from "react";
-import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+import { useEffect, useState } from "react";
+import {
+  GameMatConfigSchema,
+  type GameMatConfig,
+} from "../schemas/GameMatConfig";
 import { matConfigStorage } from "../services/matConfigStorage";
+import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+import { telemetryHistory } from "../services/telemetryHistory";
+import { CompactRobotController } from "./CompactRobotController";
+import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
 import { GameMatEditor } from "./GameMatEditor";
-import { GameMatConfigSchema, type GameMatConfig } from "../schemas/GameMatConfig";
-import { MapSelector } from "./MapSelector";
-import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { IMUDisplay } from "./IMUDisplay";
+import { MapSelector } from "./MapSelector";
 import { MotorStatus } from "./MotorStatus";
 import { ProgramOutputLog } from "./ProgramOutputLog";
 import { SensorDisplay } from "./SensorDisplay";
-import { CompactRobotController } from "./CompactRobotController";
-import { telemetryHistory } from "../services/telemetryHistory";
 
 // Load built-in maps using the same logic as MapSelector
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
@@ -43,15 +46,15 @@ for (const [configPath, rawConfig] of Object.entries(seasonConfigs)) {
     const rulebookPath = configPath.replace("config.json", "rulebook.pdf");
     const imageUrl = seasonMats[matPath]?.default;
     const rulebookUrl = seasonRulebooks[rulebookPath]?.default;
-    
+
     if (!id || !imageUrl) {
       console.warn(`Skipping incomplete season config: ${configPath}`);
       continue;
     }
-    
+
     // Validate config with Zod schema
     const config = GameMatConfigSchema.parse(rawConfig);
-    
+
     BUILT_IN_MAPS.push({
       id,
       name: id,
@@ -67,7 +70,7 @@ for (const [configPath, rawConfig] of Object.entries(seasonConfigs)) {
 
 // Get the default unearthed map
 const getDefaultUnearthedMap = (): GameMatConfig | null => {
-  const unearthedMap = BUILT_IN_MAPS.find(map => map.id === 'unearthed');
+  const unearthedMap = BUILT_IN_MAPS.find((map) => map.id === "unearthed");
   if (unearthedMap) {
     return {
       ...unearthedMap.config,
@@ -92,7 +95,11 @@ interface TelemetryDashboardProps {
   onStopCommand?: () => Promise<void>;
   onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
   onCustomCommand?: (command: string) => Promise<void>;
-  onMotorCommand?: (motor: string, angle: number, speed: number) => Promise<void>;
+  onMotorCommand?: (
+    motor: string,
+    angle: number,
+    speed: number
+  ) => Promise<void>;
   onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand?: (motor: string) => Promise<void>;
 }
@@ -116,11 +123,38 @@ export function TelemetryDashboard({
 }: TelemetryDashboardProps) {
   const [showMatEditor, setShowMatEditor] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
-  const [matEditorMode, setMatEditorMode] = useState<'edit' | 'new'>('edit');
-  const [customMatConfig, setCustomMatConfig] = useState<GameMatConfig | null>(null);
+  const [matEditorMode, setMatEditorMode] = useState<"edit" | "new">("edit");
+  const [customMatConfig, setCustomMatConfig] = useState<GameMatConfig | null>(
+    null
+  );
   const [showScoring, setShowScoring] = useState(false);
   const [currentScore, setCurrentScore] = useState(0);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+
+  // Movement preview state - now supports dual previews
+  const [movementPreview, setMovementPreview] = useState<{
+    type: "drive" | "turn" | null;
+    direction: "forward" | "backward" | "left" | "right" | null;
+    positions: {
+      primary: {
+        x: number;
+        y: number;
+        heading: number;
+      } | null;
+      secondary: {
+        x: number;
+        y: number;
+        heading: number;
+      } | null;
+    };
+  } | null>(null);
+
+  // Robot position state
+  const [robotPosition, setRobotPosition] = useState<{
+    x: number;
+    y: number;
+    heading: number;
+  } | null>(null);
   // Load saved config from IndexedDB on mount, or use default
   useEffect(() => {
     const loadConfig = async () => {
@@ -209,7 +243,7 @@ export function TelemetryDashboard({
   // Automatic recording based on program status
   useEffect(() => {
     if (!programStatus) return;
-    
+
     if (programStatus.running) {
       telemetryHistory.onProgramStart();
     } else {
@@ -222,9 +256,40 @@ export function TelemetryDashboard({
     telemetryHistory.onMatReset();
     onResetTelemetry?.();
   };
+
+  // Handle movement preview updates
+  const handleMovementPreviewUpdate = (preview: {
+    type: "drive" | "turn" | null;
+    direction: "forward" | "backward" | "left" | "right" | null;
+    positions: {
+      primary: {
+        x: number;
+        y: number;
+        heading: number;
+      } | null;
+      secondary: {
+        x: number;
+        y: number;
+        heading: number;
+      } | null;
+    };
+  }) => {
+    setMovementPreview(preview);
+  };
+
+  // Handle robot position changes
+  const handleRobotPositionChange = (position: {
+    x: number;
+    y: number;
+    heading: number;
+  }) => {
+    setRobotPosition(position);
+  };
   if (!isConnected) {
     return (
-      <div className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center ${className}`}>
+      <div
+        className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center ${className}`}
+      >
         <div className="text-gray-400 dark:text-gray-500 text-4xl mb-2">📶</div>
         <h3 className="text-lg font-medium text-gray-600 dark:text-gray-300 mb-2">
           No Hub Connected
@@ -236,7 +301,6 @@ export function TelemetryDashboard({
     );
   }
 
-
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Mat Editor Modal */}
@@ -244,7 +308,9 @@ export function TelemetryDashboard({
         <GameMatEditor
           onSave={handleSaveMatConfig}
           onCancel={() => setShowMatEditor(false)}
-          initialConfig={matEditorMode === 'edit' ? (customMatConfig || undefined) : undefined}
+          initialConfig={
+            matEditorMode === "edit" ? customMatConfig || undefined : undefined
+          }
         />
       )}
 
@@ -288,6 +354,9 @@ export function TelemetryDashboard({
             onScoreUpdate={setCurrentScore}
             isConnected={isConnected}
             onResetTelemetry={handleTelemetryReset}
+            movementPreview={movementPreview}
+            controlMode="incremental"
+            onRobotPositionChange={handleRobotPositionChange}
           />
         </div>
 
@@ -304,6 +373,8 @@ export function TelemetryDashboard({
             onMotorStopCommand={onMotorStopCommand}
             telemetryData={telemetryData}
             isConnected={isConnected}
+            currentRobotPosition={robotPosition || undefined}
+            onPreviewUpdate={handleMovementPreviewUpdate}
           />
 
           {/* Mat Controls Panel */}
@@ -316,7 +387,8 @@ export function TelemetryDashboard({
             <div className="p-3 space-y-3">
               {/* Current Mat Info */}
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                Current: <span className="font-medium text-gray-800 dark:text-gray-200">
+                Current:{" "}
+                <span className="font-medium text-gray-800 dark:text-gray-200">
                   {customMatConfig ? customMatConfig.name : "Loading..."}
                 </span>
               </div>
@@ -332,7 +404,7 @@ export function TelemetryDashboard({
                 </button>
                 <button
                   onClick={() => {
-                    setMatEditorMode('edit');
+                    setMatEditorMode("edit");
                     setShowMatEditor(true);
                   }}
                   disabled={!customMatConfig || isLoadingConfig}
@@ -342,7 +414,7 @@ export function TelemetryDashboard({
                 </button>
                 <button
                   onClick={() => {
-                    setMatEditorMode('new');
+                    setMatEditorMode("new");
                     setShowMatEditor(true);
                   }}
                   className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
@@ -364,7 +436,7 @@ export function TelemetryDashboard({
                   >
                     {showScoring ? "🎯 Scoring On" : "🎯 Scoring Off"}
                   </button>
-                  
+
                   {showScoring && (
                     <div className="text-center py-2 bg-gray-50 dark:bg-gray-700 rounded">
                       <div className="text-lg font-bold text-gray-800 dark:text-gray-200">
@@ -393,7 +465,6 @@ export function TelemetryDashboard({
                   )}
                 </div>
               )}
-
             </div>
           </div>
         </div>
@@ -411,7 +482,7 @@ export function TelemetryDashboard({
         {/* Hub data column */}
         <div className="space-y-6">
           <IMUDisplay hubData={telemetryData?.hub} />
-          
+
           {/* Program Output Log */}
           <ProgramOutputLog
             outputLog={programOutputLog}
@@ -423,7 +494,9 @@ export function TelemetryDashboard({
       {/* No data state */}
       {isConnected && !telemetryData && (
         <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
-          <div className="text-yellow-600 dark:text-yellow-400 text-2xl mb-2">⚠️</div>
+          <div className="text-yellow-600 dark:text-yellow-400 text-2xl mb-2">
+            ⚠️
+          </div>
           <h3 className="text-lg font-medium text-yellow-800 dark:text-yellow-300 mb-2">
             Waiting for Data
           </h3>
@@ -438,7 +511,9 @@ export function TelemetryDashboard({
       {programStatus?.statusFlags && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Hub Status</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+              Hub Status
+            </h3>
             <div className="text-sm text-gray-500 dark:text-gray-400">
               Last update:{" "}
               {programStatus.lastStatusUpdate
@@ -461,7 +536,9 @@ export function TelemetryDashboard({
                   {programStatus.statusFlags.userProgramRunning ? "▶️" : "⏸️"}
                 </span>
                 <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Program</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Program
+                  </div>
                   <div
                     className={`font-medium text-sm ${
                       programStatus.statusFlags.userProgramRunning
@@ -490,7 +567,9 @@ export function TelemetryDashboard({
               <div className="flex items-center gap-2">
                 <span className="text-lg">🔋</span>
                 <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Battery</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Battery
+                  </div>
                   <div
                     className={`font-medium text-sm ${
                       programStatus.statusFlags.batteryCritical
@@ -521,7 +600,9 @@ export function TelemetryDashboard({
               <div className="flex items-center gap-2">
                 <span className="text-lg">📡</span>
                 <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Bluetooth</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Bluetooth
+                  </div>
                   <div
                     className={`font-medium text-sm ${
                       programStatus.statusFlags.bleAdvertising
@@ -550,7 +631,9 @@ export function TelemetryDashboard({
               <div className="flex items-center gap-2">
                 <span className="text-lg">⚡</span>
                 <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Power</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Power
+                  </div>
                   <div
                     className={`font-medium text-sm ${
                       programStatus.statusFlags.shutdownPending
@@ -574,7 +657,9 @@ export function TelemetryDashboard({
           {/* Additional status info */}
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500 dark:text-gray-400">Raw Status Code:</span>
+              <span className="text-gray-500 dark:text-gray-400">
+                Raw Status Code:
+              </span>
               <span className="font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
                 0x
                 {programStatus.rawStatusCode

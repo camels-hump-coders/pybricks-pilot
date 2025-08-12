@@ -22,6 +22,16 @@ interface EnhancedCompetitionMatProps {
   customMatConfig?: GameMatConfig | null;
   showScoring?: boolean;
   onScoreUpdate?: (score: number) => void;
+  movementPreview?: {
+    type: "drive" | "turn" | null;
+    direction: "forward" | "backward" | "left" | "right" | null;
+    positions: {
+      primary: RobotPosition | null;
+      secondary: RobotPosition | null;
+    };
+  } | null;
+  controlMode?: "incremental" | "continuous";
+  onRobotPositionChange?: (position: RobotPosition) => void;
 }
 
 // FLL Competition Mat and Table dimensions (all in mm)
@@ -103,6 +113,9 @@ export function EnhancedCompetitionMat({
   customMatConfig,
   showScoring = false,
   onScoreUpdate,
+  movementPreview,
+  controlMode = "incremental",
+  onRobotPositionChange,
 }: EnhancedCompetitionMatProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const matImageRef = useRef<HTMLCanvasElement | HTMLImageElement | null>(null);
@@ -160,8 +173,11 @@ export function EnhancedCompetitionMat({
         "[EnhancedCompetitionMat] Robot connected, starting telemetry recording"
       );
       telemetryHistory.onMatReset(); // This will start a new recording session
+
+      // Notify parent of initial robot position
+      onRobotPositionChange?.(currentPosition);
     }
-  }, [isConnected]);
+  }, [isConnected]); // Only depend on isConnected, not currentPosition
 
   // Load and process mat image
   useEffect(() => {
@@ -328,6 +344,45 @@ export function EnhancedCompetitionMat({
     }
     drawRobot(ctx, currentPosition, false);
 
+    // Draw movement preview robots (dual previews)
+    if (
+      movementPreview?.positions &&
+      controlMode === "incremental" &&
+      currentPosition.x > 0 &&
+      currentPosition.y > 0
+    ) {
+      // Draw primary preview robot
+      if (movementPreview.positions.primary) {
+        drawRobot(
+          ctx,
+          movementPreview.positions.primary,
+          true,
+          "primary",
+          movementPreview.direction
+        );
+      }
+
+      // Draw secondary preview robot
+      if (movementPreview.positions.secondary) {
+        // Determine the opposite direction for secondary preview
+        let oppositeDirection: "forward" | "backward" | "left" | "right";
+        if (movementPreview.type === "drive") {
+          oppositeDirection =
+            movementPreview.direction === "forward" ? "backward" : "forward";
+        } else {
+          oppositeDirection =
+            movementPreview.direction === "left" ? "right" : "left";
+        }
+        drawRobot(
+          ctx,
+          movementPreview.positions.secondary,
+          true,
+          "secondary",
+          oppositeDirection
+        );
+      }
+    }
+
     // Draw score display if scoring is enabled
     if (showScoring) {
       drawScoreDisplay(ctx);
@@ -435,7 +490,9 @@ export function EnhancedCompetitionMat({
   const drawRobot = (
     ctx: CanvasRenderingContext2D,
     position: RobotPosition,
-    isGhost = false
+    isGhost = false,
+    previewType?: "primary" | "secondary",
+    direction?: "forward" | "backward" | "left" | "right"
   ) => {
     const pos = mmToCanvas(position.x, position.y);
     const heading = (position.heading * Math.PI) / 180;
@@ -444,41 +501,145 @@ export function EnhancedCompetitionMat({
     ctx.translate(pos.x, pos.y);
     ctx.rotate(heading);
 
-    // Set robot to 75% transparent
-    ctx.globalAlpha = 0.75;
-
     const robotWidth = ROBOT_WIDTH_MM * scale;
     const robotLength = ROBOT_LENGTH_MM * scale;
 
-    // Robot body
-    ctx.fillStyle = isGhost ? "rgba(0, 100, 255, 0.3)" : "#007bff";
-    ctx.strokeStyle = isGhost ? "rgba(0, 100, 255, 0.5)" : "#0056b3";
-    ctx.lineWidth = 2;
+    if (isGhost) {
+      // Preview robot - make it highly visible with bright colors
+      ctx.globalAlpha = 0.9; // More opaque than before
 
-    ctx.fillRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
-    ctx.strokeRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
+      // Different colors for different movement directions
+      let bodyColor, borderColor;
+      if (direction === "forward") {
+        // Forward - subtle green (matching forward button)
+        bodyColor = "rgba(0, 255, 0, 0.15)";
+        borderColor = "#00ff00";
+      } else if (direction === "backward") {
+        // Backward - subtle orange (matching backward button)
+        bodyColor = "rgba(255, 165, 0, 0.15)";
+        borderColor = "#ffa500";
+      } else if (direction === "left") {
+        // Left - subtle purple (matching left turn button)
+        bodyColor = "rgba(128, 0, 128, 0.15)";
+        borderColor = "#800080";
+      } else if (direction === "right") {
+        // Right - subtle blue (matching right turn button)
+        bodyColor = "rgba(37, 99, 235, 0.15)"; // Tailwind blue-600
+        borderColor = "#2563eb";
+      } else {
+        // Default preview - subtle cyan
+        bodyColor = "rgba(0, 255, 255, 0.15)";
+        borderColor = "#00ffff";
+      }
 
-    // Wheels
-    const wheelWidth = WHEEL_WIDTH_MM * scale;
-    const wheelLength = 60 * scale;
-    const wheelOffset = robotWidth / 2 - wheelWidth / 2;
+      // Robot body with preview-specific colors
+      ctx.fillStyle = bodyColor;
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 4; // Thicker border for preview
 
-    ctx.fillStyle = isGhost ? "rgba(50, 50, 50, 0.3)" : "#333";
-    ctx.fillRect(
-      -wheelOffset - wheelWidth / 2,
-      -wheelLength / 2,
-      wheelWidth,
-      wheelLength
-    );
-    ctx.fillRect(
-      wheelOffset - wheelWidth / 2,
-      -wheelLength / 2,
-      wheelWidth,
-      wheelLength
-    );
+      ctx.fillRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
+      ctx.strokeRect(
+        -robotWidth / 2,
+        -robotLength / 2,
+        robotWidth,
+        robotLength
+      );
 
-    // Direction indicator
-    if (!isGhost) {
+      // Wheels - bright white
+      const wheelWidth = WHEEL_WIDTH_MM * scale;
+      const wheelLength = 60 * scale;
+      const wheelOffset = robotWidth / 2 - wheelWidth / 2;
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; // Bright white wheels
+      ctx.fillRect(
+        -wheelOffset - wheelWidth / 2,
+        -wheelLength / 2,
+        wheelWidth,
+        wheelLength
+      );
+      ctx.fillRect(
+        wheelOffset - wheelWidth / 2,
+        -wheelLength / 2,
+        wheelWidth,
+        wheelLength
+      );
+
+      // Direction indicator for preview - different colors for different directions
+      let indicatorColor;
+      if (direction === "forward") {
+        indicatorColor = "#00ff00"; // Bright green (matching forward button)
+      } else if (direction === "backward") {
+        indicatorColor = "#ffa500"; // Bright orange (matching backward button)
+      } else if (direction === "left") {
+        indicatorColor = "#800080"; // Bright purple (matching left turn button)
+      } else if (direction === "right") {
+        indicatorColor = "#2563eb"; // Deep blue (matching right turn button)
+      } else {
+        indicatorColor = "#ffff00"; // Default yellow
+      }
+
+      ctx.strokeStyle = indicatorColor;
+      ctx.lineWidth = 6; // Much thicker for visibility
+      ctx.beginPath();
+      ctx.moveTo(0, -robotLength / 3);
+      ctx.lineTo(-robotWidth / 6, -robotLength / 6);
+      ctx.moveTo(0, -robotLength / 3);
+      ctx.lineTo(robotWidth / 6, -robotLength / 6);
+      ctx.stroke();
+
+      // Add a bright center point for preview
+      ctx.fillStyle = indicatorColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, 2 * Math.PI); // Larger center point
+      ctx.fill();
+
+      // Add a subtle glow effect around the preview robot
+      ctx.shadowColor = borderColor;
+      ctx.shadowBlur = 10;
+      ctx.strokeRect(
+        -robotWidth / 2,
+        -robotLength / 2,
+        robotWidth,
+        robotLength
+      );
+      ctx.shadowBlur = 0; // Reset shadow
+    } else {
+      // Regular robot - keep existing styling
+      ctx.globalAlpha = 0.75;
+
+      // Robot body
+      ctx.fillStyle = "#007bff";
+      ctx.strokeStyle = "#0056b3";
+      ctx.lineWidth = 2;
+
+      ctx.fillRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
+      ctx.strokeRect(
+        -robotWidth / 2,
+        -robotLength / 2,
+        robotWidth,
+        robotLength
+      );
+
+      // Wheels
+      const wheelWidth = WHEEL_WIDTH_MM * scale;
+      const wheelLength = 60 * scale;
+      const wheelOffset = robotWidth / 2 - wheelWidth / 2;
+
+      ctx.fillStyle = "#333";
+      ctx.fillRect(
+        -wheelOffset - wheelWidth / 2,
+        -wheelLength / 2,
+        wheelWidth,
+        wheelLength
+      );
+      ctx.fillRect(
+        wheelOffset - wheelWidth / 2,
+        -wheelLength / 2,
+        wheelWidth,
+        wheelLength
+      );
+
+      // Direction indicator for regular robot
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -487,13 +648,13 @@ export function EnhancedCompetitionMat({
       ctx.moveTo(0, -robotLength / 3);
       ctx.lineTo(robotWidth / 6, -robotLength / 6);
       ctx.stroke();
-    }
 
-    // Center point
-    ctx.fillStyle = isGhost ? "rgba(255, 0, 0, 0.5)" : "#ff0000";
-    ctx.beginPath();
-    ctx.arc(0, 0, 3, 0, 2 * Math.PI);
-    ctx.fill();
+      // Center point
+      ctx.fillStyle = "#ff0000";
+      ctx.beginPath();
+      ctx.arc(0, 0, 3, 0, 2 * Math.PI);
+      ctx.fill();
+    }
 
     ctx.restore();
   };
@@ -851,6 +1012,9 @@ export function EnhancedCompetitionMat({
           checkScoringCollisions(newPosition);
         }
 
+        // Notify parent component of position change
+        onRobotPositionChange?.(newPosition);
+
         return newPosition;
       });
     }
@@ -1144,6 +1308,8 @@ export function EnhancedCompetitionMat({
     hoveredPointIndex,
     telemetryHistory.getCurrentPath(),
     telemetryHistory.getAllPaths(),
+    movementPreview,
+    controlMode,
   ]);
 
   return (

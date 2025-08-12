@@ -1,7 +1,14 @@
 import { useRef, useState } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
+import { calculatePreviewPosition } from "./MovementPreview";
 
 type ControlMode = "incremental" | "continuous";
+
+interface RobotPosition {
+  x: number; // mm from left edge of mat
+  y: number; // mm from bottom edge of mat
+  heading: number; // degrees, 0 = north/forward
+}
 
 interface CompactRobotControllerProps {
   onDriveCommand?: (direction: number, speed: number) => Promise<void>;
@@ -18,6 +25,15 @@ interface CompactRobotControllerProps {
   telemetryData?: any;
   isConnected: boolean;
   className?: string;
+  currentRobotPosition?: RobotPosition;
+  onPreviewUpdate?: (preview: {
+    type: "drive" | "turn" | null;
+    direction: "forward" | "backward" | "left" | "right" | null;
+    positions: {
+      primary: RobotPosition | null;
+      secondary: RobotPosition | null;
+    };
+  }) => void;
 }
 
 export function CompactRobotController({
@@ -31,6 +47,8 @@ export function CompactRobotController({
   telemetryData,
   isConnected,
   className = "",
+  currentRobotPosition,
+  onPreviewUpdate,
 }: CompactRobotControllerProps) {
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
   const [driveSpeed, setDriveSpeed] = useState(50);
@@ -39,6 +57,17 @@ export function CompactRobotController({
   const [motorSpeed, setMotorSpeed] = useState(100);
   const [motorAngle, setMotorAngle] = useState(90);
   const [activeMotor, setActiveMotor] = useState<string | null>(null);
+
+  // Preview state
+  const [hoveredControl, setHoveredControl] = useState<{
+    type: "drive" | "turn" | null;
+    direction: "forward" | "backward" | "left" | "right" | null;
+  } | null>(null);
+
+  // Slider hover state for dual previews
+  const [hoveredSlider, setHoveredSlider] = useState<
+    "distance" | "angle" | null
+  >(null);
 
   const commandChainRef = useRef<Promise<any>>(Promise.resolve());
 
@@ -109,6 +138,48 @@ export function CompactRobotController({
           </div>
         )}
 
+        {/* Quick Program Controls */}
+        <div>
+          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
+            Quick Program Control
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => {
+                // TODO: Implement run program functionality
+                console.log("Run Program clicked");
+              }}
+              disabled={!isFullyConnected}
+              className="px-2 py-2 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              title="Run Program"
+            >
+              ▶️ Run
+            </button>
+            <button
+              onClick={() => {
+                // TODO: Implement upload & run functionality
+                console.log("Upload & Run clicked");
+              }}
+              disabled={!isFullyConnected}
+              className="px-2 py-2 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              title="Upload & Run Program"
+            >
+              ⬆️ Up&Run
+            </button>
+            <button
+              onClick={() => {
+                // TODO: Implement stop program functionality
+                console.log("Stop Program clicked");
+              }}
+              disabled={!isConnected}
+              className="px-2 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              title="Stop Program"
+            >
+              ⏹️ Stop
+            </button>
+          </div>
+        </div>
+
         {/* Drive Controls */}
         <div>
           <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
@@ -172,6 +243,79 @@ export function CompactRobotController({
                   step="50"
                   value={distance}
                   onChange={(e) => setDistance(Number(e.target.value))}
+                  onInput={(e) => {
+                    // Update preview in real-time as slider is dragged
+                    if (
+                      hoveredSlider === "distance" &&
+                      onPreviewUpdate &&
+                      currentRobotPosition
+                    ) {
+                      const currentValue = Number(
+                        (e.target as HTMLInputElement).value
+                      );
+                      const forwardPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        currentValue,
+                        angle,
+                        "drive",
+                        "forward"
+                      );
+                      const backwardPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        currentValue,
+                        angle,
+                        "drive",
+                        "backward"
+                      );
+                      onPreviewUpdate({
+                        type: "drive",
+                        direction: "forward",
+                        positions: {
+                          primary: forwardPosition,
+                          secondary: backwardPosition,
+                        },
+                      });
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    setHoveredSlider("distance");
+                    // Show dual drive previews when hovering over distance slider
+                    if (onPreviewUpdate && currentRobotPosition) {
+                      const forwardPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "drive",
+                        "forward"
+                      );
+                      const backwardPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "drive",
+                        "backward"
+                      );
+                      onPreviewUpdate({
+                        type: "drive",
+                        direction: "forward",
+                        positions: {
+                          primary: forwardPosition,
+                          secondary: backwardPosition,
+                        },
+                      });
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredSlider(null);
+                    // Clear preview when leaving slider
+                    if (onPreviewUpdate) {
+                      onPreviewUpdate({
+                        type: null,
+                        direction: null,
+                        positions: { primary: null, secondary: null },
+                      });
+                    }
+                  }}
                   className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
@@ -188,6 +332,79 @@ export function CompactRobotController({
                   step="5"
                   value={angle}
                   onChange={(e) => setAngle(Number(e.target.value))}
+                  onInput={(e) => {
+                    // Update preview in real-time as slider is dragged
+                    if (
+                      hoveredSlider === "angle" &&
+                      onPreviewUpdate &&
+                      currentRobotPosition
+                    ) {
+                      const currentValue = Number(
+                        (e.target as HTMLInputElement).value
+                      );
+                      const leftPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        distance,
+                        currentValue,
+                        "turn",
+                        "left"
+                      );
+                      const rightPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        distance,
+                        currentValue,
+                        "turn",
+                        "right"
+                      );
+                      onPreviewUpdate({
+                        type: "turn",
+                        direction: "left",
+                        positions: {
+                          primary: leftPosition,
+                          secondary: rightPosition,
+                        },
+                      });
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    setHoveredSlider("angle");
+                    // Show dual turn previews when hovering over angle slider
+                    if (onPreviewUpdate && currentRobotPosition) {
+                      const leftPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "turn",
+                        "left"
+                      );
+                      const rightPosition = calculatePreviewPosition(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "turn",
+                        "right"
+                      );
+                      onPreviewUpdate({
+                        type: "turn",
+                        direction: "left",
+                        positions: {
+                          primary: leftPosition,
+                          secondary: rightPosition,
+                        },
+                      });
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredSlider(null);
+                    // Clear preview when leaving slider
+                    if (onPreviewUpdate) {
+                      onPreviewUpdate({
+                        type: null,
+                        direction: null,
+                        positions: { primary: null, secondary: null },
+                      });
+                    }
+                  }}
                   className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
@@ -200,6 +417,8 @@ export function CompactRobotController({
             {controlMode === "incremental" ? (
               <button
                 onClick={() => sendStepDrive(distance, driveSpeed)}
+                onMouseEnter={() => updatePreview("drive", "forward")}
+                onMouseLeave={() => updatePreview(null, null)}
                 className="px-2 py-2 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors flex items-center justify-center"
                 title={`Forward ${distance}mm`}
               >
@@ -223,7 +442,9 @@ export function CompactRobotController({
             {controlMode === "incremental" ? (
               <button
                 onClick={() => sendStepTurn(-angle, driveSpeed)}
-                className="px-2 py-2 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
+                onMouseEnter={() => updatePreview("turn", "left")}
+                onMouseLeave={() => updatePreview(null, null)}
+                className="px-2 py-2 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors flex items-center justify-center"
                 title={`Turn ${angle}° left`}
               >
                 ↶
@@ -251,7 +472,9 @@ export function CompactRobotController({
             {controlMode === "incremental" ? (
               <button
                 onClick={() => sendStepTurn(angle, driveSpeed)}
-                className="px-2 py-2 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
+                onMouseEnter={() => updatePreview("turn", "right")}
+                onMouseLeave={() => updatePreview(null, null)}
+                className="px-2 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center justify-center"
                 title={`Turn ${angle}° right`}
               >
                 ↷
@@ -274,6 +497,8 @@ export function CompactRobotController({
             {controlMode === "incremental" ? (
               <button
                 onClick={() => sendStepDrive(-distance, driveSpeed)}
+                onMouseEnter={() => updatePreview("drive", "backward")}
+                onMouseLeave={() => updatePreview(null, null)}
                 className="px-2 py-2 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition-colors flex items-center justify-center"
                 title={`Backward ${distance}mm`}
               >
@@ -541,6 +766,41 @@ export function CompactRobotController({
         await onMotorStopCommand?.(activeMotor);
       });
       setActiveMotor(null);
+    }
+  }
+
+  // Preview update function
+  function updatePreview(
+    type: "drive" | "turn" | null,
+    direction: "forward" | "backward" | "left" | "right" | null
+  ) {
+    setHoveredControl({ type, direction });
+
+    if (onPreviewUpdate && currentRobotPosition && type && direction) {
+      const previewPosition = calculatePreviewPosition(
+        currentRobotPosition,
+        distance,
+        angle,
+        type,
+        direction
+      );
+
+      // Button hovers only show single preview for that direction
+      // Dual previews are only shown when hovering over sliders
+      onPreviewUpdate({
+        type,
+        direction,
+        positions: {
+          primary: previewPosition,
+          secondary: null,
+        },
+      });
+    } else if (onPreviewUpdate) {
+      onPreviewUpdate({
+        type: null,
+        direction: null,
+        positions: { primary: null, secondary: null },
+      });
     }
   }
 }
