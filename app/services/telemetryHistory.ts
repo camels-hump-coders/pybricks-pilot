@@ -175,7 +175,7 @@ class TelemetryHistoryService {
         return "#3b82f6";
 
       case "distanceSensor":
-        const distanceSensor = point.data.sensors?.distance;
+        const distanceSensor = point.data.sensors?.ultrasonic;
         if (distanceSensor?.distance !== undefined) {
           const distance = distanceSensor.distance;
           const maxDistance = 2000; // mm

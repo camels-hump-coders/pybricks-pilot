@@ -434,6 +434,9 @@ export function EnhancedCompetitionMat({
     ctx.translate(pos.x, pos.y);
     ctx.rotate(heading);
 
+    // Set robot to 75% transparent
+    ctx.globalAlpha = 0.75;
+
     const robotWidth = ROBOT_WIDTH_MM * scale;
     const robotLength = ROBOT_LENGTH_MM * scale;
 
@@ -1296,24 +1299,34 @@ export function EnhancedCompetitionMat({
                 {(() => {
                   const currentPath = telemetryHistory.getCurrentPath();
                   const allPaths = telemetryHistory.getAllPaths();
-                  
+
                   // Find the recording start time
                   let recordingStartTime = hoveredPoint.timestamp;
-                  
+
                   // Check if this point is in the current path
-                  if (currentPath && currentPath.points.some(p => p.timestamp === hoveredPoint.timestamp)) {
+                  if (
+                    currentPath &&
+                    currentPath.points.some(
+                      (p) => p.timestamp === hoveredPoint.timestamp
+                    )
+                  ) {
                     recordingStartTime = currentPath.startTime;
                   } else {
                     // Check completed paths
                     for (const path of allPaths) {
-                      if (path.points.some(p => p.timestamp === hoveredPoint.timestamp)) {
+                      if (
+                        path.points.some(
+                          (p) => p.timestamp === hoveredPoint.timestamp
+                        )
+                      ) {
                         recordingStartTime = path.startTime;
                         break;
                       }
                     }
                   }
-                  
-                  const relativeTime = (hoveredPoint.timestamp - recordingStartTime) / 1000;
+
+                  const relativeTime =
+                    (hoveredPoint.timestamp - recordingStartTime) / 1000;
                   return `${relativeTime.toFixed(1)}s`;
                 })()}
               </span>
@@ -1347,7 +1360,10 @@ export function EnhancedCompetitionMat({
                       Motors:
                     </div>
                     {Object.entries(hoveredPoint.data.motors)
-                      .filter(([name]) => !['left', 'right'].includes(name.toLowerCase()))
+                      .filter(
+                        ([name]) =>
+                          !["left", "right"].includes(name.toLowerCase())
+                      )
                       .map(([name, motor]) => (
                         <div key={name} className="ml-2 mb-1">
                           <span className="text-green-300 font-medium">
@@ -1365,7 +1381,15 @@ export function EnhancedCompetitionMat({
                             {motor.load !== undefined && (
                               <div className="flex justify-between">
                                 <span>Load:</span>
-                                <span className={motor.load > 80 ? "text-red-300" : motor.load > 50 ? "text-yellow-300" : "text-green-300"}>
+                                <span
+                                  className={
+                                    motor.load > 80
+                                      ? "text-red-300"
+                                      : motor.load > 50
+                                        ? "text-yellow-300"
+                                        : "text-green-300"
+                                  }
+                                >
                                   {Math.round(motor.load)}%
                                 </span>
                               </div>
@@ -1375,15 +1399,15 @@ export function EnhancedCompetitionMat({
                                 Error: {motor.error}
                               </div>
                             )}
-                            {Math.abs(motor.speed) < 1 && Math.abs(motor.load || 0) > 20 && (
-                              <div className="text-orange-300 text-xs">
-                                ⚠ Stalled
-                              </div>
-                            )}
+                            {Math.abs(motor.speed) < 1 &&
+                              Math.abs(motor.load || 0) > 20 && (
+                                <div className="text-orange-300 text-xs">
+                                  ⚠ Stalled
+                                </div>
+                              )}
                           </div>
                         </div>
-                      )
-                    )}
+                      ))}
                   </div>
                 </>
               )}
