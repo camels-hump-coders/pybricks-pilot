@@ -18,13 +18,14 @@ interface RobotInterface {
   driveContinuous(speed: number, turnRate: number): Promise<void>;
   setMotorSpeed(motorName: string, speed: number): Promise<void>;
   setMotorAngle(motorName: string, angle: number, speed: number): Promise<void>;
+  sendControlCommand(command: string): Promise<void>;
 
   // Event handling
   addEventListener(type: string, listener: EventListener): void;
   removeEventListener(type: string, listener: EventListener): void;
 
   // Status and capabilities
-  getRobotType(): "real" | "virtual";
+  getRobotType(): "real" | "virtual" | null;
   getCapabilities(): RobotCapabilities;
 }
 
@@ -43,7 +44,7 @@ export interface RobotConnectionOptions {
 
 class RobotConnectionManager {
   private currentRobot: RobotInterface | null = null;
-  private robotType: "real" | "virtual" = "real";
+  private robotType: "real" | "virtual" | null = null;
   private eventListeners = new Map<string, Set<EventListener>>();
 
   constructor() {
@@ -109,6 +110,8 @@ class RobotConnectionManager {
       await this.currentRobot.disconnect();
       this.currentRobot = null;
     }
+    // Reset robot type to null when disconnecting
+    this.robotType = null;
   }
 
   isConnected(): boolean {
@@ -119,7 +122,7 @@ class RobotConnectionManager {
     return this.currentRobot;
   }
 
-  getRobotType(): "real" | "virtual" {
+  getRobotType(): "real" | "virtual" | null {
     return this.robotType;
   }
 
@@ -188,6 +191,11 @@ class RobotConnectionManager {
   ): Promise<void> {
     if (!this.currentRobot) throw new Error("No robot connected");
     return this.currentRobot.setMotorAngle(motorName, angle, speed);
+  }
+
+  async sendControlCommand(command: string): Promise<void> {
+    if (!this.currentRobot) throw new Error("No robot connected");
+    return this.currentRobot.sendControlCommand(command);
   }
 
   // Global event listener management

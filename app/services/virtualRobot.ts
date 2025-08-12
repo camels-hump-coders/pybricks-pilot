@@ -528,6 +528,42 @@ class VirtualRobotService extends EventTarget {
     );
   }
 
+  // Handle control commands (same interface as real robot)
+  async sendControlCommand(commandData: string): Promise<void> {
+    if (!this._isConnected) return;
+
+    try {
+      const command = JSON.parse(commandData);
+      console.log("[VirtualRobot] Control command received:", command);
+
+      switch (command.action) {
+        case "reset_drivebase":
+          // Reset drivebase telemetry (same as real robot)
+          this.state.driveDistance = 0;
+          this.state.driveAngle = 0;
+          this.state.heading = 0;
+          this.config.imuHeading = 0;
+          
+          // Abort any ongoing commands
+          this.abortController.abort();
+          this.abortController = new AbortController();
+          
+          console.log("[VirtualRobot] Drivebase reset - telemetry cleared and commands aborted");
+          break;
+          
+        case "stop":
+          // Stop all movement
+          await this.stop();
+          break;
+          
+        default:
+          console.log("[VirtualRobot] Unknown control command:", command.action);
+      }
+    } catch (error) {
+      console.error("[VirtualRobot] Error processing control command:", error);
+    }
+  }
+
   getCapabilities(): any {
     return {
       maxMotorCount: this.config.motorCount,

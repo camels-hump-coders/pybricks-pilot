@@ -89,6 +89,7 @@ interface TelemetryDashboardProps {
   onClearProgramOutput: () => void;
   onResetTelemetry?: () => void;
   className?: string;
+  robotType?: "real" | "virtual" | null;
   // Robot control props
   onDriveCommand?: (direction: number, speed: number) => Promise<void>;
   onTurnCommand?: (angle: number, speed: number) => Promise<void>;
@@ -102,6 +103,338 @@ interface TelemetryDashboardProps {
   ) => Promise<void>;
   onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand?: (motor: string) => Promise<void>;
+  // Program management props
+  onRunProgram?: () => Promise<void>;
+  onStopProgram?: () => Promise<void>;
+  onUploadAndRun?: (code: string) => Promise<void>;
+}
+
+// Sub-component for Mat Controls Panel
+interface MatControlsPanelProps {
+  customMatConfig: GameMatConfig | null;
+  isLoadingConfig: boolean;
+  showScoring: boolean;
+  currentScore: number;
+  onMapSelectorOpen: () => void;
+  onMatEditorOpen: (mode: "edit" | "new") => void;
+  onScoringToggle: () => void;
+  onClearMat: () => void;
+}
+
+function MatControlsPanel({
+  customMatConfig,
+  isLoadingConfig,
+  showScoring,
+  currentScore,
+  onMapSelectorOpen,
+  onMatEditorOpen,
+  onScoringToggle,
+  onClearMat,
+}: MatControlsPanelProps) {
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+      <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          Mat Controls
+        </h3>
+      </div>
+      <div className="p-2 sm:p-3 space-y-2 sm:space-y-3">
+        {/* Current Mat Info */}
+        <div className="text-xs text-gray-600 dark:text-gray-400">
+          Current:{" "}
+          <span className="font-medium text-gray-800 dark:text-gray-200">
+            {customMatConfig ? customMatConfig.name : "Loading..."}
+          </span>
+        </div>
+
+        {/* Map Selection/Creation Buttons */}
+        <div className="space-y-2">
+          <button
+            onClick={onMapSelectorOpen}
+            disabled={isLoadingConfig}
+            className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            🗺️ Select Map
+          </button>
+          <button
+            onClick={() => onMatEditorOpen("edit")}
+            disabled={!customMatConfig || isLoadingConfig}
+            className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!customMatConfig ? "Select a map first" : "Edit current map"}
+          >
+            ✏️ Edit Mat
+          </button>
+          <button
+            onClick={() => onMatEditorOpen("new")}
+            className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+          >
+            ➕ New Mat
+          </button>
+        </div>
+
+        {/* Scoring and Mat Actions */}
+        {customMatConfig && (
+          <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            <button
+              onClick={onScoringToggle}
+              className={`w-full px-3 py-2 rounded text-sm transition-colors ${
+                showScoring
+                  ? "bg-green-500 text-white hover:bg-green-600"
+                  : "bg-gray-500 text-white hover:bg-gray-600"
+              }`}
+            >
+              {showScoring ? "🎯 Scoring On" : "🎯 Scoring Off"}
+            </button>
+
+            <button
+              onClick={onClearMat}
+              className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+            >
+              ❌ Clear Mat
+            </button>
+
+            {customMatConfig.rulebookUrl && (
+              <a
+                href={customMatConfig.rulebookUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm text-center"
+                title="Open rulebook in new tab"
+              >
+                📖 Rulebook
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Sub-component for Robot Controls Section
+interface RobotControlsSectionProps {
+  onDriveCommand?: (direction: number, speed: number) => Promise<void>;
+  onTurnCommand?: (angle: number, speed: number) => Promise<void>;
+  onStopCommand?: () => Promise<void>;
+  onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
+  onMotorCommand?: (
+    motor: string,
+    angle: number,
+    speed: number
+  ) => Promise<void>;
+  onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
+  onMotorStopCommand?: (motor: string) => Promise<void>;
+  telemetryData?: TelemetryData | null;
+  isConnected: boolean;
+  currentRobotPosition?: {
+    x: number;
+    y: number;
+    heading: number;
+  };
+  onPreviewUpdate?: (preview: any) => void;
+  robotType?: "real" | "virtual" | null;
+  onRunProgram?: () => Promise<void>;
+  onStopProgram?: () => Promise<void>;
+  onUploadAndRun?: (code: string) => Promise<void>;
+}
+
+function RobotControlsSection({
+  onDriveCommand,
+  onTurnCommand,
+  onStopCommand,
+  onContinuousDriveCommand,
+  onMotorCommand,
+  onContinuousMotorCommand,
+  onMotorStopCommand,
+  telemetryData,
+  isConnected,
+  currentRobotPosition,
+  onPreviewUpdate,
+  robotType,
+  onRunProgram,
+  onStopProgram,
+  onUploadAndRun,
+}: RobotControlsSectionProps) {
+  return (
+    <CompactRobotController
+      onDriveCommand={onDriveCommand}
+      onTurnCommand={onTurnCommand}
+      onStopCommand={onStopCommand}
+      onContinuousDriveCommand={onContinuousDriveCommand}
+      onMotorCommand={onMotorCommand}
+      onContinuousMotorCommand={onContinuousMotorCommand}
+      onMotorStopCommand={onMotorStopCommand}
+      telemetryData={telemetryData}
+      isConnected={isConnected}
+      currentRobotPosition={currentRobotPosition}
+      onPreviewUpdate={onPreviewUpdate}
+      robotType={robotType}
+      onRunProgram={onRunProgram}
+      onStopProgram={onStopProgram}
+      onUploadAndRun={onUploadAndRun}
+    />
+  );
+}
+
+// Sub-component for Hub Status Section
+interface HubStatusSectionProps {
+  programStatus?: ProgramStatus;
+}
+
+function HubStatusSection({ programStatus }: HubStatusSectionProps) {
+  if (!programStatus?.statusFlags) return null;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+          Hub Status
+        </h3>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Last update:{" "}
+          {programStatus.lastStatusUpdate
+            ? new Date(programStatus.lastStatusUpdate).toLocaleTimeString()
+            : "Never"}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Program Status */}
+        <div
+          className={`p-3 rounded-lg border ${
+            programStatus.statusFlags.userProgramRunning
+              ? "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700"
+              : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">
+              {programStatus.statusFlags.userProgramRunning ? "▶️" : "⏸️"}
+            </span>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Program
+              </div>
+              <div
+                className={`font-medium text-sm ${
+                  programStatus.statusFlags.userProgramRunning
+                    ? "text-green-800 dark:text-green-300"
+                    : "text-gray-800 dark:text-gray-200"
+                }`}
+              >
+                {programStatus.statusFlags.userProgramRunning
+                  ? "Running"
+                  : "Stopped"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Battery Status */}
+        <div
+          className={`p-3 rounded-lg border ${
+            programStatus.statusFlags.batteryCritical
+              ? "bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700"
+              : programStatus.statusFlags.batteryLowWarning
+                ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-gray-700"
+                : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">
+              {programStatus.statusFlags.batteryCritical
+                ? "🔴"
+                : programStatus.statusFlags.batteryLowWarning
+                  ? "🟡"
+                  : "🟢"}
+            </span>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Battery
+              </div>
+              <div
+                className={`font-medium text-sm ${
+                  programStatus.statusFlags.batteryCritical
+                    ? "text-red-800 dark:text-red-300"
+                    : programStatus.statusFlags.batteryLowWarning
+                      ? "text-yellow-800 dark:text-yellow-300"
+                      : "text-gray-800 dark:text-gray-200"
+                }`}
+              >
+                {programStatus.statusFlags.batteryCritical
+                  ? "Critical"
+                  : programStatus.statusFlags.batteryLowWarning
+                    ? "Low"
+                    : "OK"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Power Status */}
+        <div
+          className={`p-3 rounded-lg border ${
+            programStatus.statusFlags.powerButtonPressed
+              ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700"
+              : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">
+              {programStatus.statusFlags.powerButtonPressed ? "⚡" : "🔋"}
+            </span>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Power
+              </div>
+              <div
+                className={`font-medium text-sm ${
+                  programStatus.statusFlags.powerButtonPressed
+                    ? "text-yellow-800 dark:text-yellow-300"
+                    : "text-gray-800 dark:text-gray-200"
+                }`}
+              >
+                {programStatus.statusFlags.powerButtonPressed
+                  ? "Button Pressed"
+                  : "Normal"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bluetooth Status */}
+        <div
+          className={`p-3 rounded-lg border ${
+            programStatus.statusFlags.bleAdvertising
+              ? "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700"
+              : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">
+              {programStatus.statusFlags.bleAdvertising ? "📶" : "📴"}
+            </span>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Bluetooth
+              </div>
+              <div
+                className={`font-medium text-sm ${
+                  programStatus.statusFlags.bleAdvertising
+                    ? "text-green-800 dark:text-green-300"
+                    : "text-gray-800 dark:text-gray-200"
+                }`}
+              >
+                {programStatus.statusFlags.bleAdvertising
+                  ? "Advertising"
+                  : "Connected"}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function TelemetryDashboard({
@@ -112,6 +445,7 @@ export function TelemetryDashboard({
   onClearProgramOutput,
   onResetTelemetry,
   className = "",
+  robotType,
   onDriveCommand,
   onTurnCommand,
   onStopCommand,
@@ -120,6 +454,9 @@ export function TelemetryDashboard({
   onMotorCommand,
   onContinuousMotorCommand,
   onMotorStopCommand,
+  onRunProgram,
+  onStopProgram,
+  onUploadAndRun,
 }: TelemetryDashboardProps) {
   const [showMatEditor, setShowMatEditor] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
@@ -155,33 +492,18 @@ export function TelemetryDashboard({
     y: number;
     heading: number;
   } | null>(null);
-  // Load saved config from IndexedDB on mount, or use default
+
+  // Always start with default unearthed mat, don't auto-load custom configs
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const config = await matConfigStorage.loadConfig();
-        if (config) {
-          setCustomMatConfig(config);
-          setShowScoring(true);
-        } else {
-          // Load default unearthed config if no saved config
-          const defaultMap = getDefaultUnearthedMap();
-          if (defaultMap) {
-            handleMapChange(defaultMap);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load mat configuration:", error);
-        // Fallback to default unearthed config
-        const defaultMap = getDefaultUnearthedMap();
-        if (defaultMap) {
-          handleMapChange(defaultMap);
-        }
-      } finally {
-        setIsLoadingConfig(false);
+    const loadDefaultMat = () => {
+      const defaultMap = getDefaultUnearthedMap();
+      if (defaultMap) {
+        setCustomMatConfig(defaultMap);
+        setShowScoring(true);
       }
+      setIsLoadingConfig(false);
     };
-    loadConfig();
+    loadDefaultMat();
   }, []);
 
   const handleSaveMatConfig = async (config: GameMatConfig) => {
@@ -201,27 +523,37 @@ export function TelemetryDashboard({
 
   const handleMapChange = async (config: GameMatConfig | null) => {
     if (config) {
-      try {
-        await matConfigStorage.saveConfig(config);
+      // Check if this is a built-in map (has imageUrl from assets) or a custom map
+      const isBuiltInMap =
+        config.imageUrl && config.imageUrl.includes("/assets/seasons/");
+
+      if (isBuiltInMap) {
+        // Built-in maps are not saved to IndexedDB, just used temporarily
         setCustomMatConfig(config);
         setShowScoring(true);
-      } catch (error) {
-        console.error("Failed to save map configuration:", error);
-        // Still set the config in memory even if storage fails
-        setCustomMatConfig(config);
-        setShowScoring(true);
+        console.log("Using built-in map:", config.name);
+      } else {
+        // Custom maps are saved to IndexedDB
+        try {
+          await matConfigStorage.saveConfig(config);
+          setCustomMatConfig(config);
+          setShowScoring(true);
+        } catch (error) {
+          console.error("Failed to save custom map configuration:", error);
+          // Still set the config in memory even if storage fails
+          setCustomMatConfig(config);
+          setShowScoring(true);
+        }
       }
     } else {
-      // Use default unearthed config
+      // Clear the current map configuration
       try {
         await matConfigStorage.deleteConfig();
       } catch (error) {
-        console.error("Failed to reset to default:", error);
+        console.error("Failed to delete custom mat configuration:", error);
       }
-      const defaultMap = getDefaultUnearthedMap();
-      if (defaultMap) {
-        handleMapChange(defaultMap);
-      }
+      setCustomMatConfig(null);
+      setShowScoring(false);
     }
     setCurrentScore(0);
   };
@@ -230,54 +562,24 @@ export function TelemetryDashboard({
     try {
       await matConfigStorage.deleteConfig();
     } catch (error) {
-      console.error("Failed to delete mat configuration:", error);
+      console.error("Failed to delete custom mat configuration:", error);
     }
+    // Always fall back to the default unearthed mat
     const defaultMap = getDefaultUnearthedMap();
     if (defaultMap) {
-      handleMapChange(defaultMap);
+      setCustomMatConfig(defaultMap);
+      setShowScoring(true);
+    } else {
+      setCustomMatConfig(null);
+      setShowScoring(false);
     }
-    setShowScoring(true);
     setCurrentScore(0);
   };
 
-  // Automatic recording based on program status
-  useEffect(() => {
-    if (!programStatus) return;
-
-    if (programStatus.running) {
-      telemetryHistory.onProgramStart();
-    } else {
-      telemetryHistory.onProgramStop();
-    }
-  }, [programStatus?.running]);
-
-  // Handle telemetry reset (mat reset)
-  const handleTelemetryReset = () => {
-    telemetryHistory.onMatReset();
-    onResetTelemetry?.();
-  };
-
-  // Handle movement preview updates
-  const handleMovementPreviewUpdate = (preview: {
-    type: "drive" | "turn" | null;
-    direction: "forward" | "backward" | "left" | "right" | null;
-    positions: {
-      primary: {
-        x: number;
-        y: number;
-        heading: number;
-      } | null;
-      secondary: {
-        x: number;
-        y: number;
-        heading: number;
-      } | null;
-    };
-  }) => {
+  const handleMovementPreviewUpdate = (preview: any) => {
     setMovementPreview(preview);
   };
 
-  // Handle robot position changes
   const handleRobotPositionChange = (position: {
     x: number;
     y: number;
@@ -285,14 +587,23 @@ export function TelemetryDashboard({
   }) => {
     setRobotPosition(position);
   };
+
+  const handleTelemetryReset = () => {
+    telemetryHistory.onMatReset();
+    onResetTelemetry?.();
+    // Clear robot position state - this will force the preview system to wait
+    // for the next actual robot movement to get the new position
+    setRobotPosition(null);
+    setMovementPreview(null);
+  };
+
+  // Early return if not connected
   if (!isConnected) {
     return (
-      <div
-        className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-6 text-center ${className}`}
-      >
-        <div className="text-gray-400 dark:text-gray-500 text-4xl mb-2">📶</div>
-        <h3 className="text-lg font-medium text-gray-600 dark:text-gray-300 mb-2">
-          No Hub Connected
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🔌</div>
+        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
+          Not Connected
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Connect to a Pybricks hub to view telemetry data
@@ -343,10 +654,57 @@ export function TelemetryDashboard({
         </div>
       )}
 
-      {/* Map and Controls Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Competition Mat - Takes up 3/4 of the width */}
-        <div className="lg:col-span-3">
+      {/* Competition Mat - Full width on mobile, positioned in grid on desktop */}
+      <div className="xl:hidden w-full">
+        <EnhancedCompetitionMat
+          telemetryData={telemetryData || null}
+          customMatConfig={customMatConfig}
+          showScoring={showScoring}
+          onScoreUpdate={setCurrentScore}
+          isConnected={isConnected}
+          onResetTelemetry={handleTelemetryReset}
+          movementPreview={movementPreview}
+          controlMode="incremental"
+          onRobotPositionChange={handleRobotPositionChange}
+        />
+      </div>
+
+      {/* Mobile Layout - Robot Controls below mat on mobile */}
+      <div className="xl:hidden space-y-2 sm:space-y-4">
+        <RobotControlsSection
+          onDriveCommand={onDriveCommand}
+          onTurnCommand={onTurnCommand}
+          onStopCommand={onStopCommand}
+          onContinuousDriveCommand={onContinuousDriveCommand}
+          onMotorCommand={onMotorCommand}
+          onContinuousMotorCommand={onContinuousMotorCommand}
+          onMotorStopCommand={onMotorStopCommand}
+          telemetryData={telemetryData}
+          isConnected={isConnected}
+          currentRobotPosition={robotPosition || undefined}
+          onPreviewUpdate={handleMovementPreviewUpdate}
+          robotType={robotType}
+          onRunProgram={onRunProgram}
+          onStopProgram={onStopProgram}
+          onUploadAndRun={onUploadAndRun}
+        />
+
+        <MatControlsPanel
+          customMatConfig={customMatConfig}
+          isLoadingConfig={isLoadingConfig}
+          showScoring={showScoring}
+          currentScore={currentScore}
+          onMapSelectorOpen={() => setShowMapSelector(true)}
+          onMatEditorOpen={setMatEditorMode}
+          onScoringToggle={() => setShowScoring(!showScoring)}
+          onClearMat={handleClearCustomMat}
+        />
+      </div>
+
+      {/* Desktop Layout - Mat and Controls side by side on large screens */}
+      <div className="hidden xl:grid xl:grid-cols-4 gap-4">
+        {/* Competition Mat - Takes up 3 columns */}
+        <div className="col-span-3">
           <EnhancedCompetitionMat
             telemetryData={telemetryData || null}
             customMatConfig={customMatConfig}
@@ -361,9 +719,8 @@ export function TelemetryDashboard({
         </div>
 
         {/* Right Sidebar - Robot Controls and Mat Controls */}
-        <div className="lg:col-span-1 space-y-4">
-          {/* Robot Controls */}
-          <CompactRobotController
+        <div className="col-span-1 space-y-4">
+          <RobotControlsSection
             onDriveCommand={onDriveCommand}
             onTurnCommand={onTurnCommand}
             onStopCommand={onStopCommand}
@@ -375,98 +732,22 @@ export function TelemetryDashboard({
             isConnected={isConnected}
             currentRobotPosition={robotPosition || undefined}
             onPreviewUpdate={handleMovementPreviewUpdate}
+            robotType={robotType}
+            onRunProgram={onRunProgram}
+            onStopProgram={onStopProgram}
+            onUploadAndRun={onUploadAndRun}
           />
 
-          {/* Mat Controls Panel */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                Mat Controls
-              </h3>
-            </div>
-            <div className="p-3 space-y-3">
-              {/* Current Mat Info */}
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Current:{" "}
-                <span className="font-medium text-gray-800 dark:text-gray-200">
-                  {customMatConfig ? customMatConfig.name : "Loading..."}
-                </span>
-              </div>
-
-              {/* Map Selection/Creation Buttons */}
-              <div className="space-y-2">
-                <button
-                  onClick={() => setShowMapSelector(true)}
-                  disabled={isLoadingConfig}
-                  className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  🗺️ Select Map
-                </button>
-                <button
-                  onClick={() => {
-                    setMatEditorMode("edit");
-                    setShowMatEditor(true);
-                  }}
-                  disabled={!customMatConfig || isLoadingConfig}
-                  className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ✏️ Edit Mat
-                </button>
-                <button
-                  onClick={() => {
-                    setMatEditorMode("new");
-                    setShowMatEditor(true);
-                  }}
-                  className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
-                >
-                  ➕ New Mat
-                </button>
-              </div>
-
-              {/* Scoring and Mat Actions */}
-              {customMatConfig && (
-                <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                  <button
-                    onClick={() => setShowScoring(!showScoring)}
-                    className={`w-full px-3 py-2 rounded text-sm transition-colors ${
-                      showScoring
-                        ? "bg-green-500 text-white hover:bg-green-600"
-                        : "bg-gray-500 text-white hover:bg-gray-600"
-                    }`}
-                  >
-                    {showScoring ? "🎯 Scoring On" : "🎯 Scoring Off"}
-                  </button>
-
-                  {showScoring && (
-                    <div className="text-center py-2 bg-gray-50 dark:bg-gray-700 rounded">
-                      <div className="text-lg font-bold text-gray-800 dark:text-gray-200">
-                        Score: {currentScore}
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleClearCustomMat}
-                    className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                  >
-                    ❌ Clear Mat
-                  </button>
-
-                  {customMatConfig.rulebookUrl && (
-                    <a
-                      href={customMatConfig.rulebookUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm text-center"
-                      title="Open rulebook in new tab"
-                    >
-                      📖 Rulebook
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          <MatControlsPanel
+            customMatConfig={customMatConfig}
+            isLoadingConfig={isLoadingConfig}
+            showScoring={showScoring}
+            currentScore={currentScore}
+            onMapSelectorOpen={() => setShowMapSelector(true)}
+            onMatEditorOpen={setMatEditorMode}
+            onScoringToggle={() => setShowScoring(!showScoring)}
+            onClearMat={handleClearCustomMat}
+          />
         </div>
       </div>
 
@@ -508,175 +789,7 @@ export function TelemetryDashboard({
       )}
 
       {/* Hub Status Section */}
-      {programStatus?.statusFlags && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-              Hub Status
-            </h3>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Last update:{" "}
-              {programStatus.lastStatusUpdate
-                ? new Date(programStatus.lastStatusUpdate).toLocaleTimeString()
-                : "Never"}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {/* Program Status */}
-            <div
-              className={`p-3 rounded-lg border ${
-                programStatus.statusFlags.userProgramRunning
-                  ? "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700"
-                  : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {programStatus.statusFlags.userProgramRunning ? "▶️" : "⏸️"}
-                </span>
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    Program
-                  </div>
-                  <div
-                    className={`font-medium text-sm ${
-                      programStatus.statusFlags.userProgramRunning
-                        ? "text-green-800 dark:text-green-300"
-                        : "text-gray-800 dark:text-gray-200"
-                    }`}
-                  >
-                    {programStatus.statusFlags.userProgramRunning
-                      ? "Running"
-                      : "Stopped"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Battery Status */}
-            <div
-              className={`p-3 rounded-lg border ${
-                programStatus.statusFlags.batteryCritical
-                  ? "bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700"
-                  : programStatus.statusFlags.batteryLowWarning
-                    ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700"
-                    : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🔋</span>
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    Battery
-                  </div>
-                  <div
-                    className={`font-medium text-sm ${
-                      programStatus.statusFlags.batteryCritical
-                        ? "text-red-800 dark:text-red-300"
-                        : programStatus.statusFlags.batteryLowWarning
-                          ? "text-yellow-800 dark:text-yellow-300"
-                          : "text-gray-800 dark:text-gray-200"
-                    }`}
-                  >
-                    {programStatus.statusFlags.batteryCritical
-                      ? "Critical"
-                      : programStatus.statusFlags.batteryLowWarning
-                        ? "Low"
-                        : "OK"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* BLE Status */}
-            <div
-              className={`p-3 rounded-lg border ${
-                programStatus.statusFlags.bleAdvertising
-                  ? "bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700"
-                  : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📡</span>
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    Bluetooth
-                  </div>
-                  <div
-                    className={`font-medium text-sm ${
-                      programStatus.statusFlags.bleAdvertising
-                        ? "text-blue-800 dark:text-blue-300"
-                        : "text-gray-800 dark:text-gray-200"
-                    }`}
-                  >
-                    {programStatus.statusFlags.bleAdvertising
-                      ? "Advertising"
-                      : "Connected"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Power Status */}
-            <div
-              className={`p-3 rounded-lg border ${
-                programStatus.statusFlags.shutdownPending
-                  ? "bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700"
-                  : programStatus.statusFlags.powerButtonPressed
-                    ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700"
-                    : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⚡</span>
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    Power
-                  </div>
-                  <div
-                    className={`font-medium text-sm ${
-                      programStatus.statusFlags.shutdownPending
-                        ? "text-red-800 dark:text-red-300"
-                        : programStatus.statusFlags.powerButtonPressed
-                          ? "text-yellow-800 dark:text-yellow-300"
-                          : "text-gray-800 dark:text-gray-200"
-                    }`}
-                  >
-                    {programStatus.statusFlags.shutdownPending
-                      ? "Shutting Down"
-                      : programStatus.statusFlags.powerButtonPressed
-                        ? "Button Pressed"
-                        : "Normal"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Additional status info */}
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500 dark:text-gray-400">
-                Raw Status Code:
-              </span>
-              <span className="font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">
-                0x
-                {programStatus.rawStatusCode
-                  ?.toString(16)
-                  .padStart(2, "0")
-                  .toUpperCase()}{" "}
-                ({programStatus.rawStatusCode})
-              </span>
-            </div>
-            {programStatus.statusFlags.batteryHighCurrent && (
-              <div className="mt-2 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900 p-2 rounded">
-                ⚠️ High current draw detected - check for motor stalls
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <HubStatusSection programStatus={programStatus} />
     </div>
   );
 }

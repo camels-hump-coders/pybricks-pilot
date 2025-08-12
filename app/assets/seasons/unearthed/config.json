@@ -11,9 +11,14 @@
       "objectives": [
         {
           "id": "fit-single-launch-area",
-          "description": "All equipment fits in one launch area under height limit",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "fit-single-launch-area",
+              "description": "All equipment fits in one launch area under height limit",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         }
       ]
     },
@@ -28,14 +33,31 @@
         {
           "id": "soil-deposits-cleared",
           "description": "Soil deposits are completely cleared, touching the mat",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "soil-deposits-cleared-1",
+              "description": "One deposit is cleared",
+              "points": 10,
+              "type": "primary"
+            },
+            {
+              "id": "soil-deposits-cleared-2",
+              "description": "Two deposits are cleared",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "brush-not-touching",
-          "description": "Archaeologist's brush is not touching the dig site",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "brush-not-touching",
+              "description": "Archaeologist's brush is not touching the dig site",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "You'll need special tools to clean and uncover buried artifacts without damaging them. Brush away sediment to uncover a piece of this civilization's past."
@@ -51,8 +73,26 @@
         {
           "id": "topsoil-sections-cleared",
           "description": "Topsoil sections are completely cleared",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "topsoil-sections-cleared-1",
+              "description": "One section is cleared",
+              "points": 10,
+              "type": "primary"
+            },
+            {
+              "id": "topsoil-sections-cleared-2",
+              "description": "Two sections are cleared",
+              "points": 20,
+              "type": "primary"
+            },
+            {
+              "id": "topsoil-sections-cleared-3",
+              "description": "Three sections are cleared",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Archaeologists work hard to unearth important clues about how a civilization once lived. Shift and remove topsoil to reveal sections of a hidden map."
@@ -67,15 +107,25 @@
       "objectives": [
         {
           "id": "minecart-on-opposing-field",
-          "description": "Your team's minecart is on the opposing team's field",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "minecart-on-opposing-field",
+              "description": "Your team's minecart is on the opposing team's field",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "bonus-opposing-minecart",
-          "description": "The opposing team's minecart is on your team's field",
-          "points": 10,
-          "type": "bonus"
+          "choices": [
+            {
+              "id": "bonus-opposing-minecart",
+              "description": "The opposing team's minecart is on your team's field",
+              "points": 10,
+              "type": "bonus"
+            }
+          ]
         }
       ],
       "description": "Ayyana the archaeologist is on a mission to discover every secret of the dig site and share what she finds with her team. Your team's minecart must pass completely through the mineshaft entry to score points for this mission."
@@ -90,15 +140,25 @@
       "objectives": [
         {
           "id": "precious-artifact-not-touching",
-          "description": "Precious artifact is not touching the mine",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "precious-artifact-not-touching",
+              "description": "Precious artifact is not touching the mine",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "support-structures-standing",
-          "description": "Both support structures are standing",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "support-structures-standing",
+              "description": "Both support structures are standing",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "When parts of a site are too dangerous for humans, technology can help safely recover artifacts. Carefully extract the precious artifact from the mine, ensuring the site remains stable."
@@ -113,9 +173,14 @@
       "objectives": [
         {
           "id": "structure-floor-upright",
-          "description": "Structure floor is completely upright",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "structure-floor-upright",
+              "description": "Structure floor is completely upright",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Rebuild the structure to restore a vital part of the village where people once lived."
@@ -131,8 +196,26 @@
         {
           "id": "ore-blocks-not-touching",
           "description": "Ore blocks are not touching the forge",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "ore-blocks-not-touching-1",
+              "description": "One ore block is not touching",
+              "points": 10,
+              "type": "primary"
+            },
+            {
+              "id": "ore-blocks-not-touching-2",
+              "description": "Two ore blocks are not touching",
+              "points": 20,
+              "type": "primary"
+            },
+            {
+              "id": "ore-blocks-not-touching-3",
+              "description": "Three ore blocks are not touching",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Ayyana's team believes this forge was used to smelt ore and craft tools. Release the ore blocks and search carefully – one block holds a mysterious artifact waiting to be discovered. Technicians may open ore blocks by hand to reveal the fossilized artifact when completely in home."
@@ -147,9 +230,14 @@
       "objectives": [
         {
           "id": "millstone-not-touching-base",
-          "description": "Millstone is no longer touching its base",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "millstone-not-touching-base",
+              "description": "Millstone is no longer touching its base",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "This millstone enabled people to process grain and gives insight into their daily lives. Due to its size and weight, moving this artifact could prove to be a challenge."
@@ -165,8 +253,26 @@
         {
           "id": "preserved-pieces-outside-silo",
           "description": "Preserved pieces are outside the silo",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "preserved-pieces-outside-silo-1",
+              "description": "One piece is outside the silo",
+              "points": 10,
+              "type": "primary"
+            },
+            {
+              "id": "preserved-pieces-outside-silo-2",
+              "description": "Two pieces are outside the silo",
+              "points": 20,
+              "type": "primary"
+            },
+            {
+              "id": "preserved-pieces-outside-silo-3",
+              "description": "Three pieces are outside the silo",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Empty the silo of the preserved food so it can be analyzed at the lab."
@@ -181,15 +287,25 @@
       "objectives": [
         {
           "id": "roof-completely-raised",
-          "description": "Roof is completely raised",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "roof-completely-raised",
+              "description": "Roof is completely raised",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "market-wares-raised",
-          "description": "Market wares are raised",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "market-wares-raised",
+              "description": "Market wares are raised",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Restore the market stall and reveal items that were once traded between the village and its visitors."
@@ -204,15 +320,25 @@
       "objectives": [
         {
           "id": "scale-tipped-touching-mat",
-          "description": "Scale is tipped and touching the mat",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "scale-tipped-touching-mat",
+              "description": "Scale is tipped and touching the mat",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "scale-pan-removed",
-          "description": "Scale pan is completely removed",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "scale-pan-removed",
+              "description": "Scale pan is completely removed",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "This ancient tool ensured that each item received a fair and balanced price."
@@ -227,15 +353,25 @@
       "objectives": [
         {
           "id": "artifacts-raised-above-ground",
-          "description": "Artifacts are raised above the ground layer",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "artifacts-raised-above-ground",
+              "description": "Artifacts are raised above the ground layer",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "crane-flag-lowered",
-          "description": "The crane flag is at least partly lowered",
-          "points": 10,
-          "type": "bonus"
+          "choices": [
+            {
+              "id": "crane-flag-lowered",
+              "description": "The crane flag is at least partly lowered",
+              "points": 10,
+              "type": "bonus"
+            }
+          ]
         }
       ],
       "description": "Your team has discovered some interesting artifacts at the port. Use the crane to excavate the site."
@@ -250,15 +386,25 @@
       "objectives": [
         {
           "id": "sand-completely-cleared",
-          "description": "Sand is completely cleared",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "sand-completely-cleared",
+              "description": "Sand is completely cleared",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "ship-completely-raised",
-          "description": "Ship is completely raised",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "ship-completely-raised",
+              "description": "Ship is completely raised",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "An ancient ship discovered at the beach is at risk of further decay. Excavate the vessel without damaging its delicate structure. Sand is considered completely cleared when the pull activator is past the line on the mat."
@@ -273,9 +419,14 @@
       "objectives": [
         {
           "id": "statue-completely-raised",
-          "description": "Statue is completely raised",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "statue-completely-raised",
+              "description": "Statue is completely raised",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Reconstruct the statue to help piece together its historic significance."
@@ -290,45 +441,80 @@
       "objectives": [
         {
           "id": "brush-in-forum",
-          "description": "Brush touching the mat and at least partly in the forum",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "brush-in-forum",
+              "description": "Brush touching the mat and at least partly in the forum",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "topsoil-in-forum",
-          "description": "Topsoil touching the mat and at least partly in the forum",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "topsoil-in-forum",
+              "description": "Topsoil touching the mat and at least partly in the forum",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "precious-artifact-in-forum",
-          "description": "Precious Artifact touching the mat and at least partly in the forum",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "precious-artifact-in-forum",
+              "description": "Precious Artifact touching the mat and at least partly in the forum",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "opposing-minecart-in-forum",
-          "description": "Opposing Team's Minecart touching the mat and at least partly in the forum",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "opposing-minecart-in-forum",
+              "description": "Opposing Team's Minecart touching the mat and at least partly in the forum",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "ore-fossilized-in-forum",
-          "description": "Ore with Fossilized Artifact touching the mat and at least partly in the forum",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "ore-fossilized-in-forum",
+              "description": "Ore with Fossilized Artifact touching the mat and at least partly in the forum",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "millstone-in-forum",
-          "description": "Millstone touching the mat and at least partly in the forum",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "millstone-in-forum",
+              "description": "Millstone touching the mat and at least partly in the forum",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "scale-pan-in-forum",
-          "description": "Scale Pan touching the mat and at least partly in the forum",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "scale-pan-in-forum",
+              "description": "Scale Pan touching the mat and at least partly in the forum",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Deliver artifacts to the forum and choose a significant item to display. Consider what these artifacts tell you and what mysteries remain."
@@ -336,29 +522,34 @@
     {
       "id": "mission-15-site-marking",
       "name": "15: Site Marking",
-      "scoringMode": "single-select",
       "position": {
         "x": 0.02875,
         "y": 0.9429155672823218
       },
       "objectives": [
         {
-          "id": "one-sites-with-flags",
-          "description": "One site with a flag at least partly inside and touching the mat",
-          "points": 10,
-          "type": "primary"
-        },
-        {
-          "id": "two-sites-with-flags",
-          "description": "Two sites with a flag at least partly inside and touching the mat",
-          "points": 20,
-          "type": "primary"
-        },
-        {
-          "id": "three-sites-with-flags",
-          "description": "Three sites with a flag at least partly inside and touching the mat",
-          "points": 30,
-          "type": "primary"
+          "id": "site-marking-options",
+          "description": "Choose how many sites to mark with flags",
+          "choices": [
+            {
+              "id": "one-sites-with-flags",
+              "description": "One site with a flag at least partly inside and touching the mat",
+              "points": 10,
+              "type": "primary"
+            },
+            {
+              "id": "two-sites-with-flags",
+              "description": "Two sites with a flag at least partly inside and touching the mat",
+              "points": 20,
+              "type": "primary"
+            },
+            {
+              "id": "three-sites-with-flags",
+              "description": "Three sites with a flag at least partly inside and touching the mat",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "There's so much yet to be discovered at this dig site. Place flags to mark locations for further study. Sites are outlined on the mat wireframe."
@@ -366,47 +557,52 @@
     {
       "id": "mission-precision-tokens",
       "name": "Precision Tokens",
-      "scoringMode": "single-select",
       "position": {
         "x": 0.825,
         "y": 0.9388522427440632
       },
       "objectives": [
         {
-          "id": "precision-tokens-1",
-          "description": "1 precision token remaining",
-          "points": 10,
-          "type": "primary"
-        },
-        {
-          "id": "precision-tokens-2",
-          "description": "2 precision tokens remaining",
-          "points": 15,
-          "type": "primary"
-        },
-        {
-          "id": "precision-tokens-3",
-          "description": "3 precision tokens remaining",
-          "points": 25,
-          "type": "primary"
-        },
-        {
-          "id": "precision-tokens-4",
-          "description": "4 precision tokens remaining",
-          "points": 35,
-          "type": "primary"
-        },
-        {
-          "id": "precision-tokens-5",
-          "description": "5 precision tokens remaining",
-          "points": 50,
-          "type": "primary"
-        },
-        {
-          "id": "precision-tokens-6",
-          "description": "6 precision tokens remaining",
-          "points": 50,
-          "type": "primary"
+          "id": "precision-tokens-options",
+          "description": "Choose how many precision tokens remain",
+          "choices": [
+            {
+              "id": "precision-tokens-1",
+              "description": "1 precision token remaining",
+              "points": 10,
+              "type": "primary"
+            },
+            {
+              "id": "precision-tokens-2",
+              "description": "2 precision tokens remaining",
+              "points": 15,
+              "type": "primary"
+            },
+            {
+              "id": "precision-tokens-3",
+              "description": "3 precision tokens remaining",
+              "points": 25,
+              "type": "primary"
+            },
+            {
+              "id": "precision-tokens-4",
+              "description": "4 precision tokens remaining",
+              "points": 35,
+              "type": "primary"
+            },
+            {
+              "id": "precision-tokens-5",
+              "description": "5 precision tokens remaining",
+              "points": 50,
+              "type": "primary"
+            },
+            {
+              "id": "precision-tokens-6",
+              "description": "6 precision tokens remaining",
+              "points": 50,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "You begin the match with six precision tokens worth 50 total points. If you interrupt the robot outside of home, the referee will remove one token. You earn points for the number of tokens remaining at the end of the match."

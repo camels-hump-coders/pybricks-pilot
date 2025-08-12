@@ -1,16 +1,16 @@
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from "../contexts/ThemeContext";
 
 interface ThemeToggleProps {
   className?: string;
 }
 
-export function ThemeToggle({ className = '' }: ThemeToggleProps) {
+export function ThemeToggle({ className = "" }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme();
 
   const themes = [
-    { value: 'system', label: 'System', icon: '💻' },
-    { value: 'light', label: 'Light', icon: '☀️' },
-    { value: 'dark', label: 'Dark', icon: '🌙' },
+    { value: "system", label: "System", icon: "💻" },
+    { value: "light", label: "Light", icon: "☀️" },
+    { value: "dark", label: "Dark", icon: "🌙" },
   ] as const;
 
   return (
@@ -18,13 +18,13 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
       <select
         value={theme}
         onChange={(e) => {
-          setTheme(e.target.value as 'light' | 'dark' | 'system');
+          setTheme(e.target.value as "light" | "dark" | "system");
         }}
         className="appearance-none bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 pr-8 text-sm font-medium text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
       >
         {themes.map((themeOption) => (
           <option key={themeOption.value} value={themeOption.value}>
-            {themeOption.icon} {themeOption.label}
+            {themeOption.icon}
           </option>
         ))}
       </select>

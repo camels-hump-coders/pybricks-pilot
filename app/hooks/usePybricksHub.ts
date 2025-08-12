@@ -1,14 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import type { HubInfo } from "../services/bluetooth";
+import { mpyCrossCompiler } from "../services/mpyCrossCompiler";
 import {
   pybricksHubService,
   type DebugEvent,
   type ProgramStatus,
   type TelemetryData,
 } from "../services/pybricksHub";
-import { mpyCrossCompiler } from "../services/mpyCrossCompiler";
-import { bluetoothDeviceStorage } from "../services/bluetoothDeviceStorage";
 
 export function usePybricksHub() {
   const [hubInfo, setHubInfo] = useState<HubInfo | null>(null);
@@ -31,27 +30,30 @@ export function usePybricksHub() {
     const handleStatusChange = (event: CustomEvent<ProgramStatus>) => {
       const status = event.detail;
       setProgramStatus(status);
-      
+
       // If there's program output, add it to the log
       if (status.output && status.output.trim()) {
         const timestamp = new Date().toLocaleTimeString();
         const logEntry = `[${timestamp}] ${status.output.trim()}`;
-        setProgramOutputLog(prev => [...prev, logEntry].slice(-200)); // Keep last 200 lines
+        setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
       }
     };
 
     const handleDebugEvent = (event: CustomEvent<DebugEvent>) => {
       setDebugEvents((prev) => [...prev, event.detail].slice(-100)); // Keep last 100 events
-      
+
       // Update connection status based on debug events
-      if (event.detail.type === 'connection') {
+      if (event.detail.type === "connection") {
         const isNowConnected = pybricksHubService.isConnected();
         setIsConnected(isNowConnected);
-        
+
         // Update hub info on successful connection/disconnection
-        if (event.detail.message.includes('connected successfully')) {
+        if (event.detail.message.includes("connected successfully")) {
           // Hub info will be set by the connect mutation
-        } else if (event.detail.message.includes('Disconnected') || event.detail.message.includes('disconnected')) {
+        } else if (
+          event.detail.message.includes("Disconnected") ||
+          event.detail.message.includes("disconnected")
+        ) {
           setHubInfo(null);
           setTelemetryData(null);
           setProgramStatus({ running: false });
@@ -60,12 +62,24 @@ export function usePybricksHub() {
     };
 
     // Add event listeners
-    pybricksHubService.addEventListener('telemetry', handleTelemetry as EventListener);
-    pybricksHubService.addEventListener('statusChange', handleStatusChange as EventListener);
-    pybricksHubService.addEventListener('debugEvent', handleDebugEvent as EventListener);
-    
+    pybricksHubService.addEventListener(
+      "telemetry",
+      handleTelemetry as EventListener
+    );
+    pybricksHubService.addEventListener(
+      "statusChange",
+      handleStatusChange as EventListener
+    );
+    pybricksHubService.addEventListener(
+      "debugEvent",
+      handleDebugEvent as EventListener
+    );
+
     // Also listen to compiler debug events directly
-    mpyCrossCompiler.addEventListener('debugEvent', handleDebugEvent as EventListener);
+    mpyCrossCompiler.addEventListener(
+      "debugEvent",
+      handleDebugEvent as EventListener
+    );
 
     const checkConnection = () => {
       const connectionStatus = pybricksHubService.isConnected();
@@ -74,37 +88,28 @@ export function usePybricksHub() {
 
     // Check connection more frequently for responsive UI
     const interval = setInterval(checkConnection, 500);
-    
-    // Try auto-reconnect on initial load
-    const tryInitialAutoReconnect = async () => {
-      try {
-        const lastDevice = await bluetoothDeviceStorage.getLastDevice();
-        if (lastDevice) {
-          console.log('Found last connected device, attempting auto-reconnect:', lastDevice.name);
-          const hubInfo = await pybricksHubService.tryAutoReconnect();
-          if (hubInfo) {
-            setHubInfo(hubInfo);
-            setIsConnected(true);
-          }
-        }
-      } catch (error) {
-        console.log('Auto-reconnect on load failed:', error.message);
-      }
-    };
-    
-    // Try auto-reconnect after a short delay to let the page load
-    const autoReconnectTimeout = setTimeout(tryInitialAutoReconnect, 1000);
-    
+
     // Cleanup function
     return () => {
       clearInterval(interval);
-      clearTimeout(autoReconnectTimeout);
-      pybricksHubService.removeEventListener('telemetry', handleTelemetry as EventListener);
-      pybricksHubService.removeEventListener('statusChange', handleStatusChange as EventListener);
-      pybricksHubService.removeEventListener('debugEvent', handleDebugEvent as EventListener);
-      
+      pybricksHubService.removeEventListener(
+        "telemetry",
+        handleTelemetry as EventListener
+      );
+      pybricksHubService.removeEventListener(
+        "statusChange",
+        handleStatusChange as EventListener
+      );
+      pybricksHubService.removeEventListener(
+        "debugEvent",
+        handleDebugEvent as EventListener
+      );
+
       // Also cleanup compiler event listener
-      mpyCrossCompiler.removeEventListener('debugEvent', handleDebugEvent as EventListener);
+      mpyCrossCompiler.removeEventListener(
+        "debugEvent",
+        handleDebugEvent as EventListener
+      );
     };
   }, []); // Empty dependency array - this effect should only run once
 
@@ -279,17 +284,17 @@ export function usePybricksHub() {
   const resetTelemetry = useCallback(() => {
     // Reset telemetry data to null
     setTelemetryData(null);
-    
+
     // Reset program status
     setProgramStatus({ running: false });
-    
+
     // Clear program output log
     setProgramOutputLog([]);
-    
+
     // Send a command to reset the robot's drivebase telemetry
     if (isConnected) {
       const resetCommand = JSON.stringify({
-        action: "reset_drivebase"
+        action: "reset_drivebase",
       });
       sendControlCommandMutation.mutateAsync(resetCommand).catch(() => {
         // Ignore errors - this is a best-effort reset
@@ -340,10 +345,15 @@ export function usePybricksHub() {
     isSendingCommand: sendControlCommandMutation.isPending,
 
     // Code instrumentation
-    setInstrumentationEnabled: (enabled: boolean) => pybricksHubService.setInstrumentationEnabled(enabled),
-    setInstrumentationOptions: (options: Partial<import("../utils/codeInstrumentation").InstrumentationOptions>) => 
-      pybricksHubService.setInstrumentationOptions(options),
-    getInstrumentationOptions: () => pybricksHubService.getInstrumentationOptions(),
+    setInstrumentationEnabled: (enabled: boolean) =>
+      pybricksHubService.setInstrumentationEnabled(enabled),
+    setInstrumentationOptions: (
+      options: Partial<
+        import("../utils/codeInstrumentation").InstrumentationOptions
+      >
+    ) => pybricksHubService.setInstrumentationOptions(options),
+    getInstrumentationOptions: () =>
+      pybricksHubService.getInstrumentationOptions(),
 
     // Capabilities
     isSupported: "bluetooth" in navigator,
@@ -351,7 +361,7 @@ export function usePybricksHub() {
     // Debug events
     debugEvents,
     clearDebugEvents: () => setDebugEvents([]),
-    
+
     // Program output log
     programOutputLog,
     clearProgramOutputLog: () => setProgramOutputLog([]),

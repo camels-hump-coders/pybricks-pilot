@@ -21,7 +21,7 @@ export function useRobotConnection() {
   });
   const [debugEvents, setDebugEvents] = useState<DebugEvent[]>([]);
   const [programOutputLog, setProgramOutputLog] = useState<string[]>([]);
-  const [robotType, setRobotType] = useState<"real" | "virtual">("real");
+  const [robotType, setRobotType] = useState<"real" | "virtual" | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -59,6 +59,8 @@ export function useRobotConnection() {
           setHubInfo(null);
           setTelemetryData(null);
           setProgramStatus({ running: false });
+          // Reset robot type to null when unexpected disconnection occurs
+          setRobotType(null);
         }
       }
     };
@@ -80,9 +82,23 @@ export function useRobotConnection() {
     // Check initial connection status
     const checkConnection = () => {
       const connectionStatus = robotConnectionManager.isConnected();
-      const robotType = robotConnectionManager.getRobotType();
+      
+      // If we were connected but are now disconnected, reset robot type
+      if (isConnected && !connectionStatus) {
+        setRobotType(null);
+        setHubInfo(null);
+        setTelemetryData(null);
+        setProgramStatus({ running: false });
+      }
+      
+      // Only update robot type if we don't already have one set
+      // This prevents overriding the initial null state
+      if (robotType === null) {
+        const currentRobotType = robotConnectionManager.getRobotType();
+        setRobotType(currentRobotType);
+      }
+      
       setIsConnected(connectionStatus);
-      setRobotType(robotType);
     };
 
     // Check connection more frequently for responsive UI
@@ -138,6 +154,8 @@ export function useRobotConnection() {
       setIsConnected(false);
       setTelemetryData(null);
       setProgramStatus({ running: false });
+      // Reset robot type to null so user can choose a different type or reconnect
+      setRobotType(null);
     },
   });
 
@@ -167,9 +185,8 @@ export function useRobotConnection() {
   const sendControlCommandMutation = useMutation({
     mutationFn: async (command: string) => {
       if (!isConnected) throw new Error("Robot not connected");
-      // For virtual robot, we'll need to implement command parsing
-      // For now, just log the command
-      console.log("Control command:", command);
+      // Send control command to the robot connection manager
+      await robotConnectionManager.sendControlCommand(command);
     },
   });
 
@@ -265,7 +282,17 @@ export function useRobotConnection() {
     setTelemetryData(null);
     setProgramOutputLog([]);
     setDebugEvents([]);
-  }, []);
+
+    // Send reset_drivebase command to robot (same as real robot)
+    if (isConnected) {
+      const resetCommand = JSON.stringify({
+        action: "reset_drivebase",
+      });
+      sendControlCommandMutation.mutateAsync(resetCommand).catch(() => {
+        // Ignore errors - this is a best-effort reset
+      });
+    }
+  }, [isConnected, sendControlCommandMutation]);
 
   // Virtual robot specific methods
   const resetVirtualRobotPosition = useCallback(async () => {
@@ -289,6 +316,16 @@ export function useRobotConnection() {
     }
     return null;
   }, [robotType]);
+
+  const resetRobotType = useCallback(() => {
+    setRobotType(null); // Reset to unselected state
+    setHubInfo(null);
+    setIsConnected(false);
+    setTelemetryData(null);
+    setProgramStatus({ running: false });
+    setDebugEvents([]);
+    setProgramOutputLog([]);
+  }, []);
 
   return {
     // Connection state
@@ -337,9 +374,10 @@ export function useRobotConnection() {
     resetVirtualRobotPosition,
     setVirtualRobotPosition,
     getVirtualRobotState,
+    resetRobotType,
 
     // Capabilities
-    isSupported: true, // Always supported since we have virtual robot fallback
+    isBluetoothSupported: !!navigator.bluetooth, // Check if Web Bluetooth API is available
 
     // Debug events
     debugEvents,

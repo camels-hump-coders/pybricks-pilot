@@ -49,6 +49,11 @@ class TelemetryHistoryService {
       points: [],
     };
     this.isRecording = true;
+
+    console.log(
+      "[TelemetryHistory] Started recording, path ID:",
+      this.currentPath.id
+    );
   }
 
   stopRecording(): void {
@@ -66,7 +71,13 @@ class TelemetryHistoryService {
     y: number,
     heading: number
   ): void {
-    if (!this.isRecording || !this.currentPath) return;
+    if (!this.isRecording || !this.currentPath) {
+      console.log("[TelemetryHistory] Cannot add point:", {
+        isRecording: this.isRecording,
+        hasCurrentPath: !!this.currentPath,
+      });
+      return;
+    }
 
     // Only add point if position has changed significantly (more than 5mm or 2 degrees)
     const distChange = Math.sqrt(
@@ -136,6 +147,48 @@ class TelemetryHistoryService {
     this.stopRecording(); // Stop current recording if any
     this.clearHistory(); // Clear all history
     this.startRecording(); // Start fresh recording
+    console.log("[TelemetryHistory] Recording state after reset:", {
+      isRecording: this.isRecording,
+      hasCurrentPath: !!this.currentPath,
+      currentPathId: this.currentPath?.id,
+    });
+  }
+
+  // Ensure recording is active when telemetry data is available
+  ensureRecordingActive(): void {
+    if (!this.isRecording) {
+      console.log("[TelemetryHistory] Recording was inactive, starting now");
+      this.startRecording();
+    }
+  }
+
+  // Add initial position point when recording starts
+  addInitialPosition(x: number, y: number, heading: number): void {
+    if (!this.isRecording || !this.currentPath) {
+      console.log(
+        "[TelemetryHistory] Cannot add initial position - not recording"
+      );
+      return;
+    }
+
+    // Create a dummy telemetry data object for the initial position
+    const initialTelemetry: any = {
+      drivebase: { distance: 0, angle: 0 },
+      motors: {},
+      sensors: {},
+      hub: { battery: 100, imu: { heading: heading } },
+    };
+
+    const point: TelemetryPoint = {
+      timestamp: Date.now(),
+      x,
+      y,
+      heading,
+      data: initialTelemetry,
+    };
+
+    this.currentPath.points.push(point);
+    this.lastPosition = { x, y, heading };
   }
 
   getColorForPoint(point: TelemetryPoint, colorMode: ColorMode): string {

@@ -35,7 +35,7 @@ const CollapsibleSection = ({
     <button
       onClick={onToggle}
       disabled={disabled}
-      className="w-full flex items-center justify-between p-3 sm:p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:cursor-not-allowed"
+      className="w-full flex items-center justify-between p-2 sm:p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:cursor-not-allowed"
     >
       <div className="flex items-center gap-3">
         <span className="text-lg sm:text-xl">{icon}</span>
@@ -62,7 +62,7 @@ const CollapsibleSection = ({
     </button>
     {isExpanded && (
       <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <div className="p-3 sm:p-4">{children}</div>
+        <div className="p-2 sm:p-4">{children}</div>
       </div>
     )}
   </div>
@@ -113,7 +113,8 @@ export default function Home() {
     programOutputLog,
     clearProgramOutputLog,
     resetTelemetry,
-    isSupported: isBluetoothSupported,
+    resetRobotType,
+    isBluetoothSupported,
   } = useRobotConnection();
 
   const {
@@ -272,31 +273,6 @@ export default function Home() {
     }
   }, [programStatus.error, showError]);
 
-  if (!isBluetoothSupported) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-            Bluetooth Not Supported
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            This application requires Web Bluetooth API support. Please use a
-            supported browser like Chrome or Edge.
-          </p>
-          <a
-            href="https://caniuse.com/web-bluetooth"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-          >
-            Check browser compatibility →
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Compact Header */}
@@ -308,11 +284,6 @@ export default function Home() {
               <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 PyBricks Pilot
               </h1>
-              {hubInfo && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
-                  {hubInfo.name} {robotType === "virtual" && "(Virtual)"}
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -335,119 +306,123 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Quick Action Buttons */}
-              {!isFileSystemSupported ? (
-                <div className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900 px-2 py-1 rounded">
-                  File API N/A
-                </div>
-              ) : (
-                !hasDirectoryAccess && (
-                  <button
-                    onClick={handleFileSystemAccess}
-                    className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                  >
-                    📁
-                  </button>
-                )
-              )}
+              {/* Quick Action Buttons - Only show when robot type is selected */}
+              {robotType && (
+                <>
+                  {robotType === "real" && !isFileSystemSupported ? (
+                    <div className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900 px-2 py-1 rounded">
+                      File API N/A
+                    </div>
+                  ) : (
+                    robotType === "real" &&
+                    !hasDirectoryAccess && (
+                      <button
+                        onClick={handleFileSystemAccess}
+                        className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                      >
+                        📁
+                      </button>
+                    )
+                  )}
 
-              {isConnected ? (
-                <button
-                  onClick={handleDisconnect}
-                  className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
-                >
-                  Disconnect
-                </button>
-              ) : (
-                <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
-                  {robotType === "virtual" ? "🖥️ Virtual" : "🤖 Real"}
-                </div>
+                  {isConnected && (
+                    <button
+                      onClick={handleDisconnect}
+                      className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  )}
+                </>
               )}
 
               {/* Theme Toggle */}
               <ThemeToggle className="mr-2" />
-
-              {/* Debug Toggle */}
-              <button
-                onClick={() => setIsDebugPanelVisible(!isDebugPanelVisible)}
-                className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                🐛
-              </button>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="w-full px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
-        {/* Robot Connection Selector - Always visible at top */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <RobotConnectionSelector
-            onConnect={handleConnect}
-            isConnecting={isConnecting}
-            robotType={robotType}
-          />
-        </div>
+      <main className="w-full px-2 sm:px-4 py-2 sm:py-4 space-y-2 sm:space-y-4">
+        {/* Robot Connection Selector - Only show when no robot type is selected */}
+        {(!robotType || !isConnected) && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <RobotConnectionSelector
+              onConnect={handleConnect}
+              isConnecting={isConnecting}
+              robotType={robotType}
+              isBluetoothSupported={isBluetoothSupported}
+            />
+          </div>
+        )}
 
-        {/* 1. Telemetry Section (Priority 1) */}
-        <CollapsibleSection
-          title="Robot Telemetry"
-          icon="📊"
-          priority={1}
-          isExpanded={isTelemetryExpanded}
-          onToggle={() => setIsTelemetryExpanded(!isTelemetryExpanded)}
-          disabled={!isConnected}
-        >
-          <TelemetryDashboard
-            telemetryData={telemetryData}
-            programStatus={programStatus}
-            isConnected={isConnected}
-            programOutputLog={programOutputLog}
-            onClearProgramOutput={clearProgramOutputLog}
-            onResetTelemetry={resetTelemetry}
-            onDriveCommand={sendDriveCommand}
-            onTurnCommand={sendTurnCommand}
-            onStopCommand={sendStopCommand}
-            onContinuousDriveCommand={sendContinuousDriveCommand}
-            onMotorCommand={sendMotorCommand}
-            onContinuousMotorCommand={sendContinuousMotorCommand}
-            onMotorStopCommand={sendMotorStopCommand}
-          />
-        </CollapsibleSection>
+        {/* 1. Telemetry Section (Priority 1) - Only show when robot type is selected */}
+        {robotType && (
+          <CollapsibleSection
+            title="Robot Telemetry"
+            icon="📊"
+            priority={1}
+            isExpanded={isTelemetryExpanded}
+            onToggle={() => setIsTelemetryExpanded(!isTelemetryExpanded)}
+            disabled={!isConnected}
+          >
+            <TelemetryDashboard
+              telemetryData={telemetryData}
+              programStatus={programStatus}
+              isConnected={isConnected}
+              programOutputLog={programOutputLog}
+              onClearProgramOutput={clearProgramOutputLog}
+              onResetTelemetry={resetTelemetry}
+              robotType={robotType}
+              onDriveCommand={sendDriveCommand}
+              onTurnCommand={sendTurnCommand}
+              onStopCommand={sendStopCommand}
+              onContinuousDriveCommand={sendContinuousDriveCommand}
+              onMotorCommand={sendMotorCommand}
+              onContinuousMotorCommand={sendContinuousMotorCommand}
+              onMotorStopCommand={sendMotorStopCommand}
+              onRunProgram={handleRunProgram}
+              onStopProgram={handleStopProgram}
+              onUploadAndRun={handleUploadAndRun}
+            />
+          </CollapsibleSection>
+        )}
 
-        {/* 2. Program Management Section (Priority 2) */}
-        <CollapsibleSection
-          title="Program Management"
-          icon="📝"
-          priority={2}
-          isExpanded={isProgramsExpanded}
-          onToggle={() => setIsProgramsExpanded(!isProgramsExpanded)}
-          disabled={!isConnected}
-        >
-          <ProgramManager
-            directoryName={directoryName}
-            pythonFiles={pythonFiles}
-            hasDirectoryAccess={hasDirectoryAccess}
-            isPythonFilesLoading={isPythonFilesLoading}
-            pythonFilesError={pythonFilesError}
-            isRestoring={isRestoring}
-            onRefreshFiles={refreshFiles}
-            onUnmountDirectory={unmountDirectory}
-            onRequestDirectoryAccess={handleFileSystemAccess}
-            onUploadProgram={handleUploadProgram}
-            onRunProgram={handleRunProgram}
-            onStopProgram={handleStopProgram}
-            onUploadAndRun={handleUploadAndRun}
-            onCompileCode={compileCode}
-            programStatus={programStatus}
-            isConnected={isConnected}
-            isUploading={isUploadingProgram}
-            isRunning={isRunningProgram}
-            isStopping={isStoppingProgram}
-            isCompiling={isCompiling}
-          />
-        </CollapsibleSection>
+        {/* 2. Program Management Section (Priority 2) - Only show for real robots */}
+        {robotType === "real" && (
+          <CollapsibleSection
+            title="Program Management"
+            icon="📝"
+            priority={2}
+            isExpanded={isProgramsExpanded}
+            onToggle={() => setIsProgramsExpanded(!isProgramsExpanded)}
+            disabled={!isConnected}
+          >
+            <ProgramManager
+              directoryName={directoryName}
+              pythonFiles={pythonFiles}
+              hasDirectoryAccess={hasDirectoryAccess}
+              isPythonFilesLoading={isPythonFilesLoading}
+              pythonFilesError={pythonFilesError}
+              isRestoring={isRestoring}
+              onRefreshFiles={refreshFiles}
+              onUnmountDirectory={unmountDirectory}
+              onRequestDirectoryAccess={handleFileSystemAccess}
+              onUploadProgram={handleUploadProgram}
+              onRunProgram={handleRunProgram}
+              onStopProgram={handleStopProgram}
+              onUploadAndRun={handleUploadAndRun}
+              onCompileCode={compileCode}
+              programStatus={programStatus}
+              isConnected={isConnected}
+              isUploading={isUploadingProgram}
+              isRunning={isRunningProgram}
+              isStopping={isStoppingProgram}
+              isCompiling={isCompiling}
+            />
+          </CollapsibleSection>
+        )}
       </main>
 
       {/* Notification System */}

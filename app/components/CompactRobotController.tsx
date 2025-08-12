@@ -26,6 +26,7 @@ interface CompactRobotControllerProps {
   isConnected: boolean;
   className?: string;
   currentRobotPosition?: RobotPosition;
+  robotType?: "real" | "virtual" | null;
   onPreviewUpdate?: (preview: {
     type: "drive" | "turn" | null;
     direction: "forward" | "backward" | "left" | "right" | null;
@@ -34,6 +35,9 @@ interface CompactRobotControllerProps {
       secondary: RobotPosition | null;
     };
   }) => void;
+  onRunProgram?: () => Promise<void>;
+  onStopProgram?: () => Promise<void>;
+  onUploadAndRun?: (code: string) => Promise<void>;
 }
 
 export function CompactRobotController({
@@ -48,7 +52,11 @@ export function CompactRobotController({
   isConnected,
   className = "",
   currentRobotPosition,
+  robotType,
   onPreviewUpdate,
+  onRunProgram,
+  onStopProgram,
+  onUploadAndRun,
 }: CompactRobotControllerProps) {
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
   const [driveSpeed, setDriveSpeed] = useState(50);
@@ -86,7 +94,7 @@ export function CompactRobotController({
     <div
       className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}
     >
-      <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
@@ -118,6 +126,57 @@ export function CompactRobotController({
         </div>
       </div>
 
+        {/* Quick Program Controls - Only show for real robots */}
+        {robotType === "real" && (
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 uppercase tracking-wide">
+              Quick Program Control
+            </div>
+            <div className="grid grid-cols-3 gap-1 sm:gap-2">
+              <button
+                onClick={() => {
+                  if (onRunProgram) {
+                    onRunProgram().catch(console.error);
+                  }
+                }}
+                disabled={!onRunProgram}
+                className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title="Run Program"
+              >
+                ▶️ Run
+              </button>
+              <button
+                onClick={() => {
+                  if (onUploadAndRun) {
+                    // For now, we'll need to get the current program code from somewhere
+                    // This could be enhanced later to show a file picker or use the last uploaded program
+                    console.log(
+                      "Upload & Run requires program code - use Program Manager for now"
+                    );
+                  }
+                }}
+                disabled={!onUploadAndRun}
+                className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title="Upload & Run Program"
+              >
+                ⬆️ Up&Run
+              </button>
+              <button
+                onClick={() => {
+                  if (onStopProgram) {
+                    onStopProgram().catch(console.error);
+                  }
+                }}
+                disabled={!onStopProgram}
+                className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title="Stop Program"
+              >
+                ⏹️ Stop
+              </button>
+            </div>
+          </div>
+        )}
+
       <div
         className={`p-3 space-y-4 relative ${!isFullyConnected ? "opacity-50" : ""}`}
       >
@@ -138,60 +197,18 @@ export function CompactRobotController({
           </div>
         )}
 
-        {/* Quick Program Controls */}
-        <div>
-          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
-            Quick Program Control
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => {
-                // TODO: Implement run program functionality
-                console.log("Run Program clicked");
-              }}
-              disabled={!isFullyConnected}
-              className="px-2 py-2 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-              title="Run Program"
-            >
-              ▶️ Run
-            </button>
-            <button
-              onClick={() => {
-                // TODO: Implement upload & run functionality
-                console.log("Upload & Run clicked");
-              }}
-              disabled={!isFullyConnected}
-              className="px-2 py-2 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-              title="Upload & Run Program"
-            >
-              ⬆️ Up&Run
-            </button>
-            <button
-              onClick={() => {
-                // TODO: Implement stop program functionality
-                console.log("Stop Program clicked");
-              }}
-              disabled={!isConnected}
-              className="px-2 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-              title="Stop Program"
-            >
-              ⏹️ Stop
-            </button>
-          </div>
-        </div>
-
         {/* Drive Controls */}
         <div>
-          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
+          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 uppercase tracking-wide">
             Drive Base
           </div>
 
           {/* Control Mode Toggle */}
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-md p-1">
               <button
                 onClick={() => setControlMode("incremental")}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
+                className={`px-3 py-2 text-sm rounded transition-colors ${
                   controlMode === "incremental"
                     ? "bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-400 shadow-sm"
                     : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
@@ -201,7 +218,7 @@ export function CompactRobotController({
               </button>
               <button
                 onClick={() => setControlMode("continuous")}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
+                className={`px-3 py-2 text-sm rounded transition-colors ${
                   controlMode === "continuous"
                     ? "bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-400 shadow-sm"
                     : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
@@ -214,7 +231,7 @@ export function CompactRobotController({
 
           {/* Compact sliders */}
           <div
-            className={`grid gap-2 mb-3 text-xs ${
+            className={`grid gap-1 sm:gap-2 mb-2 sm:mb-3 text-xs ${
               controlMode === "incremental" ? "grid-cols-3" : "grid-cols-2"
             }`}
           >
@@ -412,14 +429,14 @@ export function CompactRobotController({
           </div>
 
           {/* Movement buttons - compact grid */}
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-3 gap-2 mb-2 sm:mb-3">
             <div></div>
             {controlMode === "incremental" ? (
               <button
                 onClick={() => sendStepDrive(distance, driveSpeed)}
                 onMouseEnter={() => updatePreview("drive", "forward")}
                 onMouseLeave={() => updatePreview(null, null)}
-                className="px-2 py-2 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors flex items-center justify-center"
                 title={`Forward ${distance}mm`}
               >
                 ↑
@@ -431,7 +448,7 @@ export function CompactRobotController({
                 onMouseLeave={stopContinuousDrive}
                 onTouchStart={() => startContinuousDrive("forward")}
                 onTouchEnd={stopContinuousDrive}
-                className="px-2 py-2 bg-green-500 text-white text-xs rounded hover:bg-green-600 active:bg-green-700 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 active:bg-green-700 transition-colors flex items-center justify-center"
                 title="Forward (Hold)"
               >
                 ↑
@@ -444,7 +461,7 @@ export function CompactRobotController({
                 onClick={() => sendStepTurn(-angle, driveSpeed)}
                 onMouseEnter={() => updatePreview("turn", "left")}
                 onMouseLeave={() => updatePreview(null, null)}
-                className="px-2 py-2 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors flex items-center justify-center"
                 title={`Turn ${angle}° left`}
               >
                 ↶
@@ -456,7 +473,7 @@ export function CompactRobotController({
                 onMouseLeave={stopContinuousTurn}
                 onTouchStart={() => startContinuousTurn("left")}
                 onTouchEnd={stopContinuousTurn}
-                className="px-2 py-2 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 active:bg-blue-700 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 active:bg-blue-700 transition-colors flex items-center justify-center"
                 title="Turn left (Hold)"
               >
                 ↶
@@ -464,7 +481,7 @@ export function CompactRobotController({
             )}
             <button
               onClick={() => sendStop()}
-              className="px-2 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors flex items-center justify-center"
+              className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center"
               title="Stop"
             >
               ⏹
@@ -474,7 +491,7 @@ export function CompactRobotController({
                 onClick={() => sendStepTurn(angle, driveSpeed)}
                 onMouseEnter={() => updatePreview("turn", "right")}
                 onMouseLeave={() => updatePreview(null, null)}
-                className="px-2 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-cyan-600 text-white text-sm rounded hover:bg-cyan-700 transition-colors flex items-center justify-center"
                 title={`Turn ${angle}° right`}
               >
                 ↷
@@ -486,7 +503,7 @@ export function CompactRobotController({
                 onMouseLeave={stopContinuousTurn}
                 onTouchStart={() => startContinuousTurn("right")}
                 onTouchEnd={stopContinuousTurn}
-                className="px-2 py-2 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 active:bg-blue-700 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-cyan-500 text-white text-sm rounded hover:bg-cyan-600 active:bg-cyan-700 transition-colors flex items-center justify-center"
                 title="Turn right (Hold)"
               >
                 ↷
@@ -499,7 +516,7 @@ export function CompactRobotController({
                 onClick={() => sendStepDrive(-distance, driveSpeed)}
                 onMouseEnter={() => updatePreview("drive", "backward")}
                 onMouseLeave={() => updatePreview(null, null)}
-                className="px-2 py-2 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors flex items-center justify-center"
                 title={`Backward ${distance}mm`}
               >
                 ↓
@@ -511,7 +528,7 @@ export function CompactRobotController({
                 onMouseLeave={stopContinuousDrive}
                 onTouchStart={() => startContinuousDrive("backward")}
                 onTouchEnd={stopContinuousDrive}
-                className="px-2 py-2 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 active:bg-orange-700 transition-colors flex items-center justify-center"
+                className="px-3 py-3 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 active:bg-orange-700 transition-colors flex items-center justify-center"
                 title="Backward (Hold)"
               >
                 ↓
@@ -524,13 +541,13 @@ export function CompactRobotController({
         {/* Non-Drive Motor Controls */}
         {availableMotors.length > 0 && (
           <div>
-            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide border-t border-gray-200 dark:border-gray-700 pt-3">
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 uppercase tracking-wide border-t border-gray-200 dark:border-gray-700 pt-2 sm:pt-3">
               Motors ({availableMotors.length})
             </div>
 
             {/* Motor settings */}
             <div
-              className={`grid gap-2 mb-3 text-xs ${
+              className={`grid gap-1 sm:gap-2 mb-2 sm:mb-3 text-xs ${
                 controlMode === "incremental" ? "grid-cols-2" : "grid-cols-1"
               }`}
             >
@@ -594,7 +611,7 @@ export function CompactRobotController({
                           startContinuousMotor(motorName, "ccw")
                         }
                         onTouchEnd={stopContinuousMotor}
-                        className="px-1 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
+                        className="px-2 py-2 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
                         title={`${motorName} CCW (Hold)`}
                       >
                         ↶
@@ -605,7 +622,7 @@ export function CompactRobotController({
                         onClick={() =>
                           sendMotorCommand(motorName, motorAngle, motorSpeed)
                         }
-                        className="px-1 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition-colors"
+                        className="px-2 py-2 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors"
                         title={`${motorName} CW ${motorAngle}°`}
                       >
                         ↷
@@ -621,7 +638,7 @@ export function CompactRobotController({
                           startContinuousMotor(motorName, "cw")
                         }
                         onTouchEnd={stopContinuousMotor}
-                        className="px-1 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
+                        className="px-2 py-2 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
                         title={`${motorName} CW (Hold)`}
                       >
                         ↷

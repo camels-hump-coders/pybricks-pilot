@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameMatConfig, Mission } from "../schemas/GameMatConfig";
 import type { TelemetryData } from "../services/pybricksHub";
 import {
@@ -49,6 +49,8 @@ const WHEEL_WIDTH_MM = 20;
 interface ObjectiveState {
   completed: boolean;
   points: number;
+  // New: track which choice is selected for objectives with choices
+  selectedChoiceId?: string;
 }
 
 interface ScoringState {
@@ -67,32 +69,19 @@ const getTotalPointsForMission = (
   const state = scoringState[mission.id];
   if (!state?.objectives) return 0;
 
-  if (mission.scoringMode === "single-select") {
-    // For single-select, only one objective can be completed at a time
-    const completedObjective = Object.values(state.objectives).find(
-      (objState) => objState.completed
-    );
-    return completedObjective ? completedObjective.points : 0;
-  } else {
-    // For multi-select (default), sum all completed objectives
-    return Object.values(state.objectives).reduce(
-      (sum, objState) => sum + (objState.completed ? objState.points : 0),
-      0
-    );
-  }
+  return Object.values(state.objectives).reduce((sum, objState) => {
+    if (objState.completed) {
+      return sum + objState.points;
+    }
+    return sum;
+  }, 0);
 };
 
 const getMaxPointsForMission = (mission: Mission): number => {
-  if (mission.scoringMode === "single-select") {
-    // For single-select, max is the highest single objective
-    return Math.max(...mission.objectives.map((objective) => objective.points));
-  } else {
-    // For multi-select (default), max is sum of all objectives
-    return mission.objectives.reduce(
-      (sum, objective) => sum + objective.points,
-      0
-    );
-  }
+  return mission.objectives.reduce((sum, objective) => {
+    // All objectives now have choices, so max is the highest choice
+    return sum + Math.max(...objective.choices.map((choice) => choice.points));
+  }, 0);
 };
 
 const isMissionScored = (
@@ -103,6 +92,40 @@ const isMissionScored = (
   if (!state?.objectives) return false;
 
   return Object.values(state.objectives).some((objState) => objState.completed);
+};
+
+// Helper function to migrate old mission format to new format
+const migrateMissionFormat = (mission: any): Mission => {
+  // Convert all objectives to use choices array
+  const migratedObjectives = mission.objectives.map((objective: any) => {
+    if (objective.choices) {
+      // Already has choices, just ensure it's valid
+      return {
+        id: objective.id,
+        description: objective.description,
+        choices: objective.choices,
+      };
+    } else {
+      // Convert simple objective to choice-based
+      return {
+        id: objective.id,
+        description: objective.description,
+        choices: [
+          {
+            id: objective.id,
+            description: objective.description,
+            points: objective.points || 0,
+            type: objective.type || "primary",
+          },
+        ],
+      };
+    }
+  });
+
+  return {
+    ...mission,
+    objectives: migratedObjectives,
+  };
 };
 
 export function EnhancedCompetitionMat({
@@ -166,6 +189,16 @@ export function EnhancedCompetitionMat({
     y: number;
   } | null>(null);
 
+  // Migrate old mission format to new format
+  const migratedMatConfig = useMemo(() => {
+    if (!customMatConfig) return null;
+
+    return {
+      ...customMatConfig,
+      missions: customMatConfig.missions.map(migrateMissionFormat),
+    };
+  }, [customMatConfig]);
+
   // Start telemetry recording when robot connects
   useEffect(() => {
     if (isConnected) {
@@ -174,6 +207,13 @@ export function EnhancedCompetitionMat({
       );
       telemetryHistory.onMatReset(); // This will start a new recording session
 
+      // Add initial position to telemetry history
+      telemetryHistory.addInitialPosition(
+        currentPosition.x,
+        currentPosition.y,
+        currentPosition.heading
+      );
+
       // Notify parent of initial robot position
       onRobotPositionChange?.(currentPosition);
     }
@@ -181,7 +221,7 @@ export function EnhancedCompetitionMat({
 
   // Load and process mat image
   useEffect(() => {
-    if (customMatConfig) {
+    if (migratedMatConfig) {
       const img = new Image();
       img.onload = () => {
         matImageRef.current = img;
@@ -190,17 +230,17 @@ export function EnhancedCompetitionMat({
       };
 
       // Load image from URL (either from Vite import or custom path)
-      if (customMatConfig.imageUrl) {
+      if (migratedMatConfig.imageUrl) {
         // From Vite glob import
-        img.src = customMatConfig.imageUrl;
+        img.src = migratedMatConfig.imageUrl;
       } else {
         console.warn(
           "No image URL provided for mat config:",
-          customMatConfig.name
+          migratedMatConfig.name
         );
       }
     }
-  }, [customMatConfig]);
+  }, [migratedMatConfig]);
 
   // Calculate canvas size and scale based on container
   const updateCanvasSize = () => {
@@ -382,11 +422,6 @@ export function EnhancedCompetitionMat({
         );
       }
     }
-
-    // Draw score display if scoring is enabled
-    if (showScoring) {
-      drawScoreDisplay(ctx);
-    }
   };
 
   const drawBorderWalls = (ctx: CanvasRenderingContext2D) => {
@@ -523,9 +558,9 @@ export function EnhancedCompetitionMat({
         bodyColor = "rgba(128, 0, 128, 0.15)";
         borderColor = "#800080";
       } else if (direction === "right") {
-        // Right - subtle blue (matching right turn button)
-        bodyColor = "rgba(37, 99, 235, 0.15)"; // Tailwind blue-600
-        borderColor = "#2563eb";
+        // Right - subtle cyan (matching right turn button)
+        bodyColor = "rgba(6, 182, 212, 0.15)"; // Tailwind cyan-500
+        borderColor = "#06b6d4";
       } else {
         // Default preview - subtle cyan
         bodyColor = "rgba(0, 255, 255, 0.15)";
@@ -573,7 +608,7 @@ export function EnhancedCompetitionMat({
       } else if (direction === "left") {
         indicatorColor = "#800080"; // Bright purple (matching left turn button)
       } else if (direction === "right") {
-        indicatorColor = "#2563eb"; // Deep blue (matching right turn button)
+        indicatorColor = "#06b6d4"; // Bright cyan (matching right turn button)
       } else {
         indicatorColor = "#ffff00"; // Default yellow
       }
@@ -673,7 +708,7 @@ export function EnhancedCompetitionMat({
       { x: number; y: number; width: number; height: number }
     >();
 
-    customMatConfig.missions.forEach((obj) => {
+    migratedMatConfig?.missions.forEach((obj) => {
       // Convert normalized position (0-1) to canvas coordinates
       // Position is relative to the mat, not the table
       const canvasX = matX + obj.position.x * MAT_WIDTH_MM * scale;
@@ -685,54 +720,56 @@ export function EnhancedCompetitionMat({
       const maxPoints = getMaxPointsForMission(obj);
       const isHovered = hoveredObject === obj.id;
 
-      // Draw object marker with hover effect
-      const baseSize = 12 * scale;
-      const radius = isHovered ? baseSize * 1.3 : baseSize;
+      // Draw object marker with hover effect - larger for mobile touch targets
+      const baseSize = Math.max(12 * scale, 16); // Minimum 16px for mobile
+      const radius = isHovered ? baseSize * 1.4 : baseSize;
 
-      // Measure text to calculate bounding box
-      ctx.font = `${12 * scale}px sans-serif`;
-      const text = `${obj.name} (${currentPoints}/${maxPoints}pts)`;
-      const textMetrics = ctx.measureText(text);
-      const textWidth = textMetrics.width;
-      const textHeight = 12 * scale;
-
-      // Calculate bounding box that includes both circle and text
-      // Text is positioned at (pos.x + 15 * scale, pos.y - 5 * scale)
+      // Calculate bounding box for just the circle marker
+      // Make hit box larger for better mobile interaction
+      const hitBoxPadding = Math.max(8 * scale, 12); // Minimum 12px padding
       const boundingBox = {
-        x: pos.x - radius,
-        y: pos.y - radius - textHeight,
-        width: Math.max(radius * 2, 15 * scale + textWidth),
-        height: radius * 2 + textHeight,
+        x: pos.x - radius - hitBoxPadding,
+        y: pos.y - radius - hitBoxPadding,
+        width: radius * 2 + hitBoxPadding * 2,
+        height: radius * 2 + hitBoxPadding * 2,
       };
       newBounds.set(obj.id, boundingBox);
 
       // Draw hover background if needed
       if (isHovered) {
-        ctx.fillStyle = "rgba(0, 123, 255, 0.1)";
+        ctx.fillStyle = "rgba(0, 123, 255, 0.15)";
         ctx.fillRect(
-          boundingBox.x - 5,
-          boundingBox.y - 5,
-          boundingBox.width + 10,
-          boundingBox.height + 10
+          boundingBox.x - 2,
+          boundingBox.y - 2,
+          boundingBox.width + 4,
+          boundingBox.height + 4
         );
       }
+
+      // Draw outer glow for better visibility
+      ctx.shadowColor = isScored
+        ? "rgba(0, 255, 0, 0.6)"
+        : "rgba(255, 165, 0, 0.6)";
+      ctx.shadowBlur = isHovered ? 8 : 4;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
 
       ctx.fillStyle = isScored
         ? isHovered
           ? "rgba(0, 255, 0, 1)"
-          : "rgba(0, 255, 0, 0.8)"
+          : "rgba(0, 255, 0, 0.9)"
         : isHovered
           ? "rgba(255, 165, 0, 1)"
-          : "rgba(255, 165, 0, 0.8)";
+          : "rgba(255, 165, 0, 0.9)";
       ctx.strokeStyle = isScored ? "#00aa00" : "#ff8800";
-      ctx.lineWidth = isHovered ? 3 : 2;
+      ctx.lineWidth = isHovered ? 4 : 3;
 
       // Draw hover ring
       if (isHovered) {
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, radius + 4, 0, 2 * Math.PI);
-        ctx.strokeStyle = "rgba(0, 123, 255, 0.6)";
-        ctx.lineWidth = 2;
+        ctx.arc(pos.x, pos.y, radius + 6, 0, 2 * Math.PI);
+        ctx.strokeStyle = "rgba(0, 123, 255, 0.8)";
+        ctx.lineWidth = 3;
         ctx.stroke();
       }
 
@@ -740,66 +777,12 @@ export function EnhancedCompetitionMat({
       ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
       ctx.fill();
       ctx.strokeStyle = isScored ? "#00aa00" : "#ff8800";
-      ctx.lineWidth = isHovered ? 3 : 2;
+      ctx.lineWidth = isHovered ? 4 : 3;
       ctx.stroke();
-
-      // Draw label
-      ctx.fillStyle = "#fff";
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = 3;
-      ctx.strokeText(text, pos.x + 15 * scale, pos.y - 5 * scale);
-      ctx.fillText(text, pos.x + 15 * scale, pos.y - 5 * scale);
     });
 
     // Update the stored bounds
     setMissionBounds(newBounds);
-  };
-
-  const drawScoreDisplay = (ctx: CanvasRenderingContext2D) => {
-    const totalScore =
-      customMatConfig?.missions.reduce(
-        (sum, obj) => sum + getTotalPointsForMission(obj, scoringState),
-        0
-      ) || 0;
-
-    const maxScore =
-      customMatConfig?.missions.reduce(
-        (sum, obj) => sum + getMaxPointsForMission(obj),
-        0
-      ) || 0;
-
-    // Draw score box
-    const boxWidth = 200 * scale;
-    const boxHeight = 60 * scale;
-    const margin = 20 * scale;
-
-    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-    ctx.fillRect(
-      canvasSize.width - boxWidth - margin,
-      margin,
-      boxWidth,
-      boxHeight
-    );
-
-    ctx.strokeStyle = "#ffd700";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(
-      canvasSize.width - boxWidth - margin,
-      margin,
-      boxWidth,
-      boxHeight
-    );
-
-    // Draw score text
-    ctx.fillStyle = "#ffd700";
-    ctx.font = `bold ${24 * scale}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText(
-      `Score: ${totalScore}/${maxScore}`,
-      canvasSize.width - boxWidth / 2 - margin,
-      margin + boxHeight / 2 + 8 * scale
-    );
-    ctx.textAlign = "left";
   };
 
   const drawTelemetryPath = (ctx: CanvasRenderingContext2D) => {
@@ -892,7 +875,7 @@ export function EnhancedCompetitionMat({
       const robotRadius = Math.max(ROBOT_WIDTH_MM, ROBOT_LENGTH_MM) / 2;
       const collisionRadius = robotRadius + 50; // 50mm collision buffer
 
-      customMatConfig.missions.forEach((obj) => {
+      migratedMatConfig?.missions.forEach((obj) => {
         const objX = obj.position.x * MAT_WIDTH_MM;
         const objY = (1 - obj.position.y) * MAT_HEIGHT_MM;
 
@@ -900,54 +883,19 @@ export function EnhancedCompetitionMat({
           Math.pow(robotPos.x - objX, 2) + Math.pow(robotPos.y - objY, 2)
         );
 
-        // Use callback form to check state
-        setScoringState((prev) => {
-          const isScored =
-            prev[obj.id]?.objectives &&
-            Object.values(prev[obj.id].objectives).some((o) => o.completed);
-
-          if (
-            distance < collisionRadius &&
-            !isScored &&
-            obj.objectives.length > 0
-          ) {
-            // Auto-complete the first objective when robot collides with mission
-            const firstObjective = obj.objectives[0];
-            const currentObjectives = prev[obj.id]?.objectives || {};
-            const newState = {
-              ...prev,
-              [obj.id]: {
-                objectives: {
-                  ...currentObjectives,
-                  [firstObjective.id]: {
-                    completed: true,
-                    points: firstObjective.points,
-                  },
-                },
-              },
-            };
-
-            const newTotal =
-              customMatConfig?.missions.reduce(
-                (sum, object) =>
-                  sum + getTotalPointsForMission(object, newState),
-                0
-              ) || 0;
-            onScoreUpdate?.(newTotal);
-
-            return newState;
-          }
-
-          return prev; // No change
-        });
+        // Check for collision but don't auto-complete
+        // Missions must be manually scored by the user
       });
     },
-    [customMatConfig, onScoreUpdate]
+    [migratedMatConfig, onScoreUpdate]
   );
 
   // Handle telemetry updates
   useEffect(() => {
     if (!telemetryData?.drivebase || !isConnected) return;
+
+    // Ensure recording is active when we have telemetry data
+    telemetryHistory.ensureRecordingActive();
 
     const { drivebase } = telemetryData;
     const currentDistance = drivebase.distance || 0;
@@ -1008,7 +956,7 @@ export function EnhancedCompetitionMat({
         }
 
         // Check for mission collisions
-        if (customMatConfig && showScoring) {
+        if (migratedMatConfig && showScoring) {
           checkScoringCollisions(newPosition);
         }
 
@@ -1210,50 +1158,40 @@ export function EnhancedCompetitionMat({
   const toggleObjective = (
     objectId: string,
     objectiveId: string,
-    points: number
+    points: number,
+    choiceId: string
   ) => {
     setScoringState((prev) => {
       const currentObjectives = prev[objectId]?.objectives || {};
-      const isCompleted = currentObjectives[objectiveId]?.completed || false;
-      const mission = customMatConfig?.missions.find((m) => m.id === objectId);
+      const currentState = currentObjectives[objectiveId];
+      const isCompleted = currentState?.completed || false;
+      const mission = migratedMatConfig?.missions.find(
+        (m) => m.id === objectId
+      );
+      const objective = mission?.objectives.find((o) => o.id === objectiveId);
+
+      if (!objective) return prev;
 
       let newObjectives = { ...currentObjectives };
 
-      if (mission?.scoringMode === "single-select") {
-        if (isCompleted) {
-          // If clicking on already selected objective in single-select, deselect it
-          newObjectives = {
-            ...currentObjectives,
-            [objectiveId]: {
-              completed: false,
-              points: points,
-            },
-          };
-        } else {
-          // In single-select mode, clear all other objectives and set only this one
-          newObjectives = {};
-          // Clear all objectives first
-          mission.objectives.forEach((objective) => {
-            newObjectives[objective.id] = {
-              completed: false,
-              points: objective.points,
-            };
-          });
-          // Then set the selected one
+      // All objectives now have choices - handle single selection
+      if (isCompleted && currentState?.selectedChoiceId === choiceId) {
+        // If clicking on already selected choice, deselect it
+        newObjectives[objectiveId] = {
+          completed: false,
+          points: 0,
+          selectedChoiceId: undefined,
+        };
+      } else {
+        // Select the new choice
+        const selectedChoice = objective.choices.find((c) => c.id === choiceId);
+        if (selectedChoice) {
           newObjectives[objectiveId] = {
             completed: true,
-            points: points,
+            points: selectedChoice.points,
+            selectedChoiceId: choiceId,
           };
         }
-      } else {
-        // Multi-select mode (default) - just toggle the objective
-        newObjectives = {
-          ...currentObjectives,
-          [objectiveId]: {
-            completed: !isCompleted,
-            points: points,
-          },
-        };
       }
 
       const newState = {
@@ -1264,7 +1202,7 @@ export function EnhancedCompetitionMat({
       };
 
       const newTotal =
-        customMatConfig?.missions.reduce(
+        migratedMatConfig?.missions.reduce(
           (sum, object) => sum + getTotalPointsForMission(object, newState),
           0
         ) || 0;
@@ -1288,7 +1226,7 @@ export function EnhancedCompetitionMat({
       updateCanvasSize();
     }, 50);
     return () => clearTimeout(timer);
-  }, [customMatConfig]);
+  }, [migratedMatConfig]);
 
   // Redraw when dependencies change
   useEffect(() => {
@@ -1300,7 +1238,7 @@ export function EnhancedCompetitionMat({
     mousePosition,
     isSettingPosition,
     scoringState,
-    customMatConfig,
+    migratedMatConfig,
     showScoring,
     matImageRef.current,
     hoveredObject,
@@ -1314,99 +1252,73 @@ export function EnhancedCompetitionMat({
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
+      <div className="p-2 sm:p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
           <div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-200">
               Competition Table & Mat
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {customMatConfig ? customMatConfig.name : "Loading..."} - Mat:{" "}
-              {MAT_WIDTH_MM}×{MAT_HEIGHT_MM}mm, Table: {TABLE_WIDTH_MM}×
-              {TABLE_HEIGHT_MM}mm with {BORDER_WALL_HEIGHT_MM}mm walls
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+              {migratedMatConfig ? migratedMatConfig.name : "Loading..."}
+              <span className="hidden sm:inline">
+                {" "}
+                - Mat: {MAT_WIDTH_MM}×{MAT_HEIGHT_MM}mm, Table: {TABLE_WIDTH_MM}
+                ×{TABLE_HEIGHT_MM}mm with {BORDER_WALL_HEIGHT_MM}mm walls
+              </span>
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Path Visualization Controls */}
-            <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 px-2 py-1 rounded">
-              <label className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-                Path:
-              </label>
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+            {/* Color Mode Selector */}
+            <select
+              value={pathOptions.colorMode}
+              onChange={(e) =>
+                setPathOptions((prev) => ({
+                  ...prev,
+                  colorMode: e.target.value as ColorMode,
+                }))
+              }
+              className="px-1 sm:px-2 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+              title="Choose how to color the robot's path: Solid (blue), Speed (green→red), Motor Load (blue→red), Color Sensor (actual colors), Distance (red=close, green=far), Reflection (black→white), Force (light→dark)"
+            >
+              <option value="none">Solid</option>
+              <option value="speed">Speed</option>
+              <option value="motorLoad">Motor Load</option>
+              <option value="colorSensor">Color Sensor</option>
+              <option value="distanceSensor">Distance</option>
+              <option value="reflectionSensor">Reflection</option>
+              <option value="forceSensor">Force</option>
+            </select>
 
-              {/* Show Path Toggle */}
-              <label
-                className="flex items-center gap-1 cursor-pointer"
-                title="Show/hide path lines"
-              >
-                <input
-                  type="checkbox"
-                  checked={pathOptions.showPath}
-                  onChange={(e) =>
-                    setPathOptions((prev) => ({
-                      ...prev,
-                      showPath: e.target.checked,
-                    }))
-                  }
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-gray-600 dark:text-gray-300">
-                  Lines
-                </span>
-              </label>
-
-              {/* Show Markers Toggle */}
-              <label
-                className="flex items-center gap-1 cursor-pointer"
-                title="Show/hide interactive markers"
-              >
-                <input
-                  type="checkbox"
-                  checked={pathOptions.showMarkers}
-                  onChange={(e) =>
-                    setPathOptions((prev) => ({
-                      ...prev,
-                      showMarkers: e.target.checked,
-                    }))
-                  }
-                  className="w-3 h-3"
-                />
-                <span className="text-xs text-gray-600 dark:text-gray-300">
-                  Dots
-                </span>
-              </label>
-
-              {/* Color Mode Selector */}
-              <select
-                value={pathOptions.colorMode}
-                onChange={(e) =>
-                  setPathOptions((prev) => ({
-                    ...prev,
-                    colorMode: e.target.value as ColorMode,
-                  }))
-                }
-                className="px-2 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                title="Choose how to color the robot's path: Solid (blue), Speed (green→red), Motor Load (blue→red), Color Sensor (actual colors), Distance (red=close, green=far), Reflection (black→white), Force (light→dark)"
-              >
-                <option value="none">Solid</option>
-                <option value="speed">Speed</option>
-                <option value="motorLoad">Motor Load</option>
-                <option value="colorSensor">Color Sensor</option>
-                <option value="distanceSensor">Distance</option>
-                <option value="reflectionSensor">Reflection</option>
-                <option value="forceSensor">Force</option>
-              </select>
-            </div>
+            {/* Prominent Score Display */}
+            {migratedMatConfig && showScoring && (
+              <div className="bg-gradient-to-r from-green-400 to-blue-500 dark:from-green-500 dark:to-blue-600 text-white px-3 py-2 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
+                <div className="text-center">
+                  <div className="text-lg font-bold">
+                    {migratedMatConfig.missions.reduce(
+                      (sum, obj) =>
+                        sum + getTotalPointsForMission(obj, scoringState),
+                      0
+                    )}
+                    /
+                    {migratedMatConfig.missions.reduce(
+                      (sum, obj) => sum + getMaxPointsForMission(obj),
+                      0
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() => setIsSettingPosition(!isSettingPosition)}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
+              className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded transition-colors ${
                 isSettingPosition
                   ? "bg-green-500 text-white hover:bg-green-600"
                   : "bg-blue-500 text-white hover:bg-blue-600"
               }`}
             >
-              {isSettingPosition ? "✓ Confirm Position" : "📍 Set Position"}
+              {isSettingPosition ? "✓ Confirm" : "📍 Set Pos"}
             </button>
 
             <button
@@ -1419,7 +1331,7 @@ export function EnhancedCompetitionMat({
                 onScoreUpdate?.(0);
                 telemetryHistory.clearHistory();
               }}
-              className="px-3 py-1 text-sm bg-orange-500 text-white rounded hover:bg-orange-600"
+              className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-orange-500 text-white rounded hover:bg-orange-600"
             >
               🔄 Reset
             </button>
@@ -1427,10 +1339,7 @@ export function EnhancedCompetitionMat({
         </div>
       </div>
 
-      <div
-        className="relative bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-900 p-4 rounded-lg"
-        style={{ minHeight: "500px" }}
-      >
+      <div className="relative bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-900 p-2 sm:p-4 rounded-lg">
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
@@ -1654,14 +1563,14 @@ export function EnhancedCompetitionMat({
 
       {/* Missions List */}
       {customMatConfig && showScoring && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-2 sm:p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-gray-800 dark:text-gray-200">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-200">
               Missions
             </h4>
             <button
               onClick={() => setMissionsExpanded(!missionsExpanded)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             >
               <span
                 className={`transition-transform ${missionsExpanded ? "rotate-90" : "rotate-0"}`}
@@ -1669,21 +1578,21 @@ export function EnhancedCompetitionMat({
                 ▶
               </span>
               {missionsExpanded ? "Collapse" : "Expand"} (
-              {customMatConfig.missions.length})
+              {migratedMatConfig?.missions.length || 0})
             </button>
           </div>
           {missionsExpanded && (
             <div className="space-y-4">
-              {customMatConfig.missions.map((obj) => (
+              {migratedMatConfig?.missions.map((obj) => (
                 <div
                   key={obj.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3"
+                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 sm:p-3"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h5 className="font-medium text-gray-800 dark:text-gray-200">
+                    <h5 className="text-sm sm:text-base font-medium text-gray-800 dark:text-gray-200">
                       {obj.name}
                     </h5>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {getTotalPointsForMission(obj, scoringState)}/
                       {getMaxPointsForMission(obj)}pts
                     </span>
@@ -1693,75 +1602,78 @@ export function EnhancedCompetitionMat({
                       {obj.description}
                     </p>
                   )}
-                  <div className="space-y-1">
-                    {obj.objectives.map((objective) => {
+                  <div className="space-y-3">
+                    {obj.objectives.map((objective, index) => {
                       const objectiveState =
                         scoringState[obj.id]?.objectives?.[objective.id];
                       const isCompleted = objectiveState?.completed || false;
-                      const isSingleSelect =
-                        obj.scoringMode === "single-select";
 
+                      // All objectives now have choices
                       return (
-                        <button
-                          key={objective.id}
-                          onClick={() =>
-                            toggleObjective(
-                              obj.id,
-                              objective.id,
-                              objective.points
-                            )
-                          }
-                          className={`w-full text-left p-2 rounded text-sm transition-colors ${
-                            isCompleted
-                              ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-                              : "bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                          }`}
-                        >
-                          <span className="flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                              <span className="flex-shrink-0">
-                                {isSingleSelect ? (
-                                  <span
-                                    className={`w-3 h-3 rounded-full border-2 inline-block ${
-                                      isCompleted
-                                        ? "bg-green-600 border-green-600"
-                                        : "border-gray-400 dark:border-gray-500"
-                                    }`}
-                                  >
-                                    {isCompleted && (
-                                      <span className="block w-1 h-1 bg-white rounded-full mx-auto mt-0.5"></span>
-                                    )}
+                        <div key={objective.id} className="space-y-1">
+                          {objective.description && (
+                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                              {objective.description}
+                            </div>
+                          )}
+                          {objective.choices.map((choice) => {
+                            const isChoiceSelected =
+                              isCompleted &&
+                              objectiveState?.selectedChoiceId === choice.id;
+
+                            return (
+                              <button
+                                key={choice.id}
+                                onClick={() =>
+                                  toggleObjective(
+                                    obj.id,
+                                    objective.id,
+                                    choice.points,
+                                    choice.id
+                                  )
+                                }
+                                className={`w-full text-left p-2 rounded text-sm transition-colors ${
+                                  isChoiceSelected
+                                    ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+                                    : "bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                }`}
+                              >
+                                <span className="flex items-center justify-between">
+                                  <span className="flex items-center gap-2">
+                                    <span className="flex-shrink-0">
+                                      <span
+                                        className={`w-3 h-3 rounded-full border-2 inline-block ${
+                                          isChoiceSelected
+                                            ? "bg-green-600 border-green-600"
+                                            : "border-gray-400 dark:border-gray-500"
+                                        }`}
+                                      >
+                                        {isChoiceSelected && (
+                                          <span className="block w-1 h-1 bg-white rounded-full mx-auto mt-0.5"></span>
+                                        )}
+                                      </span>
+                                    </span>
+                                    <span>{choice.description}</span>
                                   </span>
-                                ) : (
-                                  <span
-                                    className={`w-3 h-3 rounded border inline-block ${
-                                      isCompleted
-                                        ? "bg-green-600 border-green-600"
-                                        : "border-gray-400 dark:border-gray-500"
-                                    }`}
-                                  >
-                                    {isCompleted && (
-                                      <span className="text-white text-xs leading-none">
-                                        ✓
+                                  <span className="flex items-center gap-1">
+                                    <span className="text-xs">
+                                      {choice.points}pts
+                                    </span>
+                                    {choice.type === "bonus" && (
+                                      <span className="text-orange-500 text-xs">
+                                        bonus
                                       </span>
                                     )}
                                   </span>
-                                )}
-                              </span>
-                              <span>{objective.description}</span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <span className="text-xs">
-                                {objective.points}pts
-                              </span>
-                              {objective.type === "bonus" && (
-                                <span className="text-orange-500 text-xs">
-                                  bonus
                                 </span>
-                              )}
-                            </span>
-                          </span>
-                        </button>
+                              </button>
+                            );
+                          })}
+                          {/* Add dividing line between objectives (except after the last one) */}
+                          {index < obj.objectives.length - 1 && (
+                            <div className="border-t border-gray-200 dark:border-gray-600 my-2"></div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -1772,173 +1684,143 @@ export function EnhancedCompetitionMat({
         </div>
       )}
 
-      {/* Position Info */}
-      <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-t border-gray-200 dark:border-gray-700">
-        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
-          <div className="font-medium text-gray-700 dark:text-gray-300">
-            Position
-          </div>
-          <div className="font-mono text-gray-600 dark:text-gray-400">
-            X: {Math.round(currentPosition.x)}mm
-            <br />
-            Y: {Math.round(currentPosition.y)}mm
-          </div>
-        </div>
+      {/* Mission Scoring Side Panel */}
+      {popoverObject && customMatConfig && (
+        <>
+          {/* Backdrop - full screen on mobile, right side only on large screens */}
+          <div
+            className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity md:right-0 md:left-auto md:w-1/3 lg:w-1/4 xl:w-1/5"
+            onClick={() => {
+              setPopoverObject(null);
+              setPopoverPosition(null);
+            }}
+          />
 
-        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
-          <div className="font-medium text-gray-700 dark:text-gray-300">
-            Heading
-          </div>
-          <div className="font-mono text-gray-600 dark:text-gray-400">
-            {Math.round(currentPosition.heading)}°
-          </div>
-        </div>
+          {/* Side Panel */}
+          <div className="fixed right-0 top-0 h-full z-50 w-full max-w-sm bg-white dark:bg-gray-800 border-l border-gray-300 dark:border-gray-600 shadow-xl transform transition-transform duration-300 ease-in-out">
+            <div className="p-4 flex flex-col h-full">
+              {(() => {
+                const obj = migratedMatConfig?.missions.find(
+                  (o) => o.id === popoverObject
+                );
+                if (!obj) return null;
 
-        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
-          <div className="font-medium text-gray-700 dark:text-gray-300">
-            Distance
-          </div>
-          <div className="font-mono text-gray-600 dark:text-gray-400">
-            {telemetryData?.drivebase?.distance
-              ? Math.round(telemetryData.drivebase.distance)
-              : 0}
-            mm
-          </div>
-        </div>
+                const currentPoints = getTotalPointsForMission(
+                  obj,
+                  scoringState
+                );
+                const maxPoints = getMaxPointsForMission(obj);
 
-        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
-          <div className="font-medium text-gray-700 dark:text-gray-300">
-            Rotation
-          </div>
-          <div className="font-mono text-gray-600 dark:text-gray-400">
-            {telemetryData?.drivebase?.angle
-              ? Math.round(telemetryData.drivebase.angle)
-              : 0}
-            °
-          </div>
-        </div>
-      </div>
-
-      {/* Mission Scoring Popover */}
-      {popoverObject && popoverPosition && customMatConfig && (
-        <div
-          className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 max-w-sm"
-          style={{
-            left: `${Math.min(popoverPosition.x, window.innerWidth - 320)}px`,
-            top: `${Math.max(10, popoverPosition.y - 100)}px`,
-          }}
-        >
-          {(() => {
-            const obj = customMatConfig.missions.find(
-              (o) => o.id === popoverObject
-            );
-            if (!obj) return null;
-
-            const currentPoints = getTotalPointsForMission(obj, scoringState);
-            const maxPoints = getMaxPointsForMission(obj);
-
-            return (
-              <>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
-                    {obj.name}
-                  </h4>
-                  <button
-                    onClick={() => {
-                      setPopoverObject(null);
-                      setPopoverPosition(null);
-                    }}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {obj.description && (
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                    {obj.description}
-                  </p>
-                )}
-
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                  Score: {currentPoints}/{maxPoints} points
-                </div>
-
-                <div className="space-y-1 max-h-40 overflow-y-auto">
-                  {obj.objectives.map((objective) => {
-                    const objectiveState =
-                      scoringState[obj.id]?.objectives?.[objective.id];
-                    const isCompleted = objectiveState?.completed || false;
-                    const isSingleSelect = obj.scoringMode === "single-select";
-
-                    return (
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold text-gray-800 dark:text-gray-200 text-base">
+                        {obj.name}
+                      </h4>
                       <button
-                        key={objective.id}
-                        onClick={() =>
-                          toggleObjective(
-                            obj.id,
-                            objective.id,
-                            objective.points
-                          )
-                        }
-                        className={`w-full text-left p-2 rounded text-xs transition-colors ${
-                          isCompleted
-                            ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-                            : "bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                        }`}
+                        onClick={() => {
+                          setPopoverObject(null);
+                          setPopoverPosition(null);
+                        }}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-2 flex-1 pr-2">
-                            <span className="flex-shrink-0">
-                              {isSingleSelect ? (
-                                <span
-                                  className={`w-3 h-3 rounded-full border-2 inline-block ${
-                                    isCompleted
-                                      ? "bg-green-600 border-green-600"
-                                      : "border-gray-400 dark:border-gray-500"
+                        ✕
+                      </button>
+                    </div>
+
+                    {obj.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 leading-relaxed">
+                        {obj.description}
+                      </p>
+                    )}
+
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      Score: {currentPoints}/{maxPoints} points
+                    </div>
+
+                    <div className="space-y-4 flex-1 overflow-y-auto min-h-0">
+                      {obj.objectives.map((objective, index) => {
+                        const objectiveState =
+                          scoringState[obj.id]?.objectives?.[objective.id];
+                        const isCompleted = objectiveState?.completed || false;
+
+                        // All objectives now have choices
+                        return (
+                          <div key={objective.id} className="space-y-2">
+                            {objective.description && (
+                              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {objective.description}
+                              </div>
+                            )}
+                            {objective.choices.map((choice) => {
+                              const isChoiceSelected =
+                                isCompleted &&
+                                objectiveState?.selectedChoiceId === choice.id;
+
+                              return (
+                                <button
+                                  key={choice.id}
+                                  onClick={() =>
+                                    toggleObjective(
+                                      obj.id,
+                                      objective.id,
+                                      choice.points,
+                                      choice.id
+                                    )
+                                  }
+                                  className={`w-full text-left p-3 rounded-lg text-sm transition-colors touch-manipulation ${
+                                    isChoiceSelected
+                                      ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-700"
+                                      : "bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600"
                                   }`}
                                 >
-                                  {isCompleted && (
-                                    <span className="block w-1 h-1 bg-white rounded-full mx-auto mt-0.5"></span>
-                                  )}
-                                </span>
-                              ) : (
-                                <span
-                                  className={`w-3 h-3 rounded border inline-block ${
-                                    isCompleted
-                                      ? "bg-green-600 border-green-600"
-                                      : "border-gray-400 dark:border-gray-500"
-                                  }`}
-                                >
-                                  {isCompleted && (
-                                    <span className="text-white text-xs leading-none">
-                                      ✓
+                                  <div className="flex items-center justify-between">
+                                    <span className="flex items-center gap-3 flex-1 pr-3">
+                                      <span className="flex-shrink-0">
+                                        <span
+                                          className={`w-4 h-4 rounded-full border-2 inline-block ${
+                                            isChoiceSelected
+                                              ? "bg-green-600 border-green-600"
+                                              : "border-gray-400 dark:border-gray-500"
+                                          }`}
+                                        >
+                                          {isChoiceSelected && (
+                                            <span className="block w-1.5 h-1.5 bg-white rounded-full mx-auto mt-0.5"></span>
+                                          )}
+                                        </span>
+                                      </span>
+                                      <span className="text-sm leading-relaxed">
+                                        {choice.description}
+                                      </span>
                                     </span>
-                                  )}
-                                </span>
-                              )}
-                            </span>
-                            <span>{objective.description}</span>
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <span className="font-medium">
-                              {objective.points}pts
-                            </span>
-                            {objective.type === "bonus" && (
-                              <span className="text-orange-500 text-xs bg-orange-100 dark:bg-orange-900 px-1 rounded">
-                                bonus
-                              </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-sm">
+                                        {choice.points}pts
+                                      </span>
+                                      {choice.type === "bonus" && (
+                                        <span className="text-orange-500 text-xs bg-orange-100 dark:bg-orange-900 px-2 py-1 rounded-full font-medium">
+                                          bonus
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                            {/* Add dividing line between objectives (except after the last one) */}
+                            {index < obj.objectives.length - 1 && (
+                              <div className="border-t border-gray-300 dark:border-gray-600 my-3"></div>
                             )}
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            );
-          })()}
-        </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

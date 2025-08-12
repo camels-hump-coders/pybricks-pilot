@@ -14,8 +14,14 @@
         {
           "id": "fit-single-launch-area",
           "description": "All equipment fits in one launch area under height limit",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "fit-single-launch-area",
+              "description": "All equipment fits in one launch area under height limit",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Robot and all equipment must fit completely in one launch area under 12 in. (305 mm) height limit"
@@ -31,20 +37,38 @@
         {
           "id": "coral-tree-hanging",
           "description": "Coral tree is hanging on the coral tree support",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "coral-tree-hanging",
+              "description": "Coral tree is hanging on the coral tree support",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "coral-tree-in-holder",
           "description": "Bonus: Bottom of coral tree is in its holder",
-          "points": 10,
-          "type": "bonus"
+          "choices": [
+            {
+              "id": "coral-tree-in-holder",
+              "description": "Bonus: Bottom of coral tree is in its holder",
+              "points": 10,
+              "type": "bonus"
+            }
+          ]
         },
         {
           "id": "coral-buds-flipped",
           "description": "Coral buds are flipped up",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "coral-buds-flipped",
+              "description": "Coral buds are flipped up",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Secure new coral structures to grow in the nursery until they are strong enough for transport to the reef"
@@ -60,14 +84,26 @@
         {
           "id": "shark-not-touching-cave",
           "description": "Shark is no longer touching the cave",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "shark-not-touching-cave",
+              "description": "Shark is no longer touching the cave",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "shark-in-habitat",
           "description": "Shark is touching the mat and at least partly in the shark habitat",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "shark-in-habitat",
+              "description": "Shark is touching the mat and at least partly in the shark habitat",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "The shark was just tagged for research - release it back into its habitat"
@@ -83,14 +119,26 @@
         {
           "id": "coral-reef-flipped",
           "description": "Coral reef is flipped up, not touching the mat",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "coral-reef-flipped",
+              "description": "Coral reef is flipped up, not touching the mat",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "reef-segments-standing",
           "description": "Reef segment is standing upright, outside of home, and touching the mat",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "reef-segments-standing",
+              "description": "Reef segment is standing upright, outside of home, and touching the mat",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Carefully mount the new coral structure without damaging other nearby reef segments"
@@ -106,14 +154,26 @@
         {
           "id": "diver-not-touching-nursery",
           "description": "Scuba diver is no longer touching the coral nursery",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "diver-not-touching-nursery",
+              "description": "Scuba diver is no longer touching the coral nursery",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "diver-hanging-on-reef",
           "description": "Scuba diver is hanging on the coral reef support",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "diver-hanging-on-reef",
+              "description": "Scuba diver is hanging on the coral reef support",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Help the scuba diver transport new coral from the nursery to the reef"
@@ -129,8 +189,14 @@
         {
           "id": "angler-fish-latched",
           "description": "Angler fish is latched within the shipwreck",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "angler-fish-latched",
+              "description": "Angler fish is latched within the shipwreck",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Guide the angler fish back to its unexpected home within the shipwreck"
@@ -146,8 +212,14 @@
         {
           "id": "mast-completely-raised",
           "description": "Shipwreck's mast is completely raised",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "mast-completely-raised",
+              "description": "Shipwreck's mast is completely raised",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Raise the mast to restore the sunken shipwreck and explore what is inside"
@@ -163,8 +235,14 @@
         {
           "id": "treasure-chest-outside-nest",
           "description": "Treasure chest is completely outside the kraken's nest",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "treasure-chest-outside-nest",
+              "description": "Treasure chest is completely outside the kraken's nest",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Retrieve the chest from the shipwreck to reveal the history and treasure it holds"
@@ -180,8 +258,14 @@
         {
           "id": "habitat-segment-upright",
           "description": "Artificial habitat stack segment is completely flat and upright",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "habitat-segment-upright",
+              "description": "Artificial habitat stack segment is completely flat and upright",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Rearrange the artificial habitat stacks to create safe homes for the crabs and other sea creatures"
@@ -197,14 +281,26 @@
         {
           "id": "unknown-creature-released",
           "description": "Unknown creature is released",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "unknown-creature-released",
+              "description": "Unknown creature is released",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "creature-in-cold-seep",
           "description": "Unknown creature is at least partly in the cold seep",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "creature-in-cold-seep",
+              "description": "Unknown creature is at least partly in the cold seep",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "An unknown creature has attached itself to the AUV! Safely release it and deliver it to the cold seep"
@@ -220,14 +316,26 @@
         {
           "id": "yellow-flag-down",
           "description": "Your team's yellow flag is down",
-          "points": 30,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "yellow-flag-down",
+              "description": "Your team's yellow flag is down",
+              "points": 30,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "submersible-closer-to-opposing",
           "description": "Submersible is clearly closer to the opposing field",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "submersible-closer-to-opposing",
+              "description": "Submersible is clearly closer to the opposing field",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Some waters are too difficult to reach with larger ships. Send the submersible to explore the opposing field's waters"
@@ -243,14 +351,26 @@
         {
           "id": "one-whale-revealed",
           "description": "One whale is revealed",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "one-whale-revealed",
+              "description": "One whale is revealed",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "both-whales-revealed",
           "description": "Bonus: Both whales are revealed",
-          "points": 10,
-          "type": "bonus"
+          "choices": [
+            {
+              "id": "both-whales-revealed",
+              "description": "Bonus: Both whales are revealed",
+              "points": 10,
+              "type": "bonus"
+            }
+          ]
         }
       ],
       "description": "Use the ship's sonar technology to scan the surroundings for nearby objects or animals"
@@ -266,8 +386,14 @@
         {
           "id": "krill-in-whale-mouth",
           "description": "Krill at least partly in the whale's mouth",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "krill-in-whale-mouth",
+              "description": "Krill at least partly in the whale's mouth",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Krill are a whale's favorite food! Collect the krill and feed them to the hungry whale"
@@ -283,8 +409,14 @@
         {
           "id": "ship-in-new-lane",
           "description": "Ship is in the new shipping lane, touching the mat",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "ship-in-new-lane",
+              "description": "Ship is in the new shipping lane, touching the mat",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Adjust the cargo ship's route to safely avoid whale migration routes by moving to another shipping lane"
@@ -300,32 +432,62 @@
         {
           "id": "water-sample-outside-area",
           "description": "Water sample is completely outside the water sample area",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "water-sample-outside-area",
+              "description": "Water sample is completely outside the water sample area",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "seabed-sample-not-touching",
           "description": "Seabed sample is no longer touching the seabed",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "seabed-sample-not-touching",
+              "description": "Seabed sample is no longer touching the seabed",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "plankton-sample-not-touching",
           "description": "Plankton sample is no longer touching the kelp forest",
-          "points": 10,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "plankton-sample-not-touching",
+              "description": "Plankton sample is no longer touching the kelp forest",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "trident-piece-not-touching",
           "description": "Trident piece is no longer touching the shipwreck",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "trident-piece-not-touching",
+              "description": "Trident piece is no longer touching the shipwreck",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "both-trident-pieces",
           "description": "Bonus: Both trident pieces are no longer touching the shipwreck",
-          "points": 10,
-          "type": "bonus"
+          "choices": [
+            {
+              "id": "both-trident-pieces",
+              "description": "Bonus: Both trident pieces are no longer touching the shipwreck",
+              "points": 10,
+              "type": "bonus"
+            }
+          ]
         }
       ],
       "description": "Collect samples and artifacts from around the mat so they can be analyzed by scientists in the lab"
@@ -341,26 +503,50 @@
         {
           "id": "samples-in-cargo",
           "description": "Sample(s) at least partly in the research vessel's cargo area",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "samples-in-cargo",
+              "description": "Sample(s) at least partly in the research vessel's cargo area",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "trident-parts-in-cargo",
           "description": "Trident part(s) at least partly in the research vessel's cargo area",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "trident-parts-in-cargo",
+              "description": "Trident part(s) at least partly in the research vessel's cargo area",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "treasure-chest-in-cargo",
           "description": "Treasure chest at least partly in the research vessel's cargo area",
-          "points": 5,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "treasure-chest-in-cargo",
+              "description": "Treasure chest at least partly in the research vessel's cargo area",
+              "points": 5,
+              "type": "primary"
+            }
+          ]
         },
         {
           "id": "port-latch-in-loop",
           "description": "Port's latch is at least partly in the research vessel's loop",
-          "points": 20,
-          "type": "primary"
+          "choices": [
+            {
+              "id": "port-latch-in-loop",
+              "description": "Port's latch is at least partly in the research vessel's loop",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "Securely dock the ship that contains the samples and artifacts your team has collected"
@@ -368,47 +554,52 @@
     {
       "id": "precision-tokens",
       "name": "Precision Tokens",
-      "scoringMode": "single-select",
       "position": {
         "x": 0.805,
         "y": 0.9469788918205805
       },
       "objectives": [
         {
-          "id": "six-tokens-remaining",
-          "description": "6 precision tokens remaining",
-          "points": 50,
-          "type": "primary"
-        },
-        {
-          "id": "five-tokens-remaining",
-          "description": "5 precision tokens remaining",
-          "points": 50,
-          "type": "primary"
-        },
-        {
-          "id": "four-tokens-remaining",
-          "description": "4 precision tokens remaining",
-          "points": 35,
-          "type": "primary"
-        },
-        {
-          "id": "three-tokens-remaining",
-          "description": "3 precision tokens remaining",
-          "points": 25,
-          "type": "primary"
-        },
-        {
-          "id": "two-tokens-remaining",
-          "description": "2 precision tokens remaining",
-          "points": 15,
-          "type": "primary"
-        },
-        {
-          "id": "one-token-remaining",
-          "description": "1 precision token remaining",
-          "points": 10,
-          "type": "primary"
+          "id": "precision-tokens-options",
+          "description": "Choose how many precision tokens remain",
+          "choices": [
+            {
+              "id": "six-tokens-remaining",
+              "description": "6 precision tokens remaining",
+              "points": 50,
+              "type": "primary"
+            },
+            {
+              "id": "five-tokens-remaining",
+              "description": "5 precision tokens remaining",
+              "points": 50,
+              "type": "primary"
+            },
+            {
+              "id": "four-tokens-remaining",
+              "description": "4 precision tokens remaining",
+              "points": 35,
+              "type": "primary"
+            },
+            {
+              "id": "three-tokens-remaining",
+              "description": "3 precision tokens remaining",
+              "points": 25,
+              "type": "primary"
+            },
+            {
+              "id": "two-tokens-remaining",
+              "description": "2 precision tokens remaining",
+              "points": 15,
+              "type": "primary"
+            },
+            {
+              "id": "one-token-remaining",
+              "description": "1 precision token remaining",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
         }
       ],
       "description": "You begin with six precision tokens worth 50 points. Lose one for each interruption outside home"

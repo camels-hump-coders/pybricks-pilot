@@ -9,7 +9,7 @@ import {
   PYBRICKS_SERVICE_UUID,
   type HubInfo,
 } from "./bluetooth";
-import { bluetoothDeviceStorage } from "./bluetoothDeviceStorage";
+
 import { mpyCrossCompiler } from "./mpyCrossCompiler";
 
 export interface ProgramStatus {
@@ -142,19 +142,8 @@ class PybricksHubService extends EventTarget {
     debugMode: false,
   };
 
-  // Auto-reconnect settings
-  private autoReconnectEnabled: boolean = true;
-  private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 3;
-  private reconnectDelay: number = 2000; // 2 seconds
-
   constructor() {
     super();
-    // Set up disconnect listener for auto-reconnect
-    bluetoothService.addEventListener(
-      "disconnected",
-      this.onDeviceDisconnected
-    );
   }
 
   async requestAndConnect(): Promise<HubInfo | null> {
@@ -171,11 +160,6 @@ class PybricksHubService extends EventTarget {
       });
       this.server = await bluetoothService.connect(this.device);
       await this.setupCommunication();
-
-      // Store device for auto-reconnect
-      await bluetoothDeviceStorage.storeDevice(this.device);
-      this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-      this.autoReconnectEnabled = true; // Enable auto-reconnect on successful connection
 
       const hubInfo = await bluetoothService.getHubInfo(this.server);
       this.emitDebugEvent("connection", "Hub connected successfully", hubInfo);
@@ -205,9 +189,6 @@ class PybricksHubService extends EventTarget {
       );
     }
 
-    // Disable auto-reconnect for manual disconnects
-    this.autoReconnectEnabled = false;
-
     if (this.server) {
       await bluetoothService.disconnect(this.server);
       this.server = null;
@@ -225,117 +206,6 @@ class PybricksHubService extends EventTarget {
   isConnected(): boolean {
     return this.device ? bluetoothService.isConnected(this.device) : false;
   }
-
-  async tryAutoReconnect(): Promise<HubInfo | null> {
-    if (!this.autoReconnectEnabled) {
-      this.emitDebugEvent("connection", "Auto-reconnect disabled");
-      return null;
-    }
-
-    try {
-      this.emitDebugEvent("connection", "Attempting auto-reconnect...");
-
-      // Get the last connected device
-      const lastDevice = await bluetoothDeviceStorage.getLastDevice();
-      if (!lastDevice) {
-        this.emitDebugEvent(
-          "connection",
-          "No previous device found for auto-reconnect"
-        );
-        return null;
-      }
-
-      // Try to reconnect to the stored device
-      const device = await bluetoothService.connectToDevice(lastDevice.id);
-      if (!device) {
-        this.emitDebugEvent(
-          "connection",
-          "Previous device no longer available"
-        );
-        return null;
-      }
-
-      // Connect to the device
-      this.device = device;
-      this.emitDebugEvent("connection", "Reconnecting to stored device", {
-        deviceName: device.name,
-      });
-
-      this.server = await bluetoothService.connect(this.device);
-      await this.setupCommunication();
-
-      this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-      this.autoReconnectEnabled = true; // Ensure auto-reconnect stays enabled
-
-      const hubInfo = await bluetoothService.getHubInfo(this.server);
-      this.emitDebugEvent("connection", "Auto-reconnect successful", hubInfo);
-      return hubInfo;
-    } catch (error) {
-      this.emitDebugEvent("error", "Auto-reconnect failed", {
-        error: error instanceof Error ? error.message : String(error),
-        attempt: this.reconnectAttempts + 1,
-        maxAttempts: this.maxReconnectAttempts,
-      });
-      throw error;
-    }
-  }
-
-  private onDeviceDisconnected = async (device: BluetoothDevice) => {
-    if (device !== this.device) return;
-
-    this.emitDebugEvent("connection", "Device unexpectedly disconnected", {
-      deviceName: device.name,
-    });
-
-    // Clean up connection state
-    this.server = null;
-    this.txCharacteristic = null;
-    this.rxCharacteristic = null;
-    this.messageBuffer = "";
-    this.outputLineBuffer = "";
-    this.responseCallbacks.clear();
-
-    // Try auto-reconnect if enabled
-    if (
-      this.autoReconnectEnabled &&
-      this.reconnectAttempts < this.maxReconnectAttempts
-    ) {
-      this.reconnectAttempts++;
-      this.emitDebugEvent("connection", "Scheduling auto-reconnect", {
-        attempt: this.reconnectAttempts,
-        delay: this.reconnectDelay,
-      });
-
-      setTimeout(async () => {
-        try {
-          await this.tryAutoReconnect();
-        } catch (error) {
-          if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            // Will try again on next disconnect event or manual retry
-            this.emitDebugEvent(
-              "connection",
-              "Auto-reconnect failed, will retry",
-              {
-                error: error.message,
-              }
-            );
-          } else {
-            this.emitDebugEvent(
-              "connection",
-              "Auto-reconnect failed, max attempts reached"
-            );
-            this.autoReconnectEnabled = false;
-          }
-        }
-      }, this.reconnectDelay);
-    } else {
-      this.emitDebugEvent("connection", "Auto-reconnect not attempted", {
-        enabled: this.autoReconnectEnabled,
-        attempts: this.reconnectAttempts,
-        maxAttempts: this.maxReconnectAttempts,
-      });
-    }
-  };
 
   setInstrumentationEnabled(enabled: boolean): void {
     this.instrumentationEnabled = enabled;

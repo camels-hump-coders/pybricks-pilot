@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GameMatConfigSchema, type GameMatConfig } from "../schemas/GameMatConfig";
+import { matConfigStorage } from "../services/matConfigStorage";
 
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
   eager: true,
@@ -66,6 +67,27 @@ export function MapSelector({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [availableMaps] = useState<BuiltInMap[]>(BUILT_IN_MAPS);
+  const [customMaps, setCustomMaps] = useState<GameMatConfig[]>([]);
+  const [isLoadingCustomMaps, setIsLoadingCustomMaps] = useState(true);
+
+  // Load custom maps from IndexedDB on mount
+  useEffect(() => {
+    const loadCustomMaps = async () => {
+      try {
+        // For now, we'll just check if there's a saved custom config
+        // In the future, we could extend this to support multiple custom maps
+        const savedConfig = await matConfigStorage.loadConfig();
+        if (savedConfig) {
+          setCustomMaps([savedConfig]);
+        }
+      } catch (error) {
+        console.error("Failed to load custom maps:", error);
+      } finally {
+        setIsLoadingCustomMaps(false);
+      }
+    };
+    loadCustomMaps();
+  }, []);
 
   const loadBuiltInMap = (mapInfo: BuiltInMap) => {
     setIsLoading(true);
@@ -83,6 +105,22 @@ export function MapSelector({
       console.error("Error loading built-in map:", error);
       setLoadError(
         `Failed to load ${mapInfo.displayName}: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCustomMap = (customMap: GameMatConfig) => {
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      onMapChange(customMap);
+    } catch (error) {
+      console.error("Error loading custom map:", error);
+      setLoadError(
+        `Failed to load ${customMap.name}: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       setIsLoading(false);
@@ -169,6 +207,36 @@ export function MapSelector({
             ))}
           </div>
         </div>
+
+        {/* Custom Maps */}
+        {!isLoadingCustomMaps && customMaps.length > 0 && (
+          <div>
+            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Your Custom Maps
+            </h4>
+            <div className="space-y-2">
+              {customMaps.map((customMap) => (
+                <button
+                  key={customMap.name}
+                  onClick={() => loadCustomMap(customMap)}
+                  disabled={isLoading}
+                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    currentMap?.name === customMap.name
+                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                      : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <div className="font-medium text-gray-800 dark:text-gray-200">
+                    {customMap.name}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Custom map with {customMap.missions?.length || 0} missions
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Custom Map Import */}
         <div>

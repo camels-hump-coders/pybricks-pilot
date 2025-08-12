@@ -5,11 +5,19 @@ const PointSchema = z.object({
   y: z.number(),
 });
 
-const MissionObjectiveSchema = z.object({
+const MissionObjectiveChoiceSchema = z.object({
   id: z.string(),
   description: z.string(),
   points: z.number().int().min(0),
   type: z.enum(["primary", "bonus"]).optional().default("primary"),
+});
+
+const MissionObjectiveSchema = z.object({
+  id: z.string(),
+  description: z.string().optional(),
+  // Removed top-level points - all points are now in choices
+  // All objectives must have choices array (even if just one choice)
+  choices: z.array(MissionObjectiveChoiceSchema).min(1),
 });
 
 const MissionSchema = z.object({
@@ -18,10 +26,6 @@ const MissionSchema = z.object({
   position: PointSchema,
   objectives: z.array(MissionObjectiveSchema),
   description: z.string().optional(),
-  scoringMode: z
-    .enum(["multi-select", "single-select"])
-    .optional()
-    .default("multi-select"),
 });
 
 export const GameMatConfigSchema = z.object({
@@ -48,6 +52,9 @@ export const GameMatConfigSchema = z.object({
 });
 
 export type Point = z.infer<typeof PointSchema>;
+export type MissionObjectiveChoice = z.infer<
+  typeof MissionObjectiveChoiceSchema
+>;
 export type MissionObjective = z.infer<typeof MissionObjectiveSchema>;
 export type Mission = z.infer<typeof MissionSchema>;
 export type GameMatConfig = z.infer<typeof GameMatConfigSchema>;
