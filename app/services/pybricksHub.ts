@@ -9,8 +9,8 @@ import {
   PYBRICKS_SERVICE_UUID,
   type HubInfo,
 } from "./bluetooth";
-import { mpyCrossCompiler } from "./mpyCrossCompiler";
 import { bluetoothDeviceStorage } from "./bluetoothDeviceStorage";
+import { mpyCrossCompiler } from "./mpyCrossCompiler";
 
 export interface ProgramStatus {
   running: boolean;
@@ -91,7 +91,7 @@ export interface TelemetryData {
 }
 
 // Pybricks Protocol Commands (based on official spec)
-export enum PybricksCommand {
+enum PybricksCommand {
   STOP_USER_PROGRAM = 0,
   START_USER_PROGRAM = 1,
   START_REPL = 2,
@@ -104,18 +104,10 @@ export enum PybricksCommand {
 }
 
 // Pybricks Protocol Events
-export enum PybricksEvent {
+enum PybricksEvent {
   STATUS_REPORT = 0,
   WRITE_STDOUT = 1,
   COMMAND_ACKNOWLEDGMENT = 2, // Command acknowledgment responses
-}
-
-export interface PybricksStatusReport {
-  status: number;
-  metadata: {
-    length: number;
-    checksum: number;
-  };
 }
 
 export interface DebugEvent {
@@ -125,7 +117,7 @@ export interface DebugEvent {
   details?: Record<string, any>;
 }
 
-export class PybricksHubService extends EventTarget {
+class PybricksHubService extends EventTarget {
   private device: BluetoothDevice | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
   private txCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
@@ -149,7 +141,7 @@ export class PybricksHubService extends EventTarget {
     autoDetectHardware: true,
     debugMode: false,
   };
-  
+
   // Auto-reconnect settings
   private autoReconnectEnabled: boolean = true;
   private reconnectAttempts: number = 0;
@@ -159,7 +151,10 @@ export class PybricksHubService extends EventTarget {
   constructor() {
     super();
     // Set up disconnect listener for auto-reconnect
-    bluetoothService.addEventListener('disconnected', this.onDeviceDisconnected);
+    bluetoothService.addEventListener(
+      "disconnected",
+      this.onDeviceDisconnected
+    );
   }
 
   async requestAndConnect(): Promise<HubInfo | null> {
@@ -203,7 +198,11 @@ export class PybricksHubService extends EventTarget {
         this.emitDebugEvent("connection", "Stopped program before disconnect");
       }
     } catch (error) {
-      this.emitDebugEvent("connection", "Failed to stop program before disconnect", { error: error.message });
+      this.emitDebugEvent(
+        "connection",
+        "Failed to stop program before disconnect",
+        { error: error.message }
+      );
     }
 
     // Disable auto-reconnect for manual disconnects
@@ -235,18 +234,24 @@ export class PybricksHubService extends EventTarget {
 
     try {
       this.emitDebugEvent("connection", "Attempting auto-reconnect...");
-      
+
       // Get the last connected device
       const lastDevice = await bluetoothDeviceStorage.getLastDevice();
       if (!lastDevice) {
-        this.emitDebugEvent("connection", "No previous device found for auto-reconnect");
+        this.emitDebugEvent(
+          "connection",
+          "No previous device found for auto-reconnect"
+        );
         return null;
       }
 
       // Try to reconnect to the stored device
       const device = await bluetoothService.connectToDevice(lastDevice.id);
       if (!device) {
-        this.emitDebugEvent("connection", "Previous device no longer available");
+        this.emitDebugEvent(
+          "connection",
+          "Previous device no longer available"
+        );
         return null;
       }
 
@@ -255,22 +260,21 @@ export class PybricksHubService extends EventTarget {
       this.emitDebugEvent("connection", "Reconnecting to stored device", {
         deviceName: device.name,
       });
-      
+
       this.server = await bluetoothService.connect(this.device);
       await this.setupCommunication();
-      
+
       this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
       this.autoReconnectEnabled = true; // Ensure auto-reconnect stays enabled
-      
+
       const hubInfo = await bluetoothService.getHubInfo(this.server);
       this.emitDebugEvent("connection", "Auto-reconnect successful", hubInfo);
       return hubInfo;
-      
     } catch (error) {
       this.emitDebugEvent("error", "Auto-reconnect failed", {
         error: error.message,
         attempt: this.reconnectAttempts + 1,
-        maxAttempts: this.maxReconnectAttempts
+        maxAttempts: this.maxReconnectAttempts,
       });
       throw error;
     }
@@ -280,7 +284,7 @@ export class PybricksHubService extends EventTarget {
     if (device !== this.device) return;
 
     this.emitDebugEvent("connection", "Device unexpectedly disconnected", {
-      deviceName: device.name
+      deviceName: device.name,
     });
 
     // Clean up connection state
@@ -292,24 +296,34 @@ export class PybricksHubService extends EventTarget {
     this.responseCallbacks.clear();
 
     // Try auto-reconnect if enabled
-    if (this.autoReconnectEnabled && this.reconnectAttempts < this.maxReconnectAttempts) {
+    if (
+      this.autoReconnectEnabled &&
+      this.reconnectAttempts < this.maxReconnectAttempts
+    ) {
       this.reconnectAttempts++;
       this.emitDebugEvent("connection", "Scheduling auto-reconnect", {
         attempt: this.reconnectAttempts,
-        delay: this.reconnectDelay
+        delay: this.reconnectDelay,
       });
-      
+
       setTimeout(async () => {
         try {
           await this.tryAutoReconnect();
         } catch (error) {
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             // Will try again on next disconnect event or manual retry
-            this.emitDebugEvent("connection", "Auto-reconnect failed, will retry", {
-              error: error.message
-            });
+            this.emitDebugEvent(
+              "connection",
+              "Auto-reconnect failed, will retry",
+              {
+                error: error.message,
+              }
+            );
           } else {
-            this.emitDebugEvent("connection", "Auto-reconnect failed, max attempts reached");
+            this.emitDebugEvent(
+              "connection",
+              "Auto-reconnect failed, max attempts reached"
+            );
             this.autoReconnectEnabled = false;
           }
         }
@@ -318,7 +332,7 @@ export class PybricksHubService extends EventTarget {
       this.emitDebugEvent("connection", "Auto-reconnect not attempted", {
         enabled: this.autoReconnectEnabled,
         attempts: this.reconnectAttempts,
-        maxAttempts: this.maxReconnectAttempts
+        maxAttempts: this.maxReconnectAttempts,
       });
     }
   };
@@ -453,7 +467,7 @@ export class PybricksHubService extends EventTarget {
       await this.stopProgram();
       this.emitDebugEvent("program", "Stopped existing program");
       // Wait for the program to stop and clear any cache
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // await new Promise((resolve) => setTimeout(resolve, 1500));
     } catch (error) {
       // Ignore - program may not be running
     }
@@ -463,7 +477,7 @@ export class PybricksHubService extends EventTarget {
       // Try multiple invalidation attempts to ensure cache is cleared
       await this.writeUserProgramMetadataWithConfirmation(0);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Second invalidation for good measure
       await this.writeUserProgramMetadataWithConfirmation(0);
@@ -533,7 +547,7 @@ export class PybricksHubService extends EventTarget {
         await this.sendStartUserProgramCommandWithConfirmation(programId);
 
         // Wait a moment for program to start
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // await new Promise((resolve) => setTimeout(resolve, 1000));
         this.emitDebugEvent("upload", "Upload and run completed successfully");
       } catch (error) {
         this.emitDebugEvent("error", "Failed to start program", {
@@ -544,39 +558,6 @@ export class PybricksHubService extends EventTarget {
     } else {
       this.emitDebugEvent("upload", "Upload completed successfully");
     }
-  }
-
-  private async executeViaREPL(pythonCode: string): Promise<void> {
-    // Start REPL mode
-    await this.sendBinaryCommand(PybricksCommand.START_REPL);
-
-    // Wait for REPL to initialize
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Remove shebang if present
-    pythonCode = pythonCode.replace(/^#!.*\n/, "");
-
-    // For REPL execution, we'll send the entire code block as a single paste operation
-    // This approach handles indentation correctly and executes the code as a block
-
-    // Method 1: Try direct code execution
-    // Send the code as one block, then execute with Ctrl-D
-    const codeWithNewline = pythonCode + "\n";
-    const encodedCode = new TextEncoder().encode(codeWithNewline);
-
-    await this.writeStdin(encodedCode);
-
-    // Small delay to let the code be processed
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Send double Enter to ensure we're at a clean prompt, then Ctrl-D to execute
-    const enterEnter = new TextEncoder().encode("\n\n");
-    await this.writeStdin(enterEnter);
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    const ctrlD = new TextEncoder().encode("\x04");
-    await this.writeStdin(ctrlD);
   }
 
   async runProgram(programId: number = 0): Promise<void> {
@@ -597,28 +578,6 @@ export class PybricksHubService extends EventTarget {
     await this.writeStdin(data);
   }
 
-  private calculateChecksum(data: Uint8Array): number {
-    let checksum = 0;
-    for (let i = 0; i < data.length; i++) {
-      checksum = (checksum + data[i]) & 0xffffffff;
-    }
-    return checksum;
-  }
-
-  private async writeUserProgramMetadata(
-    size: number,
-    _checksum?: number // Keep for compatibility but don't use
-  ): Promise<void> {
-    // Match Pybricks Code exactly: only send command + size (5 bytes total)
-    const payload = new Uint8Array(5);
-    const view = new DataView(payload.buffer);
-
-    view.setUint8(0, PybricksCommand.WRITE_USER_PROGRAM_METADATA);
-    view.setUint32(1, size, true); // little endian
-
-    await this.sendRawData(payload);
-  }
-
   private async writeUserProgramMetadataWithConfirmation(
     size: number,
     _checksum?: number // Keep for compatibility but don't use
@@ -631,21 +590,6 @@ export class PybricksHubService extends EventTarget {
     view.setUint32(1, size, true); // little endian
 
     await this.sendCommandWithConfirmation(payload);
-  }
-
-  private async writeUserRAMAtOffset(
-    data: Uint8Array,
-    offset: number
-  ): Promise<void> {
-    // Write data to user RAM at specific offset - matches Pybricks Code exactly
-    const payload = new Uint8Array(5 + data.length);
-    const view = new DataView(payload.buffer);
-
-    view.setUint8(0, PybricksCommand.WRITE_USER_RAM);
-    view.setUint32(1, offset, true); // little endian
-    payload.set(data, 5);
-
-    await this.sendRawData(payload);
   }
 
   private async writeUserRAMAtOffsetWithConfirmation(
@@ -679,7 +623,7 @@ export class PybricksHubService extends EventTarget {
 
       // Small delay between chunks if needed
       if (offset < data.length) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        // await new Promise((resolve) => setTimeout(resolve, 10));
       }
     }
   }
@@ -700,7 +644,7 @@ export class PybricksHubService extends EventTarget {
 
       // For critical commands, add a small processing delay
       // This ensures proper command sequencing like Pybricks does
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       throw error;
     }

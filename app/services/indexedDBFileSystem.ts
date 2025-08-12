@@ -14,8 +14,8 @@ interface StoredFileInfo {
   lastAccessed: number;
 }
 
-export class IndexedDBFileSystemService {
-  private dbName = 'PybricksFileSystem';
+class IndexedDBFileSystemService {
+  private dbName = "PybricksFileSystem";
   private dbVersion = 1;
   private db: IDBDatabase | null = null;
 
@@ -33,38 +33,51 @@ export class IndexedDBFileSystemService {
         const db = (event.target as IDBOpenDBRequest).result;
 
         // Create stores for directory and file handles
-        if (!db.objectStoreNames.contains('directories')) {
-          const dirStore = db.createObjectStore('directories', { keyPath: 'name' });
-          dirStore.createIndex('lastAccessed', 'lastAccessed', { unique: false });
+        if (!db.objectStoreNames.contains("directories")) {
+          const dirStore = db.createObjectStore("directories", {
+            keyPath: "name",
+          });
+          dirStore.createIndex("lastAccessed", "lastAccessed", {
+            unique: false,
+          });
         }
 
-        if (!db.objectStoreNames.contains('files')) {
-          const fileStore = db.createObjectStore('files', { keyPath: ['directoryName', 'name'] });
-          fileStore.createIndex('directoryName', 'directoryName', { unique: false });
-          fileStore.createIndex('lastAccessed', 'lastAccessed', { unique: false });
+        if (!db.objectStoreNames.contains("files")) {
+          const fileStore = db.createObjectStore("files", {
+            keyPath: ["directoryName", "name"],
+          });
+          fileStore.createIndex("directoryName", "directoryName", {
+            unique: false,
+          });
+          fileStore.createIndex("lastAccessed", "lastAccessed", {
+            unique: false,
+          });
         }
 
         // Create store for user preferences
-        if (!db.objectStoreNames.contains('preferences')) {
-          db.createObjectStore('preferences', { keyPath: 'key' });
+        if (!db.objectStoreNames.contains("preferences")) {
+          db.createObjectStore("preferences", { keyPath: "key" });
         }
       };
     });
   }
 
-  async storeDirectoryHandle(handle: FileSystemDirectoryHandle, fileCount: number): Promise<void> {
+  async storeDirectoryHandle(
+    handle: FileSystemDirectoryHandle,
+    fileCount: number
+  ): Promise<void> {
     if (!this.db) await this.initialize();
 
     const directoryInfo: StoredDirectoryInfo = {
       name: handle.name,
       handle,
       lastAccessed: Date.now(),
-      fileCount
+      fileCount,
     };
 
-    const transaction = this.db!.transaction(['directories'], 'readwrite');
-    const store = transaction.objectStore('directories');
-    
+    const transaction = this.db!.transaction(["directories"], "readwrite");
+    const store = transaction.objectStore("directories");
+
     await new Promise<void>((resolve, reject) => {
       const request = store.put(directoryInfo);
       request.onsuccess = () => resolve();
@@ -72,20 +85,23 @@ export class IndexedDBFileSystemService {
     });
 
     // Also store as the current directory preference
-    await this.setPreference('currentDirectory', handle.name);
+    await this.setPreference("currentDirectory", handle.name);
   }
 
   async getStoredDirectories(): Promise<StoredDirectoryInfo[]> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['directories'], 'readonly');
-    const store = transaction.objectStore('directories');
-    const index = store.index('lastAccessed');
+    const transaction = this.db!.transaction(["directories"], "readonly");
+    const store = transaction.objectStore("directories");
+    const index = store.index("lastAccessed");
 
     return new Promise((resolve, reject) => {
       const request = index.getAll();
       request.onsuccess = () => {
-        const directories = request.result.sort((a: StoredDirectoryInfo, b: StoredDirectoryInfo) => b.lastAccessed - a.lastAccessed);
+        const directories = request.result.sort(
+          (a: StoredDirectoryInfo, b: StoredDirectoryInfo) =>
+            b.lastAccessed - a.lastAccessed
+        );
         resolve(directories);
       };
       request.onerror = () => reject(request.error);
@@ -94,12 +110,12 @@ export class IndexedDBFileSystemService {
 
   async getLastUsedDirectory(): Promise<FileSystemDirectoryHandle | null> {
     try {
-      const currentDirName = await this.getPreference('currentDirectory');
+      const currentDirName = await this.getPreference("currentDirectory");
       if (!currentDirName) return null;
 
       const directories = await this.getStoredDirectories();
-      const lastDir = directories.find(d => d.name === currentDirName);
-      
+      const lastDir = directories.find((d) => d.name === currentDirName);
+
       if (!lastDir) return null;
 
       // Verify the handle is still valid by trying to access it
@@ -117,37 +133,39 @@ export class IndexedDBFileSystemService {
         await this.removeDirectory(lastDir.name);
         return null;
       }
-
-      return null;
     } catch (error) {
-      console.warn('Error getting last used directory:', error);
+      console.warn("Error getting last used directory:", error);
       return null;
     }
   }
 
-  async storeFileHandles(directoryName: string, files: Array<{
-    handle: FileSystemFileHandle;
-    size: number;
-    lastModified: number;
-  }>): Promise<void> {
+  async storeFileHandles(
+    directoryName: string,
+    files: Array<{
+      handle: FileSystemFileHandle;
+      size: number;
+      lastModified: number;
+    }>
+  ): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['files'], 'readwrite');
-    const store = transaction.objectStore('files');
+    const transaction = this.db!.transaction(["files"], "readwrite");
+    const store = transaction.objectStore("files");
 
     // Clear existing files for this directory
-    const index = store.index('directoryName');
+    const index = store.index("directoryName");
     const deleteRequest = index.getAll(directoryName);
-    
+
     await new Promise<void>((resolve, reject) => {
       deleteRequest.onsuccess = () => {
         const existingFiles = deleteRequest.result;
-        const deletePromises = existingFiles.map((file: StoredFileInfo) => 
-          new Promise<void>((res, rej) => {
-            const delReq = store.delete([file.directoryName, file.name]);
-            delReq.onsuccess = () => res();
-            delReq.onerror = () => rej(delReq.error);
-          })
+        const deletePromises = existingFiles.map(
+          (file: StoredFileInfo) =>
+            new Promise<void>((res, rej) => {
+              const delReq = store.delete([file.directoryName, file.name]);
+              delReq.onsuccess = () => res();
+              delReq.onerror = () => rej(delReq.error);
+            })
         );
 
         Promise.all(deletePromises)
@@ -158,14 +176,14 @@ export class IndexedDBFileSystemService {
     });
 
     // Store new files
-    const storePromises = files.map(file => {
+    const storePromises = files.map((file) => {
       const fileInfo: StoredFileInfo = {
         name: file.handle.name,
         directoryName,
         handle: file.handle,
         size: file.size,
         lastModified: file.lastModified,
-        lastAccessed: Date.now()
+        lastAccessed: Date.now(),
       };
 
       return new Promise<void>((resolve, reject) => {
@@ -181,9 +199,9 @@ export class IndexedDBFileSystemService {
   async getStoredFiles(directoryName: string): Promise<StoredFileInfo[]> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['files'], 'readonly');
-    const store = transaction.objectStore('files');
-    const index = store.index('directoryName');
+    const transaction = this.db!.transaction(["files"], "readonly");
+    const store = transaction.objectStore("files");
+    const index = store.index("directoryName");
 
     return new Promise((resolve, reject) => {
       const request = index.getAll(directoryName);
@@ -213,10 +231,13 @@ export class IndexedDBFileSystemService {
   async removeDirectory(name: string): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['directories', 'files'], 'readwrite');
-    
+    const transaction = this.db!.transaction(
+      ["directories", "files"],
+      "readwrite"
+    );
+
     // Remove directory
-    const dirStore = transaction.objectStore('directories');
+    const dirStore = transaction.objectStore("directories");
     await new Promise<void>((resolve, reject) => {
       const request = dirStore.delete(name);
       request.onsuccess = () => resolve();
@@ -224,19 +245,20 @@ export class IndexedDBFileSystemService {
     });
 
     // Remove all files in this directory
-    const fileStore = transaction.objectStore('files');
-    const index = fileStore.index('directoryName');
+    const fileStore = transaction.objectStore("files");
+    const index = fileStore.index("directoryName");
     const filesRequest = index.getAll(name);
-    
+
     await new Promise<void>((resolve, reject) => {
       filesRequest.onsuccess = () => {
         const files = filesRequest.result;
-        const deletePromises = files.map((file: StoredFileInfo) => 
-          new Promise<void>((res, rej) => {
-            const delReq = fileStore.delete([file.directoryName, file.name]);
-            delReq.onsuccess = () => res();
-            delReq.onerror = () => rej(delReq.error);
-          })
+        const deletePromises = files.map(
+          (file: StoredFileInfo) =>
+            new Promise<void>((res, rej) => {
+              const delReq = fileStore.delete([file.directoryName, file.name]);
+              delReq.onsuccess = () => res();
+              delReq.onerror = () => rej(delReq.error);
+            })
         );
 
         Promise.all(deletePromises)
@@ -247,17 +269,17 @@ export class IndexedDBFileSystemService {
     });
 
     // Clear current directory preference if it was this directory
-    const currentDir = await this.getPreference('currentDirectory');
+    const currentDir = await this.getPreference("currentDirectory");
     if (currentDir === name) {
-      await this.setPreference('currentDirectory', null);
+      await this.setPreference("currentDirectory", null);
     }
   }
 
   async removeFile(directoryName: string, fileName: string): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['files'], 'readwrite');
-    const store = transaction.objectStore('files');
+    const transaction = this.db!.transaction(["files"], "readwrite");
+    const store = transaction.objectStore("files");
 
     await new Promise<void>((resolve, reject) => {
       const request = store.delete([directoryName, fileName]);
@@ -269,8 +291,8 @@ export class IndexedDBFileSystemService {
   async setPreference(key: string, value: any): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['preferences'], 'readwrite');
-    const store = transaction.objectStore('preferences');
+    const transaction = this.db!.transaction(["preferences"], "readwrite");
+    const store = transaction.objectStore("preferences");
 
     await new Promise<void>((resolve, reject) => {
       const request = store.put({ key, value });
@@ -282,8 +304,8 @@ export class IndexedDBFileSystemService {
   async getPreference(key: string): Promise<any> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['preferences'], 'readonly');
-    const store = transaction.objectStore('preferences');
+    const transaction = this.db!.transaction(["preferences"], "readonly");
+    const store = transaction.objectStore("preferences");
 
     return new Promise((resolve, reject) => {
       const request = store.get(key);
@@ -297,24 +319,27 @@ export class IndexedDBFileSystemService {
   async clearAll(): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['directories', 'files', 'preferences'], 'readwrite');
-    
+    const transaction = this.db!.transaction(
+      ["directories", "files", "preferences"],
+      "readwrite"
+    );
+
     await Promise.all([
       new Promise<void>((resolve, reject) => {
-        const request = transaction.objectStore('directories').clear();
+        const request = transaction.objectStore("directories").clear();
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       }),
       new Promise<void>((resolve, reject) => {
-        const request = transaction.objectStore('files').clear();
+        const request = transaction.objectStore("files").clear();
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       }),
       new Promise<void>((resolve, reject) => {
-        const request = transaction.objectStore('preferences').clear();
+        const request = transaction.objectStore("preferences").clear();
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
-      })
+      }),
     ]);
   }
 
@@ -325,19 +350,22 @@ export class IndexedDBFileSystemService {
   }> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(['directories', 'files'], 'readonly');
-    
+    const transaction = this.db!.transaction(
+      ["directories", "files"],
+      "readonly"
+    );
+
     const [directories, files] = await Promise.all([
       new Promise<StoredDirectoryInfo[]>((resolve, reject) => {
-        const request = transaction.objectStore('directories').getAll();
+        const request = transaction.objectStore("directories").getAll();
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       }),
       new Promise<StoredFileInfo[]>((resolve, reject) => {
-        const request = transaction.objectStore('files').getAll();
+        const request = transaction.objectStore("files").getAll();
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
-      })
+      }),
     ]);
 
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
@@ -345,7 +373,7 @@ export class IndexedDBFileSystemService {
     return {
       directories: directories.length,
       files: files.length,
-      totalSize
+      totalSize,
     };
   }
 }

@@ -9,7 +9,7 @@ import type {
 import { deSkewImage } from "../utils/perspectiveTransform";
 
 // Re-export types for backward compatibility
-export type { GameMatConfig, Mission, MissionObjective, Point };
+export type { GameMatConfig };
 
 interface GameMatEditorProps {
   onSave: (config: GameMatConfig) => void;

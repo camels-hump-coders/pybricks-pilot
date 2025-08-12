@@ -81,7 +81,7 @@ export function analyzeUserCode(code: string): {
 /**
  * Generates auto-instrumentation code based on detected hardware
  */
-export function generateInstrumentationCode(
+function generateInstrumentationCode(
   analysis: ReturnType<typeof analyzeUserCode>,
   options: InstrumentationOptions = {}
 ): string {
@@ -266,32 +266,9 @@ export function generateInstrumentationCode(
 }
 
 /**
- * Adds smart telemetry calls to user code without breaking indentation
- */
-export function addSmartTelemetry(
-  code: string,
-  options: InstrumentationOptions = {}
-): string {
-  let instrumentedCode = code;
-
-  // Add telemetry calls after wait() statements - this is safe and preserves indentation
-  const waitPattern = /(wait\s*\([^)]+\))/g;
-  instrumentedCode = instrumentedCode.replace(waitPattern, (match) => {
-    return match + "; auto_send_telemetry()";
-  });
-
-  // If no wait() calls found, add periodic telemetry at the end of the program
-  if (!instrumentedCode.includes("auto_send_telemetry")) {
-    instrumentedCode += "\n\n# Send final telemetry\nauto_send_telemetry()\n";
-  }
-
-  return instrumentedCode;
-}
-
-/**
  * Wraps user code with parallel instrumentation system using standard contract
  */
-export function wrapWithInstrumentation(
+function wrapWithInstrumentation(
   code: string,
   options: InstrumentationOptions = {}
 ): string {
@@ -500,22 +477,4 @@ export function instrumentUserCode(
     analysis,
     injectedModuleSize: pybricksPilotCode.length + instrumentationCode.length,
   };
-}
-
-/**
- * Creates a minimal instrumentation for testing/debugging
- */
-export function createMinimalInstrumentation(userCode: string): string {
-  return (
-    pybricksPilotCode +
-    "\n\n# PybricksPilot functions now available\n\n" +
-    userCode
-  );
-}
-
-/**
- * Extract pilot module for separate compilation if needed
- */
-export function getPilotModuleCode(): string {
-  return pybricksPilotCode;
 }

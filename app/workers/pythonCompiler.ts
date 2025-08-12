@@ -1,9 +1,11 @@
+import OurPythonCompilerWorker from "./pythonCompilerWorker.ts?worker";
+
 export interface CompilationRequest {
   id: string;
   code: string;
   options?: {
     optimize?: boolean;
-    target?: 'pybricks' | 'micropython';
+    target?: "pybricks" | "micropython";
   };
 }
 
@@ -15,42 +17,42 @@ export interface CompilationResult {
   warnings?: string[];
 }
 
-export interface CompilerWorker {
+interface CompilerWorker {
   compile(request: CompilationRequest): Promise<CompilationResult>;
   terminate(): void;
 }
 
 export class PythonCompilerWorker implements CompilerWorker {
   private worker: Worker;
-  private pendingRequests = new Map<string, {
-    resolve: (result: CompilationResult) => void;
-    reject: (error: Error) => void;
-  }>();
+  private pendingRequests = new Map<
+    string,
+    {
+      resolve: (result: CompilationResult) => void;
+      reject: (error: Error) => void;
+    }
+  >();
 
   constructor() {
-    this.worker = new Worker(
-      new URL('./pythonCompilerWorker.ts', import.meta.url),
-      { type: 'module' }
-    );
-    
+    this.worker = new OurPythonCompilerWorker();
+
     this.worker.onmessage = (event) => {
       const result: CompilationResult = event.data;
       const pending = this.pendingRequests.get(result.id);
-      
+
       if (pending) {
         this.pendingRequests.delete(result.id);
         if (result.success) {
           pending.resolve(result);
         } else {
-          pending.reject(new Error(result.error || 'Compilation failed'));
+          pending.reject(new Error(result.error || "Compilation failed"));
         }
       }
     };
 
     this.worker.onerror = (error) => {
-      console.error('Worker error:', error);
+      console.error("Worker error:", error);
       this.pendingRequests.forEach(({ reject }) => {
-        reject(new Error('Worker error: ' + error.message));
+        reject(new Error("Worker error: " + error.message));
       });
       this.pendingRequests.clear();
     };
@@ -76,11 +78,4 @@ export function getPythonCompilerWorker(): PythonCompilerWorker {
     compilerWorkerInstance = new PythonCompilerWorker();
   }
   return compilerWorkerInstance;
-}
-
-export function terminatePythonCompilerWorker() {
-  if (compilerWorkerInstance) {
-    compilerWorkerInstance.terminate();
-    compilerWorkerInstance = null;
-  }
 }

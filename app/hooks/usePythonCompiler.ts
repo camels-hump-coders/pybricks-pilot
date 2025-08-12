@@ -11,7 +11,7 @@ import {
   type CompilationResult,
 } from "../workers/pythonCompiler";
 
-export interface ExtendedCompilationResult extends CompilationResult {
+interface ExtendedCompilationResult extends CompilationResult {
   analysis?: PybricksAnalysis;
 }
 

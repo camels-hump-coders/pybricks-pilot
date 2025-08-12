@@ -1,20 +1,20 @@
 import { compile as mpyCrossCompileV6 } from "@pybricks/mpy-cross-v6";
 import wasmUrl from "@pybricks/mpy-cross-v6/build/mpy-cross-v6.wasm?url";
 
-export interface CompilationResult {
+interface CompilationResult {
   file: Blob; // Change to match Pybricks approach
   success: boolean;
   error?: string;
 }
 
-export interface DebugEvent {
+interface DebugEvent {
   timestamp: number;
   type: "connection" | "upload" | "program" | "status" | "error" | "command";
   message: string;
   details?: Record<string, any>;
 }
 
-export class MpyCrossCompiler extends EventTarget {
+class MpyCrossCompiler extends EventTarget {
   private emitDebugEvent(
     type: "connection" | "upload" | "program" | "status" | "error" | "command",
     message: string,

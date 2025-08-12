@@ -1,4 +1,4 @@
-export interface BluetoothService {
+interface BluetoothService {
   requestDevice(): Promise<BluetoothDevice | null>;
   connectToDevice(deviceId: string): Promise<BluetoothDevice | null>;
   connect(device: BluetoothDevice): Promise<BluetoothRemoteGATTServer>;
@@ -22,14 +22,22 @@ export interface BluetoothService {
     characteristic: BluetoothRemoteGATTCharacteristic,
     callback: (data: DataView) => void
   ): Promise<void>;
-  addEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void;
-  removeEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void;
+  addEventListener(
+    event: "disconnected",
+    callback: (device: BluetoothDevice) => void
+  ): void;
+  removeEventListener(
+    event: "disconnected",
+    callback: (device: BluetoothDevice) => void
+  ): void;
 }
 
 // Pybricks service UUIDs (official Pybricks protocol)
 export const PYBRICKS_SERVICE_UUID = "c5f50001-8280-46da-89f4-6d8051e4aeef";
-export const PYBRICKS_COMMAND_EVENT_CHAR_UUID = "c5f50002-8280-46da-89f4-6d8051e4aeef";
-export const PYBRICKS_HUB_CAPABILITIES_CHAR_UUID = "c5f50003-8280-46da-89f4-6d8051e4aeef";
+export const PYBRICKS_COMMAND_EVENT_CHAR_UUID =
+  "c5f50002-8280-46da-89f4-6d8051e4aeef";
+export const PYBRICKS_HUB_CAPABILITIES_CHAR_UUID =
+  "c5f50003-8280-46da-89f4-6d8051e4aeef";
 
 export interface HubInfo {
   name: string;
@@ -38,7 +46,7 @@ export interface HubInfo {
   batteryLevel?: number;
 }
 
-export class WebBluetoothService implements BluetoothService {
+class WebBluetoothService implements BluetoothService {
   private connectedDevices = new Map<
     BluetoothDevice,
     BluetoothRemoteGATTServer
@@ -78,10 +86,12 @@ export class WebBluetoothService implements BluetoothService {
       // Check if getDevices is available (Chrome 85+)
       if (navigator.bluetooth.getDevices) {
         const devices = await navigator.bluetooth.getDevices();
-        const device = devices.find(d => d.id === deviceId);
+        const device = devices.find((d) => d.id === deviceId);
         return device || null;
       } else {
-        console.warn("navigator.bluetooth.getDevices is not supported in this browser");
+        console.warn(
+          "navigator.bluetooth.getDevices is not supported in this browser"
+        );
         return null;
       }
     } catch (error) {
@@ -96,7 +106,10 @@ export class WebBluetoothService implements BluetoothService {
     }
 
     // Add disconnect listener before connecting
-    device.addEventListener('gattserverdisconnected', this.onDeviceDisconnected);
+    device.addEventListener(
+      "gattserverdisconnected",
+      this.onDeviceDisconnected
+    );
 
     const server = await device.gatt.connect();
     this.connectedDevices.set(device, server);
@@ -113,7 +126,10 @@ export class WebBluetoothService implements BluetoothService {
     )?.[0];
 
     if (device) {
-      device.removeEventListener('gattserverdisconnected', this.onDeviceDisconnected);
+      device.removeEventListener(
+        "gattserverdisconnected",
+        this.onDeviceDisconnected
+      );
       this.connectedDevices.delete(device);
     }
   }
@@ -148,7 +164,7 @@ export class WebBluetoothService implements BluetoothService {
     } else if (characteristic.properties.writeWithoutResponse) {
       await characteristic.writeValueWithoutResponse(data);
     } else {
-      throw new Error('Characteristic does not support writing');
+      throw new Error("Characteristic does not support writing");
     }
   }
 
@@ -164,7 +180,7 @@ export class WebBluetoothService implements BluetoothService {
   ): Promise<void> {
     characteristic.addEventListener("characteristicvaluechanged", (event) => {
       const target = event.target;
-      if (target && 'value' in target && (target as any).value) {
+      if (target && "value" in target && (target as any).value) {
         callback((target as any).value);
       }
     });
@@ -174,22 +190,28 @@ export class WebBluetoothService implements BluetoothService {
 
   async getHubInfo(server: BluetoothRemoteGATTServer): Promise<HubInfo> {
     // For Pybricks hubs, we'll use basic info and rely on telemetry for battery/status
-    const info: HubInfo = { 
+    const info: HubInfo = {
       name: server.device?.name || "Pybricks Hub",
       manufacturer: "LEGO Group",
-      firmwareRevision: "Pybricks"
+      firmwareRevision: "Pybricks",
     };
-    
+
     // Note: Pybricks hubs don't typically expose standard Bluetooth services
     // Battery level and other telemetry should come from Python program telemetry
     return info;
   }
 
-  addEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void {
+  addEventListener(
+    event: "disconnected",
+    callback: (device: BluetoothDevice) => void
+  ): void {
     this.disconnectListeners.add(callback);
   }
 
-  removeEventListener(event: 'disconnected', callback: (device: BluetoothDevice) => void): void {
+  removeEventListener(
+    event: "disconnected",
+    callback: (device: BluetoothDevice) => void
+  ): void {
     this.disconnectListeners.delete(callback);
   }
 
@@ -198,7 +220,7 @@ export class WebBluetoothService implements BluetoothService {
     if (device && device.id) {
       this.connectedDevices.delete(device);
       // Notify all disconnect listeners
-      this.disconnectListeners.forEach(listener => listener(device));
+      this.disconnectListeners.forEach((listener) => listener(device));
     }
   };
 }

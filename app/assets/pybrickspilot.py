@@ -26,6 +26,9 @@ Usage:
 import ujson as json
 
 from pybricks.tools import StopWatch
+from pybricks.tools import read_input_byte
+from pybricks.tools import run_task, multitask, wait
+from pybricks.parameters import Color
 
 _stopwatch = None
 
@@ -35,14 +38,6 @@ def get_time_ms():
     if _stopwatch is None:
         _stopwatch = StopWatch()
     return _stopwatch.time()
-
-
-from pybricks.tools import read_input_byte
-
-_has_read_input_byte = True
-
-from pybricks.tools import run_task, multitask, wait
-from pybricks.parameters import Color
 
 
 # Global registry for hardware components
@@ -56,10 +51,6 @@ _gyro_sensor = None
 _telemetry_enabled = True
 _telemetry_interval_ms = 100  # Send telemetry every 100ms
 _last_telemetry_time = 0
-
-# Command processing (simplified for MicroPython)
-_command_processing_enabled = True
-
 # Command buffer for non-blocking input processing
 _command_buffer = ""
 
@@ -460,52 +451,6 @@ def _execute_command(command):
             else:
                 print("[PILOT] Unknown motor:", motor_name)
 
-        elif action == "beep" and _hub:
-            # Beep command: {"action": "beep", "frequency": 440, "duration": 1000}
-            try:
-                frequency = command.get("frequency", 440)
-                duration = command.get("duration", 1000)
-                if hasattr(_hub.speaker, "beep"):
-                    _hub.speaker.beep(frequency, duration)
-                    print("[PILOT] Beep:", frequency, "Hz for", duration, "ms")
-                else:
-                    print("[PILOT] Speaker not available for beep")
-            except Exception as e:
-                print("[PILOT] Beep error:", e)
-
-        elif action == "led" and _hub:
-            # LED command: {"action": "led", "color": [255, 0, 0]} or {"action": "led", "color": "red"}
-            try:
-                color = command.get("color")
-                if hasattr(_hub, "light"):
-                    if isinstance(color, list) and len(color) >= 3:
-                        # RGB color not directly supported - use closest Color enum
-                        print("[PILOT] LED RGB not supported, using red")
-                        _hub.light.on(Color.RED)
-                    elif isinstance(color, str):
-                        # Try to use color name
-                        color_map = {
-                            "red": Color.RED,
-                            "green": Color.GREEN,
-                            "blue": Color.BLUE,
-                            "yellow": Color.YELLOW,
-                            "orange": Color.ORANGE,
-                            "white": Color.WHITE,
-                        }
-                        if color.lower() in color_map:
-                            _hub.light.on(color_map[color.lower()])
-                            print("[PILOT] LED:", color)
-                        else:
-                            _hub.light.on(Color.WHITE)
-                            print("[PILOT] LED: unknown color, using white")
-                    else:
-                        _hub.light.on(Color.WHITE)
-                        print("[PILOT] LED: white (default)")
-                else:
-                    print("[PILOT] Hub light not available")
-            except Exception as e:
-                print("[PILOT] LED error:", e)
-
         elif action == "set_telemetry":
             # Telemetry control: {"action": "set_telemetry", "enabled": true, "interval": 100}
             enabled = command.get("enabled", True)
@@ -583,34 +528,6 @@ def _process_buffered_commands():
 
     except Exception as e:
         print("[PILOT] Buffer processing error:", e)
-
-
-def process_commands_blocking():
-    """Process commands with blocking stdin read (use when stdin input is expected)."""
-    try:
-        import usys
-
-        # This version can block - use only when expecting input
-        try:
-            line = usys.stdin.readline()
-            if line and line.strip():
-                _process_command_line(line.strip())
-        except:
-            pass
-
-    except Exception as e:
-        print("[PILOT] Blocking command processing error:", e)
-
-
-def handle_command_direct(command_json_string):
-    """
-    Handle a command directly without reading from stdin.
-    This allows external code to inject commands without blocking I/O.
-    """
-    try:
-        _process_command_line(command_json_string)
-    except Exception as e:
-        print("[PILOT] Direct command handling error:", e)
 
 
 def _process_command_line(command_text):
