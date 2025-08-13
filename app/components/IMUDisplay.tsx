@@ -35,6 +35,21 @@ export function IMUDisplay({ hubData, className = '' }: IMUDisplayProps) {
     );
   }
 
+  /**
+   * Normalize heading to -180 to 180 degrees range
+   */
+  const normalizeHeading = (heading: number): number => {
+    // Normalize to 0-360 range first
+    let normalized = ((heading % 360) + 360) % 360;
+    
+    // Convert to -180 to 180 range
+    if (normalized > 180) {
+      normalized -= 360;
+    }
+    
+    return normalized;
+  };
+
   const formatValue = (value: number | undefined | null, unit: string, decimals = 1) => {
     if (value === undefined || value === null || isNaN(value)) {
       return `--${unit}`;
@@ -159,7 +174,7 @@ export function IMUDisplay({ hubData, className = '' }: IMUDisplayProps) {
               {/* Heading needle */}
               <div 
                 className="absolute inset-0 flex items-center justify-center"
-                style={{ transform: `rotate(${hubData.imu.heading || 0}deg)` }}
+                style={{ transform: `rotate(${normalizeHeading(hubData.imu.heading || 0)}deg)` }}
               >
                 <div className="w-0.5 h-8 bg-red-500 rounded-full origin-bottom"></div>
               </div>
@@ -168,7 +183,7 @@ export function IMUDisplay({ hubData, className = '' }: IMUDisplayProps) {
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-gray-800 dark:bg-gray-200 rounded-full"></div>
             </div>
             <div className="text-lg font-mono font-bold text-gray-800 dark:text-gray-200 mt-2">
-              {formatValue(hubData.imu.heading, '°', 0)}
+              {formatValue(normalizeHeading(hubData.imu.heading || 0), '°', 0)}
             </div>
           </div>
         </div>

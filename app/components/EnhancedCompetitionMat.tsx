@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import type { GameMatConfig, Mission } from "../schemas/GameMatConfig";
@@ -9,6 +10,7 @@ import {
   type PathVisualizationOptions,
   type TelemetryPoint,
 } from "../services/telemetryHistory";
+import { PseudoCodePanel } from "./PseudoCodePanel";
 
 interface RobotPosition {
   x: number; // mm from left edge of mat (0 = left edge)
@@ -189,6 +191,9 @@ export function EnhancedCompetitionMat({
     y: number;
   } | null>(null);
 
+  // Pseudo code panel state
+  const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useState(true);
+
   // Migrate old mission format to new format
   const migratedMatConfig = useMemo(() => {
     if (!customMatConfig) return null;
@@ -261,6 +266,20 @@ export function EnhancedCompetitionMat({
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
+    // Debug logging to help identify sizing issues
+    console.log("[EnhancedCompetitionMat] updateCanvasSize called:", {
+      containerWidth,
+      containerHeight,
+      containerOffsetWidth: container.offsetWidth,
+      containerScrollWidth: container.scrollWidth,
+      containerBoundingRect: container.getBoundingClientRect(),
+    });
+
+    // Check if container has valid dimensions
+    if (containerWidth <= 0 || containerHeight <= 0) {
+      return;
+    }
+
     // Include border walls in total dimensions
     const totalWidth = TABLE_WIDTH_MM + 2 * BORDER_WALL_THICKNESS_MM;
     const totalHeight = TABLE_HEIGHT_MM + 2 * BORDER_WALL_THICKNESS_MM;
@@ -269,6 +288,16 @@ export function EnhancedCompetitionMat({
     const scaleX = containerWidth / totalWidth;
     const scaleY = containerHeight / totalHeight;
     const newScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 1:1
+
+    console.log("[EnhancedCompetitionMat] Canvas sizing calculated:", {
+      totalWidth,
+      totalHeight,
+      scaleX,
+      scaleY,
+      newScale,
+      finalWidth: totalWidth * newScale,
+      finalHeight: totalHeight * newScale,
+    });
 
     setScale(newScale);
     setCanvasSize({
@@ -882,12 +911,17 @@ export function EnhancedCompetitionMat({
   // Use refs to track previous telemetry values and avoid circular dependencies
   const prevTelemetryRef = useRef({ distance: 0, angle: 0 });
 
+  // Use CMD key detection hook
+  const isCmdKeyPressed = useCmdKey();
+
   // Use refs to access current values without causing useEffect re-runs
   const telemetryReferenceRef = useRef(telemetryReference);
   const currentPositionRef = useRef(currentPosition);
   const manualHeadingAdjustmentRef = useRef(manualHeadingAdjustment);
   const migratedMatConfigRef = useRef(migratedMatConfig);
   const showScoringRef = useRef(showScoring);
+  const isCmdKeyPressedRef = useRef(isCmdKeyPressed);
+  isCmdKeyPressedRef.current = isCmdKeyPressed;
 
   // Update refs when values change
   useEffect(() => {
@@ -998,7 +1032,8 @@ export function EnhancedCompetitionMat({
             receivedTelemetryData,
             newPosition.x,
             newPosition.y,
-            newPosition.heading
+            newPosition.heading,
+            isCmdKeyPressedRef.current
           );
         }
 
@@ -1275,16 +1310,23 @@ export function EnhancedCompetitionMat({
   useEffect(() => {
     updateCanvasSize();
     window.addEventListener("resize", updateCanvasSize);
-    return () => window.removeEventListener("resize", updateCanvasSize);
-  }, []);
 
-  // Update canvas size when mat config changes
-  useEffect(() => {
-    // Small delay to ensure container is properly sized
-    const timer = setTimeout(() => {
-      updateCanvasSize();
-    }, 50);
-    return () => clearTimeout(timer);
+    // Use ResizeObserver for more reliable container size detection
+    let resizeObserver: ResizeObserver | null = null;
+    const container = canvasRef.current?.parentElement;
+    if (container) {
+      resizeObserver = new ResizeObserver(() => {
+        updateCanvasSize();
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener("resize", updateCanvasSize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
   }, [migratedMatConfig]);
 
   // Redraw when dependencies change
@@ -1308,6 +1350,20 @@ export function EnhancedCompetitionMat({
     movementPreview,
     controlMode,
   ]);
+
+  // Additional canvas size update when component becomes visible
+  useEffect(() => {
+    const checkVisibility = () => {
+      if (document.visibilityState === "visible") {
+        // Component became visible, update canvas size
+        setTimeout(() => updateCanvasSize(), 100);
+      }
+    };
+
+    document.addEventListener("visibilitychange", checkVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", checkVisibility);
+  }, []);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -1395,6 +1451,9 @@ export function EnhancedCompetitionMat({
                 setScoringState({});
                 // Reset handled via Jotai atoms and telemetry history
                 telemetryHistory.onMatReset();
+
+                // Clear pseudo code panel
+                setIsPseudoCodeExpanded(false);
               }}
               className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-orange-500 text-white rounded hover:bg-orange-600"
             >
@@ -1887,6 +1946,45 @@ export function EnhancedCompetitionMat({
           </div>
         </>
       )}
+
+      {/* Pseudo Code Panel */}
+      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+        {/* Accordion Header */}
+        <button
+          onClick={() => setIsPseudoCodeExpanded(!isPseudoCodeExpanded)}
+          className="w-full p-3 text-left border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+                Generated Pseudo Code
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {isPseudoCodeExpanded ? "Hide" : "Show"}
+              </span>
+              <span
+                className={`transform transition-transform ${isPseudoCodeExpanded ? "rotate-180" : ""}`}
+              >
+                ▼
+              </span>
+            </div>
+          </div>
+        </button>
+
+        {/* Accordion Content */}
+        {isPseudoCodeExpanded && (
+          <PseudoCodePanel
+            telemetryPoints={[
+              ...telemetryHistory.getAllPaths().flatMap((path) => path.points),
+              ...(telemetryHistory.getCurrentPath()?.points || []),
+            ]}
+            isVisible={true}
+            onToggle={() => setIsPseudoCodeExpanded(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }

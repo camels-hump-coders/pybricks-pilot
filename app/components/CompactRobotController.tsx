@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
 import { useAtomValue } from "jotai";
-import { robotPositionAtom } from "../store/atoms/gameMat";
+import { useRef, useState } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
+import { robotPositionAtom } from "../store/atoms/gameMat";
 import { calculatePreviewPosition } from "./MovementPreview";
 
 type ControlMode = "incremental" | "continuous";
@@ -40,6 +40,7 @@ interface CompactRobotControllerProps {
   onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
   onUploadAndRun?: (code: string) => Promise<void>;
+  isCmdKeyPressed?: boolean;
 }
 
 export function CompactRobotController({
@@ -58,6 +59,7 @@ export function CompactRobotController({
   onRunProgram,
   onStopProgram,
   onUploadAndRun,
+  isCmdKeyPressed,
 }: CompactRobotControllerProps) {
   // Get current robot position from Jotai
   const currentRobotPosition = useAtomValue(robotPositionAtom);
@@ -129,56 +131,56 @@ export function CompactRobotController({
         </div>
       </div>
 
-        {/* Quick Program Controls - Only show for real robots */}
-        {robotType === "real" && (
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 uppercase tracking-wide">
-              Quick Program Control
-            </div>
-            <div className="grid grid-cols-3 gap-1 sm:gap-2">
-              <button
-                onClick={() => {
-                  if (onRunProgram) {
-                    onRunProgram().catch(console.error);
-                  }
-                }}
-                disabled={!onRunProgram}
-                className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                title="Run Program"
-              >
-                ▶️ Run
-              </button>
-              <button
-                onClick={() => {
-                  if (onUploadAndRun) {
-                    // For now, we'll need to get the current program code from somewhere
-                    // This could be enhanced later to show a file picker or use the last uploaded program
-                    console.log(
-                      "Upload & Run requires program code - use Program Manager for now"
-                    );
-                  }
-                }}
-                disabled={!onUploadAndRun}
-                className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                title="Upload & Run Program"
-              >
-                ⬆️ Up&Run
-              </button>
-              <button
-                onClick={() => {
-                  if (onStopProgram) {
-                    onStopProgram().catch(console.error);
-                  }
-                }}
-                disabled={!onStopProgram}
-                className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                title="Stop Program"
-              >
-                ⏹️ Stop
-              </button>
-            </div>
+      {/* Quick Program Controls - Only show for real robots */}
+      {robotType === "real" && (
+        <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 uppercase tracking-wide">
+            Quick Program Control
           </div>
-        )}
+          <div className="grid grid-cols-3 gap-1 sm:gap-2">
+            <button
+              onClick={() => {
+                if (onRunProgram) {
+                  onRunProgram().catch(console.error);
+                }
+              }}
+              disabled={!onRunProgram}
+              className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              title="Run Program"
+            >
+              ▶️ Run
+            </button>
+            <button
+              onClick={() => {
+                if (onUploadAndRun) {
+                  // For now, we'll need to get the current program code from somewhere
+                  // This could be enhanced later to show a file picker or use the last uploaded program
+                  console.log(
+                    "Upload & Run requires program code - use Program Manager for now"
+                  );
+                }
+              }}
+              disabled={!onUploadAndRun}
+              className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              title="Upload & Run Program"
+            >
+              ⬆️ Up&Run
+            </button>
+            <button
+              onClick={() => {
+                if (onStopProgram) {
+                  onStopProgram().catch(console.error);
+                }
+              }}
+              disabled={!onStopProgram}
+              className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              title="Stop Program"
+            >
+              ⏹️ Stop
+            </button>
+          </div>
+        </div>
+      )}
 
       <div
         className={`p-3 space-y-4 relative ${!isFullyConnected ? "opacity-50" : ""}`}
@@ -230,6 +232,13 @@ export function CompactRobotController({
                 Hold
               </button>
             </div>
+            
+            {/* CMD Key Status */}
+            {isCmdKeyPressed && (
+              <div className="px-2 py-1 text-xs bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 rounded border border-orange-300 dark:border-orange-700">
+                ⌘ CMD Key Active
+              </div>
+            )}
           </div>
 
           {/* Compact sliders */}

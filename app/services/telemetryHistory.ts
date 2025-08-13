@@ -5,10 +5,11 @@ export interface TelemetryPoint {
   x: number; // Position in mm
   y: number; // Position in mm
   heading: number; // Rotation in degrees
+  isCmdKeyPressed: boolean;
   data: TelemetryData;
 }
 
-interface TelemetryPath {
+export interface TelemetryPath {
   id: string;
   startTime: number;
   endTime: number;
@@ -37,6 +38,7 @@ class TelemetryHistoryService {
   private allPaths: TelemetryPath[] = [];
   private maxHistorySize = 10000; // Maximum points to keep in memory
   private isRecording = false;
+  private isProgramRunning = false;
   private lastPosition = { x: 0, y: 0, heading: 0 };
 
   startRecording(): void {
@@ -69,7 +71,8 @@ class TelemetryHistoryService {
     telemetry: TelemetryData,
     x: number,
     y: number,
-    heading: number
+    heading: number,
+    isCmdKeyPressed: boolean
   ): void {
     if (!this.isRecording || !this.currentPath) {
       console.log("[TelemetryHistory] Cannot add point:", {
@@ -93,6 +96,7 @@ class TelemetryHistoryService {
       x,
       y,
       heading,
+      isCmdKeyPressed,
       data: { ...telemetry }, // Clone the telemetry data
     };
 
@@ -129,14 +133,20 @@ class TelemetryHistoryService {
     return this.isRecording;
   }
 
+  getIsProgramRunning(): boolean {
+    return this.isProgramRunning;
+  }
+
   // Automatic recording methods
   onProgramStart(): void {
     console.log("[TelemetryHistory] Program started - auto-starting recording");
+    this.isProgramRunning = true;
     this.startRecording();
   }
 
   onProgramStop(): void {
     console.log("[TelemetryHistory] Program stopped - auto-stopping recording");
+    this.isProgramRunning = false;
     this.stopRecording();
   }
 
@@ -184,6 +194,7 @@ class TelemetryHistoryService {
       x,
       y,
       heading,
+      isCmdKeyPressed: false,
       data: initialTelemetry,
     };
 

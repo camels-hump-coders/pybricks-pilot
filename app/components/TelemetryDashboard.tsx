@@ -1,12 +1,13 @@
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
+import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import {
   GameMatConfigSchema,
   type GameMatConfig,
 } from "../schemas/GameMatConfig";
 import { matConfigStorage } from "../services/matConfigStorage";
-import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+import type { ProgramStatus } from "../services/pybricksHub";
 import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
 import { CompactRobotController } from "./CompactRobotController";
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
@@ -187,23 +188,24 @@ function MatControlsPanel({
 
 // Sub-component for Robot Controls Section
 interface RobotControlsSectionProps {
-  onDriveCommand?: (direction: number, speed: number) => Promise<void>;
-  onTurnCommand?: (angle: number, speed: number) => Promise<void>;
-  onStopCommand?: () => Promise<void>;
-  onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
-  onMotorCommand?: (
+  onDriveCommand: (direction: number, speed: number) => Promise<void>;
+  onTurnCommand: (angle: number, speed: number) => Promise<void>;
+  onStopCommand: () => Promise<void>;
+  onContinuousDriveCommand: (speed: number, turnRate: number) => Promise<void>;
+  onMotorCommand: (
     motor: string,
     angle: number,
     speed: number
   ) => Promise<void>;
-  onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
-  onMotorStopCommand?: (motor: string) => Promise<void>;
-  telemetryData?: TelemetryData | null;
+  onContinuousMotorCommand: (motor: string, speed: number) => Promise<void>;
+  onMotorStopCommand: (motor: string) => Promise<void>;
+  telemetryData?: any;
   isConnected: boolean;
   robotType?: "real" | "virtual" | null;
   onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
   onUploadAndRun?: (code: string) => Promise<void>;
+  isCmdKeyPressed: boolean;
 }
 
 function RobotControlsSection({
@@ -220,6 +222,7 @@ function RobotControlsSection({
   onRunProgram,
   onStopProgram,
   onUploadAndRun,
+  isCmdKeyPressed,
 }: RobotControlsSectionProps) {
   // Use Jotai atoms directly instead of prop drilling
   const [, setMovementPreview] = useAtom(movementPreviewAtom);
@@ -240,6 +243,7 @@ function RobotControlsSection({
       onRunProgram={onRunProgram}
       onStopProgram={onStopProgram}
       onUploadAndRun={onUploadAndRun}
+      isCmdKeyPressed={isCmdKeyPressed}
     />
   );
 }
@@ -440,6 +444,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   // Use Jotai atoms for movement preview and robot position
   const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
 
+  // Use CMD key detection hook
+  const isCmdKeyPressed = useCmdKey();
+
   // Always start with default unearthed mat, don't auto-load custom configs
   useEffect(() => {
     const loadDefaultMat = () => {
@@ -609,6 +616,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           onRunProgram={runProgram}
           onStopProgram={stopProgram}
           onUploadAndRun={uploadAndRunProgram}
+          isCmdKeyPressed={isCmdKeyPressed}
         />
 
         <MatControlsPanel
@@ -652,6 +660,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             onRunProgram={runProgram}
             onStopProgram={stopProgram}
             onUploadAndRun={uploadAndRunProgram}
+            isCmdKeyPressed={isCmdKeyPressed}
           />
 
           <MatControlsPanel
