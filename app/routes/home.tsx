@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSetAtom } from "jotai";
 import { DebugPanel } from "../components/DebugPanel";
 import { NotificationContainer } from "../components/ErrorNotification";
 import { ProgramManager } from "../components/ProgramManager";
@@ -9,6 +10,7 @@ import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useNotifications } from "../hooks/useNotifications";
 import { usePythonCompiler } from "../hooks/usePythonCompiler";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
+import { initializeRobotConfigAtom } from "../store/atoms/robotConfig";
 import type { Route } from "./+types/home";
 
 // Helper component for collapsible sections - defined outside to prevent re-creation
@@ -145,6 +147,24 @@ export default function Home() {
     showWarning,
     showInfo,
   } = useNotifications();
+
+  // Robot configuration initialization
+  const initializeRobotConfig = useSetAtom(initializeRobotConfigAtom);
+
+  // Initialize robot configuration from IndexedDB on startup
+  useEffect(() => {
+    const initConfig = async () => {
+      try {
+        await initializeRobotConfig();
+        console.log('Robot configuration initialized from IndexedDB');
+      } catch (error) {
+        console.warn('Failed to initialize robot configuration:', error);
+        // Continue with default configuration if initialization fails
+      }
+    };
+    
+    initConfig();
+  }, []); // Run only once on mount
 
   // Auto-expand programs section when connected (but keep it closed initially for mobile)
   useEffect(() => {

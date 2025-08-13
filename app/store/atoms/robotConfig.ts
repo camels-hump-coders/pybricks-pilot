@@ -2,6 +2,7 @@ import { atom } from "jotai";
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { DEFAULT_ROBOT_CONFIG } from "../../schemas/RobotConfig";
 import { robotConfigStorage } from "../../services/robotConfigStorage";
+import { calculateRobotPosition, setRobotPositionAtom, telemetryReferenceAtom, manualHeadingAdjustmentAtom } from "./gameMat";
 
 // Current robot configuration atom
 export const robotConfigAtom = atom<RobotConfig>(DEFAULT_ROBOT_CONFIG);
@@ -29,6 +30,11 @@ export const loadRobotConfigAtom = atom(
       const config = await robotConfigStorage.loadConfig(configId);
       if (config) {
         set(robotConfigAtom, config);
+        
+        // Reset robot position to bottom-right with new config
+        const newPosition = calculateRobotPosition(config, "bottom-right");
+        set(setRobotPositionAtom, newPosition);
+        set(manualHeadingAdjustmentAtom, 0);
       }
     } catch (error) {
       set(robotConfigErrorAtom, `Failed to load robot configuration: ${error}`);
@@ -47,6 +53,11 @@ export const saveRobotConfigAtom = atom(
 
       await robotConfigStorage.saveConfig(config);
       set(robotConfigAtom, config);
+      
+      // Reset robot position to bottom-right with new config
+      const newPosition = calculateRobotPosition(config, "bottom-right");
+      set(setRobotPositionAtom, newPosition);
+      set(manualHeadingAdjustmentAtom, 0);
 
       // Reload saved configs
       const savedConfigs = await robotConfigStorage.loadAllConfigs();
@@ -71,6 +82,11 @@ export const deleteRobotConfigAtom = atom(
       // Load default config
       const defaultConfig = await robotConfigStorage.getActiveConfig();
       set(robotConfigAtom, defaultConfig);
+      
+      // Reset robot position to bottom-right with new config
+      const newPosition = calculateRobotPosition(defaultConfig, "bottom-right");
+      set(setRobotPositionAtom, newPosition);
+      set(manualHeadingAdjustmentAtom, 0);
 
       // Reload saved configs
       const savedConfigs = await robotConfigStorage.loadAllConfigs();
@@ -98,6 +114,11 @@ export const duplicateRobotConfigAtom = atom(
         newName
       );
       set(robotConfigAtom, duplicated);
+      
+      // Reset robot position to bottom-right with new config
+      const newPosition = calculateRobotPosition(duplicated, "bottom-right");
+      set(setRobotPositionAtom, newPosition);
+      set(manualHeadingAdjustmentAtom, 0);
 
       // Reload saved configs
       const savedConfigs = await robotConfigStorage.loadAllConfigs();
@@ -139,6 +160,11 @@ export const setActiveRobotConfigAtom = atom(
       // Load the active config
       const activeConfig = await robotConfigStorage.getActiveConfig();
       set(robotConfigAtom, activeConfig);
+      
+      // Reset robot position to bottom-right with new config
+      const newPosition = calculateRobotPosition(activeConfig, "bottom-right");
+      set(setRobotPositionAtom, newPosition);
+      set(manualHeadingAdjustmentAtom, 0);
     } catch (error) {
       set(
         robotConfigErrorAtom,
@@ -161,6 +187,11 @@ export const initializeRobotConfigAtom = atom(null, async (get, set) => {
     // Load active config
     const activeConfig = await robotConfigStorage.getActiveConfig();
     set(robotConfigAtom, activeConfig);
+    
+    // Reset robot position to bottom-right with loaded config
+    const newPosition = calculateRobotPosition(activeConfig, "bottom-right");
+    set(setRobotPositionAtom, newPosition);
+    set(manualHeadingAdjustmentAtom, 0);
 
     // Load all saved configs
     const savedConfigs = await robotConfigStorage.loadAllConfigs();

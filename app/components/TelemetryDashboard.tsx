@@ -12,6 +12,7 @@ import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
 import {
   robotBuilderOpenAtom,
   robotConfigAtom,
+  setActiveRobotConfigAtom,
 } from "../store/atoms/robotConfig";
 import { CompactRobotController } from "./CompactRobotController";
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
@@ -478,6 +479,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const [robotBuilderOpen, setRobotBuilderOpen] = useAtom(robotBuilderOpenAtom);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const setRobotConfig = useSetAtom(robotConfigAtom);
+  const setActiveRobotConfig = useSetAtom(setActiveRobotConfigAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
 
   // Use Jotai atoms for movement preview and robot position
@@ -760,7 +762,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         isOpen={robotBuilderOpen}
         onClose={() => setRobotBuilderOpen(false)}
         onRobotChange={(config) => {
-          setRobotConfig(config);
+          // Use the proper Jotai atom that includes position reset logic
+          setActiveRobotConfig(config.id);
         }}
       />
     </div>
