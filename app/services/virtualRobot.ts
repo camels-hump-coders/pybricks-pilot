@@ -285,7 +285,7 @@ class VirtualRobotService extends EventTarget {
         // Send telemetry more frequently during movement for smooth path tracking
         this.sendTelemetry();
 
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Update every 50ms
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Update every 100ms
       }
 
       // Final update - complete the movement
@@ -503,7 +503,7 @@ class VirtualRobotService extends EventTarget {
           // Forward/backward movement
           const headingRad = (this.state.heading * Math.PI) / 180;
           this.state.x += deltaDistance * Math.sin(headingRad);
-          // COORDINATE SYSTEM FIX: Match the telemetry processing expectations  
+          // COORDINATE SYSTEM FIX: Match the telemetry processing expectations
           // The telemetry processing expects positive distance at heading=0° to INCREASE Y
           this.state.y += deltaDistance * Math.cos(headingRad);
         }
