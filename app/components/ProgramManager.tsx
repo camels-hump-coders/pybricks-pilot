@@ -17,15 +17,10 @@ interface ProgramManagerProps {
   onRequestDirectoryAccess: () => Promise<void>;
 
   // Program operations
-  onUploadProgram: (code: string) => Promise<void>;
+  onUploadFile: (file: PythonFile, content: string) => Promise<void>;
   onRunProgram: () => Promise<void>;
   onStopProgram: () => Promise<void>;
-  onUploadAndRun: (code: string) => Promise<void>;
-  onCompileCode: (code: string) => Promise<any>;
-  onCompileSelectedFile?: (
-    selectedFile: PythonFile,
-    allFiles: PythonFile[]
-  ) => Promise<any>;
+  onUploadAndRunFile: (file: PythonFile, content: string) => Promise<void>;
   onCreateExampleProject?: () => Promise<void>;
 
   // Status
@@ -48,11 +43,10 @@ export function ProgramManager({
   onRefreshFiles,
   onUnmountDirectory,
   onRequestDirectoryAccess,
-  onUploadProgram,
+  onUploadFile,
   onRunProgram,
   onStopProgram,
-  onUploadAndRun,
-  onCompileCode,
+  onUploadAndRunFile,
   onCreateExampleProject,
   programStatus,
   isConnected,
@@ -64,7 +58,6 @@ export function ProgramManager({
 }: ProgramManagerProps) {
   const [selectedFile, setSelectedFile] = useState<PythonFile | null>(null);
   const [programCode, setProgramCode] = useState("");
-  const [compilationResult, setCompilationResult] = useState<any>(null);
   const [showCode, setShowCode] = useState(false);
 
   const handleFileSelect = async (file: PythonFile) => {
@@ -75,7 +68,6 @@ export function ProgramManager({
     try {
       const content = await file.handle.getFile().then((f) => f.text());
       setProgramCode(content);
-      setCompilationResult(null);
     } catch (error) {
       console.error(
         "Failed to read file:",
@@ -84,32 +76,15 @@ export function ProgramManager({
     }
   };
 
-  const handleCompile = async () => {
-    if (!programCode) return;
-    try {
-      const result = await onCompileCode(programCode);
-      setCompilationResult(result);
-    } catch (error) {
-      console.error(
-        "Compilation failed:",
-        error instanceof Error ? error.message : String(error)
-      );
-      setCompilationResult({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  };
-
   const handleUpload = () => {
-    if (programCode) {
-      onUploadProgram(programCode);
+    if (selectedFile && programCode) {
+      onUploadFile(selectedFile, programCode);
     }
   };
 
   const handleUploadAndRun = () => {
-    if (programCode) {
-      onUploadAndRun(programCode);
+    if (selectedFile && programCode) {
+      onUploadAndRunFile(selectedFile, programCode);
     }
   };
 
@@ -168,13 +143,11 @@ export function ProgramManager({
                 onUnmountDirectory();
                 setSelectedFile(null);
                 setProgramCode("");
-                setCompilationResult(null);
               }}
               onCreateFile={() => {
                 const template = generatePybricksTemplate("prime");
                 setProgramCode(template);
                 setSelectedFile(null);
-                setCompilationResult(null);
               }}
             />
             {/* Create Example Project button if no files exist */}
@@ -213,12 +186,12 @@ export function ProgramManager({
           </div>
         )}
 
-        {/* Program Code */}
-        {(selectedFile || programCode) && (
+        {/* Selected File and Actions */}
+        {selectedFile && programCode && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Program Code
+                Selected File: {selectedFile.name}
               </label>
               <button
                 onClick={() => setShowCode(!showCode)}
@@ -236,139 +209,53 @@ export function ProgramManager({
               </div>
             )}
 
-            {/* Compilation */}
+            {/* Upload Actions */}
             <div className="space-y-2">
-              <button
-                onClick={handleCompile}
-                disabled={!programCode || isCompiling}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {isCompiling && (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                )}
-                🔨 Compile Code
-              </button>
-
-              {compilationResult && (
-                <div
-                  className={`p-3 rounded-md ${
-                    compilationResult.success
-                      ? "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700"
-                      : "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700"
-                  }`}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUpload}
+                  disabled={!isConnected || isUploading}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
-                  {compilationResult.success ? (
-                    <div>
-                      <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-                        <span>✅</span>
-                        <span className="font-medium">
-                          Compilation successful!
-                        </span>
-                      </div>
-
-                      {/* Pybricks Analysis Results */}
-                      {compilationResult.analysis && (
-                        <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
-                          <div className="text-sm text-green-800 dark:text-green-300">
-                            <div className="font-medium text-green-700 dark:text-green-300 mb-2">
-                              Pybricks Analysis:
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs text-green-700 dark:text-green-300">
-                              <div>
-                                <span className="font-medium text-green-800 dark:text-green-200">
-                                  Hub Type:
-                                </span>{" "}
-                                {compilationResult.analysis.detectedHubs.join(
-                                  ", "
-                                ) || "Not detected"}
-                              </div>
-                              <div>
-                                <span className="font-medium text-green-800 dark:text-green-200">
-                                  Motors:
-                                </span>{" "}
-                                {compilationResult.analysis.detectedMotors
-                                  .length || 0}{" "}
-                                detected
-                              </div>
-                              <div>
-                                <span className="font-medium text-green-800 dark:text-green-200">
-                                  Sensors:
-                                </span>{" "}
-                                {compilationResult.analysis.detectedSensors
-                                  .length || 0}{" "}
-                                detected
-                              </div>
-                              <div>
-                                <span className="font-medium text-green-800 dark:text-green-200">
-                                  Structure:
-                                </span>{" "}
-                                {compilationResult.analysis.hasMainFunction
-                                  ? "Has main()"
-                                  : "No main()"}
-                                {compilationResult.analysis.hasLoops
-                                  ? ", Has loops"
-                                  : ""}
-                                {compilationResult.analysis.hasTelemetry
-                                  ? ", Has telemetry"
-                                  : ""}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {compilationResult.warnings &&
-                        compilationResult.warnings.length > 0 && (
-                          <div className="mt-2 text-yellow-700 dark:text-yellow-300">
-                            <div className="font-medium">
-                              Warnings & Suggestions:
-                            </div>
-                            <ul className="list-disc list-inside text-sm">
-                              {compilationResult.warnings.map(
-                                (warning: string, i: number) => (
-                                  <li
-                                    key={i}
-                                    className={
-                                      warning.startsWith("Suggestion:")
-                                        ? "text-blue-700 dark:text-blue-400"
-                                        : ""
-                                    }
-                                  >
-                                    {warning}
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
-                        <span>❌</span>
-                        <span className="font-medium">Compilation failed</span>
-                      </div>
-                      <pre className="mt-2 text-sm text-red-600 dark:text-red-300 whitespace-pre-wrap">
-                        {compilationResult.error}
-                      </pre>
-
-                      {/* Show analysis even for failed compilations */}
-                      {compilationResult.analysis && (
-                        <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-700">
-                          <div className="text-sm text-red-600 dark:text-red-300">
-                            <div className="font-medium mb-1">
-                              Code Analysis:
-                            </div>
-                            <div className="text-xs">
-                              {compilationResult.analysis.isPybricksCode
-                                ? "Pybricks code detected"
-                                : "Not recognized as Pybricks code - check imports"}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                  {isUploading && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   )}
+                  📤 Upload to Hub
+                </button>
+                <button
+                  onClick={handleUploadAndRun}
+                  disabled={!isConnected || isUploading}
+                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isUploading && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                  🚀 Upload & Run
+                </button>
+              </div>
+
+              {/* Program Status */}
+              {programStatus.running && (
+                <div className="p-3 rounded-md bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                    <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="font-medium">Program Running...</span>
+                  </div>
+                </div>
+              )}
+              
+              {programStatus.error && (
+                <div className="p-3 rounded-md bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700">
+                  <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+                    <span>❌</span>
+                    <span className="font-medium">Error: {programStatus.error}</span>
+                  </div>
+                </div>
+              )}
+              
+              {!programStatus.running && !programStatus.error && isConnected && (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Ready to upload {selectedFile.name}
                 </div>
               )}
             </div>

@@ -1,4 +1,7 @@
-import { type InstrumentationOptions } from "../utils/codeInstrumentation";
+import { 
+  type InstrumentationOptions,
+  instrumentUserCode 
+} from "../utils/codeInstrumentation";
 import {
   bluetoothService,
   PYBRICKS_COMMAND_EVENT_CHAR_UUID,
@@ -7,9 +10,9 @@ import {
   type HubInfo,
 } from "./bluetooth";
 
-import { instrumentUserCode } from "../utils/codeInstrumentation";
-
 import { mpyCrossCompiler } from "./mpyCrossCompiler";
+import { multiModuleCompiler } from "./multiModuleCompiler";
+import type { PythonFile } from "../types/fileSystem";
 
 export interface ProgramStatus {
   running: boolean;
@@ -144,7 +147,12 @@ class PybricksHubService extends EventTarget {
   constructor() {
     super();
     
-    // Forward debug events from mpyCrossCompiler
+    // Forward debug events from compilers
+    multiModuleCompiler.addEventListener("debugEvent", (event: Event) => {
+      const customEvent = event as CustomEvent;
+      this.dispatchEvent(new CustomEvent("debugEvent", { detail: customEvent.detail }));
+    });
+    
     mpyCrossCompiler.addEventListener("debugEvent", (event: Event) => {
       const customEvent = event as CustomEvent;
       this.dispatchEvent(new CustomEvent("debugEvent", { detail: customEvent.detail }));
@@ -236,6 +244,7 @@ class PybricksHubService extends EventTarget {
     return { ...this.instrumentationOptions };
   }
 
+  // Deprecated: Use uploadFileProgram or uploadAndRunFileProgram instead
   async compileProgram(pythonCode: string): Promise<Blob> {
     this.emitDebugEvent("upload", "Starting program compilation", {
       codeLength: pythonCode.length,
@@ -294,9 +303,66 @@ class PybricksHubService extends EventTarget {
   }
 
   async uploadAndRunProgram(pythonCode: string): Promise<void> {
+    // Clear program output at the start of uploading and running a program
+    this.emitClearProgramOutputEvent();
+    
     const compiledProgram = await this.compileProgram(pythonCode);
     // Upload and immediately run - atomic operation like Pybricks Code
     await this.uploadCompiledProgramPybricksFlow(compiledProgram, true);
+  }
+
+  // New file-based upload methods using multi-module approach
+  async uploadFileProgram(
+    selectedFile: PythonFile, 
+    fileContent: string
+  ): Promise<void> {
+    this.emitDebugEvent("upload", "Starting file upload", {
+      fileName: selectedFile.name,
+      relativePath: selectedFile.relativePath,
+    });
+
+    // Compile using multi-module approach
+    const compilationResult = await multiModuleCompiler.compileMultiModule(
+      selectedFile,
+      fileContent
+    );
+
+    if (!compilationResult.success || !compilationResult.multiFileBlob) {
+      throw new Error(
+        `Compilation failed: ${compilationResult.error || "Unknown error"}`
+      );
+    }
+
+    // Upload the compiled multi-file blob to the hub
+    await this.uploadCompiledProgramPybricksFlow(compilationResult.multiFileBlob, false);
+  }
+
+  async uploadAndRunFileProgram(
+    selectedFile: PythonFile,
+    fileContent: string
+  ): Promise<void> {
+    // Clear program output at the start of uploading and running a program
+    this.emitClearProgramOutputEvent();
+    
+    this.emitDebugEvent("upload", "Starting file upload and run", {
+      fileName: selectedFile.name,
+      relativePath: selectedFile.relativePath,
+    });
+
+    // Compile using multi-module approach
+    const compilationResult = await multiModuleCompiler.compileMultiModule(
+      selectedFile,
+      fileContent
+    );
+
+    if (!compilationResult.success || !compilationResult.multiFileBlob) {
+      throw new Error(
+        `Compilation failed: ${compilationResult.error || "Unknown error"}`
+      );
+    }
+
+    // Upload and immediately run
+    await this.uploadCompiledProgramPybricksFlow(compilationResult.multiFileBlob, true);
   }
 
   private async uploadCompiledProgramPybricksFlow(
@@ -416,6 +482,9 @@ class PybricksHubService extends EventTarget {
   }
 
   async runProgram(programId: number = 0): Promise<void> {
+    // Clear program output at the start of running a program
+    this.emitClearProgramOutputEvent();
+    
     this.emitDebugEvent("program", "Starting user program", { programId });
     await this.sendStartUserProgramCommand(programId);
     this.emitDebugEvent("program", "Start program command sent", { programId });
@@ -547,6 +616,13 @@ class PybricksHubService extends EventTarget {
 
     const customEvent = new CustomEvent("debugEvent", {
       detail: debugEvent,
+    });
+    this.dispatchEvent(customEvent);
+  }
+
+  private emitClearProgramOutputEvent(): void {
+    const customEvent = new CustomEvent("clearProgramOutput", {
+      detail: { timestamp: Date.now() },
     });
     this.dispatchEvent(customEvent);
   }

@@ -10,6 +10,7 @@ import {
   programOutputLogAtom,
   programStatusAtom,
   telemetryDataAtom,
+  clearProgramOutputLogAtom,
 } from "../store/atoms/robotConnection";
 
 // Singleton flag to prevent multiple registrations
@@ -26,6 +27,7 @@ export function usePybricksHubEventManager() {
   const setDebugEvents = useSetAtom(debugEventsAtom);
   const setHubInfo = useSetAtom(hubInfoAtom);
   const setIsConnected = useSetAtom(isConnectedAtom);
+  const clearProgramOutputLog = useSetAtom(clearProgramOutputLogAtom);
 
   useEffect(() => {
     // Prevent multiple registrations
@@ -78,6 +80,11 @@ export function usePybricksHubEventManager() {
       }
     };
 
+    const handleClearProgramOutput = (event: CustomEvent) => {
+      console.log("[PybricksHub] Clearing program output log");
+      clearProgramOutputLog();
+    };
+
     // Add event listeners to Pybricks hub service
     pybricksHubService.addEventListener(
       "telemetry",
@@ -90,6 +97,10 @@ export function usePybricksHubEventManager() {
     pybricksHubService.addEventListener(
       "debugEvent",
       handleDebugEvent as EventListener
+    );
+    pybricksHubService.addEventListener(
+      "clearProgramOutput",
+      handleClearProgramOutput as EventListener
     );
 
     eventListenersRegistered = true;
@@ -108,6 +119,10 @@ export function usePybricksHubEventManager() {
         "debugEvent",
         handleDebugEvent as EventListener
       );
+      pybricksHubService.removeEventListener(
+        "clearProgramOutput",
+        handleClearProgramOutput as EventListener
+      );
       eventListenersRegistered = false;
       console.log("[PybricksHubEventManager] Event listeners removed");
     };
@@ -118,5 +133,6 @@ export function usePybricksHubEventManager() {
     setDebugEvents,
     setHubInfo,
     setIsConnected,
+    clearProgramOutputLog,
   ]);
 }

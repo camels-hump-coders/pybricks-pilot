@@ -217,16 +217,15 @@ class WebFileSystemService implements FileSystemService {
   ): Promise<void> {
     // Create example directory
     const exampleDir = await this.createDirectory(dirHandle, "example");
-    
+
     // Import the template generator
-    const { generatePybricksTemplate } = await import("../utils/pybricksAnalyzer");
-    
+    const { generatePybricksTemplate } = await import(
+      "../utils/pybricksAnalyzer"
+    );
+
     // Create program.py with the template
     const template = generatePybricksTemplate("prime");
     await this.createFile(exampleDir, "program.py", template);
-    
-    // Create empty __init__.py
-    await this.createFile(exampleDir, "__init__.py", "");
   }
 
   async persistDirectoryAccess(

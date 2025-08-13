@@ -9,7 +9,6 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useNotifications } from "../hooks/useNotifications";
-import { usePythonCompiler } from "../hooks/usePythonCompiler";
 import { initializeRobotConfigAtom } from "../store/atoms/robotConfig";
 import type { Route } from "./+types/home";
 
@@ -104,6 +103,8 @@ export default function Home() {
     runProgram,
     stopProgram,
     uploadAndRunProgram,
+    uploadFileProgram,
+    uploadAndRunFileProgram,
     sendDriveCommand,
     sendTurnCommand,
     sendStopCommand,
@@ -138,7 +139,6 @@ export default function Home() {
     isSupported: isFileSystemSupported,
   } = fileSystem;
 
-  const { compileCode, isCompiling, compilationError } = usePythonCompiler();
 
   const {
     notifications,
@@ -262,6 +262,44 @@ export default function Home() {
     }
   };
 
+  // New file-based handlers
+  const handleUploadFile = async (file: any, content: string) => {
+    if (!uploadFileProgram) {
+      showError("Upload Failed", "File upload not supported for this robot type");
+      return;
+    }
+    try {
+      await uploadFileProgram(file, content);
+      showSuccess("Upload Complete", `${file.name} uploaded successfully!`);
+    } catch (error) {
+      showError(
+        "Upload Failed",
+        error instanceof Error ? error.message : "Failed to upload file"
+      );
+    }
+  };
+
+  const handleUploadAndRunFile = async (file: any, content: string) => {
+    if (!uploadAndRunFileProgram) {
+      showError("Upload & Run Failed", "File upload & run not supported for this robot type");
+      return;
+    }
+    try {
+      await uploadAndRunFileProgram(file, content);
+      showSuccess(
+        "Upload & Run Complete",
+        `${file.name} uploaded and started successfully!`
+      );
+    } catch (error) {
+      showError(
+        "Upload & Run Failed",
+        error instanceof Error
+          ? error.message
+          : "Failed to upload and run file"
+      );
+    }
+  };
+
   const handleFileSystemAccess = async () => {
     try {
       await requestDirectoryAccess();
@@ -287,11 +325,6 @@ export default function Home() {
     }
   }, [pythonFilesError, showError]);
 
-  useEffect(() => {
-    if (compilationError) {
-      showError("Compilation Error", compilationError.message);
-    }
-  }, [compilationError, showError]);
 
   useEffect(() => {
     if (programStatus.error) {
@@ -417,11 +450,10 @@ export default function Home() {
               onRefreshFiles={refreshFiles}
               onUnmountDirectory={unmountDirectory}
               onRequestDirectoryAccess={handleFileSystemAccess}
-              onUploadProgram={handleUploadProgram}
+              onUploadFile={handleUploadFile}
               onRunProgram={handleRunProgram}
               onStopProgram={handleStopProgram}
-              onUploadAndRun={handleUploadAndRun}
-              onCompileCode={compileCode}
+              onUploadAndRunFile={handleUploadAndRunFile}
               onCreateExampleProject={async () => {
                 try {
                   await createExampleProject();
@@ -435,7 +467,7 @@ export default function Home() {
               isUploading={isUploadingProgram}
               isRunning={isRunningProgram}
               isStopping={isStoppingProgram}
-              isCompiling={isCompiling}
+              isCompiling={false}
             />
           </CollapsibleSection>
         )}

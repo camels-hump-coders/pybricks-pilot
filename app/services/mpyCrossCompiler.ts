@@ -55,10 +55,9 @@ class MpyCrossCompiler extends EventTarget {
         "Code cleaned and prepared for compilation"
       );
 
-      // Compile using mpy-cross v6 with options that might be needed for Pybricks
+      // Compile using mpy-cross v6 with Pybricks-compatible options
       const options: string[] = [
-        // Add any compilation options that Pybricks might use
-        // Try to match what Pybricks Code does for compilation
+        "-march=armv6m", // ARM Cortex-M0+ architecture (used by LEGO hubs)
       ];
 
       this.emitDebugEvent("upload", "Invoking mpy-cross compiler", {
@@ -96,59 +95,9 @@ class MpyCrossCompiler extends EventTarget {
         totalSize: result.mpy.byteLength,
       });
 
-      // Create the multi-file format exactly like Pybricks Code
-      const blobParts: BlobPart[] = [];
-      // Pybricks uses '__main__' as module name even when filename is '__main__.py'
-      const moduleName = "__main__";
-
-      this.emitDebugEvent("upload", "Creating multi-file format", {
-        moduleName,
-        mpySize: result.mpy.length,
-      });
-
-      // Helper functions matching Pybricks exactly
-      const encodeUInt32LE = (value: number): ArrayBuffer => {
-        const buf = new ArrayBuffer(4);
-        const view = new DataView(buf);
-        view.setUint32(0, value, true);
-        return buf;
-      };
-
-      const cString = (str: string): Uint8Array => {
-        const encoder = new TextEncoder();
-        return encoder.encode(str + "\x00");
-      };
-
-      // Each file is encoded as: size, module name, and mpy binary
-      const lengthBytes = encodeUInt32LE(result.mpy.length);
-      const nameBytes = cString(moduleName);
-
-      this.emitDebugEvent("upload", "Multi-file format components created", {
-        moduleName,
-        mpyLength: result.mpy.length,
-        lengthBytesHex: Array.from(new Uint8Array(lengthBytes))
-          .map((b) => `0x${b.toString(16).padStart(2, "0")}`)
-          .join(" "),
-        nameBytesSize: nameBytes.length,
-        mpyHeaderHex: Array.from(result.mpy.slice(0, 8))
-          .map((b) => `0x${b.toString(16).padStart(2, "0")}`)
-          .join(" "),
-      });
-
-      blobParts.push(lengthBytes);
-      blobParts.push(nameBytes as BlobPart);
-      blobParts.push(result.mpy as BlobPart);
-
-      // Create the final blob
-      const file = new Blob(blobParts);
-
-      const expectedSize = 4 + nameBytes.length + result.mpy.length;
-      this.emitDebugEvent("upload", "Final multi-file blob created", {
-        blobSize: file.size,
-        expectedSize,
-        sizeMatch: file.size === expectedSize,
-        componentCount: blobParts.length,
-      });
+      // Return just the compiled .mpy bytecode as a Blob
+      // Multi-file format will be handled by multiModuleCompiler
+      const file = new Blob([result.mpy]);
 
       return {
         file,

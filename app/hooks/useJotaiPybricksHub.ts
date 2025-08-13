@@ -122,6 +122,15 @@ export function useJotaiPybricksHub() {
     await pybricksHubService.uploadAndRunProgram(code);
   }, []);
 
+  // New file-based upload methods
+  const uploadFileProgram = useCallback(async (file: any, content: string) => {
+    await pybricksHubService.uploadFileProgram(file, content);
+  }, []);
+
+  const uploadAndRunFileProgram = useCallback(async (file: any, content: string) => {
+    await pybricksHubService.uploadAndRunFileProgram(file, content);
+  }, []);
+
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
     async (distance: number, speed: number) => {
@@ -250,6 +259,8 @@ export function useJotaiPybricksHub() {
     runProgram,
     stopProgram,
     uploadAndRunProgram,
+    uploadFileProgram,
+    uploadAndRunFileProgram,
 
     programStatus,
     isUploadingProgram,
