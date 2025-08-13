@@ -236,48 +236,7 @@ class PybricksHubService extends EventTarget {
     return { ...this.instrumentationOptions };
   }
 
-  async uploadProgram(pythonCode: string): Promise<void> {
-    let codeToCompile = pythonCode;
-
-    // Auto-instrument the code if enabled
-    if (this.instrumentationEnabled) {
-      this.emitDebugEvent(
-        "upload",
-        "Instrumenting user code with PybricksPilot"
-      );
-      const instrumentation = instrumentUserCode(
-        pythonCode,
-        this.instrumentationOptions
-      );
-      codeToCompile = instrumentation.instrumentedCode;
-
-      this.emitDebugEvent("upload", "Code instrumentation complete", {
-        originalSize: pythonCode.length,
-        instrumentedSize: codeToCompile.length,
-        injectedModuleSize: instrumentation.injectedModuleSize,
-        analysis: instrumentation.analysis,
-      });
-    }
-
-    // Compile Python code to MicroPython multi-file format
-    // Use 'test.py' as filename to match Pybricks exactly
-    const compilationResult = await mpyCrossCompiler.compileToBytecode(
-      "test.py",
-      codeToCompile
-    );
-
-    if (!compilationResult.success || !compilationResult.file) {
-      console.error("MPy Cross Compilter Bytecode failed:", codeToCompile);
-      throw new Error(
-        `Compilation failed: ${compilationResult.error || "Unknown error"}`
-      );
-    }
-
-    // Upload the compiled multi-file blob to the hub using Pybricks flow
-    await this.uploadCompiledProgramPybricksFlow(compilationResult.file, false);
-  }
-
-  async uploadAndRunProgram(pythonCode: string): Promise<void> {
+  private async compileProgram(pythonCode: string): Promise<Blob> {
     this.emitDebugEvent("upload", "Starting program compilation", {
       codeLength: pythonCode.length,
     });
@@ -315,6 +274,7 @@ class PybricksHubService extends EventTarget {
       this.emitDebugEvent("error", "Compilation failed", {
         error: compilationResult.error,
       });
+      console.error("MPy Cross Compiler Bytecode failed:", codeToCompile);
       throw new Error(
         `Compilation failed: ${compilationResult.error || "Unknown error"}`
       );
@@ -324,8 +284,19 @@ class PybricksHubService extends EventTarget {
       size: compilationResult.file.size,
     });
 
+    return compilationResult.file;
+  }
+
+  async uploadProgram(pythonCode: string): Promise<void> {
+    const compiledProgram = await this.compileProgram(pythonCode);
+    // Upload the compiled multi-file blob to the hub using Pybricks flow
+    await this.uploadCompiledProgramPybricksFlow(compiledProgram, false);
+  }
+
+  async uploadAndRunProgram(pythonCode: string): Promise<void> {
+    const compiledProgram = await this.compileProgram(pythonCode);
     // Upload and immediately run - atomic operation like Pybricks Code
-    await this.uploadCompiledProgramPybricksFlow(compilationResult.file, true);
+    await this.uploadCompiledProgramPybricksFlow(compiledProgram, true);
   }
 
   private async uploadCompiledProgramPybricksFlow(
