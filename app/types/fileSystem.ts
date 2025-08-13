@@ -4,5 +4,7 @@ export interface PythonFile {
   size: number;
   lastModified: number;
   content?: string;
-  relativePath?: string;
+  relativePath: string; // Make this required and ensure it's always populated
+  isDirectory?: boolean; // Add flag to distinguish directories
+  children?: PythonFile[]; // Add children for directory structure
 }

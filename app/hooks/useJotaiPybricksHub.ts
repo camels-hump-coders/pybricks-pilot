@@ -25,6 +25,7 @@ import {
   motorDataAtom,
   programOutputLogAtom,
   programStatusAtom,
+  robotTypeAtom,
   sensorDataAtom,
   telemetryDataAtom,
 } from "../store/atoms/robotConnection"; // Use shared robot connection atoms
@@ -33,6 +34,9 @@ import {
 // This provides cleaner separation from the generic robot interface
 
 export function useJotaiPybricksHub() {
+  // Get current robot type to conditionally set up event listeners
+  const robotType = useAtomValue(robotTypeAtom);
+
   // Connection state
   const [isConnected, setIsConnected] = useAtom(isConnectedAtom);
   const [hubInfo, setHubInfo] = useAtom(hubInfoAtom);
@@ -74,6 +78,9 @@ export function useJotaiPybricksHub() {
 
   // Connect Pybricks hub service events to Jotai atoms
   useEffect(() => {
+    // Only set up event listeners if this is the active robot type
+    if (robotType !== "real") return;
+
     const handleTelemetry = (event: CustomEvent<TelemetryData>) => {
       // Transform telemetry data to use our standardized coordinate system
       const transformedTelemetry = transformTelemetryData(event.detail);
@@ -98,9 +105,8 @@ export function useJotaiPybricksHub() {
       }
     };
 
-    const handleDebugEvent = (event: CustomEvent) => {
+    const handleDebugEvent = (event: CustomEvent<any>) => {
       const debugEvent = event.detail;
-      console.log("[PybricksHub] Debug event:", debugEvent);
 
       // Handle disconnection events
       if (
@@ -113,6 +119,7 @@ export function useJotaiPybricksHub() {
         setIsConnected(false);
         setTelemetryData(null);
         setProgramStatus({ running: false });
+      } else {
       }
     };
 
@@ -145,6 +152,7 @@ export function useJotaiPybricksHub() {
       );
     };
   }, [
+    robotType, // Add robotType as dependency
     setTelemetryData,
     setProgramStatus,
     setProgramOutputLog,

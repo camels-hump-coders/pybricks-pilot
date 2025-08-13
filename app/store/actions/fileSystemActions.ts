@@ -64,23 +64,8 @@ export const refreshPythonFilesAtom = atom(null, async (get, set) => {
   set(pythonFilesErrorAtom, null);
 
   try {
-    const fileHandles =
-      await fileSystemService.listPythonFiles(directoryHandle);
-
-    // Get file info for each handle
-    const filesWithInfo = await Promise.all(
-      fileHandles.map(async (handle) => {
-        const fileInfo = await fileSystemService.getFileInfo(handle);
-        return {
-          handle,
-          name: fileInfo.name,
-          size: fileInfo.size,
-          lastModified: fileInfo.lastModified,
-          relativePath: fileInfo.relativePath,
-        } as PythonFile;
-      })
-    );
-
+    // The file system service now returns PythonFile[] with hierarchical structure
+    const filesWithInfo = await fileSystemService.listPythonFiles(directoryHandle);
     set(pythonFilesAtom, filesWithInfo);
   } catch (error) {
     set(pythonFilesErrorAtom, error as Error);

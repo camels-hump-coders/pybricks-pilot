@@ -185,6 +185,7 @@ function generateInstrumentationCode(
     instrumentationCode +=
       "# Using basic setup for simple robot configuration\n";
     instrumentationCode += "try:\n";
+    instrumentationCode += '    print("[PILOT] Basic setup started")\n';
 
     // Find left/right motors
     let leftMotor = "None";

@@ -73,6 +73,7 @@ class MpyCrossCompiler extends EventTarget {
 
       if (result.status !== 0 || !result.mpy) {
         const errorMsg = result.err?.join("\n") || "Unknown error";
+        console.error("MyPy Cross Compile V6 failed:", cleanCode);
         this.emitDebugEvent("error", "Compilation failed", {
           status: result.status,
           error: errorMsg,

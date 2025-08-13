@@ -62,6 +62,9 @@ export function ProgramManager({
   const [showCode, setShowCode] = useState(false);
 
   const handleFileSelect = async (file: PythonFile) => {
+    // Only allow selecting actual files, not directories
+    if (file.isDirectory) return;
+    
     setSelectedFile(file);
     try {
       const content = await file.handle.getFile().then((f) => f.text());

@@ -1,11 +1,11 @@
+import type { PythonFile } from "../types/fileSystem";
+
 interface FileSystemService {
   requestDirectoryAccess(): Promise<FileSystemDirectoryHandle | null>;
   restoreLastDirectory(): Promise<FileSystemDirectoryHandle | null>;
   readFile(fileHandle: FileSystemFileHandle): Promise<string>;
   writeFile(fileHandle: FileSystemFileHandle, content: string): Promise<void>;
-  listPythonFiles(
-    dirHandle: FileSystemDirectoryHandle
-  ): Promise<FileSystemFileHandle[]>;
+  listPythonFiles(dirHandle: FileSystemDirectoryHandle): Promise<PythonFile[]>;
   createFile(
     dirHandle: FileSystemDirectoryHandle,
     name: string,
@@ -73,58 +73,100 @@ class WebFileSystemService implements FileSystemService {
 
   async listPythonFiles(
     dirHandle: FileSystemDirectoryHandle
-  ): Promise<FileSystemFileHandle[]> {
-    const pythonFiles: FileSystemFileHandle[] = [];
+  ): Promise<PythonFile[]> {
+    const pythonFiles: PythonFile[] = [];
 
-    // Recursively search for Python files
-    await this.searchPythonFiles(dirHandle, pythonFiles);
+    // Recursively search for Python files and build hierarchical structure
+    await this.searchPythonFiles(dirHandle, pythonFiles, "");
 
-    // Sort files by name
-    pythonFiles.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort files by name within each directory
+    this.sortFilesRecursively(pythonFiles);
 
     return pythonFiles;
   }
 
   private async searchPythonFiles(
     dirHandle: FileSystemDirectoryHandle,
-    pythonFiles: FileSystemFileHandle[],
-    depth = 0
+    pythonFiles: PythonFile[],
+    currentPath: string
   ): Promise<void> {
     // Limit recursion depth to prevent infinite loops
-    if (depth > 3) return;
+    if (currentPath.split("/").length > 10) return;
 
     for await (const [name, handle] of dirHandle.entries()) {
+      const relativePath = currentPath ? `${currentPath}/${name}` : name;
+
       if (handle.kind === "file" && name.endsWith(".py")) {
-        pythonFiles.push(handle as FileSystemFileHandle);
+        const fileInfo = await this.getFileInfo(handle as FileSystemFileHandle);
+        pythonFiles.push({
+          handle: handle as FileSystemFileHandle,
+          name: fileInfo.name,
+          size: fileInfo.size,
+          lastModified: fileInfo.lastModified,
+          relativePath: relativePath,
+          isDirectory: false,
+        });
       } else if (handle.kind === "directory" && !name.startsWith(".")) {
-        // Recursively search subdirectories (excluding hidden ones)
+        // Create directory entry
+        const dirEntry: PythonFile = {
+          handle: handle as any, // Directory handles don't have the same interface
+          name: name,
+          size: 0,
+          lastModified: Date.now(),
+          relativePath: relativePath,
+          isDirectory: true,
+          children: [],
+        };
+
+        // Recursively search subdirectories
         await this.searchPythonFiles(
           handle as FileSystemDirectoryHandle,
-          pythonFiles,
-          depth + 1
+          dirEntry.children!,
+          relativePath
         );
+
+        // Only add directory if it contains Python files
+        if (dirEntry.children!.length > 0) {
+          pythonFiles.push(dirEntry);
+        }
       }
     }
+  }
+
+  private sortFilesRecursively(files: PythonFile[]): void {
+    // Sort files by name
+    files.sort((a, b) => {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    // Sort children recursively
+    files.forEach((file) => {
+      if (file.children && file.children.length > 0) {
+        this.sortFilesRecursively(file.children);
+      }
+    });
   }
 
   async getFileInfo(fileHandle: FileSystemFileHandle): Promise<{
     name: string;
     size: number;
     lastModified: number;
-    relativePath?: string;
+    relativePath: string;
   }> {
     const file = await fileHandle.getFile();
     return {
       name: fileHandle.name,
       size: file.size,
       lastModified: file.lastModified,
-      // relativePath would need to be calculated based on directory structure
+      relativePath: fileHandle.name, // This will be overridden by the calling method
     };
   }
 
   async watchDirectory(
     dirHandle: FileSystemDirectoryHandle,
-    callback: (files: FileSystemFileHandle[]) => void
+    callback: (files: PythonFile[]) => void
   ): Promise<() => void> {
     let isWatching = true;
 
@@ -172,11 +214,12 @@ class WebFileSystemService implements FileSystemService {
 
       // Get file count for storage
       const files = await this.listPythonFiles(dirHandle);
-      await indexedDB.storeDirectoryHandle(dirHandle, files.length);
+      const fileCount = this.countPythonFilesRecursively(files);
+      await indexedDB.storeDirectoryHandle(dirHandle, fileCount);
 
-      // Store file handles with metadata
+      // Store file handles with metadata - extract only actual files, not directories
       const filesWithInfo = await Promise.all(
-        files.map(async (fileHandle) => {
+        this.extractFileHandlesRecursively(files).map(async (fileHandle) => {
           const file = await fileHandle.getFile();
           return {
             handle: fileHandle,
@@ -190,6 +233,32 @@ class WebFileSystemService implements FileSystemService {
     } catch (error) {
       console.warn("Failed to persist directory access:", error);
     }
+  }
+
+  private countPythonFilesRecursively(files: PythonFile[]): number {
+    let count = 0;
+    files.forEach((file) => {
+      if (file.isDirectory && file.children) {
+        count += this.countPythonFilesRecursively(file.children);
+      } else if (!file.isDirectory) {
+        count++;
+      }
+    });
+    return count;
+  }
+
+  private extractFileHandlesRecursively(
+    files: PythonFile[]
+  ): FileSystemFileHandle[] {
+    const fileHandles: FileSystemFileHandle[] = [];
+    files.forEach((file) => {
+      if (file.isDirectory && file.children) {
+        fileHandles.push(...this.extractFileHandlesRecursively(file.children));
+      } else if (!file.isDirectory) {
+        fileHandles.push(file.handle);
+      }
+    });
+    return fileHandles;
   }
 
   async clearPersistedData(): Promise<void> {

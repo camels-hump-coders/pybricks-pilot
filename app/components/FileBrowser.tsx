@@ -15,21 +15,25 @@ interface FileBrowserProps {
   className?: string;
 }
 
-export function FileBrowser({
-  directoryName,
-  pythonFiles,
-  selectedFile,
-  isLoading,
-  isRestoring = false,
-  error,
-  onFileSelect,
-  onRefresh,
-  onUnmount,
-  onCreateFile,
-  className = "",
-}: FileBrowserProps) {
-  const [sortBy, setSortBy] = useState<"name" | "modified" | "size">("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+interface FileTreeItemProps {
+  file: PythonFile;
+  level: number;
+  selectedFile: PythonFile | null;
+  onFileSelect: (file: PythonFile) => void;
+}
+
+function FileTreeItem({ file, level, selectedFile, onFileSelect }: FileTreeItemProps) {
+  const [isExpanded, setIsExpanded] = useState(level === 0);
+  const isSelected = selectedFile?.relativePath === file.relativePath;
+  const hasChildren = file.isDirectory && file.children && file.children.length > 0;
+
+  const handleClick = () => {
+    if (file.isDirectory) {
+      setIsExpanded(!isExpanded);
+    } else {
+      onFileSelect(file);
+    }
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -59,36 +63,89 @@ export function FileBrowser({
     }
   };
 
-  const sortedFiles = [...pythonFiles].sort((a, b) => {
-    let comparison = 0;
+  return (
+    <div>
+      <button
+        onClick={handleClick}
+        className={`w-full flex items-center gap-2 p-2 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-b border-gray-100 dark:border-gray-700 ${
+          isSelected
+            ? "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-600"
+            : ""
+        }`}
+        style={{ paddingLeft: `${level * 20 + 16}px` }}
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {file.isDirectory ? (
+            <span className="text-yellow-600">
+              {isExpanded ? "📂" : "📁"}
+            </span>
+          ) : (
+            <span className="text-blue-600">🐍</span>
+          )}
+          
+          <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+            {file.name}
+          </span>
+          
+          {isSelected && !file.isDirectory && (
+            <span className="text-xs bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
+              Selected
+            </span>
+          )}
+        </div>
 
-    switch (sortBy) {
-      case "name":
-        comparison = a.name.localeCompare(b.name);
-        break;
-      case "modified":
-        comparison = b.lastModified - a.lastModified;
-        break;
-      case "size":
-        comparison = b.size - a.size;
-        break;
-    }
+        {!file.isDirectory && (
+          <>
+            <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0 text-right">
+              {formatFileSize(file.size)}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0 text-right">
+              {formatLastModified(file.lastModified)}
+            </div>
+          </>
+        )}
+      </button>
 
-    return sortOrder === "asc" ? comparison : -comparison;
-  });
+      {hasChildren && isExpanded && (
+        <div>
+          {file.children!.map((child) => (
+            <FileTreeItem
+              key={child.relativePath}
+              file={child}
+              level={level + 1}
+              selectedFile={selectedFile}
+              onFileSelect={onFileSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
-  const handleSort = (newSortBy: "name" | "modified" | "size") => {
-    if (sortBy === newSortBy) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(newSortBy);
-      setSortOrder("asc");
-    }
-  };
-
-  const getSortIcon = (column: "name" | "modified" | "size") => {
-    if (sortBy !== column) return "↕️";
-    return sortOrder === "asc" ? "↑" : "↓";
+export function FileBrowser({
+  directoryName,
+  pythonFiles,
+  selectedFile,
+  isLoading,
+  isRestoring = false,
+  error,
+  onFileSelect,
+  onRefresh,
+  onUnmount,
+  onCreateFile,
+  className = "",
+}: FileBrowserProps) {
+  const countPythonFiles = (files: PythonFile[]): number => {
+    let count = 0;
+    files.forEach(file => {
+      if (file.isDirectory && file.children) {
+        count += countPythonFiles(file.children);
+      } else if (!file.isDirectory) {
+        count++;
+      }
+    });
+    return count;
   };
 
   if (error) {
@@ -168,7 +225,7 @@ export function FileBrowser({
         </div>
       </div>
 
-      {/* File List */}
+      {/* File Tree */}
       <div className="max-h-96 overflow-y-auto">
         {pythonFiles.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
@@ -182,57 +239,22 @@ export function FileBrowser({
           </div>
         ) : (
           <div>
-            {/* Table Header */}
+            {/* Tree Header */}
             <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-              <button
-                onClick={() => handleSort("name")}
-                className="col-span-6 text-left flex items-center gap-1 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-              >
-                Name {getSortIcon("name")}
-              </button>
-              <button
-                onClick={() => handleSort("size")}
-                className="col-span-2 text-right flex items-center justify-end gap-1 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-              >
-                Size {getSortIcon("size")}
-              </button>
-              <button
-                onClick={() => handleSort("modified")}
-                className="col-span-4 text-right flex items-center justify-end gap-1 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-              >
-                Modified {getSortIcon("modified")}
-              </button>
+              <div className="col-span-6 text-left">Name</div>
+              <div className="col-span-3 text-right">Size</div>
+              <div className="col-span-3 text-right">Modified</div>
             </div>
 
-            {/* File Rows */}
-            {sortedFiles.map((file) => (
-              <button
-                key={file.name}
-                onClick={() => onFileSelect(file)}
-                className={`w-full grid grid-cols-12 gap-2 p-3 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-b border-gray-100 dark:border-gray-700 ${
-                  selectedFile?.name === file.name
-                    ? "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-600"
-                    : ""
-                }`}
-              >
-                <div className="col-span-6 flex items-center gap-2">
-                  <span className="text-blue-600">🐍</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {file.name}
-                  </span>
-                  {selectedFile?.name === file.name && (
-                    <span className="text-xs bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
-                      Selected
-                    </span>
-                  )}
-                </div>
-                <div className="col-span-2 text-right text-sm text-gray-600 dark:text-gray-400">
-                  {formatFileSize(file.size)}
-                </div>
-                <div className="col-span-4 text-right text-sm text-gray-600 dark:text-gray-400">
-                  {formatLastModified(file.lastModified)}
-                </div>
-              </button>
+            {/* File Tree Items */}
+            {pythonFiles.map((file) => (
+              <FileTreeItem
+                key={file.relativePath}
+                file={file}
+                level={0}
+                selectedFile={selectedFile}
+                onFileSelect={onFileSelect}
+              />
             ))}
           </div>
         )}
@@ -243,8 +265,8 @@ export function FileBrowser({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <span>
-              {pythonFiles.length} Python file
-              {pythonFiles.length !== 1 ? "s" : ""} found
+              {countPythonFiles(pythonFiles)} Python file
+              {countPythonFiles(pythonFiles) !== 1 ? "s" : ""} found
             </span>
             <span className="text-purple-600">● Persisted to IndexedDB</span>
           </div>

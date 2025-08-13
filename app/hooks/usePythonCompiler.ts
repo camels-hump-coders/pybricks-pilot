@@ -41,6 +41,7 @@ export function usePythonCompiler() {
         );
 
         if (!result.success) {
+          console.error("MPy Cross Compilter Bytecode failed:", code);
           throw new Error(result.error || "Compilation failed");
         }
 

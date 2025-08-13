@@ -11,7 +11,7 @@ import {
   virtualRobotStateAtom,
 } from "../store/atoms/virtualRobot";
 
-// Import shared atoms that virtual robot uses
+// Import shared robot connection atoms
 import {
   batteryLevelAtom,
   clearDebugEventsAtom,
@@ -25,6 +25,7 @@ import {
   motorDataAtom,
   programOutputLogAtom,
   programStatusAtom,
+  robotTypeAtom,
   sensorDataAtom,
   telemetryDataAtom,
 } from "../store/atoms/robotConnection";
@@ -35,6 +36,9 @@ import { robotConfigAtom } from "../store/atoms/robotConfig";
 import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
 
 export function useJotaiVirtualHub() {
+  // Get current robot type to conditionally set up event listeners
+  const robotType = useAtomValue(robotTypeAtom);
+
   // Virtual robot specific state
   const virtualPosition = useAtomValue(virtualRobotPositionAtom);
   const virtualState = useAtomValue(virtualRobotStateAtom);
@@ -71,6 +75,9 @@ export function useJotaiVirtualHub() {
 
   // Connect virtual robot service events to Jotai atoms
   useEffect(() => {
+    // Only set up event listeners if this is the active robot type
+    if (robotType !== "virtual") return;
+
     const handleTelemetry = (event: CustomEvent<TelemetryData>) => {
       // Transform telemetry data to use our standardized coordinate system
       const transformedTelemetry = transformTelemetryData(event.detail);
@@ -121,6 +128,7 @@ export function useJotaiVirtualHub() {
       );
     };
   }, [
+    robotType, // Add robotType as dependency
     setTelemetryData,
     setProgramStatus,
     setProgramOutputLog,

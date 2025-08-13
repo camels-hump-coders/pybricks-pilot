@@ -262,6 +262,7 @@ class PybricksHubService extends EventTarget {
     );
 
     if (!compilationResult.success || !compilationResult.file) {
+      console.error("MPy Cross Compilter Bytecode failed:", codeToCompile);
       throw new Error(
         `Compilation failed: ${compilationResult.error || "Unknown error"}`
       );
@@ -353,7 +354,8 @@ class PybricksHubService extends EventTarget {
       await this.writeUserProgramMetadataWithConfirmation(0);
       this.emitDebugEvent("upload", "Program invalidated");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.emitDebugEvent("error", "Program invalidation failed", {
         error: errorMessage,
       });
@@ -389,7 +391,8 @@ class PybricksHubService extends EventTarget {
           );
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.emitDebugEvent("error", `Chunk ${chunkIndex} upload failed`, {
           offset: i,
           error: errorMessage,
@@ -403,7 +406,8 @@ class PybricksHubService extends EventTarget {
       await this.writeUserProgramMetadataWithConfirmation(programBlob.size);
       this.emitDebugEvent("upload", "Program validated successfully");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.emitDebugEvent("error", "Program validation failed", {
         error: errorMessage,
       });
@@ -423,7 +427,8 @@ class PybricksHubService extends EventTarget {
         // await new Promise((resolve) => setTimeout(resolve, 1000));
         this.emitDebugEvent("upload", "Upload and run completed successfully");
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.emitDebugEvent("error", "Failed to start program", {
           error: errorMessage,
         });
