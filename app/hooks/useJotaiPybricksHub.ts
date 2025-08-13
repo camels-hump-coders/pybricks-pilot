@@ -1,10 +1,8 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useCallback, useEffect } from "react";
-import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+import { useCallback } from "react";
 import { pybricksHubService } from "../services/pybricksHub";
 import { pybricksHubCapabilitiesAtom } from "../store/atoms/pybricksHub";
 import type { InstrumentationOptions } from "../utils/codeInstrumentation";
-import { transformTelemetryData } from "../utils/coordinateTransformations";
 
 // Import Pybricks hub specific atoms
 import {
@@ -71,94 +69,8 @@ export function useJotaiPybricksHub() {
   // Capabilities
   const capabilities = useAtomValue(pybricksHubCapabilitiesAtom);
 
-  // Setters for updating state from Pybricks hub events
-  const setTelemetryData = useSetAtom(telemetryDataAtom);
-  const setProgramStatus = useSetAtom(programStatusAtom);
-  const setProgramOutputLog = useSetAtom(programOutputLogAtom);
-
-  // Connect Pybricks hub service events to Jotai atoms
-  useEffect(() => {
-    // Only set up event listeners if this is the active robot type
-    if (robotType !== "real") return;
-
-    const handleTelemetry = (event: CustomEvent<TelemetryData>) => {
-      // Transform telemetry data to use our standardized coordinate system
-      const transformedTelemetry = transformTelemetryData(event.detail);
-      setTelemetryData(transformedTelemetry);
-
-      // Forward telemetry event to document for global listeners (e.g., EnhancedCompetitionMat)
-      const globalEvent = new CustomEvent("telemetry", {
-        detail: transformedTelemetry,
-      });
-      document.dispatchEvent(globalEvent);
-    };
-
-    const handleStatusChange = (event: CustomEvent<ProgramStatus>) => {
-      const status = event.detail;
-      setProgramStatus(status);
-
-      // If there's program output, add it to the log
-      if (status.output && status.output.trim()) {
-        const timestamp = new Date().toLocaleTimeString();
-        const logEntry = `[${timestamp}] ${status.output.trim()}`;
-        setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
-      }
-    };
-
-    const handleDebugEvent = (event: CustomEvent<any>) => {
-      const debugEvent = event.detail;
-
-      // Handle disconnection events
-      if (
-        debugEvent.type === "connection" &&
-        (debugEvent.message.includes("Disconnected") ||
-          debugEvent.message.includes("disconnected"))
-      ) {
-        console.log("[PybricksHub] Connection lost, updating state");
-        setHubInfo(null);
-        setIsConnected(false);
-        setTelemetryData(null);
-        setProgramStatus({ running: false });
-      } else {
-      }
-    };
-
-    // Add event listeners to Pybricks hub service
-    pybricksHubService.addEventListener(
-      "telemetry",
-      handleTelemetry as EventListener
-    );
-    pybricksHubService.addEventListener(
-      "statusChange",
-      handleStatusChange as EventListener
-    );
-    pybricksHubService.addEventListener(
-      "debugEvent",
-      handleDebugEvent as EventListener
-    );
-
-    return () => {
-      pybricksHubService.removeEventListener(
-        "telemetry",
-        handleTelemetry as EventListener
-      );
-      pybricksHubService.removeEventListener(
-        "statusChange",
-        handleStatusChange as EventListener
-      );
-      pybricksHubService.removeEventListener(
-        "debugEvent",
-        handleDebugEvent as EventListener
-      );
-    };
-  }, [
-    robotType, // Add robotType as dependency
-    setTelemetryData,
-    setProgramStatus,
-    setProgramOutputLog,
-    setHubInfo,
-    setIsConnected,
-  ]);
+  // Note: Event listeners are now managed centrally by usePybricksHubEventManager
+  // to prevent duplicate event handling when multiple components use this hook
 
   // Pybricks hub connection management
   const connect = useCallback(async () => {

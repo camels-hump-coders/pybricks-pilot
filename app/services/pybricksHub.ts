@@ -143,6 +143,12 @@ class PybricksHubService extends EventTarget {
 
   constructor() {
     super();
+    
+    // Forward debug events from mpyCrossCompiler
+    mpyCrossCompiler.addEventListener("debugEvent", (event: Event) => {
+      const customEvent = event as CustomEvent;
+      this.dispatchEvent(new CustomEvent("debugEvent", { detail: customEvent.detail }));
+    });
   }
 
   async requestAndConnect(): Promise<HubInfo | null> {
