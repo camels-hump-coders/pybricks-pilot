@@ -314,17 +314,19 @@ class PybricksHubService extends EventTarget {
   // New file-based upload methods using multi-module approach
   async uploadFileProgram(
     selectedFile: PythonFile, 
-    fileContent: string
+    fileContent: string,
+    availableFiles: PythonFile[]
   ): Promise<void> {
     this.emitDebugEvent("upload", "Starting file upload", {
       fileName: selectedFile.name,
       relativePath: selectedFile.relativePath,
     });
 
-    // Compile using multi-module approach
+    // Compile using multi-module approach with dependency resolution
     const compilationResult = await multiModuleCompiler.compileMultiModule(
       selectedFile,
-      fileContent
+      fileContent,
+      availableFiles
     );
 
     if (!compilationResult.success || !compilationResult.multiFileBlob) {
@@ -339,7 +341,8 @@ class PybricksHubService extends EventTarget {
 
   async uploadAndRunFileProgram(
     selectedFile: PythonFile,
-    fileContent: string
+    fileContent: string,
+    availableFiles: PythonFile[]
   ): Promise<void> {
     // Clear program output at the start of uploading and running a program
     this.emitClearProgramOutputEvent();
@@ -349,10 +352,11 @@ class PybricksHubService extends EventTarget {
       relativePath: selectedFile.relativePath,
     });
 
-    // Compile using multi-module approach
+    // Compile using multi-module approach with dependency resolution
     const compilationResult = await multiModuleCompiler.compileMultiModule(
       selectedFile,
-      fileContent
+      fileContent,
+      availableFiles
     );
 
     if (!compilationResult.success || !compilationResult.multiFileBlob) {

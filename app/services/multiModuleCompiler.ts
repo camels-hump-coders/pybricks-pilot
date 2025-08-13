@@ -1,5 +1,6 @@
 import pybricksPilotCode from "../assets/pybrickspilot.py?raw";
 import type { PythonFile } from "../types/fileSystem";
+import { dependencyResolver } from "./dependencyResolver";
 import { mpyCrossCompiler } from "./mpyCrossCompiler";
 
 interface MultiModuleCompilationResult {
@@ -41,12 +42,15 @@ from pybricks.tools import run_task, multitask, wait
 
 # Import the user's main function
 try:
-    from ${userModuleName} import main
+    from ${userModuleName} import run as main
 except ImportError as e:
-    print(f"[PILOT] Error: Could not import main function from ${userModuleName}")
-    print(f"[PILOT] Make sure your file has a 'def main():' function")
-    print(f"[PILOT] Import error: {e}")
-    raise
+    try:
+        from ${userModuleName} import main
+    except ImportError as e:
+      print(f"[PILOT] Error: Could not import main function from ${userModuleName}")
+      print(f"[PILOT] Make sure your file has an 'async def main():' function")
+      print(f"[PILOT] Import error: {e}")
+      raise
 
 # Print startup message
 print("[PILOT] Starting PybricksPilot multi-module system")
@@ -127,10 +131,12 @@ class MultiModuleCompiler extends EventTarget {
 
   /**
    * Compiles multiple Python modules into a single multi-file blob for upload
+   * Automatically resolves and includes all local dependencies
    */
   async compileMultiModule(
     selectedFile: PythonFile,
-    fileContent: string
+    fileContent: string,
+    availableFiles: PythonFile[]
   ): Promise<MultiModuleCompilationResult> {
     try {
       const modules: string[] = [];
@@ -145,51 +151,75 @@ class MultiModuleCompiler extends EventTarget {
         userModule: userModuleName,
       });
 
-      // 1. Compile all three modules separately
-      this.emitDebugEvent("upload", "Compiling all modules separately");
+      // 1. Resolve all dependencies
+      this.emitDebugEvent("upload", "Resolving dependencies");
+      const resolved = await dependencyResolver.resolveDependencies(
+        selectedFile,
+        fileContent,
+        availableFiles
+      );
 
-      const [pilotResult, userResult, mainResult] = await Promise.all([
-        mpyCrossCompiler.compileToBytecode(
-          "pybrickspilot.py",
-          pybricksPilotCode
-        ),
-        mpyCrossCompiler.compileToBytecode(selectedFile.name, fileContent),
-        mpyCrossCompiler.compileToBytecode(
-          "__main__.py",
-          generateMainModule(userModuleName)
-        ),
-      ]);
-
-      // Check all compilation results
-      if (!pilotResult.success || !pilotResult.file) {
-        throw new Error(
-          `Failed to compile pybrickspilot module: ${pilotResult.error}`
-        );
-      }
-      if (!userResult.success || !userResult.file) {
-        throw new Error(`Failed to compile user module: ${userResult.error}`);
-      }
-      if (!mainResult.success || !mainResult.file) {
-        throw new Error(
-          `Failed to compile __main__ module: ${mainResult.error}`
-        );
+      if (resolved.unresolvedImports.length > 0) {
+        this.emitDebugEvent("upload", "Found unresolved imports", {
+          unresolvedImports: resolved.unresolvedImports,
+        });
       }
 
-      modules.push("pybrickspilot");
-      modules.push(userModuleName);
-      modules.push("__main__");
-
-      this.emitDebugEvent("upload", "Creating true multi-file format", {
-        modules: modules,
-        approach: "multi-file",
+      this.emitDebugEvent("upload", "Dependencies resolved", {
+        dependencyCount: resolved.dependencies.length,
+        dependencies: resolved.dependencies.map((d) => d.moduleName),
       });
 
-      // 2. Create proper multi-file .mpy format
-      const multiFileBlob = await this.createMultiFileBlob([
-        { name: "pybrickspilot", blob: pilotResult.file },
-        { name: userModuleName, blob: userResult.file },
-        { name: "__main__", blob: mainResult.file },
-      ]);
+      // 2. Compile all modules (pybrickspilot + dependencies + __main__)
+      const compilationTasks: Promise<{ name: string; result: any }>[] = [];
+
+      // Always include pybrickspilot
+      compilationTasks.push(
+        mpyCrossCompiler
+          .compileToBytecode("pybrickspilot.py", pybricksPilotCode)
+          .then((result) => ({ name: "pybrickspilot", result }))
+      );
+
+      // Compile all resolved dependencies
+      for (const dep of resolved.dependencies) {
+        compilationTasks.push(
+          mpyCrossCompiler
+            .compileToBytecode(dep.file.name, dep.content)
+            .then((result) => ({ name: dep.moduleName, result }))
+        );
+      }
+
+      // Always include __main__ last
+      compilationTasks.push(
+        mpyCrossCompiler
+          .compileToBytecode("__main__.py", generateMainModule(userModuleName))
+          .then((result) => ({ name: "__main__", result }))
+      );
+
+      this.emitDebugEvent("upload", "Compiling all modules", {
+        moduleCount: compilationTasks.length,
+      });
+
+      const compilationResults = await Promise.all(compilationTasks);
+
+      // 3. Check all compilation results and collect successful ones
+      const compiledModules: { name: string; blob: Blob }[] = [];
+
+      for (const { name, result } of compilationResults) {
+        if (!result.success || !result.file) {
+          throw new Error(`Failed to compile ${name} module: ${result.error}`);
+        }
+        compiledModules.push({ name, blob: result.file });
+        modules.push(name);
+      }
+
+      this.emitDebugEvent("upload", "Creating multi-file format", {
+        modules: modules,
+        totalModules: compiledModules.length,
+      });
+
+      // 4. Create proper multi-file .mpy format
+      const multiFileBlob = await this.createMultiFileBlob(compiledModules);
 
       this.emitDebugEvent("upload", "Multi-module compilation complete", {
         modules: modules,

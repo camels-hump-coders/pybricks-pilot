@@ -123,12 +123,12 @@ export function useJotaiPybricksHub() {
   }, []);
 
   // New file-based upload methods
-  const uploadFileProgram = useCallback(async (file: any, content: string) => {
-    await pybricksHubService.uploadFileProgram(file, content);
+  const uploadFileProgram = useCallback(async (file: any, content: string, availableFiles: any[]) => {
+    await pybricksHubService.uploadFileProgram(file, content, availableFiles);
   }, []);
 
-  const uploadAndRunFileProgram = useCallback(async (file: any, content: string) => {
-    await pybricksHubService.uploadAndRunFileProgram(file, content);
+  const uploadAndRunFileProgram = useCallback(async (file: any, content: string, availableFiles: any[]) => {
+    await pybricksHubService.uploadAndRunFileProgram(file, content, availableFiles);
   }, []);
 
   // Pybricks hub control commands

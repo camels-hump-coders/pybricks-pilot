@@ -269,7 +269,7 @@ export default function Home() {
       return;
     }
     try {
-      await uploadFileProgram(file, content);
+      await uploadFileProgram(file, content, pythonFiles);
       showSuccess("Upload Complete", `${file.name} uploaded successfully!`);
     } catch (error) {
       showError(
@@ -285,7 +285,7 @@ export default function Home() {
       return;
     }
     try {
-      await uploadAndRunFileProgram(file, content);
+      await uploadAndRunFileProgram(file, content, pythonFiles);
       showSuccess(
         "Upload & Run Complete",
         `${file.name} uploaded and started successfully!`
