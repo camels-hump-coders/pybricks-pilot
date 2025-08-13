@@ -1,12 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef } from "react";
-import { mpyCrossCompiler } from "../services/mpyCrossCompiler";
+import { useCallback, useMemo } from "react";
+import { pybricksHubService } from "../services/pybricksHub";
 import {
   analyzePybricksCode,
   type PybricksAnalysis,
 } from "../utils/pybricksAnalyzer";
 import {
-  getPythonCompilerWorker,
   type CompilationRequest,
   type CompilationResult,
 } from "../workers/pythonCompiler";
@@ -16,37 +15,23 @@ interface ExtendedCompilationResult extends CompilationResult {
 }
 
 export function usePythonCompiler() {
-  const workerRef = useRef(getPythonCompilerWorker());
-  const requestIdRef = useRef(0);
-
   const compileMutation = useMutation({
     mutationFn: async ({
       code,
-      options,
     }: {
       code: string;
       options?: CompilationRequest["options"];
     }): Promise<ExtendedCompilationResult> => {
-      const id = String(++requestIdRef.current);
-
       // Perform Pybricks analysis
       const analysis = analyzePybricksCode(code);
 
       try {
-        // Use the real mpyCross compiler instead of the worker
-        // This will show debug events in the debug panel
-        const result = await mpyCrossCompiler.compileToBytecode(
-          "test.py",
-          code
-        );
-
-        if (!result.success) {
-          console.error("MPy Cross Compilter Bytecode failed:", code);
-          throw new Error(result.error || "Compilation failed");
-        }
+        // Use the unified compilation from PybricksHubService
+        // This will handle instrumentation (if enabled) and show debug events
+        const compiledBlob = await pybricksHubService.compileProgram(code);
 
         // Convert blob to Uint8Array for compatibility with the CompilationResult interface
-        const arrayBuffer = await result.file.arrayBuffer();
+        const arrayBuffer = await compiledBlob.arrayBuffer();
         const bytecode = new Uint8Array(arrayBuffer);
 
         // Merge analysis warnings
@@ -56,7 +41,7 @@ export function usePythonCompiler() {
         ];
 
         return {
-          id,
+          id: Date.now().toString(), // Simple ID generation
           success: true,
           bytecode,
           warnings: allWarnings.length > 0 ? allWarnings : undefined,

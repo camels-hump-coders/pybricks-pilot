@@ -1,28 +1,26 @@
 import { atom } from "jotai";
 import { pybricksHubService } from "../../services/pybricksHub";
-import { mpyCrossCompiler } from "../../services/mpyCrossCompiler";
 import {
+  connectionErrorAtom,
   hubInfoAtom,
   isConnectedAtom,
-  connectionErrorAtom,
-  telemetryDataAtom,
-  programStatusAtom,
-  programOutputLogAtom,
-  debugEventsAtom,
   isConnectingAtom,
   isDisconnectingAtom,
-  isUploadingProgramAtom,
   isRunningProgramAtom,
-  isStoppingProgramAtom,
   isSendingCommandAtom,
+  isStoppingProgramAtom,
+  isUploadingProgramAtom,
+  programOutputLogAtom,
+  programStatusAtom,
   resetTelemetryAtom,
+  telemetryDataAtom,
 } from "../atoms/robotConnection";
 
 // Connect to hub action
 export const connectHubAtom = atom(null, async (get, set) => {
   set(isConnectingAtom, true);
   set(connectionErrorAtom, null);
-  
+
   try {
     const info = await pybricksHubService.requestAndConnect();
     if (info) {
@@ -42,7 +40,7 @@ export const connectHubAtom = atom(null, async (get, set) => {
 // Disconnect from hub action
 export const disconnectHubAtom = atom(null, async (get, set) => {
   set(isDisconnectingAtom, true);
-  
+
   try {
     await pybricksHubService.disconnect();
     set(hubInfoAtom, null);
@@ -55,27 +53,30 @@ export const disconnectHubAtom = atom(null, async (get, set) => {
 });
 
 // Upload program action
-export const uploadProgramAtom = atom(null, async (get, set, pythonCode: string) => {
-  const isConnected = get(isConnectedAtom);
-  if (!isConnected) throw new Error("Hub not connected");
-  
-  set(isUploadingProgramAtom, true);
-  
-  try {
-    await pybricksHubService.uploadProgram(pythonCode);
-  } finally {
-    set(isUploadingProgramAtom, false);
+export const uploadProgramAtom = atom(
+  null,
+  async (get, set, pythonCode: string) => {
+    const isConnected = get(isConnectedAtom);
+    if (!isConnected) throw new Error("Hub not connected");
+
+    set(isUploadingProgramAtom, true);
+
+    try {
+      await pybricksHubService.uploadProgram(pythonCode);
+    } finally {
+      set(isUploadingProgramAtom, false);
+    }
   }
-});
+);
 
 // Run program action
 export const runProgramAtom = atom(null, async (get, set) => {
   const isConnected = get(isConnectedAtom);
   if (!isConnected) throw new Error("Hub not connected");
-  
+
   set(isRunningProgramAtom, true);
   set(programOutputLogAtom, []); // Clear previous output
-  
+
   try {
     await pybricksHubService.runProgram();
   } finally {
@@ -87,9 +88,9 @@ export const runProgramAtom = atom(null, async (get, set) => {
 export const stopProgramAtom = atom(null, async (get, set) => {
   const isConnected = get(isConnectedAtom);
   if (!isConnected) throw new Error("Hub not connected");
-  
+
   set(isStoppingProgramAtom, true);
-  
+
   try {
     await pybricksHubService.stopProgram();
   } finally {
@@ -98,70 +99,82 @@ export const stopProgramAtom = atom(null, async (get, set) => {
 });
 
 // Upload and run program action
-export const uploadAndRunProgramAtom = atom(null, async (get, set, pythonCode: string) => {
-  const isConnected = get(isConnectedAtom);
-  if (!isConnected) throw new Error("Hub not connected");
-  
-  set(programOutputLogAtom, []); // Clear previous output
-  set(isUploadingProgramAtom, true);
-  
-  try {
-    // First stop any running program
-    await pybricksHubService.stopProgram();
-    
-    // Wait a bit for the hub to be ready
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    // Upload and run atomically
-    await pybricksHubService.uploadAndRunProgram(pythonCode);
-  } finally {
-    set(isUploadingProgramAtom, false);
+export const uploadAndRunProgramAtom = atom(
+  null,
+  async (get, set, pythonCode: string) => {
+    const isConnected = get(isConnectedAtom);
+    if (!isConnected) throw new Error("Hub not connected");
+
+    set(programOutputLogAtom, []); // Clear previous output
+    set(isUploadingProgramAtom, true);
+
+    try {
+      // First stop any running program
+      await pybricksHubService.stopProgram();
+
+      // Wait a bit for the hub to be ready
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Upload and run atomically
+      await pybricksHubService.uploadAndRunProgram(pythonCode);
+    } finally {
+      set(isUploadingProgramAtom, false);
+    }
   }
-});
+);
 
 // Send control command action
-export const sendControlCommandAtom = atom(null, async (get, set, command: string) => {
-  const isConnected = get(isConnectedAtom);
-  if (!isConnected) throw new Error("Hub not connected");
-  
-  set(isSendingCommandAtom, true);
-  
-  try {
-    await pybricksHubService.sendControlCommand(command);
-  } finally {
-    set(isSendingCommandAtom, false);
+export const sendControlCommandAtom = atom(
+  null,
+  async (get, set, command: string) => {
+    const isConnected = get(isConnectedAtom);
+    if (!isConnected) throw new Error("Hub not connected");
+
+    set(isSendingCommandAtom, true);
+
+    try {
+      await pybricksHubService.sendControlCommand(command);
+    } finally {
+      set(isSendingCommandAtom, false);
+    }
   }
-});
+);
 
 // Drive command action
-export const sendDriveCommandAtom = atom(null, async (get, set, params: { distance: number; speed: number }) => {
-  const command = JSON.stringify({
-    action: "drive",
-    distance: params.distance,
-    speed: params.speed,
-  });
-  
-  const sendCommand = get(sendControlCommandAtom);
-  await set(sendControlCommandAtom, command);
-});
+export const sendDriveCommandAtom = atom(
+  null,
+  async (get, set, params: { distance: number; speed: number }) => {
+    const command = JSON.stringify({
+      action: "drive",
+      distance: params.distance,
+      speed: params.speed,
+    });
+
+    const sendCommand = get(sendControlCommandAtom);
+    await set(sendControlCommandAtom, command);
+  }
+);
 
 // Turn command action
-export const sendTurnCommandAtom = atom(null, async (get, set, params: { angle: number; speed: number }) => {
-  const command = JSON.stringify({
-    action: "turn",
-    angle: params.angle,
-    speed: params.speed,
-  });
-  
-  await set(sendControlCommandAtom, command);
-});
+export const sendTurnCommandAtom = atom(
+  null,
+  async (get, set, params: { angle: number; speed: number }) => {
+    const command = JSON.stringify({
+      action: "turn",
+      angle: params.angle,
+      speed: params.speed,
+    });
+
+    await set(sendControlCommandAtom, command);
+  }
+);
 
 // Stop command action
 export const sendStopCommandAtom = atom(null, async (get, set) => {
   const command = JSON.stringify({
     action: "stop",
   });
-  
+
   await set(sendControlCommandAtom, command);
 });
 
@@ -174,7 +187,7 @@ export const sendContinuousDriveCommandAtom = atom(
       speed: params.speed,
       turn_rate: params.turnRate,
     });
-    
+
     await set(sendControlCommandAtom, command);
   }
 );
@@ -189,7 +202,7 @@ export const sendMotorCommandAtom = atom(
       angle: params.angle,
       speed: params.speed,
     });
-    
+
     await set(sendControlCommandAtom, command);
   }
 );
@@ -203,7 +216,7 @@ export const sendContinuousMotorCommandAtom = atom(
       motor: params.motor,
       speed: params.speed,
     });
-    
+
     await set(sendControlCommandAtom, command);
   }
 );
@@ -216,7 +229,7 @@ export const sendMotorStopCommandAtom = atom(
       action: "stop",
       motor,
     });
-    
+
     await set(sendControlCommandAtom, command);
   }
 );
@@ -224,16 +237,16 @@ export const sendMotorStopCommandAtom = atom(
 // Reset drivebase telemetry action
 export const resetDrivebaseTelemetryAtom = atom(null, async (get, set) => {
   const isConnected = get(isConnectedAtom);
-  
+
   // Reset local telemetry state
   set(resetTelemetryAtom);
-  
+
   // Send reset command to robot if connected
   if (isConnected) {
     const resetCommand = JSON.stringify({
       action: "reset_drivebase",
     });
-    
+
     try {
       await set(sendControlCommandAtom, resetCommand);
     } catch {

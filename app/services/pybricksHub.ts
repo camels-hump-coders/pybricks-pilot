@@ -236,7 +236,7 @@ class PybricksHubService extends EventTarget {
     return { ...this.instrumentationOptions };
   }
 
-  private async compileProgram(pythonCode: string): Promise<Blob> {
+  async compileProgram(pythonCode: string): Promise<Blob> {
     this.emitDebugEvent("upload", "Starting program compilation", {
       codeLength: pythonCode.length,
     });
