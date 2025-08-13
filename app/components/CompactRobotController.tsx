@@ -2,7 +2,7 @@ import { useAtomValue } from "jotai";
 import { useRef, useState } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
-import { calculatePreviewPosition } from "./MovementPreview";
+import { calculatePreviewPosition, calculateTrajectoryProjection } from "./MovementPreview";
 
 type ControlMode = "incremental" | "continuous";
 
@@ -35,6 +35,16 @@ interface CompactRobotControllerProps {
     positions: {
       primary: RobotPosition | null;
       secondary: RobotPosition | null;
+    };
+    trajectoryProjection?: {
+      nextMoveEnd: RobotPosition | null;
+      boardEndProjection: RobotPosition | null;
+      trajectoryPath: RobotPosition[];
+    };
+    secondaryTrajectoryProjection?: {
+      nextMoveEnd: RobotPosition | null;
+      boardEndProjection: RobotPosition | null;
+      trajectoryPath: RobotPosition[];
     };
   }) => void;
   onRunProgram?: () => Promise<void>;
@@ -267,9 +277,9 @@ export function CompactRobotController({
                 </label>
                 <input
                   type="range"
-                  min="50"
+                  min="10"
                   max="500"
-                  step="50"
+                  step="10"
                   value={distance}
                   onChange={(e) => setDistance(Number(e.target.value))}
                   onInput={(e) => {
@@ -296,6 +306,23 @@ export function CompactRobotController({
                         "drive",
                         "backward"
                       );
+                      
+                      // Calculate trajectory projections for both directions
+                      const forwardTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        currentValue,
+                        angle,
+                        "drive",
+                        "forward"
+                      );
+                      const backwardTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        currentValue,
+                        angle,
+                        "drive",
+                        "backward"
+                      );
+                      
                       onPreviewUpdate({
                         type: "drive",
                         direction: "forward",
@@ -303,6 +330,9 @@ export function CompactRobotController({
                           primary: forwardPosition,
                           secondary: backwardPosition,
                         },
+                        trajectoryProjection: forwardTrajectory,
+                        // Add secondary trajectory for backward movement
+                        secondaryTrajectoryProjection: backwardTrajectory,
                       });
                     }
                   }}
@@ -324,6 +354,23 @@ export function CompactRobotController({
                         "drive",
                         "backward"
                       );
+                      
+                      // Calculate trajectory projections for both directions
+                      const forwardTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "drive",
+                        "forward"
+                      );
+                      const backwardTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "drive",
+                        "backward"
+                      );
+                      
                       onPreviewUpdate({
                         type: "drive",
                         direction: "forward",
@@ -331,6 +378,8 @@ export function CompactRobotController({
                           primary: forwardPosition,
                           secondary: backwardPosition,
                         },
+                        trajectoryProjection: forwardTrajectory,
+                        secondaryTrajectoryProjection: backwardTrajectory,
                       });
                     }
                   }}
@@ -342,6 +391,8 @@ export function CompactRobotController({
                         type: null,
                         direction: null,
                         positions: { primary: null, secondary: null },
+                        trajectoryProjection: undefined,
+                        secondaryTrajectoryProjection: undefined,
                       });
                     }
                   }}
@@ -356,9 +407,9 @@ export function CompactRobotController({
                 </label>
                 <input
                   type="range"
-                  min="5"
+                  min="1"
                   max="180"
-                  step="5"
+                  step="1"
                   value={angle}
                   onChange={(e) => setAngle(Number(e.target.value))}
                   onInput={(e) => {
@@ -385,6 +436,23 @@ export function CompactRobotController({
                         "turn",
                         "right"
                       );
+                      
+                      // Calculate trajectory projections for both directions
+                      const leftTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        distance,
+                        currentValue,
+                        "turn",
+                        "left"
+                      );
+                      const rightTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        distance,
+                        currentValue,
+                        "turn",
+                        "right"
+                      );
+                      
                       onPreviewUpdate({
                         type: "turn",
                         direction: "left",
@@ -392,6 +460,8 @@ export function CompactRobotController({
                           primary: leftPosition,
                           secondary: rightPosition,
                         },
+                        trajectoryProjection: leftTrajectory,
+                        secondaryTrajectoryProjection: rightTrajectory,
                       });
                     }
                   }}
@@ -413,6 +483,23 @@ export function CompactRobotController({
                         "turn",
                         "right"
                       );
+                      
+                      // Calculate trajectory projections for both directions
+                      const leftTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "turn",
+                        "left"
+                      );
+                      const rightTrajectory = calculateTrajectoryProjection(
+                        currentRobotPosition,
+                        distance,
+                        angle,
+                        "turn",
+                        "right"
+                      );
+                      
                       onPreviewUpdate({
                         type: "turn",
                         direction: "left",
@@ -420,6 +507,8 @@ export function CompactRobotController({
                           primary: leftPosition,
                           secondary: rightPosition,
                         },
+                        trajectoryProjection: leftTrajectory,
+                        secondaryTrajectoryProjection: rightTrajectory,
                       });
                     }
                   }}
@@ -431,6 +520,8 @@ export function CompactRobotController({
                         type: null,
                         direction: null,
                         positions: { primary: null, secondary: null },
+                        trajectoryProjection: undefined,
+                        secondaryTrajectoryProjection: undefined,
                       });
                     }
                   }}
@@ -814,6 +905,15 @@ export function CompactRobotController({
         direction
       );
 
+      // Calculate trajectory projection
+      const trajectoryProjection = calculateTrajectoryProjection(
+        currentRobotPosition,
+        distance,
+        angle,
+        type,
+        direction
+      );
+
       // Button hovers only show single preview for that direction
       // Dual previews are only shown when hovering over sliders
       onPreviewUpdate({
@@ -823,12 +923,15 @@ export function CompactRobotController({
           primary: previewPosition,
           secondary: null,
         },
+        trajectoryProjection,
       });
     } else if (onPreviewUpdate) {
       onPreviewUpdate({
         type: null,
         direction: null,
         positions: { primary: null, secondary: null },
+        trajectoryProjection: undefined,
+        secondaryTrajectoryProjection: undefined,
       });
     }
   }

@@ -461,6 +461,60 @@ export function EnhancedCompetitionMat({
           oppositeDirection
         );
       }
+
+      // Draw trajectory projection path
+      if (
+        movementPreview.trajectoryProjection?.trajectoryPath &&
+        movementPreview.direction
+      ) {
+        // Draw very subtle next move end indicator first
+        if (movementPreview.trajectoryProjection.nextMoveEnd) {
+          drawNextMoveEndIndicator(
+            ctx,
+            movementPreview.trajectoryProjection.nextMoveEnd,
+            movementPreview.direction
+          );
+        }
+
+        // Then draw the trajectory path
+        drawTrajectoryProjection(
+          ctx,
+          movementPreview.trajectoryProjection.trajectoryPath,
+          movementPreview.direction
+        );
+      }
+
+      // Draw secondary trajectory projection if available (for dual previews when hovering over sliders)
+      if (
+        movementPreview.secondaryTrajectoryProjection?.trajectoryPath &&
+        movementPreview.positions.secondary
+      ) {
+        // Determine the opposite direction for secondary trajectory
+        let oppositeDirection: "forward" | "backward" | "left" | "right";
+        if (movementPreview.type === "drive") {
+          oppositeDirection =
+            movementPreview.direction === "forward" ? "backward" : "forward";
+        } else {
+          oppositeDirection =
+            movementPreview.direction === "left" ? "right" : "left";
+        }
+
+        // Draw very subtle next move end indicator for secondary trajectory
+        if (movementPreview.secondaryTrajectoryProjection.nextMoveEnd) {
+          drawNextMoveEndIndicator(
+            ctx,
+            movementPreview.secondaryTrajectoryProjection.nextMoveEnd,
+            oppositeDirection
+          );
+        }
+        
+        // Draw the secondary trajectory path
+        drawTrajectoryProjection(
+          ctx,
+          movementPreview.secondaryTrajectoryProjection.trajectoryPath,
+          oppositeDirection
+        );
+      }
     }
   };
 
@@ -731,6 +785,127 @@ export function EnhancedCompetitionMat({
       ctx.fill();
     }
 
+    ctx.restore();
+  };
+
+  // New: Draw trajectory projection path
+  const drawTrajectoryProjection = (
+    ctx: CanvasRenderingContext2D,
+    trajectoryPath: RobotPosition[],
+    direction: "forward" | "backward" | "left" | "right"
+  ) => {
+    if (trajectoryPath.length < 2) return;
+
+    ctx.save();
+
+    // Set line style based on direction
+    let lineColor, lineWidth;
+    if (direction === "forward") {
+      lineColor = "rgba(0, 255, 0, 0.6)"; // More visible green
+      lineWidth = 4; // Thicker line
+    } else if (direction === "backward") {
+      lineColor = "rgba(255, 165, 0, 0.6)"; // More visible orange
+      lineWidth = 4; // Thicker line
+    } else if (direction === "left") {
+      lineColor = "rgba(128, 0, 128, 0.6)"; // More visible purple
+      lineWidth = 4; // Thicker line
+    } else if (direction === "right") {
+      lineColor = "rgba(6, 182, 212, 0.6)"; // More visible cyan
+      lineWidth = 4; // Thicker line
+    } else {
+      lineColor = "rgba(0, 255, 255, 0.6)"; // Default more visible cyan
+      lineWidth = 4; // Thicker line
+    }
+
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Draw the trajectory path
+    ctx.beginPath();
+    const startPos = mmToCanvas(trajectoryPath[0].x, trajectoryPath[0].y);
+    ctx.moveTo(startPos.x, startPos.y);
+
+    for (let i = 1; i < trajectoryPath.length; i++) {
+      const pos = mmToCanvas(trajectoryPath[i].x, trajectoryPath[i].y);
+      ctx.lineTo(pos.x, pos.y);
+    }
+
+    ctx.stroke();
+
+    // Draw more visible dots at key points (next move end and board edge)
+    if (trajectoryPath.length >= 2) {
+      // Next move end point
+      const nextMovePos = mmToCanvas(trajectoryPath[1].x, trajectoryPath[1].y);
+      ctx.fillStyle = lineColor;
+      ctx.beginPath();
+      ctx.arc(nextMovePos.x, nextMovePos.y, 4, 0, 2 * Math.PI); // Larger dot
+      ctx.fill();
+
+      // Board edge projection point (if different from next move)
+      if (trajectoryPath.length >= 3) {
+        const boardEdgePos = mmToCanvas(
+          trajectoryPath[2].x,
+          trajectoryPath[2].y
+        );
+        ctx.fillStyle = lineColor;
+        ctx.beginPath();
+        ctx.arc(boardEdgePos.x, boardEdgePos.y, 3, 0, 2 * Math.PI); // Medium dot
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  };
+
+  // New: Draw very subtle next move end indicator
+  const drawNextMoveEndIndicator = (
+    ctx: CanvasRenderingContext2D,
+    nextMoveEnd: RobotPosition,
+    direction: "forward" | "backward" | "left" | "right"
+  ) => {
+    const pos = mmToCanvas(nextMoveEnd.x, nextMoveEnd.y);
+    
+    ctx.save();
+    
+    // Set more visible styling based on direction
+    let indicatorColor;
+    if (direction === "forward") {
+      indicatorColor = "rgba(0, 255, 0, 0.3)"; // More visible green
+    } else if (direction === "backward") {
+      indicatorColor = "rgba(255, 165, 0, 0.3)"; // More visible orange
+    } else if (direction === "left") {
+      indicatorColor = "rgba(128, 0, 128, 0.3)"; // More visible purple
+    } else if (direction === "right") {
+      indicatorColor = "rgba(6, 182, 212, 0.3)"; // More visible cyan
+    } else {
+      indicatorColor = "rgba(0, 255, 255, 0.3)"; // Default more visible cyan
+    }
+
+    // Draw a more visible outline of where the robot will be
+    const robotWidth = ROBOT_WIDTH_MM * scale;
+    const robotLength = ROBOT_LENGTH_MM * scale;
+    
+    ctx.strokeStyle = indicatorColor;
+    ctx.lineWidth = 2; // Thicker line for better visibility
+    ctx.setLineDash([8, 4]); // Slightly longer dashes for better visibility
+    
+    ctx.strokeRect(
+      pos.x - robotWidth / 2,
+      pos.y - robotLength / 2,
+      robotWidth,
+      robotLength
+    );
+    
+    ctx.setLineDash([]); // Reset line dash
+    
+    // Draw a more visible center point
+    ctx.fillStyle = indicatorColor;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 3, 0, 2 * Math.PI); // Larger center point
+    ctx.fill();
+    
     ctx.restore();
   };
 

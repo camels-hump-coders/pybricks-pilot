@@ -14,6 +14,19 @@ export interface MovementPreview {
     primary: RobotPosition | null;
     secondary: RobotPosition | null;
   };
+  // New: trajectory projection showing where robot will end up after next move
+  // and extending to the end of the board for alignment visualization
+  trajectoryProjection?: {
+    nextMoveEnd: RobotPosition | null; // Where robot will be after next move
+    boardEndProjection: RobotPosition | null; // Extended projection to board edge
+    trajectoryPath: RobotPosition[]; // Path points for the trajectory line
+  };
+  // New: secondary trajectory projection for showing both options when hovering over sliders
+  secondaryTrajectoryProjection?: {
+    nextMoveEnd: RobotPosition | null;
+    boardEndProjection: RobotPosition | null;
+    trajectoryPath: RobotPosition[];
+  };
 }
 
 export interface ObjectiveState {
