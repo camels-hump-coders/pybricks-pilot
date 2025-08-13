@@ -133,6 +133,7 @@ export default function Home() {
     isPythonFilesLoading,
     pythonFilesError,
     refreshFiles,
+    createExampleProject,
     isRestoring,
     isSupported: isFileSystemSupported,
   } = fileSystem;
@@ -421,6 +422,14 @@ export default function Home() {
               onStopProgram={handleStopProgram}
               onUploadAndRun={handleUploadAndRun}
               onCompileCode={compileCode}
+              onCreateExampleProject={async () => {
+                try {
+                  await createExampleProject();
+                  showSuccess("Example Project Created", "Created example directory with program.py template");
+                } catch (error) {
+                  showError("Failed to Create Example", error instanceof Error ? error.message : "Unknown error");
+                }
+              }}
               programStatus={programStatus}
               isConnected={isConnected}
               isUploading={isUploadingProgram}

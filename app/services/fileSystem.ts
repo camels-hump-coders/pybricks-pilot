@@ -205,6 +205,30 @@ class WebFileSystemService implements FileSystemService {
     return fileHandle;
   }
 
+  async createDirectory(
+    parentHandle: FileSystemDirectoryHandle,
+    name: string
+  ): Promise<FileSystemDirectoryHandle> {
+    return await parentHandle.getDirectoryHandle(name, { create: true });
+  }
+
+  async createExampleProject(
+    dirHandle: FileSystemDirectoryHandle
+  ): Promise<void> {
+    // Create example directory
+    const exampleDir = await this.createDirectory(dirHandle, "example");
+    
+    // Import the template generator
+    const { generatePybricksTemplate } = await import("../utils/pybricksAnalyzer");
+    
+    // Create program.py with the template
+    const template = generatePybricksTemplate("prime");
+    await this.createFile(exampleDir, "program.py", template);
+    
+    // Create empty __init__.py
+    await this.createFile(exampleDir, "__init__.py", "");
+  }
+
   async persistDirectoryAccess(
     dirHandle: FileSystemDirectoryHandle
   ): Promise<void> {

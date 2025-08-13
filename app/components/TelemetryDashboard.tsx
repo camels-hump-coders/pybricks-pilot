@@ -291,8 +291,6 @@ interface HubStatusSectionProps {
 }
 
 function HubStatusSection({ programStatus }: HubStatusSectionProps) {
-  if (!programStatus?.statusFlags) return null;
-
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -301,7 +299,7 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
         </h3>
         <div className="text-sm text-gray-500 dark:text-gray-400">
           Last update:{" "}
-          {programStatus.lastStatusUpdate
+          {programStatus?.lastStatusUpdate
             ? new Date(programStatus.lastStatusUpdate).toLocaleTimeString()
             : "Never"}
         </div>
@@ -311,14 +309,14 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
         {/* Program Status */}
         <div
           className={`p-3 rounded-lg border ${
-            programStatus.statusFlags.userProgramRunning
+            programStatus?.statusFlags?.userProgramRunning
               ? "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700"
               : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
           }`}
         >
           <div className="flex items-center gap-2">
             <span className="text-lg">
-              {programStatus.statusFlags.userProgramRunning ? "▶️" : "⏸️"}
+              {programStatus?.statusFlags?.userProgramRunning ? "▶️" : "⏸️"}
             </span>
             <div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
@@ -326,12 +324,12 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
               </div>
               <div
                 className={`font-medium text-sm ${
-                  programStatus.statusFlags.userProgramRunning
+                  programStatus?.statusFlags?.userProgramRunning
                     ? "text-green-800 dark:text-green-300"
                     : "text-gray-800 dark:text-gray-200"
                 }`}
               >
-                {programStatus.statusFlags.userProgramRunning
+                {programStatus?.statusFlags?.userProgramRunning
                   ? "Running"
                   : "Stopped"}
               </div>
@@ -342,18 +340,18 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
         {/* Battery Status */}
         <div
           className={`p-3 rounded-lg border ${
-            programStatus.statusFlags.batteryCritical
+            programStatus?.statusFlags?.batteryCritical
               ? "bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700"
-              : programStatus.statusFlags.batteryLowWarning
+              : programStatus?.statusFlags?.batteryLowWarning
                 ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-gray-700"
                 : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
           }`}
         >
           <div className="flex items-center gap-2">
             <span className="text-lg">
-              {programStatus.statusFlags.batteryCritical
+              {programStatus?.statusFlags?.batteryCritical
                 ? "🔴"
-                : programStatus.statusFlags.batteryLowWarning
+                : programStatus?.statusFlags?.batteryLowWarning
                   ? "🟡"
                   : "🟢"}
             </span>
@@ -363,16 +361,16 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
               </div>
               <div
                 className={`font-medium text-sm ${
-                  programStatus.statusFlags.batteryCritical
+                  programStatus?.statusFlags?.batteryCritical
                     ? "text-red-800 dark:text-red-300"
-                    : programStatus.statusFlags.batteryLowWarning
+                    : programStatus?.statusFlags?.batteryLowWarning
                       ? "text-yellow-800 dark:text-yellow-300"
                       : "text-gray-800 dark:text-gray-200"
                 }`}
               >
-                {programStatus.statusFlags.batteryCritical
+                {programStatus?.statusFlags?.batteryCritical
                   ? "Critical"
-                  : programStatus.statusFlags.batteryLowWarning
+                  : programStatus?.statusFlags?.batteryLowWarning
                     ? "Low"
                     : "OK"}
               </div>
@@ -383,14 +381,14 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
         {/* Power Status */}
         <div
           className={`p-3 rounded-lg border ${
-            programStatus.statusFlags.powerButtonPressed
+            programStatus?.statusFlags?.powerButtonPressed
               ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700"
               : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
           }`}
         >
           <div className="flex items-center gap-2">
             <span className="text-lg">
-              {programStatus.statusFlags.powerButtonPressed ? "⚡" : "🔋"}
+              {programStatus?.statusFlags?.powerButtonPressed ? "⚡" : "🔋"}
             </span>
             <div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
@@ -398,12 +396,12 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
               </div>
               <div
                 className={`font-medium text-sm ${
-                  programStatus.statusFlags.powerButtonPressed
+                  programStatus?.statusFlags?.powerButtonPressed
                     ? "text-yellow-800 dark:text-yellow-300"
                     : "text-gray-800 dark:text-gray-200"
                 }`}
               >
-                {programStatus.statusFlags.powerButtonPressed
+                {programStatus?.statusFlags?.powerButtonPressed
                   ? "Button Pressed"
                   : "Normal"}
               </div>
@@ -414,14 +412,14 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
         {/* Bluetooth Status */}
         <div
           className={`p-3 rounded-lg border ${
-            programStatus.statusFlags.bleAdvertising
+            programStatus?.statusFlags?.bleAdvertising
               ? "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700"
               : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
           }`}
         >
           <div className="flex items-center gap-2">
             <span className="text-lg">
-              {programStatus.statusFlags.bleAdvertising ? "📶" : "📴"}
+              {programStatus?.statusFlags?.bleAdvertising ? "📶" : "📴"}
             </span>
             <div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
@@ -429,12 +427,12 @@ function HubStatusSection({ programStatus }: HubStatusSectionProps) {
               </div>
               <div
                 className={`font-medium text-sm ${
-                  programStatus.statusFlags.bleAdvertising
+                  programStatus?.statusFlags?.bleAdvertising
                     ? "text-green-800 dark:text-green-300"
                     : "text-gray-800 dark:text-gray-200"
                 }`}
               >
-                {programStatus.statusFlags.bleAdvertising
+                {programStatus?.statusFlags?.bleAdvertising
                   ? "Advertising"
                   : "Connected"}
               </div>

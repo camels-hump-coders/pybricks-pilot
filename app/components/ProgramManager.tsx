@@ -26,6 +26,7 @@ interface ProgramManagerProps {
     selectedFile: PythonFile,
     allFiles: PythonFile[]
   ) => Promise<any>;
+  onCreateExampleProject?: () => Promise<void>;
 
   // Status
   programStatus: ProgramStatus;
@@ -52,6 +53,7 @@ export function ProgramManager({
   onStopProgram,
   onUploadAndRun,
   onCompileCode,
+  onCreateExampleProject,
   programStatus,
   isConnected,
   isUploading,
@@ -152,58 +154,62 @@ export function ProgramManager({
       <div className="p-4 space-y-6">
         {/* Directory and File Management */}
         {hasDirectoryAccess ? (
-          <FileBrowser
-            directoryName={directoryName}
-            pythonFiles={pythonFiles}
-            selectedFile={selectedFile}
-            isLoading={isPythonFilesLoading}
-            isRestoring={isRestoring}
-            error={pythonFilesError}
-            onFileSelect={handleFileSelect}
-            onRefresh={onRefreshFiles}
-            onUnmount={() => {
-              onUnmountDirectory();
-              setSelectedFile(null);
-              setProgramCode("");
-              setCompilationResult(null);
-            }}
-            onCreateFile={() => {
-              const template = generatePybricksTemplate("prime");
-              setProgramCode(template);
-              setSelectedFile(null);
-              setCompilationResult(null);
-            }}
-          />
+          <>
+            <FileBrowser
+              directoryName={directoryName}
+              pythonFiles={pythonFiles}
+              selectedFile={selectedFile}
+              isLoading={isPythonFilesLoading}
+              isRestoring={isRestoring}
+              error={pythonFilesError}
+              onFileSelect={handleFileSelect}
+              onRefresh={onRefreshFiles}
+              onUnmount={() => {
+                onUnmountDirectory();
+                setSelectedFile(null);
+                setProgramCode("");
+                setCompilationResult(null);
+              }}
+              onCreateFile={() => {
+                const template = generatePybricksTemplate("prime");
+                setProgramCode(template);
+                setSelectedFile(null);
+                setCompilationResult(null);
+              }}
+            />
+            {/* Create Example Project button if no files exist */}
+            {pythonFiles.length === 0 && onCreateExampleProject && (
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                  No Python files found in this directory. Would you like to create an example project?
+                </p>
+                <button
+                  onClick={onCreateExampleProject}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                >
+                  📝 Create Example Project
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
             <div className="text-4xl mb-4">📁</div>
             <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-2">
-              No Directory Mounted
+              Directory Required
             </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Select a directory containing your Python files to get started
+              Please mount a directory to store and manage your Python programs
             </p>
-            <div className="space-y-2">
-              <button
-                onClick={onRequestDirectoryAccess}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-              >
-                📂 Mount Directory
-              </button>
-              <p className="text-sm text-gray-500 dark:text-gray-400">or</p>
-              <button
-                onClick={() => {
-                  const template = generatePybricksTemplate("prime");
-                  setProgramCode(template);
-                  setSelectedFile(null);
-                  setCompilationResult(null);
-                }}
-                className="px-4 py-2 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
-                title="Create a demo program with PybricksPilot auto-instrumentation"
-              >
-                📝 Start with Template
-              </button>
-            </div>
+            <button
+              onClick={onRequestDirectoryAccess}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              📂 Mount Directory
+            </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Your files will be saved directly to your local filesystem
+            </p>
           </div>
         )}
 

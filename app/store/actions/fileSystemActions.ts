@@ -148,6 +148,25 @@ export const createFileAtom = atom(
   }
 );
 
+// Create example project action
+export const createExampleProjectAtom = atom(
+  null,
+  async (get, set) => {
+    const directoryHandle = get(directoryHandleAtom);
+    if (!directoryHandle) throw new Error("No directory selected");
+
+    try {
+      await fileSystemService.createExampleProject(directoryHandle);
+      // Refresh file list to show the new example directory
+      await set(refreshPythonFilesAtom);
+      return true;
+    } catch (error) {
+      console.error("Failed to create example project:", error);
+      throw error;
+    }
+  }
+);
+
 // Clear persisted data action
 export const clearPersistedDataAtom = atom(null, async (get, set) => {
   try {

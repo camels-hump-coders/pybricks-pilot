@@ -24,6 +24,7 @@ import {
   readFileAtom,
   writeFileAtom,
   createFileAtom,
+  createExampleProjectAtom,
   clearPersistedDataAtom,
   getFileContentAtom,
 } from "../store/actions/fileSystemActions";
@@ -59,6 +60,7 @@ export function useJotaiFileSystem() {
   const readFile = useSetAtom(readFileAtom);
   const writeFile = useSetAtom(writeFileAtom);
   const createFile = useSetAtom(createFileAtom);
+  const createExampleProject = useSetAtom(createExampleProjectAtom);
   const unmountDirectory = useSetAtom(unmountDirectoryAtom);
   const clearPersistedData = useSetAtom(clearPersistedDataAtom);
   const getFileContentAction = useSetAtom(getFileContentAtom);
@@ -121,6 +123,7 @@ export function useJotaiFileSystem() {
     readFile,
     writeFile,
     createFile,
+    createExampleProject,
     getFileContent,
     
     // Browser support
