@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
@@ -102,6 +102,13 @@ export function CompactRobotController({
   const [motorAngle, setMotorAngle] = useState(90);
   const [activeMotor, setActiveMotor] = useState<string | null>(null);
 
+  // Command execution tracking for dynamic stop buttons
+  const [executingCommand, setExecutingCommand] = useState<{
+    type: "drive" | "turn" | null;
+    direction: "forward" | "backward" | "left" | "right" | null;
+    originalParams?: { distance?: number; angle?: number; speed?: number };
+  } | null>(null);
+
   // Preview state
   const [hoveredControl, setHoveredControl] = useState<{
     type: "drive" | "turn" | null;
@@ -114,6 +121,61 @@ export function CompactRobotController({
   >(null);
 
   const commandChainRef = useRef<Promise<any>>(Promise.resolve());
+
+  // Effect to handle preview state when executingCommand changes
+  useEffect(() => {
+    if (executingCommand && hoveredControl) {
+      // Command started: show perpendicular preview for stop button
+      updateStopButtonPreview(true);
+    } else if (!executingCommand && hoveredControl) {
+      // Command completed: update preview to show next step from current robot position
+      // Use the last known hovered control state
+      const { type, direction } = hoveredControl;
+      if (onPreviewUpdate && currentRobotPosition && type && direction) {
+        const previewPosition = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          angle,
+          type,
+          direction,
+          robotConfig
+        );
+
+        const trajectoryProjection = calculateTrajectoryProjection(
+          currentRobotPosition,
+          distance,
+          angle,
+          type,
+          direction,
+          2356,
+          1137,
+          robotConfig
+        );
+
+        onPreviewUpdate({
+          type,
+          direction,
+          positions: {
+            primary: previewPosition,
+            secondary: null,
+          },
+          trajectoryProjection,
+        });
+
+        setPerpendicularPreview({
+          show: false,
+          activeMovementType: null,
+          hoveredButtonType: null,
+          hoveredDirection: null,
+          distance,
+          angle,
+        });
+      }
+    } else if (!executingCommand) {
+      // Command completed and no hover: clear all previews
+      updateStopButtonPreview(false);
+    }
+  }, [executingCommand]); // Only depend on executingCommand to avoid infinite loop
 
   // Check if we have both connection and telemetry data (meaning control code is loaded)
   const hasControlCode = isConnected && telemetryData?.motors;
@@ -666,20 +728,37 @@ export function CompactRobotController({
           <div className="grid grid-cols-3 gap-2 mb-2 sm:mb-3">
             <div></div>
             {controlMode === "incremental" ? (
-              <button
-                onClick={() => sendStepDrive(distance, driveSpeed)}
-                onMouseEnter={() => updatePreview("drive", "forward")}
-                onMouseLeave={() => updatePreview(null, null)}
-                className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors flex items-center justify-center"
-                title={`Forward ${distance}mm`}
-              >
-                ↑
-              </button>
+              executingCommand?.type === "drive" && executingCommand?.direction === "forward" ? (
+                <button
+                  onClick={stopExecutingCommand}
+                  onMouseEnter={() => updateStopButtonPreview(true)}
+                  onMouseLeave={() => updateStopButtonPreview(false)}
+                  className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+                  title={`Stop forward movement (${executingCommand.originalParams?.distance}mm)`}
+                >
+                  ⏹
+                </button>
+              ) : (
+                <button
+                  onClick={() => sendStepDrive(distance, driveSpeed)}
+                  onMouseEnter={() => updatePreview("drive", "forward")}
+                  onMouseLeave={() => updatePreview(null, null)}
+                  className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors flex items-center justify-center"
+                  title={`Forward ${distance}mm`}
+                  disabled={!!executingCommand}
+                >
+                  ↑
+                </button>
+              )
             ) : (
               <button
                 onMouseDown={() => startContinuousDrive("forward")}
                 onMouseUp={stopContinuousDrive}
-                onMouseLeave={stopContinuousDrive}
+                onMouseEnter={() => updateContinuousButtonPreview(true)}
+                onMouseLeave={() => {
+                  updateContinuousButtonPreview(false);
+                  stopContinuousDrive();
+                }}
                 onTouchStart={() => startContinuousDrive("forward")}
                 onTouchEnd={stopContinuousDrive}
                 className="px-3 py-3 bg-green-500 text-white text-sm rounded hover:bg-green-600 active:bg-green-700 transition-colors flex items-center justify-center"
@@ -691,20 +770,37 @@ export function CompactRobotController({
             <div></div>
 
             {controlMode === "incremental" ? (
-              <button
-                onClick={() => sendStepTurn(-angle, driveSpeed)}
-                onMouseEnter={() => updatePreview("turn", "left")}
-                onMouseLeave={() => updatePreview(null, null)}
-                className="px-3 py-3 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors flex items-center justify-center"
-                title={`Turn ${angle}° left`}
-              >
-                ↶
-              </button>
+              executingCommand?.type === "turn" && executingCommand?.direction === "left" ? (
+                <button
+                  onClick={stopExecutingCommand}
+                  onMouseEnter={() => updateStopButtonPreview(true)}
+                  onMouseLeave={() => updateStopButtonPreview(false)}
+                  className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+                  title={`Stop left turn (${executingCommand.originalParams?.angle}°)`}
+                >
+                  ⏹
+                </button>
+              ) : (
+                <button
+                  onClick={() => sendStepTurn(-angle, driveSpeed)}
+                  onMouseEnter={() => updatePreview("turn", "left")}
+                  onMouseLeave={() => updatePreview(null, null)}
+                  className="px-3 py-3 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors flex items-center justify-center"
+                  title={`Turn ${angle}° left`}
+                  disabled={!!executingCommand}
+                >
+                  ↶
+                </button>
+              )
             ) : (
               <button
                 onMouseDown={() => startContinuousTurn("left")}
                 onMouseUp={stopContinuousTurn}
-                onMouseLeave={stopContinuousTurn}
+                onMouseEnter={() => updateContinuousButtonPreview(true)}
+                onMouseLeave={() => {
+                  updateContinuousButtonPreview(false);
+                  stopContinuousTurn();
+                }}
                 onTouchStart={() => startContinuousTurn("left")}
                 onTouchEnd={stopContinuousTurn}
                 className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 active:bg-blue-700 transition-colors flex items-center justify-center"
@@ -743,20 +839,37 @@ export function CompactRobotController({
               ⏹
             </button>
             {controlMode === "incremental" ? (
-              <button
-                onClick={() => sendStepTurn(angle, driveSpeed)}
-                onMouseEnter={() => updatePreview("turn", "right")}
-                onMouseLeave={() => updatePreview(null, null)}
-                className="px-3 py-3 bg-cyan-600 text-white text-sm rounded hover:bg-cyan-700 transition-colors flex items-center justify-center"
-                title={`Turn ${angle}° right`}
-              >
-                ↷
-              </button>
+              executingCommand?.type === "turn" && executingCommand?.direction === "right" ? (
+                <button
+                  onClick={stopExecutingCommand}
+                  onMouseEnter={() => updateStopButtonPreview(true)}
+                  onMouseLeave={() => updateStopButtonPreview(false)}
+                  className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+                  title={`Stop right turn (${executingCommand.originalParams?.angle}°)`}
+                >
+                  ⏹
+                </button>
+              ) : (
+                <button
+                  onClick={() => sendStepTurn(angle, driveSpeed)}
+                  onMouseEnter={() => updatePreview("turn", "right")}
+                  onMouseLeave={() => updatePreview(null, null)}
+                  className="px-3 py-3 bg-cyan-600 text-white text-sm rounded hover:bg-cyan-700 transition-colors flex items-center justify-center"
+                  title={`Turn ${angle}° right`}
+                  disabled={!!executingCommand}
+                >
+                  ↷
+                </button>
+              )
             ) : (
               <button
                 onMouseDown={() => startContinuousTurn("right")}
                 onMouseUp={stopContinuousTurn}
-                onMouseLeave={stopContinuousTurn}
+                onMouseEnter={() => updateContinuousButtonPreview(true)}
+                onMouseLeave={() => {
+                  updateContinuousButtonPreview(false);
+                  stopContinuousTurn();
+                }}
                 onTouchStart={() => startContinuousTurn("right")}
                 onTouchEnd={stopContinuousTurn}
                 className="px-3 py-3 bg-cyan-500 text-white text-sm rounded hover:bg-cyan-600 active:bg-cyan-700 transition-colors flex items-center justify-center"
@@ -768,20 +881,37 @@ export function CompactRobotController({
 
             <div></div>
             {controlMode === "incremental" ? (
-              <button
-                onClick={() => sendStepDrive(-distance, driveSpeed)}
-                onMouseEnter={() => updatePreview("drive", "backward")}
-                onMouseLeave={() => updatePreview(null, null)}
-                className="px-3 py-3 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors flex items-center justify-center"
-                title={`Backward ${distance}mm`}
-              >
-                ↓
-              </button>
+              executingCommand?.type === "drive" && executingCommand?.direction === "backward" ? (
+                <button
+                  onClick={stopExecutingCommand}
+                  onMouseEnter={() => updateStopButtonPreview(true)}
+                  onMouseLeave={() => updateStopButtonPreview(false)}
+                  className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+                  title={`Stop backward movement (${executingCommand.originalParams?.distance}mm)`}
+                >
+                  ⏹
+                </button>
+              ) : (
+                <button
+                  onClick={() => sendStepDrive(-distance, driveSpeed)}
+                  onMouseEnter={() => updatePreview("drive", "backward")}
+                  onMouseLeave={() => updatePreview(null, null)}
+                  className="px-3 py-3 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors flex items-center justify-center"
+                  title={`Backward ${distance}mm`}
+                  disabled={!!executingCommand}
+                >
+                  ↓
+                </button>
+              )
             ) : (
               <button
                 onMouseDown={() => startContinuousDrive("backward")}
                 onMouseUp={stopContinuousDrive}
-                onMouseLeave={stopContinuousDrive}
+                onMouseEnter={() => updateContinuousButtonPreview(true)}
+                onMouseLeave={() => {
+                  updateContinuousButtonPreview(false);
+                  stopContinuousDrive();
+                }}
                 onTouchStart={() => startContinuousDrive("backward")}
                 onTouchEnd={stopContinuousDrive}
                 className="px-3 py-3 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 active:bg-orange-700 transition-colors flex items-center justify-center"
@@ -958,25 +1088,56 @@ export function CompactRobotController({
     });
   }
 
-  // Helper functions for step-mode commands
-  function sendStepDrive(distance: number, speed: number) {
+  // Helper functions for step-mode commands with execution tracking
+  async function sendStepDrive(distance: number, speed: number) {
     if (!isFullyConnected) {
       console.warn(
         "Robot controls disabled: Hub not connected or control code not loaded"
       );
       return;
     }
-    onDriveCommand?.(distance, speed);
+    
+    const direction = distance > 0 ? "forward" : "backward";
+    setExecutingCommand({
+      type: "drive",
+      direction,
+      originalParams: { distance: Math.abs(distance), speed }
+    });
+    
+    try {
+      await onDriveCommand?.(distance, speed);
+    } finally {
+      setExecutingCommand(null);
+    }
   }
 
-  function sendStepTurn(angle: number, speed: number) {
+  async function sendStepTurn(angle: number, speed: number) {
     if (!isFullyConnected) {
       console.warn(
         "Robot controls disabled: Hub not connected or control code not loaded"
       );
       return;
     }
-    onTurnCommand?.(angle, speed);
+    
+    const direction = angle > 0 ? "right" : "left";
+    setExecutingCommand({
+      type: "turn",
+      direction,
+      originalParams: { angle: Math.abs(angle), speed }
+    });
+    
+    try {
+      await onTurnCommand?.(angle, speed);
+    } finally {
+      setExecutingCommand(null);
+    }
+  }
+
+  function stopExecutingCommand() {
+    if (executingCommand) {
+      sendStop();
+      setExecutingCommand(null);
+    }
   }
 
   function sendStop() {
@@ -1039,6 +1200,59 @@ export function CompactRobotController({
         await onMotorStopCommand?.(activeMotor);
       });
       setActiveMotor(null);
+    }
+  }
+
+  // Stop button preview function that behaves like the central stop button
+  function updateStopButtonPreview(show: boolean) {
+    if (show && executingCommand?.originalParams) {
+      const originalDistance = executingCommand.originalParams.distance || distance;
+      const originalAngle = executingCommand.originalParams.angle || angle;
+      
+      // Show perpendicular previews just like the central stop button
+      setPerpendicularPreview({
+        show: true,
+        activeMovementType: null,
+        hoveredButtonType: "drive", // Show both drive and turn options
+        hoveredDirection: "forward",
+        distance: originalDistance,
+        angle: originalAngle,
+      });
+    } else {
+      // Clear perpendicular previews when leaving stop button
+      setPerpendicularPreview({
+        show: false,
+        activeMovementType: null,
+        hoveredButtonType: null,
+        hoveredDirection: null,
+        distance,
+        angle,
+      });
+    }
+  }
+
+  // Continuous mode preview function that shows perpendicular preview
+  function updateContinuousButtonPreview(show: boolean) {
+    if (show) {
+      // Show perpendicular previews for continuous mode buttons
+      setPerpendicularPreview({
+        show: true,
+        activeMovementType: null,
+        hoveredButtonType: "drive", // Show both drive and turn options
+        hoveredDirection: "forward",
+        distance,
+        angle,
+      });
+    } else {
+      // Clear perpendicular previews when leaving button
+      setPerpendicularPreview({
+        show: false,
+        activeMovementType: null,
+        hoveredButtonType: null,
+        hoveredDirection: null,
+        distance,
+        angle,
+      });
     }
   }
 
