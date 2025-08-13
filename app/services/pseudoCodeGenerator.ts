@@ -36,9 +36,19 @@ export interface RawTelemetryPoint {
 }
 
 class PseudoCodeGeneratorService {
-  private readonly MIN_DISTANCE_THRESHOLD = 3;
-  private readonly MIN_HEADING_THRESHOLD = 3;
+  private readonly MIN_DISTANCE_THRESHOLD = 10;
+  private readonly MIN_HEADING_THRESHOLD = 5;
 
+  /**
+   * This service generates pseudo code from robot telemetry data.
+   *
+   * Key features:
+   * - Accumulates small telemetry changes that don't meet thresholds
+   * - When switching between command types (drive/turn), applies accumulated deltas
+   *   to the previous command before starting a new one
+   * - Ensures small movements are captured even when they occur during transitions
+   * - Handles both distance and heading changes intelligently
+   */
   /**
    * Generate pseudo code from telemetry path
    */
@@ -142,6 +152,10 @@ class PseudoCodeGeneratorService {
     let startPosition = telemetryPoints[0];
     let endPosition = telemetryPoints[telemetryPoints.length - 1];
 
+    // Track accumulated deltas that don't meet thresholds
+    let accumulatedDistance = 0;
+    let accumulatedHeading = 0;
+
     // Process points in pairs to detect movements
     for (let i = 1; i < telemetryPoints.length; i++) {
       const prevPoint = telemetryPoints[i - 1];
@@ -176,10 +190,14 @@ class PseudoCodeGeneratorService {
 
       const timeDelta = currentPoint.timestamp - prevPoint.timestamp;
 
+      // Accumulate deltas that don't meet thresholds
+      accumulatedDistance += deltaDistance;
+      accumulatedHeading += deltaHeading;
+
       // Determine if this is a significant movement
       const isSignificantMovement =
-        Math.abs(deltaDistance) >= this.MIN_DISTANCE_THRESHOLD ||
-        Math.abs(deltaHeading) >= this.MIN_HEADING_THRESHOLD;
+        Math.abs(accumulatedDistance) >= this.MIN_DISTANCE_THRESHOLD ||
+        Math.abs(accumulatedHeading) >= this.MIN_HEADING_THRESHOLD;
 
       if (isSignificantMovement) {
         // First, finalize any current command that's being built
@@ -188,14 +206,43 @@ class PseudoCodeGeneratorService {
           currentCommand = null;
         }
 
-        // Start new command
-        const movementType = this.determineMovementType(
-          deltaDistance,
-          deltaHeading
+        // Determine the new movement type
+        const lastCommandType =
+          commands.length > 0 ? commands[commands.length - 1].type : undefined;
+        const movementType = this.determineMovementTypeForSwitch(
+          accumulatedDistance,
+          accumulatedHeading,
+          lastCommandType
         );
+
+        // Check if we're switching command types
+        const isSwitching = this.isCommandTypeSwitching(
+          movementType,
+          lastCommandType
+        );
+
+        // Apply accumulated deltas to the previous command if we're switching command types
+        let deltasToUse = {
+          distance: accumulatedDistance,
+          heading: accumulatedHeading,
+        };
+        if (isSwitching) {
+          const updatedDeltas = this.applyAccumulatedDeltasToPreviousCommand(
+            commands,
+            accumulatedDistance,
+            accumulatedHeading,
+            currentPoint.timestamp
+          );
+          deltasToUse = {
+            distance: updatedDeltas.updatedDistance,
+            heading: updatedDeltas.updatedHeading,
+          };
+        }
+
+        // Start new command with the remaining deltas
         const initialDirection = this.determineDirectionFromRaw(
-          deltaDistance,
-          deltaHeading
+          deltasToUse.distance,
+          deltasToUse.heading
         );
 
         currentCommand = {
@@ -206,22 +253,76 @@ class PseudoCodeGeneratorService {
           // For turn commands, we'll set startHeading in updateCurrentCommandFromRaw
         };
 
-        // Update current command based on raw telemetry
+        // Update current command based on remaining telemetry
         this.updateCurrentCommandFromRaw(
           currentCommand,
-          deltaDistance,
-          deltaHeading,
+          deltasToUse.distance,
+          deltasToUse.heading,
           timeDelta,
           currentPoint
         );
 
-        totalDistance += Math.abs(deltaDistance);
+        totalDistance += Math.abs(deltasToUse.distance);
+
+        // Reset accumulated deltas after using them
+        accumulatedDistance = 0;
+        accumulatedHeading = 0;
       }
     }
 
     // Add final command if exists
     if (currentCommand) {
       commands.push(currentCommand);
+    }
+
+    // Apply any remaining accumulated deltas to the last command if it exists
+    if (
+      commands.length > 0 &&
+      (Math.abs(accumulatedDistance) > 0 || Math.abs(accumulatedHeading) > 0)
+    ) {
+      const { updatedDistance, updatedHeading } =
+        this.applyAccumulatedDeltasToPreviousCommand(
+          commands,
+          accumulatedDistance,
+          accumulatedHeading,
+          endPosition.timestamp
+        );
+
+      // If there are still remaining deltas after applying to the previous command,
+      // create a new command for them
+      if (Math.abs(updatedDistance) > 0 || Math.abs(updatedHeading) > 0) {
+        const accumulatedMovementType = this.determineMovementType(
+          updatedDistance,
+          updatedHeading
+        );
+
+        const newCommand: MovementCommand = {
+          type: accumulatedMovementType,
+          timestamp: endPosition.timestamp,
+          isCmdKeyPressed: false, // These are typically small corrections
+          direction: this.determineDirectionFromRaw(
+            updatedDistance,
+            updatedHeading
+          ),
+        };
+
+        if (accumulatedMovementType === "drive") {
+          newCommand.distance = updatedDistance;
+          totalDistance += Math.abs(updatedDistance);
+        } else {
+          newCommand.angle = updatedHeading;
+          if (endPosition.hub?.imu?.heading !== undefined) {
+            newCommand.targetHeading = this.normalizeHeading(
+              endPosition.hub.imu.heading
+            );
+            newCommand.startHeading = this.normalizeHeading(
+              endPosition.hub.imu.heading - updatedHeading
+            );
+          }
+        }
+
+        commands.push(newCommand);
+      }
     }
 
     // Summarize commands by combining sequential commands of the same type
@@ -426,6 +527,46 @@ class PseudoCodeGeneratorService {
   }
 
   /**
+   * Determine the type of movement when switching between command types
+   * This method prioritizes the more significant movement type
+   */
+  private determineMovementTypeForSwitch(
+    deltaDistance: number,
+    deltaHeading: number,
+    lastCommandType?: "drive" | "turn"
+  ): "drive" | "turn" {
+    const distanceMagnitude = Math.abs(deltaDistance);
+    const headingMagnitude = Math.abs(deltaHeading);
+
+    // If both are significant, choose the one with larger magnitude
+    if (
+      distanceMagnitude >= this.MIN_DISTANCE_THRESHOLD &&
+      headingMagnitude >= this.MIN_HEADING_THRESHOLD
+    ) {
+      // Convert heading to approximate distance for comparison (rough approximation)
+      // Assuming a typical robot wheelbase, 1 degree ≈ 2-3mm of arc movement
+      const headingAsDistance = headingMagnitude * 2.5; // Approximate conversion
+
+      if (headingAsDistance > distanceMagnitude) {
+        return "turn";
+      } else {
+        return "drive";
+      }
+    }
+
+    // If only one is significant, use that type
+    if (headingMagnitude >= this.MIN_HEADING_THRESHOLD) {
+      return "turn";
+    }
+    if (distanceMagnitude >= this.MIN_DISTANCE_THRESHOLD) {
+      return "drive";
+    }
+
+    // Fallback to last command type if available, otherwise drive
+    return lastCommandType || "drive";
+  }
+
+  /**
    * Determine the direction of movement from raw telemetry data
    */
   private determineDirectionFromRaw(
@@ -479,6 +620,80 @@ class PseudoCodeGeneratorService {
     }
 
     command.duration = (command.duration || 0) + timeDelta;
+  }
+
+  /**
+   * Detect if we're switching between command types
+   */
+  private isCommandTypeSwitching(
+    currentType: "drive" | "turn",
+    lastCommandType?: "drive" | "turn"
+  ): boolean {
+    return lastCommandType !== undefined && lastCommandType !== currentType;
+  }
+
+  /**
+   * Apply accumulated deltas to the previous command when switching command types
+   * This ensures small telemetry changes are captured before starting a new command
+   */
+  private applyAccumulatedDeltasToPreviousCommand(
+    commands: MovementCommand[],
+    accumulatedDistance: number,
+    accumulatedHeading: number,
+    currentTimestamp: number
+  ): { updatedDistance: number; updatedHeading: number } {
+    if (commands.length === 0) {
+      return {
+        updatedDistance: accumulatedDistance,
+        updatedHeading: accumulatedHeading,
+      };
+    }
+
+    const lastCommand = commands[commands.length - 1];
+    let updatedDistance = accumulatedDistance;
+    let updatedHeading = accumulatedHeading;
+
+    // Apply accumulated deltas to the last command if they're of the same type
+    if (lastCommand.type === "drive" && Math.abs(accumulatedDistance) > 0) {
+      const currentDistance = lastCommand.distance || 0;
+      const newTotalDistance = currentDistance + accumulatedDistance;
+      lastCommand.distance = newTotalDistance;
+      lastCommand.direction = newTotalDistance >= 0 ? "forward" : "backward";
+
+      // Update duration if we have timestamp information
+      if (lastCommand.timestamp && currentTimestamp) {
+        lastCommand.duration =
+          (lastCommand.duration || 0) +
+          (currentTimestamp - lastCommand.timestamp);
+      }
+
+      updatedDistance = 0; // Reset since we've applied it
+    } else if (
+      lastCommand.type === "turn" &&
+      Math.abs(accumulatedHeading) > 0
+    ) {
+      const currentAngle = lastCommand.angle || 0;
+      const newTotalAngle = currentAngle + accumulatedHeading;
+      lastCommand.angle = newTotalAngle;
+
+      // Recalculate target heading based on accumulated angle change
+      if (lastCommand.startHeading !== undefined) {
+        lastCommand.targetHeading = this.normalizeHeading(
+          lastCommand.startHeading + newTotalAngle
+        );
+      }
+
+      // Update duration if we have timestamp information
+      if (lastCommand.timestamp && currentTimestamp) {
+        lastCommand.duration =
+          (lastCommand.duration || 0) +
+          (currentTimestamp - lastCommand.timestamp);
+      }
+
+      updatedHeading = 0; // Reset since we've applied it
+    }
+
+    return { updatedDistance, updatedHeading };
   }
 }
 
