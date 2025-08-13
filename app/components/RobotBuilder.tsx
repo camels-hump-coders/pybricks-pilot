@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import type { RobotConfig } from "../schemas/RobotConfig";
-import { DEFAULT_ROBOT_CONFIG, studsToMm } from "../schemas/RobotConfig";
+import { DEFAULT_ROBOT_CONFIG, studsToMm, calculateCenterOfRotation } from "../schemas/RobotConfig";
 import { robotConfigStorage } from "../services/robotConfigStorage";
 
 interface RobotBuilderProps {
@@ -37,6 +37,20 @@ export function RobotBuilder({
       loadFromWorkingDirectory();
     }
   }, [directoryHandle]);
+
+  // Automatically recalculate center of rotation when robot dimensions or wheel positions change
+  useEffect(() => {
+    const updatedCenterOfRotation = calculateCenterOfRotation(config);
+    if (
+      config.centerOfRotation.distanceFromLeftEdge !== updatedCenterOfRotation.distanceFromLeftEdge ||
+      config.centerOfRotation.distanceFromBack !== updatedCenterOfRotation.distanceFromBack
+    ) {
+      setConfig((prev) => ({
+        ...prev,
+        centerOfRotation: updatedCenterOfRotation,
+      }));
+    }
+  }, [config.dimensions.width, config.dimensions.length, config.wheels.left.distanceFromEdge, config.wheels.left.distanceFromBack]);
 
   const loadSavedConfigs = async () => {
     try {

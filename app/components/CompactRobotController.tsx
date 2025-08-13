@@ -2,6 +2,7 @@ import { useAtomValue } from "jotai";
 import { useRef, useState } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
+import { robotConfigAtom } from "../store/atoms/robotConfig";
 import { calculatePreviewPosition, calculateTrajectoryProjection } from "./MovementPreview";
 
 type ControlMode = "incremental" | "continuous";
@@ -73,6 +74,7 @@ export function CompactRobotController({
 }: CompactRobotControllerProps) {
   // Get current robot position from Jotai
   const currentRobotPosition = useAtomValue(robotPositionAtom);
+  const robotConfig = useAtomValue(robotConfigAtom);
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
   const [driveSpeed, setDriveSpeed] = useState(50);
   const [distance, setDistance] = useState(100);
@@ -297,14 +299,16 @@ export function CompactRobotController({
                         currentValue,
                         angle,
                         "drive",
-                        "forward"
+                        "forward",
+                        robotConfig
                       );
                       const backwardPosition = calculatePreviewPosition(
                         currentRobotPosition,
                         currentValue,
                         angle,
                         "drive",
-                        "backward"
+                        "backward",
+                        robotConfig
                       );
                       
                       // Calculate trajectory projections for both directions
@@ -313,14 +317,20 @@ export function CompactRobotController({
                         currentValue,
                         angle,
                         "drive",
-                        "forward"
+                        "forward",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       const backwardTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
                         currentValue,
                         angle,
                         "drive",
-                        "backward"
+                        "backward",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       
                       onPreviewUpdate({
@@ -345,14 +355,16 @@ export function CompactRobotController({
                         distance,
                         angle,
                         "drive",
-                        "forward"
+                        "forward",
+                        robotConfig
                       );
                       const backwardPosition = calculatePreviewPosition(
                         currentRobotPosition,
                         distance,
                         angle,
                         "drive",
-                        "backward"
+                        "backward",
+                        robotConfig
                       );
                       
                       // Calculate trajectory projections for both directions
@@ -361,14 +373,20 @@ export function CompactRobotController({
                         distance,
                         angle,
                         "drive",
-                        "forward"
+                        "forward",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       const backwardTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
                         distance,
                         angle,
                         "drive",
-                        "backward"
+                        "backward",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       
                       onPreviewUpdate({
@@ -427,14 +445,16 @@ export function CompactRobotController({
                         distance,
                         currentValue,
                         "turn",
-                        "left"
+                        "left",
+                        robotConfig
                       );
                       const rightPosition = calculatePreviewPosition(
                         currentRobotPosition,
                         distance,
                         currentValue,
                         "turn",
-                        "right"
+                        "right",
+                        robotConfig
                       );
                       
                       // Calculate trajectory projections for both directions
@@ -443,14 +463,20 @@ export function CompactRobotController({
                         distance,
                         currentValue,
                         "turn",
-                        "left"
+                        "left",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       const rightTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
                         distance,
                         currentValue,
                         "turn",
-                        "right"
+                        "right",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       
                       onPreviewUpdate({
@@ -474,14 +500,16 @@ export function CompactRobotController({
                         distance,
                         angle,
                         "turn",
-                        "left"
+                        "left",
+                        robotConfig
                       );
                       const rightPosition = calculatePreviewPosition(
                         currentRobotPosition,
                         distance,
                         angle,
                         "turn",
-                        "right"
+                        "right",
+                        robotConfig
                       );
                       
                       // Calculate trajectory projections for both directions
@@ -490,14 +518,20 @@ export function CompactRobotController({
                         distance,
                         angle,
                         "turn",
-                        "left"
+                        "left",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       const rightTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
                         distance,
                         angle,
                         "turn",
-                        "right"
+                        "right",
+                        2356,
+                        1137,
+                        robotConfig
                       );
                       
                       onPreviewUpdate({
@@ -902,7 +936,8 @@ export function CompactRobotController({
         distance,
         angle,
         type,
-        direction
+        direction,
+        robotConfig
       );
 
       // Calculate trajectory projection
@@ -911,7 +946,10 @@ export function CompactRobotController({
         distance,
         angle,
         type,
-        direction
+        direction,
+        2356,
+        1137,
+        robotConfig
       );
 
       // Button hovers only show single preview for that direction

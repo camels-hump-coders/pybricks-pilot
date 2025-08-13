@@ -56,18 +56,22 @@ export const calculateRobotPosition = (
 ): RobotPosition => {
   const robotWidthMm = studsToMm(robotConfig.dimensions.width);
   const robotLengthMm = studsToMm(robotConfig.dimensions.length);
+  
+  // For edge positions, we want the robot's physical edge to be flush against the mat edge
+  // The position coordinates represent the robot's center point, so we need to account for
+  // the robot's dimensions when calculating flush positions
 
   switch (position) {
     case "bottom-right":
       return {
-        x: MAT_WIDTH_MM - (robotWidthMm / 2), // Flush against right edge
-        y: robotLengthMm / 2, // Flush against bottom edge
+        x: MAT_WIDTH_MM - (robotWidthMm / 2), // Robot center, accounting for half width from right edge
+        y: robotLengthMm / 2, // Robot center, accounting for half length from bottom edge
         heading: 0, // Facing north (forward)
       };
     case "bottom-left":
       return {
-        x: robotWidthMm / 2, // Flush against left edge
-        y: robotLengthMm / 2, // Flush against bottom edge
+        x: robotWidthMm / 2, // Robot center, accounting for half width from left edge
+        y: robotLengthMm / 2, // Robot center, accounting for half length from bottom edge
         heading: 0, // Facing north (forward)
       };
     case "center":

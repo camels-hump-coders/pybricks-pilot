@@ -634,9 +634,21 @@ export function EnhancedCompetitionMat({
     const pos = mmToCanvas(position.x, position.y);
     const heading = (position.heading * Math.PI) / 180;
 
+    // Calculate center of rotation offset from robot center
+    const robotCenterX = robotConfig.dimensions.width / 2; // Center of robot width in studs
+    const robotCenterY = robotConfig.dimensions.length / 2; // Center of robot length in studs
+    const centerOfRotationX = robotConfig.centerOfRotation.distanceFromLeftEdge; // In studs from left edge
+    const centerOfRotationY = robotConfig.centerOfRotation.distanceFromBack; // In studs from back edge
+    
+    // Calculate offset from robot center to center of rotation (in mm, scaled)
+    const centerOffsetX = (centerOfRotationX - robotCenterX) * LEGO_STUD_SIZE_MM * scale;
+    const centerOffsetY = (centerOfRotationY - robotCenterY) * LEGO_STUD_SIZE_MM * scale;
+
     ctx.save();
     ctx.translate(pos.x, pos.y);
     ctx.rotate(heading);
+    // NOTE: Do NOT translate to center of rotation for drawing the robot body
+    // The robot body should be drawn relative to the robot center (current position)
 
     const robotWidth = robotConfig.dimensions.width * 8 * scale; // Convert studs to mm
     const robotLength = robotConfig.dimensions.length * 8 * scale; // Convert studs to mm
@@ -682,9 +694,9 @@ export function EnhancedCompetitionMat({
         robotLength
       );
 
-      // Wheels - bright white, convert edge-based positioning to mm
-      const wheelWidth = robotConfig.wheels.left.width * scale;
-      const wheelDiameter = robotConfig.wheels.left.diameter * scale;
+      // Wheels - bright white, match Robot Builder sizing
+      const wheelWidth = (robotConfig.wheels.left.width * scale) / 4; // Match Robot Builder scale
+      const wheelDiameter = (robotConfig.wheels.left.diameter * scale) / 4; // Match Robot Builder scale
 
       // Convert edge-based positioning to center-based coordinates
       // Wheels are positioned from edges, so we need to convert to center-based
@@ -695,8 +707,8 @@ export function EnhancedCompetitionMat({
       const leftWheelX = (-robotWidthMm / 2 + robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
       // Right wheel is distanceFromEdge studs from right edge  
       const rightWheelX = (robotWidthMm / 2 - robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
-      // Both wheels are distanceFromBack studs from back edge
-      const wheelY = (-robotLengthMm / 2 + robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
+      // Both wheels are distanceFromBack studs from back edge (bottom of robot)
+      const wheelY = (robotLengthMm / 2 - robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
 
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; // Bright white wheels
       ctx.fillRect(
@@ -735,10 +747,10 @@ export function EnhancedCompetitionMat({
       ctx.lineTo(robotWidth / 6, -robotLength / 6);
       ctx.stroke();
 
-      // Add a bright center point for preview
+      // Add a bright center point for preview at the center of rotation
       ctx.fillStyle = indicatorColor;
       ctx.beginPath();
-      ctx.arc(0, 0, 5, 0, 2 * Math.PI); // Larger center point
+      ctx.arc(centerOffsetX, -centerOffsetY, 5, 0, 2 * Math.PI); // Larger center point at center of rotation
       ctx.fill();
 
       // Add a subtle glow effect around the preview robot
@@ -752,12 +764,12 @@ export function EnhancedCompetitionMat({
       );
       ctx.shadowBlur = 0; // Reset shadow
     } else {
-      // Regular robot - keep existing styling
+      // Regular robot - use robot configuration colors
       ctx.globalAlpha = 0.75;
 
-      // Robot body
-      ctx.fillStyle = "#007bff";
-      ctx.strokeStyle = "#0056b3";
+      // Robot body - use configured colors
+      ctx.fillStyle = robotConfig.appearance.primaryColor;
+      ctx.strokeStyle = robotConfig.appearance.secondaryColor;
       ctx.lineWidth = 2;
 
       ctx.fillRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
@@ -768,9 +780,9 @@ export function EnhancedCompetitionMat({
         robotLength
       );
 
-      // Wheels - convert stud offsets to mm
-      const wheelWidth = robotConfig.wheels.left.width * scale;
-      const wheelDiameter = robotConfig.wheels.left.diameter * scale;
+      // Wheels - match Robot Builder sizing
+      const wheelWidth = (robotConfig.wheels.left.width * scale) / 4; // Match Robot Builder scale
+      const wheelDiameter = (robotConfig.wheels.left.diameter * scale) / 4; // Match Robot Builder scale
 
       // Convert edge-based positioning to center-based coordinates
       // Wheels are positioned from edges, so we need to convert to center-based
@@ -781,10 +793,10 @@ export function EnhancedCompetitionMat({
       const leftWheelX = (-robotWidthMm / 2 + robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
       // Right wheel is distanceFromEdge studs from right edge
       const rightWheelX = (robotWidthMm / 2 - robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
-      // Both wheels are distanceFromBack studs from back edge
-      const wheelY = (-robotLengthMm / 2 + robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
+      // Both wheels are distanceFromBack studs from back edge (bottom of robot)
+      const wheelY = (robotLengthMm / 2 - robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
 
-      ctx.fillStyle = "#333";
+      ctx.fillStyle = robotConfig.appearance.wheelColor;
       ctx.fillRect(
         leftWheelX - wheelWidth / 2,
         wheelY - wheelDiameter / 2,
@@ -808,10 +820,11 @@ export function EnhancedCompetitionMat({
       ctx.lineTo(robotWidth / 6, -robotLength / 6);
       ctx.stroke();
 
-      // Center point
+      // Center of rotation indicator at the actual center of rotation
+      // Draw the marker at the center of rotation offset from robot center
       ctx.fillStyle = "#ff0000";
       ctx.beginPath();
-      ctx.arc(0, 0, 3, 0, 2 * Math.PI);
+      ctx.arc(centerOffsetX, -centerOffsetY, 3, 0, 2 * Math.PI);
       ctx.fill();
     }
 

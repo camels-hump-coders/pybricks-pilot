@@ -4,13 +4,19 @@ interface RobotPosition {
   heading: number; // degrees, 0 = north/forward
 }
 
+interface RobotConfig {
+  dimensions: { width: number; length: number };
+  centerOfRotation: { distanceFromLeftEdge: number; distanceFromBack: number };
+}
+
 // Export the calculation function for use in other components
 export function calculatePreviewPosition(
   currentPosition: RobotPosition,
   distance: number,
   angle: number,
   previewType: "drive" | "turn",
-  direction: "forward" | "backward" | "left" | "right"
+  direction: "forward" | "backward" | "left" | "right",
+  robotConfig?: RobotConfig
 ): RobotPosition {
   const currentHeadingRad = (currentPosition.heading * Math.PI) / 180;
   let newX = currentPosition.x;
@@ -29,9 +35,33 @@ export function calculatePreviewPosition(
     const turnAngle = direction === "left" ? -angle : angle;
     newHeading = (currentPosition.heading + turnAngle + 360) % 360;
     
-    // For turns, we assume the robot rotates in place (no position change)
-    newX = currentPosition.x;
-    newY = currentPosition.y;
+    // For differential drive robots, turns happen around the center of rotation (wheel axle)
+    // The robot center moves in an arc around the center of rotation
+    if (robotConfig && Math.abs(turnAngle) > 0.1) {
+      // Calculate center of rotation offset from robot center (in mm)
+      const robotCenterX = robotConfig.dimensions.width / 2; // Center of robot width in studs
+      const robotCenterY = robotConfig.dimensions.length / 2; // Center of robot length in studs
+      const centerOfRotationX = robotConfig.centerOfRotation.distanceFromLeftEdge; // In studs from left edge
+      const centerOfRotationY = robotConfig.centerOfRotation.distanceFromBack; // In studs from back edge
+      
+      const centerOffsetX = (centerOfRotationX - robotCenterX) * 8; // Convert studs to mm
+      const centerOffsetY = (centerOfRotationY - robotCenterY) * 8; // Convert studs to mm
+      
+      // Calculate center of rotation position in world coordinates
+      // Note: World coordinates have Y+ pointing up, so we need to flip centerOffsetY
+      const currentHeadingRad = (currentPosition.heading * Math.PI) / 180;
+      const corWorldX = currentPosition.x + centerOffsetX * Math.cos(currentHeadingRad) - (-centerOffsetY) * Math.sin(currentHeadingRad);
+      const corWorldY = currentPosition.y + centerOffsetX * Math.sin(currentHeadingRad) + (-centerOffsetY) * Math.cos(currentHeadingRad);
+      
+      // Calculate new robot center position after rotation around center of rotation
+      const newHeadingRad = (newHeading * Math.PI) / 180;
+      newX = corWorldX - centerOffsetX * Math.cos(newHeadingRad) + (-centerOffsetY) * Math.sin(newHeadingRad);
+      newY = corWorldY - centerOffsetX * Math.sin(newHeadingRad) - (-centerOffsetY) * Math.cos(newHeadingRad);
+    } else {
+      // For very small angles or when no robot config, assume rotation in place
+      newX = currentPosition.x;
+      newY = currentPosition.y;
+    }
   }
 
   return { x: newX, y: newY, heading: newHeading };
@@ -45,7 +75,8 @@ export function calculateTrajectoryProjection(
   previewType: "drive" | "turn",
   direction: "forward" | "backward" | "left" | "right",
   boardWidth: number = 2356, // Default FLL mat width in mm
-  boardHeight: number = 1137  // Default FLL mat height in mm
+  boardHeight: number = 1137,  // Default FLL mat height in mm
+  robotConfig?: RobotConfig
 ): {
   nextMoveEnd: RobotPosition;
   boardEndProjection: RobotPosition;
@@ -57,7 +88,8 @@ export function calculateTrajectoryProjection(
     distance,
     angle,
     previewType,
-    direction
+    direction,
+    robotConfig
   );
 
   // Then, project the trajectory to the board edge based on the robot's heading
