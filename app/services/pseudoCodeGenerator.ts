@@ -36,8 +36,8 @@ export interface RawTelemetryPoint {
 }
 
 class PseudoCodeGeneratorService {
-  private readonly MIN_DISTANCE_THRESHOLD = 10;
-  private readonly MIN_HEADING_THRESHOLD = 5;
+  private readonly MIN_DISTANCE_THRESHOLD = 3;
+  private readonly MIN_HEADING_THRESHOLD = 3;
 
   /**
    * Generate pseudo code from telemetry path
