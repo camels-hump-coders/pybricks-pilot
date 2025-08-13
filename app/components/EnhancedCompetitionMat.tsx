@@ -13,6 +13,7 @@ import {
 } from "../services/telemetryHistory";
 import { calculateRobotPosition } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfig";
+import { calculatePreviewPosition, calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 
 interface RobotPosition {
@@ -153,6 +154,7 @@ export function EnhancedCompetitionMat({
     updateRobotPositionFromTelemetry,
     movementPreview,
     setMovementPreview,
+    perpendicularPreview,
     currentScore,
   } = gameMat;
 
@@ -536,12 +538,73 @@ export function EnhancedCompetitionMat({
         );
       }
     }
+
+    // Draw perpendicular preview trajectories - show ALL movement options when hovering over stop button
+    if (
+      perpendicularPreview.show &&
+      perpendicularPreview.hoveredButtonType &&
+      currentPosition &&
+      currentPosition.x > 0 &&
+      currentPosition.y > 0
+    ) {
+      // For stop button hover, show both drive and turn trajectories
+      // Drive trajectories
+      const forwardTrajectory = calculateTrajectoryProjection(
+        currentPosition,
+        perpendicularPreview.distance,
+        perpendicularPreview.angle,
+        "drive",
+        "forward",
+        2356,
+        1137,
+        robotConfig
+      );
+      const backwardTrajectory = calculateTrajectoryProjection(
+        currentPosition,
+        perpendicularPreview.distance,
+        perpendicularPreview.angle,
+        "drive",
+        "backward",
+        2356,
+        1137,
+        robotConfig
+      );
+
+      // Turn trajectories
+      const leftTrajectory = calculateTrajectoryProjection(
+        currentPosition,
+        perpendicularPreview.distance,
+        perpendicularPreview.angle,
+        "turn",
+        "left",
+        2356,
+        1137,
+        robotConfig
+      );
+      const rightTrajectory = calculateTrajectoryProjection(
+        currentPosition,
+        perpendicularPreview.distance,
+        perpendicularPreview.angle,
+        "turn",
+        "right",
+        2356,
+        1137,
+        robotConfig
+      );
+
+      // Draw all trajectory options
+      drawPerpendicularTrajectoryProjection(ctx, forwardTrajectory.trajectoryPath, "forward");
+      drawPerpendicularTrajectoryProjection(ctx, backwardTrajectory.trajectoryPath, "backward");
+      drawPerpendicularTrajectoryProjection(ctx, leftTrajectory.trajectoryPath, "left");
+      drawPerpendicularTrajectoryProjection(ctx, rightTrajectory.trajectoryPath, "right");
+    }
   }, [
     scale,
     currentPosition,
     mousePosition,
     isSettingPosition,
     movementPreview,
+    perpendicularPreview,
     pathOptions,
     hoveredObject,
     hoveredPoint,
@@ -654,7 +717,7 @@ export function EnhancedCompetitionMat({
     ctx: CanvasRenderingContext2D,
     position: RobotPosition,
     isGhost = false,
-    previewType?: "primary" | "secondary",
+    previewType?: "primary" | "secondary" | "perpendicular",
     direction?: "forward" | "backward" | "left" | "right"
   ) => {
     // SIMPLIFIED MODEL: position IS the center of rotation
@@ -689,37 +752,43 @@ export function EnhancedCompetitionMat({
     const robotLength = robotConfig.dimensions.length * 8 * scale; // Convert studs to mm
 
     if (isGhost) {
-      // Preview robot - make it highly visible with bright colors
-      ctx.globalAlpha = 0.9; // More opaque than before
+      // Different opacity and styling based on preview type
+      if (previewType === "perpendicular") {
+        // Perpendicular previews should be much more subtle
+        ctx.globalAlpha = 0.3;
+      } else {
+        // Primary/secondary previews - make them highly visible
+        ctx.globalAlpha = 0.9;
+      }
 
       // Different colors for different movement directions
       let bodyColor, borderColor;
       if (direction === "forward") {
         // Forward - subtle green (matching forward button)
-        bodyColor = "rgba(0, 255, 0, 0.15)";
+        bodyColor = previewType === "perpendicular" ? "rgba(0, 255, 0, 0.05)" : "rgba(0, 255, 0, 0.15)";
         borderColor = "#00ff00";
       } else if (direction === "backward") {
         // Backward - subtle orange (matching backward button)
-        bodyColor = "rgba(255, 165, 0, 0.15)";
+        bodyColor = previewType === "perpendicular" ? "rgba(255, 165, 0, 0.05)" : "rgba(255, 165, 0, 0.15)";
         borderColor = "#ffa500";
       } else if (direction === "left") {
         // Left - subtle purple (matching left turn button)
-        bodyColor = "rgba(128, 0, 128, 0.15)";
+        bodyColor = previewType === "perpendicular" ? "rgba(128, 0, 128, 0.05)" : "rgba(128, 0, 128, 0.15)";
         borderColor = "#800080";
       } else if (direction === "right") {
         // Right - subtle cyan (matching right turn button)
-        bodyColor = "rgba(6, 182, 212, 0.15)"; // Tailwind cyan-500
+        bodyColor = previewType === "perpendicular" ? "rgba(6, 182, 212, 0.05)" : "rgba(6, 182, 212, 0.15)";
         borderColor = "#06b6d4";
       } else {
         // Default preview - subtle cyan
-        bodyColor = "rgba(0, 255, 255, 0.15)";
+        bodyColor = previewType === "perpendicular" ? "rgba(0, 255, 255, 0.05)" : "rgba(0, 255, 255, 0.15)";
         borderColor = "#00ffff";
       }
 
       // Robot body with preview-specific colors
       ctx.fillStyle = bodyColor;
       ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 4; // Thicker border for preview
+      ctx.lineWidth = previewType === "perpendicular" ? 2 : 4; // Thinner border for perpendicular previews
 
       ctx.fillRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
       ctx.strokeRect(
@@ -956,6 +1025,58 @@ export function EnhancedCompetitionMat({
         ctx.fill();
       }
     }
+
+    ctx.restore();
+  };
+
+  // New: Draw perpendicular trajectory projection (much more subtle than primary trajectories)
+  const drawPerpendicularTrajectoryProjection = (
+    ctx: CanvasRenderingContext2D,
+    trajectoryPath: RobotPosition[],
+    direction: "forward" | "backward" | "left" | "right"
+  ) => {
+    if (trajectoryPath.length < 2) return;
+
+    ctx.save();
+
+    // Subtle but visible line style for perpendicular previews
+    let lineColor, lineWidth;
+    if (direction === "forward") {
+      lineColor = "rgba(0, 255, 0, 0.4)"; // More visible green
+      lineWidth = 3; // Thicker line for better visibility
+    } else if (direction === "backward") {
+      lineColor = "rgba(255, 165, 0, 0.4)"; // More visible orange
+      lineWidth = 3; // Thicker line for better visibility
+    } else if (direction === "left") {
+      lineColor = "rgba(128, 0, 128, 0.4)"; // More visible purple
+      lineWidth = 3; // Thicker line for better visibility
+    } else if (direction === "right") {
+      lineColor = "rgba(6, 182, 212, 0.4)"; // More visible cyan
+      lineWidth = 3; // Thicker line for better visibility
+    } else {
+      lineColor = "rgba(0, 255, 255, 0.4)"; // Default more visible cyan
+      lineWidth = 3; // Thicker line for better visibility
+    }
+
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.setLineDash([3, 3]); // Dashed line to differentiate from primary trajectories
+
+    // Draw the trajectory path
+    ctx.beginPath();
+    const startPos = mmToCanvas(trajectoryPath[0].x, trajectoryPath[0].y);
+    ctx.moveTo(startPos.x, startPos.y);
+
+    for (let i = 1; i < trajectoryPath.length; i++) {
+      const pos = mmToCanvas(trajectoryPath[i].x, trajectoryPath[i].y);
+      ctx.lineTo(pos.x, pos.y);
+    }
+
+    ctx.stroke();
+
+    // Skip the dots for perpendicular previews to keep them even more subtle
 
     ctx.restore();
   };

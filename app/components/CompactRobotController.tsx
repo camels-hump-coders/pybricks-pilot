@@ -1,5 +1,6 @@
 import { useAtomValue } from "jotai";
 import { useRef, useState } from "react";
+import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfig";
@@ -78,6 +79,9 @@ export function CompactRobotController({
   // Get current robot position from Jotai
   const currentRobotPosition = useAtomValue(robotPositionAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
+  
+  // Get perpendicular preview from Jotai
+  const { perpendicularPreview, setPerpendicularPreview } = useJotaiGameMat();
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
   const [driveSpeed, setDriveSpeed] = useState(50);
   const [distance, setDistance] = useState(100);
@@ -402,6 +406,16 @@ export function CompactRobotController({
                         trajectoryProjection: forwardTrajectory,
                         secondaryTrajectoryProjection: backwardTrajectory,
                       });
+
+                      // Don't show perpendicular previews for slider hovers
+                      setPerpendicularPreview({
+                        show: false,
+                        activeMovementType: null,
+                        hoveredButtonType: null,
+                        hoveredDirection: null,
+                        distance,
+                        angle,
+                      });
                     }
                   }}
                   onMouseLeave={() => {
@@ -416,6 +430,15 @@ export function CompactRobotController({
                         secondaryTrajectoryProjection: undefined,
                       });
                     }
+                    // Clear perpendicular preview
+                    setPerpendicularPreview({
+                      show: false,
+                      activeMovementType: null,
+                      hoveredButtonType: null,
+                      hoveredDirection: null,
+                      distance,
+                      angle,
+                    });
                   }}
                   className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                 />
@@ -547,6 +570,16 @@ export function CompactRobotController({
                         trajectoryProjection: leftTrajectory,
                         secondaryTrajectoryProjection: rightTrajectory,
                       });
+
+                      // Don't show perpendicular previews for slider hovers
+                      setPerpendicularPreview({
+                        show: false,
+                        activeMovementType: null,
+                        hoveredButtonType: null,
+                        hoveredDirection: null,
+                        distance,
+                        angle,
+                      });
                     }
                   }}
                   onMouseLeave={() => {
@@ -561,6 +594,15 @@ export function CompactRobotController({
                         secondaryTrajectoryProjection: undefined,
                       });
                     }
+                    // Clear perpendicular preview
+                    setPerpendicularPreview({
+                      show: false,
+                      activeMovementType: null,
+                      hoveredButtonType: null,
+                      hoveredDirection: null,
+                      distance,
+                      angle,
+                    });
                   }}
                   className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                 />
@@ -621,6 +663,28 @@ export function CompactRobotController({
             )}
             <button
               onClick={() => sendStop()}
+              onMouseEnter={() => {
+                // Show perpendicular previews when hovering over stop button
+                setPerpendicularPreview({
+                  show: true,
+                  activeMovementType: null,
+                  hoveredButtonType: "drive", // Show both drive and turn options
+                  hoveredDirection: "forward",
+                  distance,
+                  angle,
+                });
+              }}
+              onMouseLeave={() => {
+                // Clear perpendicular previews when leaving stop button
+                setPerpendicularPreview({
+                  show: false,
+                  activeMovementType: null,
+                  hoveredButtonType: null,
+                  hoveredDirection: null,
+                  distance,
+                  angle,
+                });
+              }}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center"
               title="Stop"
             >
@@ -966,6 +1030,16 @@ export function CompactRobotController({
         },
         trajectoryProjection,
       });
+
+      // Don't show perpendicular previews for regular movement button hovers
+      setPerpendicularPreview({
+        show: false,
+        activeMovementType: null,
+        hoveredButtonType: null,
+        hoveredDirection: null,
+        distance,
+        angle,
+      });
     } else if (onPreviewUpdate) {
       onPreviewUpdate({
         type: null,
@@ -973,6 +1047,16 @@ export function CompactRobotController({
         positions: { primary: null, secondary: null },
         trajectoryProjection: undefined,
         secondaryTrajectoryProjection: undefined,
+      });
+
+      // Clear perpendicular preview
+      setPerpendicularPreview({
+        show: false,
+        activeMovementType: null,
+        hoveredButtonType: null,
+        hoveredDirection: null,
+        distance,
+        angle,
       });
     }
   }

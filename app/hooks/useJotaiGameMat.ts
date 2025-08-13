@@ -12,6 +12,7 @@ import {
   movementPreviewAtom,
   pathColorModeAtom,
   pathOpacityAtom,
+  perpendicularPreviewAtom,
   resetScoringAtom,
   robotPositionAtom,
   scoringStateAtom,
@@ -46,6 +47,9 @@ export function useJotaiGameMat() {
 
   // Movement preview
   const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
+
+  // Perpendicular motion preview
+  const [perpendicularPreview, setPerpendicularPreview] = useAtom(perpendicularPreviewAtom);
 
   // Path visualization
   const [showPath, setShowPath] = useAtom(showPathAtom);
@@ -245,6 +249,10 @@ export function useJotaiGameMat() {
     // Movement preview
     movementPreview,
     setMovementPreview,
+
+    // Perpendicular motion preview
+    perpendicularPreview,
+    setPerpendicularPreview,
 
     // Path visualization
     showPath,

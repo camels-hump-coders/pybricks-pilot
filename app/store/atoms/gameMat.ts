@@ -120,6 +120,23 @@ export const totalScoreAtom = atom<number>(0);
 // Movement preview atom
 export const movementPreviewAtom = atom<MovementPreview | null>(null);
 
+// Perpendicular motion preview atom - for showing opposite motion during active movement
+export const perpendicularPreviewAtom = atom<{
+  show: boolean;
+  activeMovementType: "drive" | "turn" | null;
+  hoveredButtonType: "drive" | "turn" | null;
+  hoveredDirection: "forward" | "backward" | "left" | "right" | null;
+  distance: number;
+  angle: number;
+}>({
+  show: false,
+  activeMovementType: null,
+  hoveredButtonType: null,
+  hoveredDirection: null,
+  distance: 100,
+  angle: 45,
+});
+
 // Path visualization atoms
 export const showPathAtom = atom<boolean>(true);
 export const pathColorModeAtom = atom<"time" | "speed" | "heading">("time");
