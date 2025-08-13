@@ -1,12 +1,12 @@
 import { atom } from "jotai";
-import type { GameMatConfig, Mission } from "../../schemas/GameMatConfig";
+import type { GameMatConfig } from "../../schemas/GameMatConfig";
 import type { RobotConfig } from "../../schemas/RobotConfig";
-import { studsToMm, DEFAULT_ROBOT_CONFIG } from "../../schemas/RobotConfig";
+import { DEFAULT_ROBOT_CONFIG, studsToMm } from "../../schemas/RobotConfig";
 
 export interface RobotPosition {
-  x: number; // mm from left edge of mat (0 = left edge)
-  y: number; // mm from bottom edge of mat (0 = bottom edge, positive = upward)
-  heading: number; // degrees, 0 = north/forward
+  x: number; // mm from left edge of mat
+  y: number; // mm from top edge of mat (0 = top edge, positive = downward)
+  heading: number; // degrees clockwise from north (0 = north, 90 = east)
 }
 
 export interface MovementPreview {
@@ -56,22 +56,28 @@ export const calculateRobotPosition = (
 ): RobotPosition => {
   const robotWidthMm = studsToMm(robotConfig.dimensions.width);
   const robotLengthMm = studsToMm(robotConfig.dimensions.length);
-  
+  const centerOfRotationFromLeftMm = studsToMm(robotConfig.centerOfRotation.distanceFromLeftEdge);
+  const centerOfRotationFromTopMm = studsToMm(robotConfig.centerOfRotation.distanceFromTop);
+
+  // SIMPLIFIED MODEL: Position represents the center of rotation, not robot body center
   // For edge positions, we want the robot's physical edge to be flush against the mat edge
-  // The position coordinates represent the robot's center point, so we need to account for
-  // the robot's dimensions when calculating flush positions
+  // We need to calculate where to place the center of rotation to achieve this
 
   switch (position) {
     case "bottom-right":
       return {
-        x: MAT_WIDTH_MM - (robotWidthMm / 2), // Robot center, accounting for half width from right edge
-        y: robotLengthMm / 2, // Robot center, accounting for half length from bottom edge
+        // Place center of rotation such that right edge of robot body is flush with mat right edge
+        x: MAT_WIDTH_MM - (robotWidthMm - centerOfRotationFromLeftMm),
+        // Place center of rotation such that bottom edge of robot body is flush with mat bottom edge
+        y: MAT_HEIGHT_MM - (robotLengthMm - centerOfRotationFromTopMm),
         heading: 0, // Facing north (forward)
       };
     case "bottom-left":
       return {
-        x: robotWidthMm / 2, // Robot center, accounting for half width from left edge
-        y: robotLengthMm / 2, // Robot center, accounting for half length from bottom edge
+        // Place center of rotation such that left edge of robot body is flush with mat left edge
+        x: centerOfRotationFromLeftMm,
+        // Place center of rotation such that bottom edge of robot body is flush with mat bottom edge
+        y: MAT_HEIGHT_MM - (robotLengthMm - centerOfRotationFromTopMm),
         heading: 0, // Facing north (forward)
       };
     case "center":
@@ -83,8 +89,8 @@ export const calculateRobotPosition = (
     default:
       // Default to bottom-right
       return {
-        x: MAT_WIDTH_MM - (robotWidthMm / 2),
-        y: robotLengthMm / 2,
+        x: MAT_WIDTH_MM - (robotWidthMm - centerOfRotationFromLeftMm),
+        y: MAT_HEIGHT_MM - (robotLengthMm - centerOfRotationFromTopMm),
         heading: 0,
       };
   }
@@ -121,39 +127,51 @@ export const pathOpacityAtom = atom<number>(0.7);
 export const maxPathPointsAtom = atom<number>(1000);
 
 // Control mode atom
-export const controlModeAtom = atom<"incremental" | "continuous">("incremental");
+export const controlModeAtom = atom<"incremental" | "continuous">(
+  "incremental"
+);
 
 // Derived atoms
 export const currentScoreAtom = atom((get) => {
   const scoringState = get(scoringStateAtom);
   const matConfig = get(customMatConfigAtom);
-  
+
   if (!matConfig?.missions) return 0;
-  
+
   return matConfig.missions.reduce((total, mission) => {
     const missionState = scoringState[mission.id];
     if (!missionState?.objectives) return total;
-    
-    return total + Object.values(missionState.objectives).reduce((sum, objState) => {
-      return sum + (objState.completed ? objState.points : 0);
-    }, 0);
+
+    return (
+      total +
+      Object.values(missionState.objectives).reduce((sum, objState) => {
+        return sum + (objState.completed ? objState.points : 0);
+      }, 0)
+    );
   }, 0);
 });
 
 // Action atoms
-export const setRobotPositionAtom = atom(null, (get, set, position: RobotPosition) => {
-  set(robotPositionAtom, position);
-  // Reset telemetry reference when manually setting position
-  set(telemetryReferenceAtom, {
-    distance: 0,
-    angle: 0,
-    position,
-  });
-});
+export const setRobotPositionAtom = atom(
+  null,
+  (get, set, position: RobotPosition) => {
+    set(robotPositionAtom, position);
+    // Reset telemetry reference when manually setting position
+    set(telemetryReferenceAtom, {
+      distance: 0,
+      angle: 0,
+      position,
+    });
+  }
+);
 
 export const updateScoringAtom = atom(
   null,
-  (get, set, update: { missionId: string; objectiveId: string; state: ObjectiveState }) => {
+  (
+    get,
+    set,
+    update: { missionId: string; objectiveId: string; state: ObjectiveState }
+  ) => {
     const currentState = get(scoringStateAtom);
     set(scoringStateAtom, {
       ...currentState,

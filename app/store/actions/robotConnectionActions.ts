@@ -255,8 +255,33 @@ export const resetVirtualRobotPositionAtom = atom(null, async (get, set) => {
 
   if (robotType === "virtual" && isConnected) {
     await robotConnectionManager.resetVirtualRobotPosition?.();
-    // Update local state
-    set(virtualRobotPositionAtom, { x: 0, y: 0, heading: 0 });
+
+    // Instead of directly setting position, send telemetry event
+    // This ensures all position updates go through the same telemetry flow
+    const telemetryEvent = new CustomEvent("telemetry", {
+      detail: {
+        timestamp: Date.now(),
+        type: "telemetry",
+        hub: {
+          imu: {
+            heading: 0,
+            acceleration: [0, 0, 0],
+            angular_velocity: [0, 0, 0],
+          },
+        },
+        drivebase: {
+          distance: 0,
+          angle: 0,
+          state: {
+            distance: 0,
+            drive_speed: 0,
+            angle: 0,
+            turn_rate: 0,
+          },
+        },
+      },
+    });
+    document.dispatchEvent(telemetryEvent);
   }
 });
 
@@ -272,8 +297,33 @@ export const setVirtualRobotPositionAtom = atom(
         params.y,
         params.heading
       );
-      // Update local state
-      set(virtualRobotPositionAtom, params);
+
+      // Instead of directly setting position, send telemetry event
+      // This ensures all position updates go through the same telemetry flow
+      const telemetryEvent = new CustomEvent("telemetry", {
+        detail: {
+          timestamp: Date.now(),
+          type: "telemetry",
+          hub: {
+            imu: {
+              heading: params.heading,
+              acceleration: [0, 0, 0],
+              angular_velocity: [0, 0, 0],
+            },
+          },
+          drivebase: {
+            distance: 0,
+            angle: 0,
+            state: {
+              distance: 0,
+              drive_speed: 0,
+              angle: 0,
+              turn_rate: 0,
+            },
+          },
+        },
+      });
+      document.dispatchEvent(telemetryEvent);
     }
   }
 );

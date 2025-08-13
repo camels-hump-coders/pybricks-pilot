@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import type { RobotConfig } from "../schemas/RobotConfig";
-import { DEFAULT_ROBOT_CONFIG, studsToMm, calculateCenterOfRotation } from "../schemas/RobotConfig";
+import {
+  calculateCenterOfRotation,
+  DEFAULT_ROBOT_CONFIG,
+  studsToMm,
+} from "../schemas/RobotConfig";
 import { robotConfigStorage } from "../services/robotConfigStorage";
 
 interface RobotBuilderProps {
@@ -42,15 +46,22 @@ export function RobotBuilder({
   useEffect(() => {
     const updatedCenterOfRotation = calculateCenterOfRotation(config);
     if (
-      config.centerOfRotation.distanceFromLeftEdge !== updatedCenterOfRotation.distanceFromLeftEdge ||
-      config.centerOfRotation.distanceFromBack !== updatedCenterOfRotation.distanceFromBack
+      config.centerOfRotation.distanceFromLeftEdge !==
+        updatedCenterOfRotation.distanceFromLeftEdge ||
+      config.centerOfRotation.distanceFromTop !==
+        updatedCenterOfRotation.distanceFromTop
     ) {
       setConfig((prev) => ({
         ...prev,
         centerOfRotation: updatedCenterOfRotation,
       }));
     }
-  }, [config.dimensions.width, config.dimensions.length, config.wheels.left.distanceFromEdge, config.wheels.left.distanceFromBack]);
+  }, [
+    config.dimensions.width,
+    config.dimensions.length,
+    config.wheels.left.distanceFromEdge,
+    config.wheels.left.distanceFromTop,
+  ]);
 
   const loadSavedConfigs = async () => {
     try {
@@ -100,7 +111,7 @@ export function RobotBuilder({
 
       // Notify parent of change
       onRobotChange(config);
-      
+
       // Close the modal on successful save
       onClose();
     } catch (error) {
@@ -124,9 +135,10 @@ export function RobotBuilder({
 
   const duplicateConfig = async () => {
     try {
-      const newName = config.name === "Default FLL Robot" 
-        ? "Custom Robot" 
-        : `${config.name} (Copy)`;
+      const newName =
+        config.name === "Default FLL Robot"
+          ? "Custom Robot"
+          : `${config.name} (Copy)`;
       const duplicated = await robotConfigStorage.duplicateConfig(
         config.id,
         newName
@@ -170,7 +182,7 @@ export function RobotBuilder({
   };
 
   const handleWheelChange = (
-    property: "distanceFromEdge" | "distanceFromBack" | "diameter" | "width",
+    property: "distanceFromEdge" | "distanceFromTop" | "diameter" | "width",
     value: number
   ) => {
     setConfig((prev) => ({
@@ -235,10 +247,7 @@ export function RobotBuilder({
               width: (config.wheels.left.width * scale) / 4,
               height: (config.wheels.left.width * scale) / 4,
               left: config.wheels.left.distanceFromEdge * scale,
-              top:
-                (config.dimensions.length -
-                  config.wheels.left.distanceFromBack) *
-                scale,
+              top: config.wheels.left.distanceFromTop * scale, // Y=0 at top, Y+ down
               transform: "translate(-50%, -50%)",
             }}
           />
@@ -253,10 +262,7 @@ export function RobotBuilder({
                 (config.dimensions.width -
                   config.wheels.right.distanceFromEdge) *
                 scale,
-              top:
-                (config.dimensions.length -
-                  config.wheels.right.distanceFromBack) *
-                scale,
+              top: config.wheels.right.distanceFromTop * scale, // Y=0 at top, Y+ down
               transform: "translate(-50%, -50%)",
             }}
           />
@@ -266,10 +272,7 @@ export function RobotBuilder({
             className="absolute w-2 h-2 bg-red-500 rounded-full"
             style={{
               left: (config.dimensions.width / 2) * scale,
-              top:
-                (config.dimensions.length -
-                  config.wheels.left.distanceFromBack) *
-                scale,
+              top: config.wheels.left.distanceFromTop * scale, // Y=0 at top, Y+ down
               transform: "translate(-50%, -50%)",
             }}
           />
@@ -286,12 +289,7 @@ export function RobotBuilder({
             {studsToMm(config.dimensions.length)}mm)
           </div>
           <div>
-            Wheel distance from edge: {config.wheels.left.distanceFromEdge}{" "}
-            studs
-          </div>
-          <div>
-            Wheel distance from back: {config.wheels.left.distanceFromBack}{" "}
-            studs
+            Wheel distance from top: {config.wheels.left.distanceFromTop} studs
           </div>
         </div>
       </div>
@@ -374,7 +372,8 @@ export function RobotBuilder({
                 />
                 {config.isDefault && (
                   <div className="text-xs text-gray-500 mt-1">
-                    Default robot cannot be renamed. Use Duplicate to create a custom robot.
+                    Default robot cannot be renamed. Use Duplicate to create a
+                    custom robot.
                   </div>
                 )}
               </div>
@@ -429,7 +428,7 @@ export function RobotBuilder({
                 <div className="space-y-2">
                   <div>
                     <label className="block text-xs text-gray-600 dark:text-gray-400">
-                      Wheel Distance from Edge
+                      Wheel Distance from Left/Right Edge
                     </label>
                     <input
                       type="number"
@@ -449,21 +448,21 @@ export function RobotBuilder({
                   </div>
                   <div>
                     <label className="block text-xs text-gray-600 dark:text-gray-400">
-                      Wheel Distance from Back Edge
+                      Wheel Distance from Top Edge
                     </label>
                     <input
                       type="number"
-                      value={config.wheels.left.distanceFromBack}
+                      value={config.wheels.left.distanceFromTop}
                       onChange={(e) =>
                         handleWheelChange(
-                          "distanceFromBack",
+                          "distanceFromTop",
                           parseFloat(e.target.value)
                         )
                       }
                       className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                     />
                     <div className="text-xs text-gray-500 mt-1">
-                      {config.wheels.left.distanceFromBack} studs from back edge
+                      {config.wheels.left.distanceFromTop} studs from top edge
                     </div>
                   </div>
                 </div>

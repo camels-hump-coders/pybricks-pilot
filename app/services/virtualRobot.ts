@@ -11,6 +11,13 @@ interface VirtualRobotConfig {
   sensorNames: string[];
   drivebaseEnabled: boolean;
   telemetryInterval: number;
+  robotConfig?: {
+    dimensions: { width: number; length: number };
+    centerOfRotation: {
+      distanceFromLeftEdge: number;
+      distanceFromTop: number;
+    };
+  };
 }
 
 interface VirtualRobotState {
@@ -18,6 +25,8 @@ interface VirtualRobotState {
   driveDistance: number; // Total distance traveled (mm)
   driveAngle: number; // Total angle turned (degrees)
   heading: number; // Current heading (degrees)
+  x: number; // Current X position (mm)
+  y: number; // Current Y position (mm)
 
   // Motor states
   motors: {
@@ -113,6 +122,8 @@ class VirtualRobotService extends EventTarget {
       driveDistance: 0, // Start at 0 distance
       driveAngle: 0, // Start at 0 angle
       heading: 0, // Start facing north
+      x: 0, // Start at (0, 0)
+      y: 0,
       motors,
       sensors,
     };
@@ -221,6 +232,17 @@ class VirtualRobotService extends EventTarget {
     this.dispatchEvent(new CustomEvent("telemetry", { detail: telemetry }));
   }
 
+  // Configuration methods
+  updateRobotConfig(config: {
+    dimensions: { width: number; length: number };
+    centerOfRotation: {
+      distanceFromLeftEdge: number;
+      distanceFromTop: number;
+    };
+  }): void {
+    this.config.robotConfig = config;
+  }
+
   // Robot control methods
   async drive(distance: number, speed: number): Promise<void> {
     if (!this._isConnected) return;
@@ -234,6 +256,8 @@ class VirtualRobotService extends EventTarget {
     const duration = (Math.abs(distance) / speed) * 1000; // Convert to milliseconds
     const startTime = Date.now();
     const initialDistance = this.state.driveDistance;
+    const initialX = this.state.x;
+    const initialY = this.state.y;
 
     try {
       // Simulate movement
@@ -250,6 +274,14 @@ class VirtualRobotService extends EventTarget {
         // Update accumulated drive distance
         this.state.driveDistance = initialDistance + currentDistance;
 
+        // Update position based on current heading and distance traveled
+        const headingRad = (this.state.heading * Math.PI) / 180;
+        this.state.x = initialX + currentDistance * Math.sin(headingRad);
+        // COORDINATE SYSTEM FIX: Match the telemetry processing expectations
+        // The telemetry processing expects the raw robot data to use the opposite convention
+        // So positive distance at heading=0° should INCREASE Y in robot coordinates
+        this.state.y = initialY + currentDistance * Math.cos(headingRad);
+
         // Send telemetry more frequently during movement for smooth path tracking
         this.sendTelemetry();
 
@@ -258,6 +290,13 @@ class VirtualRobotService extends EventTarget {
 
       // Final update - complete the movement
       this.state.driveDistance = initialDistance + distance;
+
+      // Final position update
+      const headingRad = (this.state.heading * Math.PI) / 180;
+      this.state.x = initialX + distance * Math.sin(headingRad);
+      // COORDINATE SYSTEM FIX: Match the telemetry processing expectations
+      // The telemetry processing expects positive distance at heading=0° to INCREASE Y
+      this.state.y = initialY + distance * Math.cos(headingRad);
 
       // Send final telemetry
       this.sendTelemetry();
@@ -288,6 +327,8 @@ class VirtualRobotService extends EventTarget {
     const startTime = Date.now();
     const initialAngle = this.state.driveAngle;
     const initialHeading = this.state.heading;
+    const initialX = this.state.x;
+    const initialY = this.state.y;
 
     try {
       // Simulate turning
@@ -306,6 +347,44 @@ class VirtualRobotService extends EventTarget {
         this.state.heading = (initialHeading + currentAngle) % 360;
         this.config.imuHeading = this.state.heading;
 
+        // Apply center of rotation kinematics if we have robot config
+        if (this.config.robotConfig && Math.abs(currentAngle) > 0.1) {
+          // Calculate center of rotation offset from robot center (in mm)
+          // STANDARDIZED COORDINATE SYSTEM: Use robot's internal coordinate system consistently
+          // Robot internal coordinates: Y=0 at top, Y+ points down
+          const robotCenterX = this.config.robotConfig.dimensions.width / 2; // Center of robot width in studs
+          const robotCenterY = this.config.robotConfig.dimensions.length / 2; // Center of robot length in studs
+          const centerOfRotationX =
+            this.config.robotConfig.centerOfRotation.distanceFromLeftEdge; // In studs from left edge
+          const centerOfRotationY =
+            this.config.robotConfig.centerOfRotation.distanceFromTop; // In studs from top edge
+
+          const centerOffsetX = (centerOfRotationX - robotCenterX) * 8; // Convert studs to mm
+          const centerOffsetY = (centerOfRotationY - robotCenterY) * 8; // Convert studs to mm
+
+          // Calculate center of rotation position in world coordinates before turn
+          const beforeHeadingRad = (initialHeading * Math.PI) / 180;
+          const corWorldX =
+            initialX +
+            centerOffsetX * Math.cos(beforeHeadingRad) -
+            centerOffsetY * Math.sin(beforeHeadingRad);
+          const corWorldY =
+            initialY +
+            centerOffsetX * Math.sin(beforeHeadingRad) +
+            centerOffsetY * Math.cos(beforeHeadingRad);
+
+          // Calculate new robot center position after rotation around center of rotation
+          const afterHeadingRad = (this.state.heading * Math.PI) / 180;
+          this.state.x =
+            corWorldX -
+            centerOffsetX * Math.cos(afterHeadingRad) +
+            centerOffsetY * Math.sin(afterHeadingRad);
+          this.state.y =
+            corWorldY -
+            centerOffsetX * Math.sin(afterHeadingRad) -
+            centerOffsetY * Math.cos(afterHeadingRad);
+        }
+
         // Send telemetry more frequently during movement for smooth path tracking
         this.sendTelemetry();
 
@@ -316,6 +395,39 @@ class VirtualRobotService extends EventTarget {
       this.state.driveAngle = initialAngle + angle;
       this.state.heading = (initialHeading + angle) % 360;
       this.config.imuHeading = this.state.heading;
+
+      // Apply final center of rotation kinematics
+      if (this.config.robotConfig && Math.abs(angle) > 0.1) {
+        const robotCenterX = this.config.robotConfig.dimensions.width / 2;
+        const robotCenterY = this.config.robotConfig.dimensions.length / 2;
+        const centerOfRotationX =
+          this.config.robotConfig.centerOfRotation.distanceFromLeftEdge;
+        const centerOfRotationY =
+          this.config.robotConfig.centerOfRotation.distanceFromTop;
+
+        const centerOffsetX = (centerOfRotationX - robotCenterX) * 8;
+        const centerOffsetY = (centerOfRotationY - robotCenterY) * 8;
+
+        const beforeHeadingRad = (initialHeading * Math.PI) / 180;
+        const corWorldX =
+          initialX +
+          centerOffsetX * Math.cos(beforeHeadingRad) -
+          centerOffsetY * Math.sin(beforeHeadingRad);
+        const corWorldY =
+          initialY +
+          centerOffsetX * Math.sin(beforeHeadingRad) +
+          centerOffsetY * Math.cos(beforeHeadingRad);
+
+        const afterHeadingRad = (this.state.heading * Math.PI) / 180;
+        this.state.x =
+          corWorldX -
+          centerOffsetX * Math.cos(afterHeadingRad) +
+          centerOffsetY * Math.sin(afterHeadingRad);
+        this.state.y =
+          corWorldY -
+          centerOffsetX * Math.sin(afterHeadingRad) -
+          centerOffsetY * Math.cos(afterHeadingRad);
+      }
 
       // Send final telemetry
       this.sendTelemetry();
@@ -386,6 +498,52 @@ class VirtualRobotService extends EventTarget {
         this.state.heading = (this.state.heading + deltaAngle) % 360;
         this.config.imuHeading = this.state.heading;
 
+        // Update position based on movement
+        if (Math.abs(deltaDistance) > 0.001) {
+          // Forward/backward movement
+          const headingRad = (this.state.heading * Math.PI) / 180;
+          this.state.x += deltaDistance * Math.sin(headingRad);
+          // COORDINATE SYSTEM FIX: Match the telemetry processing expectations  
+          // The telemetry processing expects positive distance at heading=0° to INCREASE Y
+          this.state.y += deltaDistance * Math.cos(headingRad);
+        }
+
+        if (Math.abs(deltaAngle) > 0.001 && this.config.robotConfig) {
+          // Turning movement with center of rotation kinematics
+          const robotCenterX = this.config.robotConfig.dimensions.width / 2;
+          const robotCenterY = this.config.robotConfig.dimensions.length / 2;
+          const centerOfRotationX =
+            this.config.robotConfig.centerOfRotation.distanceFromLeftEdge;
+          const centerOfRotationY =
+            this.config.robotConfig.centerOfRotation.distanceFromTop;
+
+          const centerOffsetX = (centerOfRotationX - robotCenterX) * 8;
+          const centerOffsetY = (centerOfRotationY - robotCenterY) * 8;
+
+          // Calculate center of rotation position in world coordinates
+          const beforeHeadingRad =
+            ((this.state.heading - deltaAngle) * Math.PI) / 180;
+          const corWorldX =
+            this.state.x +
+            centerOffsetX * Math.cos(beforeHeadingRad) -
+            centerOffsetY * Math.sin(beforeHeadingRad);
+          const corWorldY =
+            this.state.y +
+            centerOffsetX * Math.sin(beforeHeadingRad) +
+            centerOffsetY * Math.cos(beforeHeadingRad);
+
+          // Calculate new robot center position after rotation around center of rotation
+          const afterHeadingRad = (this.state.heading * Math.PI) / 180;
+          this.state.x =
+            corWorldX -
+            centerOffsetX * Math.cos(afterHeadingRad) +
+            centerOffsetY * Math.sin(afterHeadingRad);
+          this.state.y =
+            corWorldY -
+            centerOffsetX * Math.sin(afterHeadingRad) -
+            centerOffsetY * Math.cos(afterHeadingRad);
+        }
+
         // Send telemetry more frequently during continuous movement for smooth path tracking
         this.sendTelemetry();
 
@@ -448,6 +606,8 @@ class VirtualRobotService extends EventTarget {
       driveDistance: this.state.driveDistance,
       driveAngle: this.state.driveAngle,
       heading: this.state.heading,
+      x: this.state.x,
+      y: this.state.y,
     };
   }
 
@@ -456,6 +616,8 @@ class VirtualRobotService extends EventTarget {
     this.state.driveDistance = 0; // Reset accumulated distance
     this.state.driveAngle = 0; // Reset accumulated angle
     this.state.heading = 0; // Reset heading to north
+    this.state.x = 0; // Reset X position
+    this.state.y = 0; // Reset Y position
     this.config.imuHeading = 0;
     console.log(
       "[VirtualRobot] Position reset to relative origin:",
@@ -467,8 +629,8 @@ class VirtualRobotService extends EventTarget {
   setPosition(x: number, y: number, heading: number): void {
     // The UI provides absolute mat coordinates, but the virtual robot works with relative coordinates
     // We'll reset to relative origin and let the UI handle the transformation
-    this.state.driveDistance = 0; // Reset accumulated distance
-    this.state.driveAngle = 0; // Reset accumulated angle
+    this.state.x = x; // Set absolute X
+    this.state.y = y; // Set absolute Y
     this.state.heading = heading; // Set new heading
     this.config.imuHeading = heading;
     console.log(

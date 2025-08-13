@@ -1,11 +1,10 @@
 import { useAtomValue } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import type { GameMatConfig, Mission } from "../schemas/GameMatConfig";
 import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
-import type { TelemetryData } from "../services/pybricksHub";
 import {
   telemetryHistory,
   type ColorMode,
@@ -17,13 +16,12 @@ import { robotConfigAtom } from "../store/atoms/robotConfig";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 
 interface RobotPosition {
-  x: number; // mm from left edge of mat (0 = left edge)
-  y: number; // mm from bottom edge of mat (0 = bottom edge, positive = upward)
-  heading: number; // degrees, 0 = north/forward
+  x: number; // mm from left edge of mat
+  y: number; // mm from top edge of mat (0 = top edge, positive = downward)
+  heading: number; // degrees clockwise from north (0 = north, 90 = east)
 }
 
 interface EnhancedCompetitionMatProps {
-  telemetryData: TelemetryData | null;
   isConnected: boolean;
   customMatConfig?: GameMatConfig | null;
   showScoring?: boolean;
@@ -37,11 +35,6 @@ const TABLE_WIDTH_MM = 2786; // Table interior width (82mm wider than mat)
 const TABLE_HEIGHT_MM = 1140; // Table interior height (4mm taller than mat)
 const BORDER_WALL_HEIGHT_MM = 36; // 36mm tall border walls
 const BORDER_WALL_THICKNESS_MM = 36; // Border wall thickness (same as height)
-
-// Default robot dimensions (will be overridden by robot configuration)
-const DEFAULT_ROBOT_WIDTH_MM = 180; // Typical FLL robot width
-const DEFAULT_ROBOT_LENGTH_MM = 200; // Typical FLL robot length
-const DEFAULT_WHEEL_WIDTH_MM = 20;
 
 interface ObjectiveState {
   completed: boolean;
@@ -126,7 +119,6 @@ const migrateMissionFormat = (mission: any): Mission => {
 };
 
 export function EnhancedCompetitionMat({
-  telemetryData,
   isConnected,
   customMatConfig,
   showScoring = false,
@@ -202,7 +194,10 @@ export function EnhancedCompetitionMat({
   // Pseudo code panel state
   const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useState(true);
 
-  // Migrate old mission format to new format
+  // Target heading state for position setting
+  const [targetHeading, setTargetHeading] = useState<number>(0);
+
+  // Migrate old mission format to new format - stabilize with deep comparison
   const migratedMatConfig = useMemo(() => {
     if (!customMatConfig) return null;
 
@@ -210,7 +205,7 @@ export function EnhancedCompetitionMat({
       ...customMatConfig,
       missions: customMatConfig.missions.map(migrateMissionFormat),
     };
-  }, [customMatConfig]);
+  }, [customMatConfig?.name, customMatConfig?.missions?.length]); // Only re-compute if mat actually changes
 
   // Track if we've already initialized recording for this connection
   const recordingInitializedRef = useRef(false);
@@ -218,19 +213,7 @@ export function EnhancedCompetitionMat({
   // Start telemetry recording when robot connects (only once per connection)
   useEffect(() => {
     if (isConnected && currentPosition && !recordingInitializedRef.current) {
-      console.log(
-        "[EnhancedCompetitionMat] Robot connected, starting telemetry recording"
-      );
       telemetryHistory.onMatReset(); // This will start a new recording session
-
-      // Add initial position to telemetry history
-      telemetryHistory.addInitialPosition(
-        currentPosition.x,
-        currentPosition.y,
-        currentPosition.heading
-      );
-
-      // Robot position is now managed by Jotai atoms
 
       // Mark as initialized
       recordingInitializedRef.current = true;
@@ -238,7 +221,33 @@ export function EnhancedCompetitionMat({
       // Reset the flag when disconnected
       recordingInitializedRef.current = false;
     }
-  }, [isConnected, currentPosition]);
+  }, [isConnected]);
+
+  // Subscribe to telemetry events for robot position updates only
+  useEffect(() => {
+    const handleTelemetryEvent = (event: CustomEvent) => {
+      const telemetryData = event.detail;
+
+      if (telemetryData?.drivebase) {
+        // Update robot position through game mat hook
+        updateRobotPositionFromTelemetry(telemetryData);
+        // Canvas redraw will happen automatically via currentPosition dependency
+      }
+    };
+
+    // Listen for global telemetry events
+    document.addEventListener(
+      "telemetry",
+      handleTelemetryEvent as EventListener
+    );
+
+    return () => {
+      document.removeEventListener(
+        "telemetry",
+        handleTelemetryEvent as EventListener
+      );
+    };
+  }, []); // Empty dependency array - setup once and use current values via refs
 
   // Load and process mat image
   useEffect(() => {
@@ -264,7 +273,7 @@ export function EnhancedCompetitionMat({
   }, [migratedMatConfig]);
 
   // Calculate canvas size and scale based on container
-  const updateCanvasSize = () => {
+  const updateCanvasSize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -273,15 +282,6 @@ export function EnhancedCompetitionMat({
 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-
-    // Debug logging to help identify sizing issues
-    console.log("[EnhancedCompetitionMat] updateCanvasSize called:", {
-      containerWidth,
-      containerHeight,
-      containerOffsetWidth: container.offsetWidth,
-      containerScrollWidth: container.scrollWidth,
-      containerBoundingRect: container.getBoundingClientRect(),
-    });
 
     // Check if container has valid dimensions
     if (containerWidth <= 0 || containerHeight <= 0) {
@@ -292,29 +292,39 @@ export function EnhancedCompetitionMat({
     const totalWidth = TABLE_WIDTH_MM + 2 * BORDER_WALL_THICKNESS_MM;
     const totalHeight = TABLE_HEIGHT_MM + 2 * BORDER_WALL_THICKNESS_MM;
 
-    // Calculate scale to fit container
-    const scaleX = containerWidth / totalWidth;
-    const scaleY = containerHeight / totalHeight;
-    const newScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 1:1
+    // PRIORITIZE USING FULL CONTAINER WIDTH
+    // Always use the full available container width for the canvas
+    const newScale = Math.min(containerWidth / totalWidth, 1); // Don't scale up beyond 1:1
+    const calculatedHeight = totalHeight * newScale;
 
-    console.log("[EnhancedCompetitionMat] Canvas sizing calculated:", {
-      totalWidth,
-      totalHeight,
-      scaleX,
-      scaleY,
-      newScale,
-      finalWidth: totalWidth * newScale,
-      finalHeight: totalHeight * newScale,
+    // Only update if scale actually changed to avoid infinite loops
+    setScale((prevScale) => {
+      if (Math.abs(prevScale - newScale) < 0.001) {
+        return prevScale; // No change
+      }
+      return newScale;
     });
 
-    setScale(newScale);
-    setCanvasSize({
-      width: totalWidth * newScale,
-      height: totalHeight * newScale,
+    setCanvasSize((prevSize) => {
+      // Round dimensions to avoid floating-point precision issues
+      // Use full container width and calculated height based on aspect ratio
+      const newWidth = Math.round(containerWidth);
+      const newHeight = Math.round(calculatedHeight);
+
+      // Only update if rounded values actually changed
+      if (prevSize.width === newWidth && prevSize.height === newHeight) {
+        return prevSize; // No change after rounding
+      }
+
+      return {
+        width: newWidth,
+        height: newHeight,
+      };
     });
-  };
+  }, []);
 
   // Convert mm to canvas pixels (accounts for mat position within table)
+  // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down (no flipping needed)
   const mmToCanvas = (mmX: number, mmY: number): { x: number; y: number } => {
     // Use exact same calculation as drawMissions function
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
@@ -323,13 +333,15 @@ export function EnhancedCompetitionMat({
     const matY = matOffset + (TABLE_HEIGHT_MM * scale - MAT_HEIGHT_MM * scale);
 
     // Convert mm coordinates to mat canvas coordinates
+    // No Y-coordinate flip - keep consistent with world coordinates (Y=0 at top)
     const canvasX = matX + mmX * scale;
-    const canvasY = matY + (MAT_HEIGHT_MM * scale - mmY * scale); // Flip Y coordinate
+    const canvasY = matY + mmY * scale; // Y=0 at top, Y+ down
 
     return { x: canvasX, y: canvasY };
   };
 
   // Convert canvas pixels to mm (accounts for mat position within table)
+  // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down (no flipping needed)
   const canvasToMm = (
     canvasX: number,
     canvasY: number
@@ -341,19 +353,19 @@ export function EnhancedCompetitionMat({
     const matY = matOffset + (TABLE_HEIGHT_MM * scale - MAT_HEIGHT_MM * scale);
 
     // Convert canvas coordinates to mm within the mat
+    // No Y-coordinate flip - keep consistent with world coordinates (Y=0 at top)
     const mmX = (canvasX - matX) / scale;
-    const mmY = (MAT_HEIGHT_MM * scale - (canvasY - matY)) / scale; // Flip Y coordinate
+    const mmY = (canvasY - matY) / scale; // Y=0 at top, Y+ down
 
     return { x: mmX, y: mmY };
   };
 
-  const drawCanvas = () => {
+  const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
-    canvas.width = canvasSize.width;
-    canvas.height = canvasSize.height;
+    // Canvas size is now set separately in useEffect to avoid clearing
 
     // Clear canvas with a neutral background
     ctx.fillStyle = "#e5e5e5";
@@ -524,7 +536,21 @@ export function EnhancedCompetitionMat({
         );
       }
     }
-  };
+  }, [
+    scale,
+    currentPosition,
+    mousePosition,
+    isSettingPosition,
+    movementPreview,
+    pathOptions,
+    hoveredObject,
+    hoveredPoint,
+    migratedMatConfig,
+    scoringState,
+    showScoring,
+    controlMode,
+    robotConfig,
+  ]); // canvasSize removed as it's handled separately
 
   const drawBorderWalls = (ctx: CanvasRenderingContext2D) => {
     const thickness = BORDER_WALL_THICKNESS_MM * scale;
@@ -631,24 +657,33 @@ export function EnhancedCompetitionMat({
     previewType?: "primary" | "secondary",
     direction?: "forward" | "backward" | "left" | "right"
   ) => {
-    const pos = mmToCanvas(position.x, position.y);
+    // SIMPLIFIED MODEL: position IS the center of rotation
+    const centerOfRotationPos = mmToCanvas(position.x, position.y);
     const heading = (position.heading * Math.PI) / 180;
 
-    // Calculate center of rotation offset from robot center
+    // Calculate robot body offset from center of rotation
     const robotCenterX = robotConfig.dimensions.width / 2; // Center of robot width in studs
     const robotCenterY = robotConfig.dimensions.length / 2; // Center of robot length in studs
     const centerOfRotationX = robotConfig.centerOfRotation.distanceFromLeftEdge; // In studs from left edge
-    const centerOfRotationY = robotConfig.centerOfRotation.distanceFromBack; // In studs from back edge
-    
-    // Calculate offset from robot center to center of rotation (in mm, scaled)
-    const centerOffsetX = (centerOfRotationX - robotCenterX) * LEGO_STUD_SIZE_MM * scale;
-    const centerOffsetY = (centerOfRotationY - robotCenterY) * LEGO_STUD_SIZE_MM * scale;
+    const centerOfRotationY = robotConfig.centerOfRotation.distanceFromTop; // In studs from top edge
+
+    // Calculate offset from center of rotation to robot center (in mm, scaled)
+    // This is the INVERSE of the previous calculation
+    const robotBodyOffsetX =
+      (robotCenterX - centerOfRotationX) * LEGO_STUD_SIZE_MM * scale;
+    const robotBodyOffsetY =
+      (robotCenterY - centerOfRotationY) * LEGO_STUD_SIZE_MM * scale;
 
     ctx.save();
-    ctx.translate(pos.x, pos.y);
+
+    // Translate to center of rotation position
+    ctx.translate(centerOfRotationPos.x, centerOfRotationPos.y);
+    // Rotate around center of rotation
     ctx.rotate(heading);
-    // NOTE: Do NOT translate to center of rotation for drawing the robot body
-    // The robot body should be drawn relative to the robot center (current position)
+    // Translate to robot body center for drawing
+    ctx.translate(robotBodyOffsetX, robotBodyOffsetY);
+
+    // NOTE: Now drawing robot body at (0,0) which is the robot's geometric center
 
     const robotWidth = robotConfig.dimensions.width * 8 * scale; // Convert studs to mm
     const robotLength = robotConfig.dimensions.length * 8 * scale; // Convert studs to mm
@@ -702,13 +737,23 @@ export function EnhancedCompetitionMat({
       // Wheels are positioned from edges, so we need to convert to center-based
       const robotWidthMm = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM;
       const robotLengthMm = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM;
-      
+
       // Left wheel is distanceFromEdge studs from left edge
-      const leftWheelX = (-robotWidthMm / 2 + robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
-      // Right wheel is distanceFromEdge studs from right edge  
-      const rightWheelX = (robotWidthMm / 2 - robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
-      // Both wheels are distanceFromBack studs from back edge (bottom of robot)
-      const wheelY = (robotLengthMm / 2 - robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
+      const leftWheelX =
+        (-robotWidthMm / 2 +
+          robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) *
+        scale;
+      // Right wheel is distanceFromEdge studs from right edge
+      const rightWheelX =
+        (robotWidthMm / 2 -
+          robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) *
+        scale;
+      // Both wheels are distanceFromTop studs from top edge (top of robot)
+      // In new coordinate system: top is at -length/2, bottom at +length/2
+      const wheelY =
+        (-robotLengthMm / 2 +
+          robotConfig.wheels.left.distanceFromTop * LEGO_STUD_SIZE_MM) *
+        scale;
 
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; // Bright white wheels
       ctx.fillRect(
@@ -748,9 +793,11 @@ export function EnhancedCompetitionMat({
       ctx.stroke();
 
       // Add a bright center point for preview at the center of rotation
+      // SIMPLIFIED MODEL: Center of rotation is at (0,0) after transformation
       ctx.fillStyle = indicatorColor;
       ctx.beginPath();
-      ctx.arc(centerOffsetX, -centerOffsetY, 5, 0, 2 * Math.PI); // Larger center point at center of rotation
+      // Go back to center of rotation position (undo the robot body offset)
+      ctx.arc(-robotBodyOffsetX, -robotBodyOffsetY, 5, 0, 2 * Math.PI); // Larger center point at center of rotation
       ctx.fill();
 
       // Add a subtle glow effect around the preview robot
@@ -788,13 +835,23 @@ export function EnhancedCompetitionMat({
       // Wheels are positioned from edges, so we need to convert to center-based
       const robotWidthMm = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM;
       const robotLengthMm = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM;
-      
+
       // Left wheel is distanceFromEdge studs from left edge
-      const leftWheelX = (-robotWidthMm / 2 + robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
+      const leftWheelX =
+        (-robotWidthMm / 2 +
+          robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) *
+        scale;
       // Right wheel is distanceFromEdge studs from right edge
-      const rightWheelX = (robotWidthMm / 2 - robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
-      // Both wheels are distanceFromBack studs from back edge (bottom of robot)
-      const wheelY = (robotLengthMm / 2 - robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
+      const rightWheelX =
+        (robotWidthMm / 2 -
+          robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) *
+        scale;
+      // Both wheels are distanceFromTop studs from top edge (top of robot)
+      // In new coordinate system: top is at -length/2, bottom at +length/2
+      const wheelY =
+        (-robotLengthMm / 2 +
+          robotConfig.wheels.left.distanceFromTop * LEGO_STUD_SIZE_MM) *
+        scale;
 
       ctx.fillStyle = robotConfig.appearance.wheelColor;
       ctx.fillRect(
@@ -820,11 +877,12 @@ export function EnhancedCompetitionMat({
       ctx.lineTo(robotWidth / 6, -robotLength / 6);
       ctx.stroke();
 
-      // Center of rotation indicator at the actual center of rotation
-      // Draw the marker at the center of rotation offset from robot center
+      // Center of rotation indicator - now at the origin since we translated to COR
+      // SIMPLIFIED MODEL: Center of rotation is at (0,0) after transformation
       ctx.fillStyle = "#ff0000";
       ctx.beginPath();
-      ctx.arc(centerOffsetX, -centerOffsetY, 3, 0, 2 * Math.PI);
+      // Go back to center of rotation position (undo the robot body offset)
+      ctx.arc(-robotBodyOffsetX, -robotBodyOffsetY, 3, 0, 2 * Math.PI);
       ctx.fill();
     }
 
@@ -967,11 +1025,11 @@ export function EnhancedCompetitionMat({
     >();
 
     migratedMatConfig?.missions.forEach((obj) => {
-      // Convert normalized position (0-1) to canvas coordinates
-      // Position is relative to the mat, not the table
-      const canvasX = matX + obj.position.x * MAT_WIDTH_MM * scale;
-      const canvasY = matY + obj.position.y * MAT_HEIGHT_MM * scale;
-      const pos = { x: canvasX, y: canvasY };
+      // Convert normalized position (0-1) to world coordinates (mm), then to canvas coordinates
+      // Use the same coordinate transformation as robot positions for consistency
+      const worldX = obj.position.x * MAT_WIDTH_MM; // Convert normalized to mm
+      const worldY = obj.position.y * MAT_HEIGHT_MM; // Convert normalized to mm
+      const pos = mmToCanvas(worldX, worldY); // Apply standardized coordinate transformation
 
       const isScored = isMissionScored(obj, scoringState);
       const currentPoints = getTotalPointsForMission(obj, scoringState);
@@ -1076,6 +1134,7 @@ export function EnhancedCompetitionMat({
       const point1 = points[i];
       const point2 = points[i + 1];
 
+      // SIMPLIFIED MODEL: telemetry points are already in center-of-rotation coordinates
       const pos1 = mmToCanvas(point1.x, point1.y);
       const pos2 = mmToCanvas(point2.x, point2.y);
 
@@ -1095,6 +1154,7 @@ export function EnhancedCompetitionMat({
     // Draw markers if enabled
     if (pathOptions.showMarkers) {
       points.forEach((point, index) => {
+        // SIMPLIFIED MODEL: telemetry points are already in center-of-rotation coordinates
         const pos = mmToCanvas(point.x, point.y);
         const color = telemetryHistory.getColorForPoint(
           point,
@@ -1165,10 +1225,6 @@ export function EnhancedCompetitionMat({
   // Initialize telemetry reference when robot position is available but reference is not set
   useEffect(() => {
     if (currentPosition && !telemetryReference && isConnected) {
-      console.log(
-        "[EnhancedCompetitionMat] Initializing telemetry reference from robot position",
-        currentPosition
-      );
       setTelemetryReference({
         distance: 0,
         angle: 0,
@@ -1232,8 +1288,10 @@ export function EnhancedCompetitionMat({
         const newX =
           telemetryReferenceRef.current.position.x +
           deltaDistance * Math.sin(headingRad);
+        // SIMPLIFIED MODEL: Move center of rotation in heading direction
+        // heading=0° = move UP (decrease Y), heading=180° = move DOWN (increase Y)
         const newY =
-          telemetryReferenceRef.current.position.y +
+          telemetryReferenceRef.current.position.y -
           deltaDistance * Math.cos(headingRad);
 
         const newPosition: RobotPosition = {
@@ -1255,8 +1313,32 @@ export function EnhancedCompetitionMat({
           );
         }
 
-        // Update robot position using action atom
-        setCurrentPosition(newPosition);
+        // Instead of directly setting robot position, update it through telemetry
+        // This ensures all position updates go through the same path
+        const newTelemetryData = {
+          timestamp: Date.now(),
+          type: "telemetry",
+          hub: {
+            imu: {
+              heading: newPosition.heading,
+              acceleration: [0, 0, 0],
+              angular_velocity: [0, 0, 0],
+            },
+          },
+          drivebase: {
+            distance: currentDistance,
+            angle: currentAngle,
+            state: {
+              distance: currentDistance,
+              drive_speed: 0,
+              angle: currentAngle,
+              turn_rate: 0,
+            },
+          },
+        };
+
+        // Temporarily bypass telemetry flow to debug rendering issue
+        updateRobotPositionFromTelemetry(newTelemetryData);
 
         // Update telemetry reference to new position so next movement calculates from here
         setTelemetryReference({
@@ -1277,13 +1359,9 @@ export function EnhancedCompetitionMat({
 
     // Subscribe to telemetry events from the global document
     document.addEventListener("telemetry", handleTelemetryEvent);
-    console.log("[EnhancedCompetitionMat] Subscribed to telemetry events");
 
     return () => {
       document.removeEventListener("telemetry", handleTelemetryEvent);
-      console.log(
-        "[EnhancedCompetitionMat] Unsubscribed from telemetry events"
-      );
     };
   }, [isConnected]); // Only depend on isConnected, everything else uses refs
 
@@ -1308,7 +1386,7 @@ export function EnhancedCompetitionMat({
     return null;
   };
 
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -1347,18 +1425,20 @@ export function EnhancedCompetitionMat({
       const newPosition: RobotPosition = {
         x: mm.x,
         y: mm.y,
-        heading: currentPosition.heading,
+        heading: targetHeading, // Use target heading for new position
       };
 
-      setCurrentPosition(newPosition);
-      setTelemetryReference({
-        distance: 0,
-        angle: 0,
-        position: newPosition,
+      // MANUAL POSITION SETTING: Perform full reset then set robot position
+      await setCurrentPosition(newPosition, {
+        resetTelemetry,
+        clearProgramOutputLog,
+        setAccumulatedTelemetry,
+        setManualHeadingAdjustment,
+        setScoringState,
       });
-      setAccumulatedTelemetry({ distance: 0, angle: 0 });
-      setManualHeadingAdjustment(0);
-      // Robot position is set via Jotai atoms
+      
+      // End position setting mode
+      setIsSettingPosition(false);
     }
   };
 
@@ -1405,7 +1485,7 @@ export function EnhancedCompetitionMat({
       setMousePosition({
         x: mm.x,
         y: mm.y,
-        heading: currentPosition.heading,
+        heading: targetHeading, // Use target heading for preview
       });
     }
   };
@@ -1445,6 +1525,7 @@ export function EnhancedCompetitionMat({
     const hoverRadius = 10; // pixels
 
     allPoints.forEach(({ point, pointIndex }) => {
+      // SIMPLIFIED MODEL: telemetry points are already in center-of-rotation coordinates
       const pos = mmToCanvas(point.x, point.y);
       const distance = Math.sqrt(
         Math.pow(canvasX - pos.x, 2) + Math.pow(canvasY - pos.y, 2)
@@ -1524,50 +1605,73 @@ export function EnhancedCompetitionMat({
     });
   };
 
-  // Update canvas size on mount and resize
-  useEffect(() => {
-    updateCanvasSize();
-    window.addEventListener("resize", updateCanvasSize);
+  // Single canvas update system - consolidate all canvas operations
+  const updateCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    // Use ResizeObserver for more reliable container size detection
-    let resizeObserver: ResizeObserver | null = null;
-    const container = canvasRef.current?.parentElement;
-    if (container) {
-      resizeObserver = new ResizeObserver(() => {
-        updateCanvasSize();
-      });
-      resizeObserver.observe(container);
+    // Set canvas size if needed (canvasSize is already rounded)
+    const targetWidth = Math.round(canvasSize.width);
+    const targetHeight = Math.round(canvasSize.height);
+
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
     }
 
-    return () => {
-      window.removeEventListener("resize", updateCanvasSize);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-    };
-  }, [migratedMatConfig]);
-
-  // Redraw when dependencies change
-  useEffect(() => {
+    // Draw the canvas
     drawCanvas();
+  }, [canvasSize, drawCanvas]);
+
+  // Single useEffect that triggers canvas updates for all changes
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      updateCanvas();
+    });
   }, [
     canvasSize,
     scale,
     currentPosition,
     mousePosition,
     isSettingPosition,
-    scoringState,
-    migratedMatConfig,
-    showScoring,
-    matImageRef.current,
-    hoveredObject,
-    pathOptions,
-    hoveredPointIndex,
-    telemetryHistory.getCurrentPath(),
-    telemetryHistory.getAllPaths(),
     movementPreview,
-    controlMode,
+    hoveredObject,
+    hoveredPoint,
+    migratedMatConfig?.name,
+    scoringState,
+    showScoring,
+    updateCanvas,
   ]);
+
+  // Update canvas size on mount and resize
+  useEffect(() => {
+    updateCanvasSize();
+
+    // Throttle resize events to prevent excessive updates
+    let resizeTimeout: NodeJS.Timeout;
+    const throttledResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updateCanvasSize, 100);
+    };
+
+    window.addEventListener("resize", throttledResize);
+
+    // Use ResizeObserver for more reliable container size detection
+    let resizeObserver: ResizeObserver | null = null;
+    const container = canvasRef.current?.parentElement;
+    if (container) {
+      resizeObserver = new ResizeObserver(throttledResize);
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener("resize", throttledResize);
+      clearTimeout(resizeTimeout);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, [updateCanvasSize]); // updateCanvasSize is now stable due to useCallback
 
   // Additional canvas size update when component becomes visible
   useEffect(() => {
@@ -1644,7 +1748,15 @@ export function EnhancedCompetitionMat({
             )}
 
             <button
-              onClick={() => setIsSettingPosition(!isSettingPosition)}
+              onClick={() => {
+                const newSettingState = !isSettingPosition;
+                setIsSettingPosition(newSettingState);
+                
+                // Initialize target heading to 0 when entering position setting mode
+                if (newSettingState) {
+                  setTargetHeading(0);
+                }
+              }}
               className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded transition-colors ${
                 isSettingPosition
                   ? "bg-green-500 text-white hover:bg-green-600"
@@ -1654,14 +1766,32 @@ export function EnhancedCompetitionMat({
               {isSettingPosition ? "✓ Confirm" : "📍 Set Pos"}
             </button>
 
+
             {/* Position shortcuts - only visible when setting position */}
             {isSettingPosition && (
               <>
                 <button
-                  onClick={() => {
-                    setCurrentPosition(calculateRobotPosition(robotConfig, "bottom-left"));
-                    setAccumulatedTelemetry({ distance: 0, angle: 0 });
-                    setManualHeadingAdjustment(0);
+                  onClick={async () => {
+                    const newPosition = calculateRobotPosition(
+                      robotConfig,
+                      "bottom-left"
+                    );
+
+                    // Use target heading when using position shortcuts
+                    const newPositionWithTargetHeading = {
+                      ...newPosition,
+                      heading: targetHeading,
+                    };
+
+                    // MANUAL POSITION SETTING: Perform full reset then set robot position
+                    await setCurrentPosition(newPositionWithTargetHeading, {
+                      resetTelemetry,
+                      clearProgramOutputLog,
+                      setAccumulatedTelemetry,
+                      setManualHeadingAdjustment,
+                      setScoringState,
+                    });
+                    
                     setIsSettingPosition(false);
                   }}
                   className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
@@ -1670,10 +1800,27 @@ export function EnhancedCompetitionMat({
                   ↙️ Bottom Left
                 </button>
                 <button
-                  onClick={() => {
-                    setCurrentPosition(calculateRobotPosition(robotConfig, "bottom-right"));
-                    setAccumulatedTelemetry({ distance: 0, angle: 0 });
-                    setManualHeadingAdjustment(0);
+                  onClick={async () => {
+                    const newPosition = calculateRobotPosition(
+                      robotConfig,
+                      "bottom-right"
+                    );
+
+                    // Use target heading when using position shortcuts
+                    const newPositionWithTargetHeading = {
+                      ...newPosition,
+                      heading: targetHeading,
+                    };
+
+                    // MANUAL POSITION SETTING: Perform full reset then set robot position
+                    await setCurrentPosition(newPositionWithTargetHeading, {
+                      resetTelemetry,
+                      clearProgramOutputLog,
+                      setAccumulatedTelemetry,
+                      setManualHeadingAdjustment,
+                      setScoringState,
+                    });
+                    
                     setIsSettingPosition(false);
                   }}
                   className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
@@ -1686,15 +1833,20 @@ export function EnhancedCompetitionMat({
 
             <button
               onClick={async () => {
-                await resetTelemetry();
-                await clearProgramOutputLog();
                 // Reset to default position based on current robot configuration
-                setCurrentPosition(calculateRobotPosition(robotConfig, "bottom-right"));
-                setAccumulatedTelemetry({ distance: 0, angle: 0 });
-                setManualHeadingAdjustment(0);
-                setScoringState({});
-                // Reset handled via Jotai atoms and telemetry history
-                telemetryHistory.onMatReset();
+                const newPosition = calculateRobotPosition(
+                  robotConfig,
+                  "bottom-right"
+                );
+
+                // RESET FUNCTIONALITY: Perform full reset then set robot position
+                await setCurrentPosition(newPosition, {
+                  resetTelemetry,
+                  clearProgramOutputLog,
+                  setAccumulatedTelemetry,
+                  setManualHeadingAdjustment,
+                  setScoringState,
+                });
 
                 // Clear pseudo code panel
                 setIsPseudoCodeExpanded(false);

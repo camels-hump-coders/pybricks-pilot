@@ -9,7 +9,10 @@ import {
 import { matConfigStorage } from "../services/matConfigStorage";
 import type { ProgramStatus } from "../services/pybricksHub";
 import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
-import { robotBuilderOpenAtom, robotConfigAtom } from "../store/atoms/robotConfig";
+import {
+  robotBuilderOpenAtom,
+  robotConfigAtom,
+} from "../store/atoms/robotConfig";
 import { CompactRobotController } from "./CompactRobotController";
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
@@ -235,13 +238,17 @@ function RobotControlsSection({
     <div className="space-y-4">
       {/* Current Robot Display */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
-        <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">Active Robot:</div>
+        <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+          Active Robot:
+        </div>
         <div className="font-medium text-gray-900 dark:text-white text-sm">
           {currentRobotConfig.name}
         </div>
         <div className="text-xs text-gray-500 mt-1">
-          {currentRobotConfig.dimensions.width}×{currentRobotConfig.dimensions.length} studs 
-          ({currentRobotConfig.dimensions.width * 8}×{currentRobotConfig.dimensions.length * 8}mm)
+          {currentRobotConfig.dimensions.width}×
+          {currentRobotConfig.dimensions.length} studs (
+          {currentRobotConfig.dimensions.width * 8}×
+          {currentRobotConfig.dimensions.length * 8}mm)
         </div>
       </div>
 
@@ -624,7 +631,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       {/* Competition Mat - Full width on mobile, positioned in grid on desktop */}
       <div className="xl:hidden w-full">
         <EnhancedCompetitionMat
-          telemetryData={telemetryData || null}
           customMatConfig={customMatConfig}
           showScoring={showScoring}
           isConnected={isConnected}
@@ -669,7 +675,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         {/* Competition Mat - Takes up 3 columns */}
         <div className="col-span-3">
           <EnhancedCompetitionMat
-            telemetryData={telemetryData || null}
             customMatConfig={customMatConfig}
             showScoring={showScoring}
             isConnected={isConnected}
@@ -755,7 +760,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         isOpen={robotBuilderOpen}
         onClose={() => setRobotBuilderOpen(false)}
         onRobotChange={(config) => {
-          console.log("Robot configuration updated:", config);
           setRobotConfig(config);
         }}
       />

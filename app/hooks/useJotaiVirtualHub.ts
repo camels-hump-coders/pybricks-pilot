@@ -2,6 +2,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { virtualRobotService } from "../services/virtualRobot";
 import type { InstrumentationOptions } from "../utils/codeInstrumentation";
+import { transformTelemetryData } from "../utils/coordinateTransformations";
 
 // Import virtual robot specific atoms
 import {
@@ -28,12 +29,18 @@ import {
   telemetryDataAtom,
 } from "../store/atoms/robotConnection";
 
+// Import robot config atom
+import { robotConfigAtom } from "../store/atoms/robotConfig";
+
 import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
 
 export function useJotaiVirtualHub() {
   // Virtual robot specific state
   const virtualPosition = useAtomValue(virtualRobotPositionAtom);
   const virtualState = useAtomValue(virtualRobotStateAtom);
+
+  // Robot configuration
+  const robotConfig = useAtomValue(robotConfigAtom);
 
   // Program state
   const programStatus = useAtomValue(programStatusAtom);
@@ -65,7 +72,9 @@ export function useJotaiVirtualHub() {
   // Connect virtual robot service events to Jotai atoms
   useEffect(() => {
     const handleTelemetry = (event: CustomEvent<TelemetryData>) => {
-      setTelemetryData(event.detail);
+      // Transform telemetry data to use our standardized coordinate system
+      const transformedTelemetry = transformTelemetryData(event.detail);
+      setTelemetryData(transformedTelemetry);
 
       // Also update virtual robot state
       const state = virtualRobotService.getState();
@@ -73,7 +82,7 @@ export function useJotaiVirtualHub() {
 
       // Forward telemetry event to document for global listeners (e.g., EnhancedCompetitionMat)
       const globalEvent = new CustomEvent("telemetry", {
-        detail: event.detail,
+        detail: transformedTelemetry,
       });
       document.dispatchEvent(globalEvent);
     };
@@ -100,6 +109,7 @@ export function useJotaiVirtualHub() {
       handleStatusChange as EventListener
     );
 
+    // Cleanup event listeners
     return () => {
       virtualRobotService.removeEventListener(
         "telemetry",
@@ -116,6 +126,16 @@ export function useJotaiVirtualHub() {
     setProgramOutputLog,
     setVirtualRobotState,
   ]);
+
+  // Update virtual robot service configuration when robot config changes
+  useEffect(() => {
+    if (robotConfig) {
+      virtualRobotService.updateRobotConfig({
+        dimensions: robotConfig.dimensions,
+        centerOfRotation: robotConfig.centerOfRotation,
+      });
+    }
+  }, [robotConfig]);
 
   // Virtual robot connection management
   const connect = useCallback(async () => {

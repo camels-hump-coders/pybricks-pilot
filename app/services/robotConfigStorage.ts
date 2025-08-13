@@ -334,18 +334,18 @@ class RobotConfigStorage {
           hasRightWheel: !!invalidConfig?.wheels?.right,
           hasLeftWheelEdge:
             typeof invalidConfig?.wheels?.left?.distanceFromEdge === "number",
-          hasLeftWheelBack:
-            typeof invalidConfig?.wheels?.left?.distanceFromBack === "number",
+          hasLeftWheelTop:
+            typeof invalidConfig?.wheels?.left?.distanceFromTop === "number",
           hasRightWheelEdge:
             typeof invalidConfig?.wheels?.right?.distanceFromEdge === "number",
-          hasRightWheelBack:
-            typeof invalidConfig?.wheels?.right?.distanceFromBack === "number",
+          hasRightWheelTop:
+            typeof invalidConfig?.wheels?.right?.distanceFromTop === "number",
           hasCenterOfRotation: !!invalidConfig?.centerOfRotation,
           hasCenterX:
             typeof invalidConfig?.centerOfRotation?.distanceFromLeftEdge ===
             "number",
           hasCenterY:
-            typeof invalidConfig?.centerOfRotation?.distanceFromBack ===
+            typeof invalidConfig?.centerOfRotation?.distanceFromTop ===
             "number",
         });
         return null;
@@ -389,12 +389,12 @@ class RobotConfigStorage {
       config.wheels.left &&
       config.wheels.right &&
       typeof config.wheels.left.distanceFromEdge === "number" &&
-      typeof config.wheels.left.distanceFromBack === "number" &&
+      typeof config.wheels.left.distanceFromTop === "number" &&
       typeof config.wheels.right.distanceFromEdge === "number" &&
-      typeof config.wheels.right.distanceFromBack === "number" &&
+      typeof config.wheels.right.distanceFromTop === "number" &&
       config.centerOfRotation &&
       typeof config.centerOfRotation.distanceFromLeftEdge === "number" &&
-      typeof config.centerOfRotation.distanceFromBack === "number"
+      typeof config.centerOfRotation.distanceFromTop === "number"
     );
   }
 
@@ -675,18 +675,18 @@ class RobotConfigStorage {
           wheels: {
             left: {
               distanceFromEdge: 2,
-              distanceFromBack: 5,
+              distanceFromTop: 5,
               diameter: 60,
               width: 20,
             },
             right: {
               distanceFromEdge: 2,
-              distanceFromBack: 5,
+              distanceFromTop: 5,
               diameter: 60,
               width: 20,
             },
           },
-          centerOfRotation: { distanceFromLeftEdge: 5, distanceFromBack: 5 },
+          centerOfRotation: { distanceFromLeftEdge: 5, distanceFromTop: 5 },
           appearance: {
             primaryColor: "#007bff",
             secondaryColor: "#0056b3",

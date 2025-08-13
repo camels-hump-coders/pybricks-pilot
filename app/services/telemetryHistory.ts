@@ -51,11 +51,6 @@ class TelemetryHistoryService {
       points: [],
     };
     this.isRecording = true;
-
-    console.log(
-      "[TelemetryHistory] Started recording, path ID:",
-      this.currentPath.id
-    );
   }
 
   stopRecording(): void {
@@ -75,10 +70,6 @@ class TelemetryHistoryService {
     isCmdKeyPressed: boolean
   ): void {
     if (!this.isRecording || !this.currentPath) {
-      console.log("[TelemetryHistory] Cannot add point:", {
-        isRecording: this.isRecording,
-        hasCurrentPath: !!this.currentPath,
-      });
       return;
     }
 
@@ -139,35 +130,24 @@ class TelemetryHistoryService {
 
   // Automatic recording methods
   onProgramStart(): void {
-    console.log("[TelemetryHistory] Program started - auto-starting recording");
     this.isProgramRunning = true;
     this.startRecording();
   }
 
   onProgramStop(): void {
-    console.log("[TelemetryHistory] Program stopped - auto-stopping recording");
     this.isProgramRunning = false;
     this.stopRecording();
   }
 
   onMatReset(): void {
-    console.log(
-      "[TelemetryHistory] Mat reset - starting new recording session"
-    );
     this.stopRecording(); // Stop current recording if any
     this.clearHistory(); // Clear all history
     this.startRecording(); // Start fresh recording
-    console.log("[TelemetryHistory] Recording state after reset:", {
-      isRecording: this.isRecording,
-      hasCurrentPath: !!this.currentPath,
-      currentPathId: this.currentPath?.id,
-    });
   }
 
   // Ensure recording is active when telemetry data is available
   ensureRecordingActive(): void {
     if (!this.isRecording) {
-      console.log("[TelemetryHistory] Recording was inactive, starting now");
       this.startRecording();
     }
   }
@@ -175,9 +155,6 @@ class TelemetryHistoryService {
   // Add initial position point when recording starts
   addInitialPosition(x: number, y: number, heading: number): void {
     if (!this.isRecording || !this.currentPath) {
-      console.log(
-        "[TelemetryHistory] Cannot add initial position - not recording"
-      );
       return;
     }
 

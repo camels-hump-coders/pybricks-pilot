@@ -21,7 +21,7 @@ export interface RobotConfig {
   // Center of rotation (automatically calculated from wheel positions)
   centerOfRotation: {
     distanceFromLeftEdge: number; // studs from left edge of robot
-    distanceFromBack: number; // studs from back edge of robot
+    distanceFromTop: number; // studs from top edge of robot (Y=0 at top, Y+ down)
   };
 
   // Visual appearance
@@ -49,7 +49,7 @@ export interface RobotConfig {
 
 export interface WheelPosition {
   distanceFromEdge: number; // studs from left/right edge of robot (wheels are symmetric)
-  distanceFromBack: number; // studs from back edge of robot
+  distanceFromTop: number; // studs from top edge of robot (Y=0 at top, Y+ down)
   diameter: number; // mm
   width: number; // mm
 }
@@ -88,21 +88,21 @@ export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
   wheels: {
     left: {
       distanceFromEdge: 2, // 2 studs from left/right edge
-      distanceFromBack: 10, // 10 studs from back edge
+      distanceFromTop: 10, // 10 studs from top edge
       diameter: 56, // Standard LEGO wheel diameter
       width: 20, // Standard LEGO wheel width
     },
     right: {
       distanceFromEdge: 2, // 2 studs from left/right edge (symmetric)
-      distanceFromBack: 10, // 10 studs from back edge
+      distanceFromTop: 10, // 10 studs from top edge
       diameter: 56, // Standard LEGO wheel diameter
       width: 20, // Standard LEGO wheel width
     },
   },
 
   centerOfRotation: {
-    distanceFromLeftEdge: 10, // Will be auto-calculated
-    distanceFromBack: 10, // Will be auto-calculated
+    distanceFromLeftEdge: 11, // Auto-calculated: (2 + (22-2)) / 2 = 11 studs from left edge
+    distanceFromTop: 10, // Same Y as wheels: 10 studs from top edge
   },
 
   appearance: {
@@ -161,23 +161,35 @@ export const getWheelPositionFromCenter = (config: RobotConfig) => {
   return {
     left: {
       x: config.wheels.left.distanceFromEdge - centerX,
-      y: config.wheels.left.distanceFromBack - centerY,
+      y: config.wheels.left.distanceFromTop - centerY,
     },
     right: {
       x:
         config.dimensions.width -
         config.wheels.right.distanceFromEdge -
         centerX,
-      y: config.wheels.right.distanceFromBack - centerY,
+      y: config.wheels.right.distanceFromTop - centerY,
     },
   };
 };
 
 // Automatically calculate center of rotation from wheel positions
 export const calculateCenterOfRotation = (config: RobotConfig) => {
+  // Center of rotation is at the midpoint between the wheels along the axle
+  // X position: midpoint between left and right wheels
+  const leftWheelX = config.wheels.left.distanceFromEdge;
+  const rightWheelX =
+    config.dimensions.width - config.wheels.right.distanceFromEdge;
+  const centerOfRotationX = (leftWheelX + rightWheelX) / 2;
+
+  // Y position: same as wheel Y position (distance from top edge)
+  // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down
+  // This matches the world coordinate system used throughout the application
+  const centerOfRotationY = config.wheels.left.distanceFromTop;
+
   return {
-    distanceFromLeftEdge: config.dimensions.width / 2, // Center of robot width
-    distanceFromBack: config.wheels.left.distanceFromBack, // Same Y as wheels
+    distanceFromLeftEdge: centerOfRotationX,
+    distanceFromTop: centerOfRotationY,
   };
 };
 

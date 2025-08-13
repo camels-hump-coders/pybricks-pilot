@@ -6,7 +6,10 @@
     {
       "id": "equipment-inspection",
       "name": "Equipment Inspection",
-      "position": { "x": 0.1, "y": 0.9 },
+      "position": {
+        "x": 0.1,
+        "y": 0.9
+      },
       "description": "Robot and all equipment must fit completely in one launch area under 12 in. (305 mm) height limit",
       "objectives": [
         {
@@ -102,7 +105,7 @@
       "name": "03: Mineshaft Explorer",
       "position": {
         "x": 0.32375,
-        "y": 0.06901934916446777
+        "y": 0.06901934916446772
       },
       "objectives": [
         {
@@ -135,7 +138,7 @@
       "name": "04: Careful Recovery",
       "position": {
         "x": 0.305,
-        "y": 0.18400175901495158
+        "y": 0.18400175901495164
       },
       "objectives": [
         {
@@ -168,7 +171,7 @@
       "name": "05: Who Lived Here?",
       "position": {
         "x": 0.815,
-        "y": 0.06846086191732634
+        "y": 0.06846086191732637
       },
       "objectives": [
         {
@@ -190,7 +193,7 @@
       "name": "06: Forge",
       "position": {
         "x": 0.8675,
-        "y": 0.22488566402814422
+        "y": 0.22488566402814425
       },
       "objectives": [
         {
@@ -225,7 +228,7 @@
       "name": "07: Heavy Lifting",
       "position": {
         "x": 0.93625,
-        "y": 0.1119349164467898
+        "y": 0.11193491644678977
       },
       "objectives": [
         {
@@ -247,7 +250,7 @@
       "name": "08: Silo",
       "position": {
         "x": 0.94625,
-        "y": 0.41058927000879514
+        "y": 0.4105892700087952
       },
       "objectives": [
         {
@@ -282,7 +285,7 @@
       "name": "09: What's on Sale?",
       "position": {
         "x": 0.6975,
-        "y": 0.44786719437115213
+        "y": 0.4478671943711521
       },
       "objectives": [
         {
@@ -315,7 +318,7 @@
       "name": "10: Tip the Scales",
       "position": {
         "x": 0.62375,
-        "y": 0.4833421284080915
+        "y": 0.48334212840809143
       },
       "objectives": [
         {
@@ -436,7 +439,7 @@
       "name": "14: Forum",
       "position": {
         "x": 0.31375,
-        "y": 0.4824274406332452
+        "y": 0.48242744063324516
       },
       "objectives": [
         {
@@ -613,5 +616,5 @@
     "heightMm": 1137
   },
   "createdAt": "2025-08-11T13:43:21.682Z",
-  "updatedAt": "2025-08-11T18:08:14.548Z"
+  "updatedAt": "2025-08-13T13:23:03.844Z"
 }

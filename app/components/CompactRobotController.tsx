@@ -3,14 +3,17 @@ import { useRef, useState } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfig";
-import { calculatePreviewPosition, calculateTrajectoryProjection } from "./MovementPreview";
+import {
+  calculatePreviewPosition,
+  calculateTrajectoryProjection,
+} from "./MovementPreview";
 
 type ControlMode = "incremental" | "continuous";
 
 interface RobotPosition {
   x: number; // mm from left edge of mat
-  y: number; // mm from bottom edge of mat
-  heading: number; // degrees, 0 = north/forward
+  y: number; // mm from top edge of mat (0 = top edge, positive = downward)
+  heading: number; // degrees clockwise from north (0 = north, 90 = east)
 }
 
 interface CompactRobotControllerProps {
@@ -78,7 +81,7 @@ export function CompactRobotController({
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
   const [driveSpeed, setDriveSpeed] = useState(50);
   const [distance, setDistance] = useState(100);
-  const [angle, setAngle] = useState(90);
+  const [angle, setAngle] = useState(45);
   const [motorSpeed, setMotorSpeed] = useState(100);
   const [motorAngle, setMotorAngle] = useState(90);
   const [activeMotor, setActiveMotor] = useState<string | null>(null);
@@ -244,7 +247,7 @@ export function CompactRobotController({
                 Hold
               </button>
             </div>
-            
+
             {/* CMD Key Status */}
             {isCmdKeyPressed && (
               <div className="px-2 py-1 text-xs bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 rounded border border-orange-300 dark:border-orange-700">
@@ -310,7 +313,7 @@ export function CompactRobotController({
                         "backward",
                         robotConfig
                       );
-                      
+
                       // Calculate trajectory projections for both directions
                       const forwardTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
@@ -332,7 +335,7 @@ export function CompactRobotController({
                         1137,
                         robotConfig
                       );
-                      
+
                       onPreviewUpdate({
                         type: "drive",
                         direction: "forward",
@@ -366,7 +369,7 @@ export function CompactRobotController({
                         "backward",
                         robotConfig
                       );
-                      
+
                       // Calculate trajectory projections for both directions
                       const forwardTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
@@ -388,7 +391,7 @@ export function CompactRobotController({
                         1137,
                         robotConfig
                       );
-                      
+
                       onPreviewUpdate({
                         type: "drive",
                         direction: "forward",
@@ -456,7 +459,7 @@ export function CompactRobotController({
                         "right",
                         robotConfig
                       );
-                      
+
                       // Calculate trajectory projections for both directions
                       const leftTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
@@ -478,7 +481,7 @@ export function CompactRobotController({
                         1137,
                         robotConfig
                       );
-                      
+
                       onPreviewUpdate({
                         type: "turn",
                         direction: "left",
@@ -511,7 +514,7 @@ export function CompactRobotController({
                         "right",
                         robotConfig
                       );
-                      
+
                       // Calculate trajectory projections for both directions
                       const leftTrajectory = calculateTrajectoryProjection(
                         currentRobotPosition,
@@ -533,7 +536,7 @@ export function CompactRobotController({
                         1137,
                         robotConfig
                       );
-                      
+
                       onPreviewUpdate({
                         type: "turn",
                         direction: "left",
