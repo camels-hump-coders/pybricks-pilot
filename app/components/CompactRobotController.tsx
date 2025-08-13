@@ -4,6 +4,9 @@ import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfig";
+import { selectedProgramAtom } from "../store/atoms/selectedProgram";
+import { useUploadProgress } from "../hooks/useUploadProgress";
+import type { DebugEvent } from "../services/pybricksHub";
 import {
   calculatePreviewPosition,
   calculateTrajectoryProjection,
@@ -54,7 +57,9 @@ interface CompactRobotControllerProps {
   }) => void;
   onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
-  onUploadAndRun?: (code: string) => Promise<void>;
+  onUploadAndRunFile?: (file: any, content: string, availableFiles: any[]) => Promise<void>;
+  isUploading?: boolean;
+  debugEvents?: DebugEvent[];
   isCmdKeyPressed?: boolean;
 }
 
@@ -73,12 +78,19 @@ export function CompactRobotController({
   onPreviewUpdate,
   onRunProgram,
   onStopProgram,
-  onUploadAndRun,
+  onUploadAndRunFile,
+  isUploading,
+  debugEvents = [],
   isCmdKeyPressed,
 }: CompactRobotControllerProps) {
   // Get current robot position from Jotai
   const currentRobotPosition = useAtomValue(robotPositionAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
+  const selectedProgram = useAtomValue(selectedProgramAtom);
+  
+  // Upload progress from centralized hook
+  const { uploadProgress } = useUploadProgress(debugEvents);
+
   
   // Get perpendicular preview from Jotai
   const { perpendicularPreview, setPerpendicularPreview } = useJotaiGameMat();
@@ -171,22 +183,6 @@ export function CompactRobotController({
             </button>
             <button
               onClick={() => {
-                if (onUploadAndRun) {
-                  // For now, we'll need to get the current program code from somewhere
-                  // This could be enhanced later to show a file picker or use the last uploaded program
-                  console.log(
-                    "Upload & Run requires program code - use Program Manager for now"
-                  );
-                }
-              }}
-              disabled={!onUploadAndRun}
-              className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-              title="Upload & Run Program"
-            >
-              ⬆️ Up&Run
-            </button>
-            <button
-              onClick={() => {
                 if (onStopProgram) {
                   onStopProgram().catch(console.error);
                 }
@@ -197,7 +193,63 @@ export function CompactRobotController({
             >
               ⏹️ Stop
             </button>
+            {selectedProgram && onUploadAndRunFile && (
+              <button
+                onClick={() => {
+                  if (onUploadAndRunFile && selectedProgram) {
+                    onUploadAndRunFile(
+                      selectedProgram.file,
+                      selectedProgram.content,
+                      selectedProgram.availableFiles
+                    ).catch(console.error);
+                  }
+                }}
+                disabled={!isConnected || isUploading}
+                className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title={`Upload & Run ${selectedProgram.file.name}`}
+              >
+                {isUploading ? (
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  "🚀"
+                )}
+              </button>
+            )}
           </div>
+          
+          {/* Active Program Display */}
+          {selectedProgram && (
+            <div className="mt-2 text-xs">
+              <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                <span>📄</span>
+                <span className="truncate" title={selectedProgram.file.name}>
+                  {selectedProgram.file.name}
+                </span>
+              </div>
+              {uploadProgress.isVisible && (
+                <div className="mt-1">
+                  <div className="flex items-center justify-between text-xs text-blue-600 dark:text-blue-400 mb-1">
+                    <span>{uploadProgress.total > 0 ? 'Uploading...' : 'Preparing...'}</span>
+                    {uploadProgress.total > 0 && (
+                      <span>{uploadProgress.current}/{uploadProgress.total}</span>
+                    )}
+                  </div>
+                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1">
+                    {uploadProgress.total > 0 ? (
+                      <div 
+                        className="bg-blue-500 dark:bg-blue-400 h-1 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min((uploadProgress.current / uploadProgress.total) * 100, 100)}%` 
+                        }}
+                      ></div>
+                    ) : (
+                      <div className="bg-blue-500 dark:bg-blue-400 h-1 rounded-full animate-pulse w-full"></div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

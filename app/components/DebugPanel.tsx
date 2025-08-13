@@ -172,14 +172,6 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
               </span>
             </div>
           )}
-          {telemetryData?.hub?.battery?.voltage && (
-            <div className="flex justify-between">
-              <span>Battery:</span>
-              <span className="text-gray-800 dark:text-gray-200">
-                {Math.round(telemetryData.hub.battery.voltage * 100)}%
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -249,7 +241,9 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
                     : "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
-                {getInstrumentationOptions?.()?.autoDetectHardware ? "ON" : "OFF"}
+                {getInstrumentationOptions?.()?.autoDetectHardware
+                  ? "ON"
+                  : "OFF"}
               </button>
             </div>
           </div>

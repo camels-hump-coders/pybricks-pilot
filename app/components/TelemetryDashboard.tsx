@@ -210,7 +210,9 @@ interface RobotControlsSectionProps {
   robotType?: "real" | "virtual" | null;
   onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
-  onUploadAndRun?: (code: string) => Promise<void>;
+  onUploadAndRunFile?: (file: any, content: string, availableFiles: any[]) => Promise<void>;
+  isUploading?: boolean;
+  debugEvents?: any[];
   isCmdKeyPressed: boolean;
   onRobotBuilderOpen: () => void;
 }
@@ -228,7 +230,9 @@ function RobotControlsSection({
   robotType,
   onRunProgram,
   onStopProgram,
-  onUploadAndRun,
+  onUploadAndRunFile,
+  isUploading,
+  debugEvents,
   isCmdKeyPressed,
   onRobotBuilderOpen,
 }: RobotControlsSectionProps) {
@@ -278,7 +282,9 @@ function RobotControlsSection({
         robotType={robotType}
         onRunProgram={onRunProgram}
         onStopProgram={onStopProgram}
-        onUploadAndRun={onUploadAndRun}
+        onUploadAndRunFile={onUploadAndRunFile}
+        isUploading={isUploading}
+        debugEvents={debugEvents}
         isCmdKeyPressed={isCmdKeyPressed}
       />
     </div>
@@ -464,6 +470,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     runProgram,
     stopProgram,
     uploadAndRunProgram,
+    uploadAndRunFileProgram,
+    isUploadingProgram,
+    debugEvents,
   } = robotConnection;
   const [showMatEditor, setShowMatEditor] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
@@ -653,7 +662,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           robotType={robotType}
           onRunProgram={runProgram}
           onStopProgram={stopProgram}
-          onUploadAndRun={uploadAndRunProgram}
+          onUploadAndRunFile={uploadAndRunFileProgram}
+          isUploading={isUploadingProgram}
+          debugEvents={debugEvents}
           isCmdKeyPressed={isCmdKeyPressed}
           onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
         />
@@ -697,7 +708,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             robotType={robotType}
             onRunProgram={runProgram}
             onStopProgram={stopProgram}
-            onUploadAndRun={uploadAndRunProgram}
+            onUploadAndRunFile={uploadAndRunFileProgram}
+            isUploading={isUploadingProgram}
+            debugEvents={debugEvents}
             isCmdKeyPressed={isCmdKeyPressed}
             onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
           />

@@ -122,6 +122,7 @@ export default function Home() {
     resetTelemetry,
     resetRobotType,
     isBluetoothSupported,
+    debugEvents,
   } = robotConnection;
 
   // Destructure file system properties
@@ -468,6 +469,7 @@ export default function Home() {
               isRunning={isRunningProgram}
               isStopping={isStoppingProgram}
               isCompiling={false}
+              debugEvents={debugEvents}
             />
           </CollapsibleSection>
         )}

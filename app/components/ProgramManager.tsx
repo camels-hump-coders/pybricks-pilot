@@ -1,8 +1,11 @@
 import { useState } from "react";
-import type { ProgramStatus } from "../services/pybricksHub";
+import { useSetAtom } from "jotai";
+import type { ProgramStatus, DebugEvent } from "../services/pybricksHub";
 import type { PythonFile } from "../types/fileSystem";
 import { generatePybricksTemplate } from "../utils/pybricksAnalyzer";
 import { FileBrowser } from "./FileBrowser";
+import { setSelectedProgramAtom } from "../store/atoms/selectedProgram";
+import { useUploadProgress } from "../hooks/useUploadProgress";
 
 interface ProgramManagerProps {
   // Directory and file management
@@ -30,6 +33,7 @@ interface ProgramManagerProps {
   isRunning: boolean;
   isStopping: boolean;
   isCompiling: boolean;
+  debugEvents: DebugEvent[];
   className?: string;
 }
 
@@ -54,11 +58,16 @@ export function ProgramManager({
   isRunning,
   isStopping,
   isCompiling,
+  debugEvents,
   className = "",
 }: ProgramManagerProps) {
   const [selectedFile, setSelectedFile] = useState<PythonFile | null>(null);
   const [programCode, setProgramCode] = useState("");
   const [showCode, setShowCode] = useState(false);
+  
+  const setSelectedProgram = useSetAtom(setSelectedProgramAtom);
+  const { uploadProgress } = useUploadProgress(debugEvents);
+
 
   const handleFileSelect = async (file: PythonFile) => {
     // Only allow selecting actual files, not directories
@@ -68,6 +77,13 @@ export function ProgramManager({
     try {
       const content = await file.handle.getFile().then((f) => f.text());
       setProgramCode(content);
+      
+      // Update global selected program state for robot controls quick access
+      setSelectedProgram({
+        file,
+        content,
+        availableFiles: pythonFiles,
+      });
     } catch (error) {
       console.error(
         "Failed to read file:",
@@ -214,32 +230,74 @@ export function ProgramManager({
               <div className="flex gap-2">
                 <button
                   onClick={handleUpload}
-                  disabled={!isConnected || isUploading}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  disabled={!isConnected || isUploading || isRunning}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {isUploading && (
+                  {(isUploading || isCompiling) && (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   )}
-                  📤 Upload to Hub
+                  📤 {isUploading ? 'Uploading...' : 'Upload to Hub'}
                 </button>
                 <button
                   onClick={handleUploadAndRun}
-                  disabled={!isConnected || isUploading}
-                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  disabled={!isConnected || isUploading || isRunning}
+                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {isUploading && (
+                  {(isUploading || isCompiling) && (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   )}
-                  🚀 Upload & Run
+                  🚀 {isUploading ? 'Uploading...' : 'Upload & Run'}
                 </button>
               </div>
+
+              {/* Upload Progress */}
+              {uploadProgress.isVisible && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {uploadProgress.total > 0 ? 'Uploading...' : 'Preparing upload...'}
+                    </span>
+                    {uploadProgress.total > 0 && (
+                      <span className="text-sm text-blue-600 dark:text-blue-400">
+                        {uploadProgress.current}/{uploadProgress.total}
+                      </span>
+                    )}
+                  </div>
+                  {uploadProgress.total > 0 ? (
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 dark:bg-blue-400 h-2 rounded-full transition-all duration-300 ease-out"
+                        style={{ 
+                          width: `${Math.min((uploadProgress.current / uploadProgress.total) * 100, 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  ) : (
+                    <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                      <div className="bg-blue-500 dark:bg-blue-400 h-2 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Program Status */}
               {programStatus.running && (
                 <div className="p-3 rounded-md bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
-                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-                    <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="font-medium">Program Running...</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                      <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="font-medium">Program Running...</span>
+                    </div>
+                    <button
+                      onClick={onStopProgram}
+                      disabled={!isConnected || isStopping}
+                      className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 text-sm flex items-center gap-1"
+                    >
+                      {isStopping && (
+                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                      ⏹️ Stop
+                    </button>
                   </div>
                 </div>
               )}
@@ -254,66 +312,26 @@ export function ProgramManager({
               )}
               
               {!programStatus.running && !programStatus.error && isConnected && (
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Ready to upload {selectedFile.name}
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Ready to upload {selectedFile.name}
+                  </div>
+                  <button
+                    onClick={onRunProgram}
+                    disabled={!isConnected || isRunning || isUploading}
+                    className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 text-sm flex items-center gap-1"
+                  >
+                    {isRunning && (
+                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                    ▶️ Run
+                  </button>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Program Controls */}
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <button
-              onClick={handleUpload}
-              disabled={
-                !isConnected || !programCode || isUploading || isRunning
-              }
-              className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-1"
-            >
-              {isUploading && (
-                <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-              )}
-              📤 Upload
-            </button>
-
-            <button
-              onClick={onRunProgram}
-              disabled={!isConnected || isRunning || isUploading}
-              className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-1"
-            >
-              {isRunning && (
-                <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-              )}
-              ▶️ Run
-            </button>
-
-            <button
-              onClick={onStopProgram}
-              disabled={!isConnected || !programStatus.running || isStopping}
-              className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-1"
-            >
-              {isStopping && (
-                <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-              )}
-              ⏹️ Stop
-            </button>
-
-            <button
-              onClick={handleUploadAndRun}
-              disabled={
-                !isConnected || !programCode || isUploading || isRunning
-              }
-              className="px-3 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-1"
-            >
-              {(isUploading || isRunning) && (
-                <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-              )}
-              🚀 Upload & Run
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
