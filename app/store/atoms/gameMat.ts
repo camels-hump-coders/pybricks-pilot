@@ -1,5 +1,7 @@
 import { atom } from "jotai";
 import type { GameMatConfig, Mission } from "../../schemas/GameMatConfig";
+import type { RobotConfig } from "../../schemas/RobotConfig";
+import { studsToMm, DEFAULT_ROBOT_CONFIG } from "../../schemas/RobotConfig";
 
 export interface RobotPosition {
   x: number; // mm from left edge of mat (0 = left edge)
@@ -43,12 +45,51 @@ export interface ScoringState {
   };
 }
 
+// Mat dimensions constants
+const MAT_WIDTH_MM = 2356; // Official FLL mat width
+const MAT_HEIGHT_MM = 1137; // Official FLL mat height
+
+// Helper functions for robot positioning
+export const calculateRobotPosition = (
+  robotConfig: RobotConfig,
+  position: "bottom-right" | "bottom-left" | "center"
+): RobotPosition => {
+  const robotWidthMm = studsToMm(robotConfig.dimensions.width);
+  const robotLengthMm = studsToMm(robotConfig.dimensions.length);
+
+  switch (position) {
+    case "bottom-right":
+      return {
+        x: MAT_WIDTH_MM - (robotWidthMm / 2), // Flush against right edge
+        y: robotLengthMm / 2, // Flush against bottom edge
+        heading: 0, // Facing north (forward)
+      };
+    case "bottom-left":
+      return {
+        x: robotWidthMm / 2, // Flush against left edge
+        y: robotLengthMm / 2, // Flush against bottom edge
+        heading: 0, // Facing north (forward)
+      };
+    case "center":
+      return {
+        x: MAT_WIDTH_MM / 2, // Center of mat width
+        y: MAT_HEIGHT_MM / 2, // Center of mat height
+        heading: 0, // Facing north (forward)
+      };
+    default:
+      // Default to bottom-right
+      return {
+        x: MAT_WIDTH_MM - (robotWidthMm / 2),
+        y: robotLengthMm / 2,
+        heading: 0,
+      };
+  }
+};
+
 // Robot position atoms
-export const robotPositionAtom = atom<RobotPosition>({
-  x: 2266, // Bottom right X position (mat width - robot width/2)
-  y: 100, // Bottom edge + robot length/2 to keep robot on mat
-  heading: 0, // Facing north (forward)
-});
+export const robotPositionAtom = atom<RobotPosition>(
+  calculateRobotPosition(DEFAULT_ROBOT_CONFIG, "bottom-right")
+);
 
 export const isSettingPositionAtom = atom<boolean>(false);
 export const mousePositionAtom = atom<RobotPosition | null>(null);

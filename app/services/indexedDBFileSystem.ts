@@ -16,7 +16,7 @@ interface StoredFileInfo {
 
 class IndexedDBFileSystemService {
   private dbName = "PybricksFileSystem";
-  private dbVersion = 1;
+  private dbVersion = 2; // Increment to handle robot config store
   private db: IDBDatabase | null = null;
 
   async initialize(): Promise<void> {
@@ -57,6 +57,14 @@ class IndexedDBFileSystemService {
         // Create store for user preferences
         if (!db.objectStoreNames.contains("preferences")) {
           db.createObjectStore("preferences", { keyPath: "key" });
+        }
+
+        // Create robot configs object store if it doesn't exist
+        if (!db.objectStoreNames.contains("robotConfigs")) {
+          const store = db.createObjectStore("robotConfigs", { keyPath: "id" });
+          store.createIndex("name", "name", { unique: false });
+          store.createIndex("tags", "tags", { unique: false });
+          store.createIndex("isDefault", "isDefault", { unique: false });
         }
       };
     });

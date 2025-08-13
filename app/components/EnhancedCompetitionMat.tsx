@@ -1,8 +1,10 @@
+import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import type { GameMatConfig, Mission } from "../schemas/GameMatConfig";
+import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
 import type { TelemetryData } from "../services/pybricksHub";
 import {
   telemetryHistory,
@@ -10,6 +12,8 @@ import {
   type PathVisualizationOptions,
   type TelemetryPoint,
 } from "../services/telemetryHistory";
+import { calculateRobotPosition } from "../store/atoms/gameMat";
+import { robotConfigAtom } from "../store/atoms/robotConfig";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 
 interface RobotPosition {
@@ -34,9 +38,10 @@ const TABLE_HEIGHT_MM = 1140; // Table interior height (4mm taller than mat)
 const BORDER_WALL_HEIGHT_MM = 36; // 36mm tall border walls
 const BORDER_WALL_THICKNESS_MM = 36; // Border wall thickness (same as height)
 
-const ROBOT_WIDTH_MM = 180; // Typical FLL robot width
-const ROBOT_LENGTH_MM = 200; // Typical FLL robot length
-const WHEEL_WIDTH_MM = 20;
+// Default robot dimensions (will be overridden by robot configuration)
+const DEFAULT_ROBOT_WIDTH_MM = 180; // Typical FLL robot width
+const DEFAULT_ROBOT_LENGTH_MM = 200; // Typical FLL robot length
+const DEFAULT_WHEEL_WIDTH_MM = 20;
 
 interface ObjectiveState {
   completed: boolean;
@@ -132,6 +137,9 @@ export function EnhancedCompetitionMat({
 
   const robotConnection = useJotaiRobotConnection();
   const { resetTelemetry, clearProgramOutputLog } = robotConnection;
+
+  // Get robot configuration
+  const robotConfig = useAtomValue(robotConfigAtom);
 
   // Use Jotai for game mat state management
   const gameMat = useJotaiGameMat();
@@ -507,7 +515,7 @@ export function EnhancedCompetitionMat({
             oppositeDirection
           );
         }
-        
+
         // Draw the secondary trajectory path
         drawTrajectoryProjection(
           ctx,
@@ -630,8 +638,8 @@ export function EnhancedCompetitionMat({
     ctx.translate(pos.x, pos.y);
     ctx.rotate(heading);
 
-    const robotWidth = ROBOT_WIDTH_MM * scale;
-    const robotLength = ROBOT_LENGTH_MM * scale;
+    const robotWidth = robotConfig.dimensions.width * 8 * scale; // Convert studs to mm
+    const robotLength = robotConfig.dimensions.length * 8 * scale; // Convert studs to mm
 
     if (isGhost) {
       // Preview robot - make it highly visible with bright colors
@@ -674,23 +682,34 @@ export function EnhancedCompetitionMat({
         robotLength
       );
 
-      // Wheels - bright white
-      const wheelWidth = WHEEL_WIDTH_MM * scale;
-      const wheelLength = 60 * scale;
-      const wheelOffset = robotWidth / 2 - wheelWidth / 2;
+      // Wheels - bright white, convert edge-based positioning to mm
+      const wheelWidth = robotConfig.wheels.left.width * scale;
+      const wheelDiameter = robotConfig.wheels.left.diameter * scale;
+
+      // Convert edge-based positioning to center-based coordinates
+      // Wheels are positioned from edges, so we need to convert to center-based
+      const robotWidthMm = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM;
+      const robotLengthMm = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM;
+      
+      // Left wheel is distanceFromEdge studs from left edge
+      const leftWheelX = (-robotWidthMm / 2 + robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
+      // Right wheel is distanceFromEdge studs from right edge  
+      const rightWheelX = (robotWidthMm / 2 - robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
+      // Both wheels are distanceFromBack studs from back edge
+      const wheelY = (-robotLengthMm / 2 + robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
 
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; // Bright white wheels
       ctx.fillRect(
-        -wheelOffset - wheelWidth / 2,
-        -wheelLength / 2,
+        leftWheelX - wheelWidth / 2,
+        wheelY - wheelDiameter / 2,
         wheelWidth,
-        wheelLength
+        wheelDiameter
       );
       ctx.fillRect(
-        wheelOffset - wheelWidth / 2,
-        -wheelLength / 2,
+        rightWheelX - wheelWidth / 2,
+        wheelY - wheelDiameter / 2,
         wheelWidth,
-        wheelLength
+        wheelDiameter
       );
 
       // Direction indicator for preview - different colors for different directions
@@ -749,23 +768,34 @@ export function EnhancedCompetitionMat({
         robotLength
       );
 
-      // Wheels
-      const wheelWidth = WHEEL_WIDTH_MM * scale;
-      const wheelLength = 60 * scale;
-      const wheelOffset = robotWidth / 2 - wheelWidth / 2;
+      // Wheels - convert stud offsets to mm
+      const wheelWidth = robotConfig.wheels.left.width * scale;
+      const wheelDiameter = robotConfig.wheels.left.diameter * scale;
+
+      // Convert edge-based positioning to center-based coordinates
+      // Wheels are positioned from edges, so we need to convert to center-based
+      const robotWidthMm = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM;
+      const robotLengthMm = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM;
+      
+      // Left wheel is distanceFromEdge studs from left edge
+      const leftWheelX = (-robotWidthMm / 2 + robotConfig.wheels.left.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
+      // Right wheel is distanceFromEdge studs from right edge
+      const rightWheelX = (robotWidthMm / 2 - robotConfig.wheels.right.distanceFromEdge * LEGO_STUD_SIZE_MM) * scale;
+      // Both wheels are distanceFromBack studs from back edge
+      const wheelY = (-robotLengthMm / 2 + robotConfig.wheels.left.distanceFromBack * LEGO_STUD_SIZE_MM) * scale;
 
       ctx.fillStyle = "#333";
       ctx.fillRect(
-        -wheelOffset - wheelWidth / 2,
-        -wheelLength / 2,
+        leftWheelX - wheelWidth / 2,
+        wheelY - wheelDiameter / 2,
         wheelWidth,
-        wheelLength
+        wheelDiameter
       );
       ctx.fillRect(
-        wheelOffset - wheelWidth / 2,
-        -wheelLength / 2,
+        rightWheelX - wheelWidth / 2,
+        wheelY - wheelDiameter / 2,
         wheelWidth,
-        wheelLength
+        wheelDiameter
       );
 
       // Direction indicator for regular robot
@@ -866,9 +896,9 @@ export function EnhancedCompetitionMat({
     direction: "forward" | "backward" | "left" | "right"
   ) => {
     const pos = mmToCanvas(nextMoveEnd.x, nextMoveEnd.y);
-    
+
     ctx.save();
-    
+
     // Set more visible styling based on direction
     let indicatorColor;
     if (direction === "forward") {
@@ -884,28 +914,28 @@ export function EnhancedCompetitionMat({
     }
 
     // Draw a more visible outline of where the robot will be
-    const robotWidth = ROBOT_WIDTH_MM * scale;
-    const robotLength = ROBOT_LENGTH_MM * scale;
-    
+    const robotWidth = robotConfig.dimensions.width * 8 * scale; // Convert studs to mm
+    const robotLength = robotConfig.dimensions.length * 8 * scale; // Convert studs to mm
+
     ctx.strokeStyle = indicatorColor;
     ctx.lineWidth = 2; // Thicker line for better visibility
     ctx.setLineDash([8, 4]); // Slightly longer dashes for better visibility
-    
+
     ctx.strokeRect(
       pos.x - robotWidth / 2,
       pos.y - robotLength / 2,
       robotWidth,
       robotLength
     );
-    
+
     ctx.setLineDash([]); // Reset line dash
-    
+
     // Draw a more visible center point
     ctx.fillStyle = indicatorColor;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 3, 0, 2 * Math.PI); // Larger center point
     ctx.fill();
-    
+
     ctx.restore();
   };
 
@@ -1611,16 +1641,42 @@ export function EnhancedCompetitionMat({
               {isSettingPosition ? "✓ Confirm" : "📍 Set Pos"}
             </button>
 
+            {/* Position shortcuts - only visible when setting position */}
+            {isSettingPosition && (
+              <>
+                <button
+                  onClick={() => {
+                    setCurrentPosition(calculateRobotPosition(robotConfig, "bottom-left"));
+                    setAccumulatedTelemetry({ distance: 0, angle: 0 });
+                    setManualHeadingAdjustment(0);
+                    setIsSettingPosition(false);
+                  }}
+                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                  title="Position robot flush against bottom-left corner"
+                >
+                  ↙️ Bottom Left
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrentPosition(calculateRobotPosition(robotConfig, "bottom-right"));
+                    setAccumulatedTelemetry({ distance: 0, angle: 0 });
+                    setManualHeadingAdjustment(0);
+                    setIsSettingPosition(false);
+                  }}
+                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                  title="Position robot flush against bottom-right corner"
+                >
+                  ↘️ Bottom Right
+                </button>
+              </>
+            )}
+
             <button
               onClick={async () => {
                 await resetTelemetry();
                 await clearProgramOutputLog();
-                // Reset to default position instead of hardcoded values
-                setCurrentPosition({
-                  x: 2266, // Bottom right X position (mat width - robot width/2)
-                  y: 100, // Bottom edge + robot length/2 to keep robot on mat
-                  heading: 0, // Facing north (forward)
-                });
+                // Reset to default position based on current robot configuration
+                setCurrentPosition(calculateRobotPosition(robotConfig, "bottom-right"));
                 setAccumulatedTelemetry({ distance: 0, angle: 0 });
                 setManualHeadingAdjustment(0);
                 setScoringState({});

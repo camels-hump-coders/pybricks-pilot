@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
@@ -9,6 +9,7 @@ import {
 import { matConfigStorage } from "../services/matConfigStorage";
 import type { ProgramStatus } from "../services/pybricksHub";
 import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
+import { robotBuilderOpenAtom, robotConfigAtom } from "../store/atoms/robotConfig";
 import { CompactRobotController } from "./CompactRobotController";
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
@@ -17,6 +18,7 @@ import { IMUDisplay } from "./IMUDisplay";
 import { MapSelector } from "./MapSelector";
 import { MotorStatus } from "./MotorStatus";
 import { ProgramOutputLog } from "./ProgramOutputLog";
+import { RobotBuilder } from "./RobotBuilder";
 import { SensorDisplay } from "./SensorDisplay";
 
 // Load built-in maps using the same logic as MapSelector
@@ -206,6 +208,7 @@ interface RobotControlsSectionProps {
   onStopProgram?: () => Promise<void>;
   onUploadAndRun?: (code: string) => Promise<void>;
   isCmdKeyPressed: boolean;
+  onRobotBuilderOpen: () => void;
 }
 
 function RobotControlsSection({
@@ -223,28 +226,54 @@ function RobotControlsSection({
   onStopProgram,
   onUploadAndRun,
   isCmdKeyPressed,
+  onRobotBuilderOpen,
 }: RobotControlsSectionProps) {
   // Use Jotai atoms directly instead of prop drilling
   const [, setMovementPreview] = useAtom(movementPreviewAtom);
+  const currentRobotConfig = useAtomValue(robotConfigAtom);
   return (
-    <CompactRobotController
-      onDriveCommand={onDriveCommand}
-      onTurnCommand={onTurnCommand}
-      onStopCommand={onStopCommand}
-      onContinuousDriveCommand={onContinuousDriveCommand}
-      onMotorCommand={onMotorCommand}
-      onContinuousMotorCommand={onContinuousMotorCommand}
-      onMotorStopCommand={onMotorStopCommand}
-      telemetryData={telemetryData}
-      isConnected={isConnected}
-      // Robot position automatically available via Jotai in CompactRobotController
-      onPreviewUpdate={setMovementPreview}
-      robotType={robotType}
-      onRunProgram={onRunProgram}
-      onStopProgram={onStopProgram}
-      onUploadAndRun={onUploadAndRun}
-      isCmdKeyPressed={isCmdKeyPressed}
-    />
+    <div className="space-y-4">
+      {/* Current Robot Display */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+        <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">Active Robot:</div>
+        <div className="font-medium text-gray-900 dark:text-white text-sm">
+          {currentRobotConfig.name}
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          {currentRobotConfig.dimensions.width}×{currentRobotConfig.dimensions.length} studs 
+          ({currentRobotConfig.dimensions.width * 8}×{currentRobotConfig.dimensions.length * 8}mm)
+        </div>
+      </div>
+
+      {/* Robot Builder Button */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
+        <button
+          onClick={onRobotBuilderOpen}
+          className="w-full px-4 py-2 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+        >
+          🧱 Customize Robot
+        </button>
+      </div>
+
+      <CompactRobotController
+        onDriveCommand={onDriveCommand}
+        onTurnCommand={onTurnCommand}
+        onStopCommand={onStopCommand}
+        onContinuousDriveCommand={onContinuousDriveCommand}
+        onMotorCommand={onMotorCommand}
+        onContinuousMotorCommand={onContinuousMotorCommand}
+        onMotorStopCommand={onMotorStopCommand}
+        telemetryData={telemetryData}
+        isConnected={isConnected}
+        // Robot position automatically available via Jotai in CompactRobotController
+        onPreviewUpdate={setMovementPreview}
+        robotType={robotType}
+        onRunProgram={onRunProgram}
+        onStopProgram={onStopProgram}
+        onUploadAndRun={onUploadAndRun}
+        isCmdKeyPressed={isCmdKeyPressed}
+      />
+    </div>
   );
 }
 
@@ -439,7 +468,10 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const [showScoring, setShowScoring] = useState(false);
   // Use Jotai for current score instead of local state
   const currentScore = useAtomValue(currentScoreAtom);
+  const [robotBuilderOpen, setRobotBuilderOpen] = useAtom(robotBuilderOpenAtom);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const setRobotConfig = useSetAtom(robotConfigAtom);
+  const currentRobotConfig = useAtomValue(robotConfigAtom);
 
   // Use Jotai atoms for movement preview and robot position
   const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
@@ -617,6 +649,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           onStopProgram={stopProgram}
           onUploadAndRun={uploadAndRunProgram}
           isCmdKeyPressed={isCmdKeyPressed}
+          onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
         />
 
         <MatControlsPanel
@@ -661,6 +694,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             onStopProgram={stopProgram}
             onUploadAndRun={uploadAndRunProgram}
             isCmdKeyPressed={isCmdKeyPressed}
+            onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
           />
 
           <MatControlsPanel
@@ -715,6 +749,16 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
       {/* Hub Status Section */}
       <HubStatusSection programStatus={programStatus} />
+
+      {/* Robot Builder Modal */}
+      <RobotBuilder
+        isOpen={robotBuilderOpen}
+        onClose={() => setRobotBuilderOpen(false)}
+        onRobotChange={(config) => {
+          console.log("Robot configuration updated:", config);
+          setRobotConfig(config);
+        }}
+      />
     </div>
   );
 }
