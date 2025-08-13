@@ -155,14 +155,31 @@ class PseudoCodeGeneratorService {
       // Calculate deltas from raw encoder data
       const deltaDistance =
         currentPoint.drivebase.distance - prevPoint.drivebase.distance;
-      const deltaAngle =
-        currentPoint.drivebase.angle - prevPoint.drivebase.angle;
+
+      // Use IMU heading change instead of motor angle for more accurate orientation tracking
+      let deltaHeading = 0;
+      if (
+        prevPoint.hub?.imu?.heading !== undefined &&
+        currentPoint.hub?.imu?.heading !== undefined
+      ) {
+        const rawDelta =
+          currentPoint.hub.imu.heading - prevPoint.hub.imu.heading;
+        deltaHeading = rawDelta;
+
+        // Normalize heading difference to handle wraparound (e.g., 359° to 1° = -358° not +2°)
+        if (deltaHeading > 180) {
+          deltaHeading -= 360;
+        } else if (deltaHeading < -180) {
+          deltaHeading += 360;
+        }
+      }
+
       const timeDelta = currentPoint.timestamp - prevPoint.timestamp;
 
       // Determine if this is a significant movement
       const isSignificantMovement =
         Math.abs(deltaDistance) >= this.MIN_DISTANCE_THRESHOLD ||
-        Math.abs(deltaAngle) >= this.MIN_HEADING_THRESHOLD;
+        Math.abs(deltaHeading) >= this.MIN_HEADING_THRESHOLD;
 
       if (isSignificantMovement) {
         // First, finalize any current command that's being built
@@ -174,11 +191,11 @@ class PseudoCodeGeneratorService {
         // Start new command
         const movementType = this.determineMovementType(
           deltaDistance,
-          deltaAngle
+          deltaHeading
         );
         const initialDirection = this.determineDirectionFromRaw(
           deltaDistance,
-          deltaAngle
+          deltaHeading
         );
 
         currentCommand = {
@@ -193,7 +210,7 @@ class PseudoCodeGeneratorService {
         this.updateCurrentCommandFromRaw(
           currentCommand,
           deltaDistance,
-          deltaAngle,
+          deltaHeading,
           timeDelta,
           currentPoint
         );
@@ -277,10 +294,40 @@ class PseudoCodeGeneratorService {
             const previousAngle = previousCommand.angle || 0;
             const currentAngle = currentCommand.angle || 0;
 
-            // Combine if: same signed value OR CMD key was held
-            const sameSignedValue =
-              (previousAngle >= 0 && currentAngle >= 0) ||
-              (previousAngle < 0 && currentAngle < 0);
+            // For turns, we need to consider that the angle values represent heading changes
+            // and could be affected by wraparound. We should compare the actual direction
+            // of the heading changes, not just the raw angle signs.
+            let sameSignedValue = false;
+
+            if (
+              previousCommand.startHeading !== undefined &&
+              currentCommand.startHeading !== undefined
+            ) {
+              // Compare the actual heading changes by looking at start and target headings
+              const previousHeadingChange =
+                previousCommand.targetHeading! - previousCommand.startHeading;
+              const currentHeadingChange =
+                currentCommand.targetHeading! - currentCommand.startHeading;
+
+              // Normalize both heading changes to -180 to 180 range for proper comparison
+              const normalizedPreviousChange = this.normalizeHeading(
+                previousHeadingChange
+              );
+              const normalizedCurrentChange =
+                this.normalizeHeading(currentHeadingChange);
+
+              // Check if both changes are in the same direction (same sign)
+              sameSignedValue =
+                (normalizedPreviousChange >= 0 &&
+                  normalizedCurrentChange >= 0) ||
+                (normalizedPreviousChange < 0 && normalizedCurrentChange < 0);
+            } else {
+              // Fallback to simple angle sign comparison if we don't have start headings
+              sameSignedValue =
+                (previousAngle >= 0 && currentAngle >= 0) ||
+                (previousAngle < 0 && currentAngle < 0);
+            }
+
             const cmdKeyHeld = currentCommand.isCmdKeyPressed || false;
 
             shouldCombine = sameSignedValue || cmdKeyHeld;
@@ -291,6 +338,8 @@ class PseudoCodeGeneratorService {
               // Update the previous command
               previousCommand.angle = newTotalAngle;
               if (previousCommand.startHeading !== undefined) {
+                // Since we're now using IMU headings directly, we need to recalculate
+                // the target heading based on the accumulated angle change
                 previousCommand.targetHeading = this.normalizeHeading(
                   previousCommand.startHeading + newTotalAngle
                 );
@@ -366,10 +415,10 @@ class PseudoCodeGeneratorService {
    */
   private determineMovementType(
     deltaDistance: number,
-    deltaAngle: number
+    deltaHeading: number
   ): "drive" | "turn" {
-    // If angle change is significant, it's a turn
-    if (Math.abs(deltaAngle) >= this.MIN_HEADING_THRESHOLD) {
+    // If heading change is significant, it's a turn
+    if (Math.abs(deltaHeading) >= this.MIN_HEADING_THRESHOLD) {
       return "turn";
     }
     // Otherwise, it's a drive
@@ -381,11 +430,11 @@ class PseudoCodeGeneratorService {
    */
   private determineDirectionFromRaw(
     deltaDistance: number,
-    deltaAngle: number
+    deltaHeading: number
   ): "forward" | "backward" {
     // For turns, direction is based on heading change
-    if (Math.abs(deltaAngle) >= this.MIN_HEADING_THRESHOLD) {
-      return deltaAngle > 0 ? "forward" : "backward";
+    if (Math.abs(deltaHeading) >= this.MIN_HEADING_THRESHOLD) {
+      return deltaHeading > 0 ? "forward" : "backward";
     }
 
     // For drive movements, use the signed distance directly
@@ -398,7 +447,7 @@ class PseudoCodeGeneratorService {
   private updateCurrentCommandFromRaw(
     command: MovementCommand,
     deltaDistance: number,
-    deltaAngle: number,
+    deltaHeading: number,
     timeDelta: number,
     currentPoint: RawTelemetryPoint
   ): void {
@@ -410,20 +459,22 @@ class PseudoCodeGeneratorService {
       // Update direction based on current movement
       command.direction = deltaDistance >= 0 ? "forward" : "backward";
     } else {
-      // For turn commands, set the angle to the current delta
-      command.angle = deltaAngle;
+      // For turn commands, use the IMU heading change directly
+      command.angle = deltaHeading;
 
-      // Calculate the target heading based on current angle change
+      // For turn commands, we can directly use the current IMU heading as the target
+      // since we're now tracking actual orientation changes rather than motor encoder data
       if (currentPoint.hub?.imu?.heading !== undefined) {
-        if (command.startHeading === undefined) {
-          // For a new turn command, the starting heading is the current IMU heading
-          command.startHeading = currentPoint.hub.imu.heading;
-        }
-
-        // Calculate the target heading based on the starting heading and current angle
         command.targetHeading = this.normalizeHeading(
-          command.startHeading + (command.angle || 0)
+          currentPoint.hub.imu.heading
         );
+
+        // Set start heading for the first turn command in a sequence
+        if (command.startHeading === undefined) {
+          command.startHeading = this.normalizeHeading(
+            currentPoint.hub.imu.heading - deltaHeading
+          );
+        }
       }
     }
 

@@ -464,6 +464,7 @@ def _execute_command(command):
             # Reset drivebase telemetry: {"action": "reset_drivebase"}
             try:
                 _drivebase.reset()
+                _hub.reset_heading(0)
                 print("[PILOT] Drivebase telemetry reset - distance and angle set to 0")
             except Exception as e:
                 print("[PILOT] Drivebase reset error:", e)
