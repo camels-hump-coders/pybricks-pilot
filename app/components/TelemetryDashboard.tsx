@@ -675,7 +675,10 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           showScoring={showScoring}
           currentScore={currentScore}
           onMapSelectorOpen={() => setShowMapSelector(true)}
-          onMatEditorOpen={setMatEditorMode}
+          onMatEditorOpen={(mode) => {
+            setMatEditorMode(mode);
+            setShowMatEditor(true);
+          }}
           onScoringToggle={() => setShowScoring(!showScoring)}
           onClearMat={handleClearCustomMat}
         />
@@ -721,7 +724,10 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             showScoring={showScoring}
             currentScore={currentScore}
             onMapSelectorOpen={() => setShowMapSelector(true)}
-            onMatEditorOpen={setMatEditorMode}
+            onMatEditorOpen={(mode) => {
+            setMatEditorMode(mode);
+            setShowMatEditor(true);
+          }}
             onScoringToggle={() => setShowScoring(!showScoring)}
             onClearMat={handleClearCustomMat}
           />

@@ -1191,16 +1191,9 @@ export function EnhancedCompetitionMat({
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
 
-      ctx.fillStyle = isScored
-        ? isHovered
-          ? "rgba(0, 255, 0, 1)"
-          : "rgba(0, 255, 0, 0.9)"
-        : isHovered
-          ? "rgba(255, 165, 0, 1)"
-          : "rgba(255, 165, 0, 0.9)";
-      ctx.strokeStyle = isScored ? "#00aa00" : "#ff8800";
-      ctx.lineWidth = isHovered ? 4 : 3;
-
+      // Calculate percentage completion
+      const completionPercentage = maxPoints > 0 ? currentPoints / maxPoints : 0;
+      
       // Draw hover ring
       if (isHovered) {
         ctx.beginPath();
@@ -1210,11 +1203,38 @@ export function EnhancedCompetitionMat({
         ctx.stroke();
       }
 
+      // Draw base circle (orange background for unearned points)
+      ctx.fillStyle = isHovered
+        ? "rgba(255, 165, 0, 1)"
+        : "rgba(255, 165, 0, 0.9)";
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
       ctx.fill();
-      ctx.strokeStyle = isScored ? "#00aa00" : "#ff8800";
+
+      // Draw pie chart section for earned points (green)
+      if (completionPercentage > 0) {
+        ctx.fillStyle = isHovered
+          ? "rgba(0, 255, 0, 1)"
+          : "rgba(0, 255, 0, 0.9)";
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y); // Start at center
+        ctx.arc(
+          pos.x, 
+          pos.y, 
+          radius, 
+          -Math.PI / 2, // Start at top (12 o'clock)
+          -Math.PI / 2 + (completionPercentage * 2 * Math.PI), // End based on percentage
+          false // Clockwise
+        );
+        ctx.closePath(); // Close the pie slice
+        ctx.fill();
+      }
+
+      // Draw border around entire circle
+      ctx.strokeStyle = completionPercentage >= 1 ? "#00aa00" : "#ff8800";
       ctx.lineWidth = isHovered ? 4 : 3;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
       ctx.stroke();
     });
 

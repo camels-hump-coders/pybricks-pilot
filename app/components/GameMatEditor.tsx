@@ -1392,41 +1392,119 @@ ${new Date().toISOString()}
                                 </div>
                                 <input
                                   type="text"
-                                  value={objective.description}
+                                  value={objective.description || ""}
                                   onChange={(e) =>
                                     updateObjectiveInSelected(objective.id, {
                                       description: e.target.value,
                                     })
                                   }
                                   className="w-full px-2 py-1 mb-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                  placeholder="Objective description"
+                                  placeholder="Objective description (optional)"
                                 />
-                                <div className="flex gap-2">
-                                  <input
-                                    type="number"
-                                    value={objective.points}
-                                    onChange={(e) =>
+                                
+                                {/* Scoring Mode */}
+                                <select
+                                  value={objective.scoringMode || "multi-select"}
+                                  onChange={(e) =>
+                                    updateObjectiveInSelected(objective.id, {
+                                      scoringMode: e.target.value as "multi-select" | "single-select",
+                                    })
+                                  }
+                                  className="w-full px-2 py-1 mb-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                >
+                                  <option value="multi-select">Multi-select (can complete multiple)</option>
+                                  <option value="single-select">Single-select (only one at a time)</option>
+                                </select>
+                                
+                                {/* Choices for this objective */}
+                                <div className="space-y-1 mt-2">
+                                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                    Choices ({objective.choices?.length || 0}):
+                                  </div>
+                                  {objective.choices?.map((choice, choiceIndex) => (
+                                    <div key={choice.id} className="flex gap-1 items-center">
+                                      <input
+                                        type="text"
+                                        value={choice.description}
+                                        onChange={(e) => {
+                                          const updatedChoices = [...(objective.choices || [])];
+                                          updatedChoices[choiceIndex] = {
+                                            ...choice,
+                                            description: e.target.value,
+                                          };
+                                          updateObjectiveInSelected(objective.id, {
+                                            choices: updatedChoices,
+                                          });
+                                        }}
+                                        className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                        placeholder="Choice description"
+                                      />
+                                      <input
+                                        type="number"
+                                        value={choice.points}
+                                        onChange={(e) => {
+                                          const updatedChoices = [...(objective.choices || [])];
+                                          updatedChoices[choiceIndex] = {
+                                            ...choice,
+                                            points: parseInt(e.target.value) || 0,
+                                          };
+                                          updateObjectiveInSelected(objective.id, {
+                                            choices: updatedChoices,
+                                          });
+                                        }}
+                                        className="w-16 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                        placeholder="Pts"
+                                      />
+                                      <select
+                                        value={choice.type || "primary"}
+                                        onChange={(e) => {
+                                          const updatedChoices = [...(objective.choices || [])];
+                                          updatedChoices[choiceIndex] = {
+                                            ...choice,
+                                            type: e.target.value as "primary" | "bonus",
+                                          };
+                                          updateObjectiveInSelected(objective.id, {
+                                            choices: updatedChoices,
+                                          });
+                                        }}
+                                        className="px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                      >
+                                        <option value="primary">Pri</option>
+                                        <option value="bonus">Bon</option>
+                                      </select>
+                                      <button
+                                        onClick={() => {
+                                          const updatedChoices = objective.choices?.filter(
+                                            (_, i) => i !== choiceIndex
+                                          );
+                                          updateObjectiveInSelected(objective.id, {
+                                            choices: updatedChoices,
+                                          });
+                                        }}
+                                        className="text-red-500 hover:text-red-700 text-xs px-1"
+                                        disabled={objective.choices?.length === 1}
+                                        title={objective.choices?.length === 1 ? "Must have at least one choice" : "Remove choice"}
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    onClick={() => {
+                                      const newChoice = {
+                                        id: `choice_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+                                        description: "New choice",
+                                        points: 5,
+                                        type: "primary" as const,
+                                      };
                                       updateObjectiveInSelected(objective.id, {
-                                        points: parseInt(e.target.value) || 0,
-                                      })
-                                    }
-                                    className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                    placeholder="Points"
-                                  />
-                                  <select
-                                    value={objective.type || "primary"}
-                                    onChange={(e) =>
-                                      updateObjectiveInSelected(objective.id, {
-                                        type: e.target.value as
-                                          | "primary"
-                                          | "bonus",
-                                      })
-                                    }
-                                    className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                        choices: [...(objective.choices || []), newChoice],
+                                      });
+                                    }}
+                                    className="text-xs text-blue-500 hover:text-blue-700"
                                   >
-                                    <option value="primary">Primary</option>
-                                    <option value="bonus">Bonus</option>
-                                  </select>
+                                    + Add Choice
+                                  </button>
                                 </div>
                               </div>
                             ))}
@@ -1461,7 +1539,7 @@ ${new Date().toISOString()}
                     >
                       {obj.name} (
                       {obj.objectives.reduce(
-                        (sum, o) => sum + (o.points || 0),
+                        (sum, o) => sum + (o.choices?.reduce((cSum, c) => cSum + c.points, 0) || 0),
                         0
                       )}
                       pts)
@@ -1494,7 +1572,7 @@ ${new Date().toISOString()}
                         sum +
                         obj.objectives.reduce(
                           (objSum, objective) =>
-                            objSum + (objective.points || 0),
+                            objSum + (objective.choices?.reduce((cSum, c) => cSum + c.points, 0) || 0),
                           0
                         ),
                       0
