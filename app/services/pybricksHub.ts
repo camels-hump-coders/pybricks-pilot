@@ -1,7 +1,4 @@
-import {
-  instrumentUserCode,
-  type InstrumentationOptions,
-} from "../utils/codeInstrumentation";
+import { type InstrumentationOptions } from "../utils/codeInstrumentation";
 import {
   bluetoothService,
   PYBRICKS_COMMAND_EVENT_CHAR_UUID,
@@ -9,6 +6,8 @@ import {
   PYBRICKS_SERVICE_UUID,
   type HubInfo,
 } from "./bluetooth";
+
+import { instrumentUserCode } from "../utils/codeInstrumentation";
 
 import { mpyCrossCompiler } from "./mpyCrossCompiler";
 

@@ -22,6 +22,10 @@ interface ProgramManagerProps {
   onStopProgram: () => Promise<void>;
   onUploadAndRun: (code: string) => Promise<void>;
   onCompileCode: (code: string) => Promise<any>;
+  onCompileSelectedFile?: (
+    selectedFile: PythonFile,
+    allFiles: PythonFile[]
+  ) => Promise<any>;
 
   // Status
   programStatus: ProgramStatus;
@@ -64,7 +68,7 @@ export function ProgramManager({
   const handleFileSelect = async (file: PythonFile) => {
     // Only allow selecting actual files, not directories
     if (file.isDirectory) return;
-    
+
     setSelectedFile(file);
     try {
       const content = await file.handle.getFile().then((f) => f.text());

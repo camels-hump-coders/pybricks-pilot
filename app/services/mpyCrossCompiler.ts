@@ -1,5 +1,6 @@
 import { compile as mpyCrossCompileV6 } from "@pybricks/mpy-cross-v6";
 import wasmUrl from "@pybricks/mpy-cross-v6/build/mpy-cross-v6.wasm?url";
+import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 
 interface CompilationResult {
   file: Blob; // Change to match Pybricks approach

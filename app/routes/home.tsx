@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { useSetAtom } from "jotai";
+import { useEffect, useState } from "react";
 import { DebugPanel } from "../components/DebugPanel";
 import { NotificationContainer } from "../components/ErrorNotification";
 import { ProgramManager } from "../components/ProgramManager";
@@ -7,9 +7,9 @@ import { RobotConnectionSelector } from "../components/RobotConnectionSelector";
 import { TelemetryDashboard } from "../components/TelemetryDashboard";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useNotifications } from "../hooks/useNotifications";
 import { usePythonCompiler } from "../hooks/usePythonCompiler";
-import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { initializeRobotConfigAtom } from "../store/atoms/robotConfig";
 import type { Route } from "./+types/home";
 
@@ -156,13 +156,13 @@ export default function Home() {
     const initConfig = async () => {
       try {
         await initializeRobotConfig();
-        console.log('Robot configuration initialized from IndexedDB');
+        console.log("Robot configuration initialized from IndexedDB");
       } catch (error) {
-        console.warn('Failed to initialize robot configuration:', error);
+        console.warn("Failed to initialize robot configuration:", error);
         // Continue with default configuration if initialization fails
       }
     };
-    
+
     initConfig();
   }, []); // Run only once on mount
 
