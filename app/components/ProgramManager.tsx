@@ -1,4 +1,5 @@
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
 import type { PythonFile } from "../types/fileSystem";
@@ -73,23 +74,30 @@ export function ProgramManager({
     allPrograms,
   } = useJotaiFileSystem();
 
+  // Get robot connection for hub menu upload functionality
+  const robotConnection = useJotaiRobotConnection();
+  const { uploadAndRunHubMenu } = robotConnection;
+
   const handleUploadAndRun = async () => {
-    // Get all programs with numbers to upload as a multi-program package
-    const programsToUpload = allPrograms;
+    // Check if there are any numbered programs
+    const numberedPrograms = allPrograms.filter(
+      (p) => p.programNumber && !p.isDirectory
+    );
 
-    if (programsToUpload.length === 0) {
-      console.error("No programs selected for upload");
-      return;
-    }
-
-    // For now, we'll upload the first program as a placeholder
-    // TODO: This will be replaced with multi-program upload when hub menu is implemented
-    const firstProgram = programsToUpload[0];
-    try {
-      const content = await firstProgram.handle.getFile().then((f) => f.text());
-      await onUploadAndRunFile(firstProgram, content);
-    } catch (error) {
-      console.error("Failed to upload and run programs:", error);
+    if (numberedPrograms.length > 0 && uploadAndRunHubMenu) {
+      // Use hub menu upload when there are numbered programs
+      console.log(
+        "[ProgramManager] Using hub menu upload for",
+        numberedPrograms.length,
+        "programs"
+      );
+      try {
+        await uploadAndRunHubMenu(allPrograms, pythonFiles);
+      } catch (error) {
+        console.error("Failed to upload and run hub menu:", error);
+      }
+    } else {
+      console.error("No upload method available or no numbered programs");
     }
   };
 

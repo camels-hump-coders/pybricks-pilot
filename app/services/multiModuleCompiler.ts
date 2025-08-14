@@ -59,7 +59,22 @@ import pybrickspilot as pilot
 print("PyBricks Pilot Menu v1.0")
 print(f"PyBricks {version}")
 
-${programs.map((p) => `from ${p.moduleName} import main as program_${p.name}`).join("\n")}
+${programs
+  .map(
+    (p) => `
+try:
+  from ${p.moduleName} import main as program_${p.name}
+except ImportError as e:
+  try:
+    from ${p.moduleName} import run as program_${p.name}
+  except ImportError as e:
+    print(f"[PILOT] Error: Could not import main function from ${p.moduleName}")
+    print(f"[PILOT] Make sure your file has an 'async def main():' function")
+    print(f"[PILOT] Import error: {e}")
+    raise
+`
+  )
+  .join("\n")}
 
 # Program list (generated from your numbered programs)
 PROGRAMS = [

@@ -1,4 +1,33 @@
 import { atom } from "jotai";
+
+// Helper function to recursively enrich file metadata at any depth
+async function enrichFileRecursively(
+  file: PythonFile, 
+  directoryHandle: FileSystemDirectoryHandle
+): Promise<PythonFile> {
+  if (!file.isDirectory) {
+    // For files, get metadata and return enriched file
+    const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, file.relativePath);
+    return {
+      ...file,
+      programNumber: metadata?.programNumber,
+      programSide: metadata?.programSide,
+    };
+  } else {
+    // For directories, recursively process all children
+    const enrichedChildren: PythonFile[] = [];
+    if (file.children) {
+      for (const child of file.children) {
+        // Recursively enrich each child (file or directory)
+        enrichedChildren.push(await enrichFileRecursively(child, directoryHandle));
+      }
+    }
+    return {
+      ...file,
+      children: enrichedChildren,
+    };
+  }
+}
 import { fileSystemService } from "../../services/fileSystem";
 import { programMetadataStorage } from "../../services/programMetadataStorage";
 import type { PythonFile } from "../../types/fileSystem";
@@ -68,39 +97,10 @@ export const refreshPythonFilesAtom = atom(null, async (get, set) => {
     // Get the basic file list from the file system service
     const filesWithInfo = await fileSystemService.listPythonFiles(directoryHandle);
     
-    // Load program metadata and enrich the file objects
+    // Load program metadata and enrich the file objects recursively
     const enrichedFiles: PythonFile[] = [];
     for (const file of filesWithInfo) {
-      if (!file.isDirectory) {
-        // Load metadata for individual files
-        const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, file.relativePath);
-        enrichedFiles.push({
-          ...file,
-          programNumber: metadata?.programNumber,
-          programSide: metadata?.programSide,
-        });
-      } else {
-        // For directories, recursively enrich children
-        const enrichedChildren: PythonFile[] = [];
-        if (file.children) {
-          for (const child of file.children) {
-            if (!child.isDirectory) {
-              const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, child.relativePath);
-              enrichedChildren.push({
-                ...child,
-                programNumber: metadata?.programNumber,
-                programSide: metadata?.programSide,
-              });
-            } else {
-              enrichedChildren.push(child);
-            }
-          }
-        }
-        enrichedFiles.push({
-          ...file,
-          children: enrichedChildren,
-        });
-      }
+      enrichedFiles.push(await enrichFileRecursively(file, directoryHandle));
     }
     
     set(pythonFilesAtom, enrichedFiles);
