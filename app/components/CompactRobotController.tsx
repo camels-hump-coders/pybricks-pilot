@@ -1,12 +1,12 @@
 import { useAtomValue } from "jotai";
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
+import { useUploadProgress } from "../hooks/useUploadProgress";
+import type { DebugEvent } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfig";
-import { selectedProgramAtom } from "../store/atoms/selectedProgram";
-import { useUploadProgress } from "../hooks/useUploadProgress";
-import type { DebugEvent } from "../services/pybricksHub";
 import {
   calculatePreviewPosition,
   calculateTrajectoryProjection,
@@ -57,7 +57,11 @@ interface CompactRobotControllerProps {
   }) => void;
   onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
-  onUploadAndRunFile?: (file: any, content: string, availableFiles: any[]) => Promise<void>;
+  onUploadAndRunFile?: (
+    file: any,
+    content: string,
+    availableFiles: any[]
+  ) => Promise<void>;
   isUploading?: boolean;
   debugEvents?: DebugEvent[];
   isCmdKeyPressed?: boolean;
@@ -86,12 +90,10 @@ export function CompactRobotController({
   // Get current robot position from Jotai
   const currentRobotPosition = useAtomValue(robotPositionAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
-  const selectedProgram = useAtomValue(selectedProgramAtom);
-  
+
   // Upload progress from centralized hook
   const { uploadProgress } = useUploadProgress(debugEvents);
 
-  
   // Get perpendicular preview from Jotai
   const { perpendicularPreview, setPerpendicularPreview } = useJotaiGameMat();
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
@@ -188,6 +190,9 @@ export function CompactRobotController({
       )
     : [];
 
+  // Get shared program state
+  const { programCount, allPrograms } = useJotaiFileSystem();
+
   return (
     <div
       className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}
@@ -255,61 +260,70 @@ export function CompactRobotController({
             >
               ⏹️ Stop
             </button>
-            {selectedProgram && onUploadAndRunFile && (
+            {programCount > 0 && (
               <button
-                onClick={() => {
-                  if (onUploadAndRunFile && selectedProgram) {
-                    onUploadAndRunFile(
-                      selectedProgram.file,
-                      selectedProgram.content,
-                      selectedProgram.availableFiles
-                    ).catch(console.error);
+                onClick={async () => {
+                  if (onUploadAndRunFile && allPrograms.length > 0) {
+                    // Upload the first program as a placeholder for now
+                    // TODO: Replace with multi-program upload when hub menu is implemented
+                    const firstProgram = allPrograms[0];
+                    try {
+                      const content = await firstProgram.handle
+                        .getFile()
+                        .then((f) => f.text());
+                      await onUploadAndRunFile(
+                        firstProgram,
+                        content,
+                        allPrograms
+                      );
+                    } catch (error) {
+                      console.error(
+                        "Failed to upload and run programs:",
+                        error
+                      );
+                    }
                   }
                 }}
-                disabled={!isConnected || isUploading}
-                className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                title={`Upload & Run ${selectedProgram.file.name}`}
+                disabled={!isConnected || programCount === 0}
+                className="w-full px-3 py-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium"
+                title={
+                  programCount === 0
+                    ? "Add programs using the # button in Program Manager"
+                    : "Upload & Run Program Menu"
+                }
               >
-                {isUploading ? (
-                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  "🚀"
-                )}
+                🚀 Up&Run
               </button>
             )}
           </div>
-          
+
           {/* Active Program Display */}
-          {selectedProgram && (
+          {uploadProgress.isVisible && (
             <div className="mt-2 text-xs">
-              <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                <span>📄</span>
-                <span className="truncate" title={selectedProgram.file.name}>
-                  {selectedProgram.file.name}
-                </span>
-              </div>
-              {uploadProgress.isVisible && (
-                <div className="mt-1">
-                  <div className="flex items-center justify-between text-xs text-blue-600 dark:text-blue-400 mb-1">
-                    <span>{uploadProgress.total > 0 ? 'Uploading...' : 'Preparing...'}</span>
-                    {uploadProgress.total > 0 && (
-                      <span>{uploadProgress.current}/{uploadProgress.total}</span>
-                    )}
-                  </div>
-                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1">
-                    {uploadProgress.total > 0 ? (
-                      <div 
-                        className="bg-blue-500 dark:bg-blue-400 h-1 rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${Math.min((uploadProgress.current / uploadProgress.total) * 100, 100)}%` 
-                        }}
-                      ></div>
-                    ) : (
-                      <div className="bg-blue-500 dark:bg-blue-400 h-1 rounded-full animate-pulse w-full"></div>
-                    )}
-                  </div>
+              <div className="mt-1">
+                <div className="flex items-center justify-between text-xs text-blue-600 dark:text-blue-400 mb-1">
+                  <span>
+                    {uploadProgress.total > 0 ? "Uploading..." : "Preparing..."}
+                  </span>
+                  {uploadProgress.total > 0 && (
+                    <span>
+                      {uploadProgress.current}/{uploadProgress.total}
+                    </span>
+                  )}
                 </div>
-              )}
+                <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1">
+                  {uploadProgress.total > 0 ? (
+                    <div
+                      className="bg-blue-500 dark:bg-blue-400 h-1 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min((uploadProgress.current / uploadProgress.total) * 100, 100)}%`,
+                      }}
+                    ></div>
+                  ) : (
+                    <div className="bg-blue-500 dark:bg-blue-400 h-1 rounded-full animate-pulse w-full"></div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -728,7 +742,8 @@ export function CompactRobotController({
           <div className="grid grid-cols-3 gap-2 mb-2 sm:mb-3">
             <div></div>
             {controlMode === "incremental" ? (
-              executingCommand?.type === "drive" && executingCommand?.direction === "forward" ? (
+              executingCommand?.type === "drive" &&
+              executingCommand?.direction === "forward" ? (
                 <button
                   onClick={stopExecutingCommand}
                   onMouseEnter={() => updateStopButtonPreview(true)}
@@ -770,7 +785,8 @@ export function CompactRobotController({
             <div></div>
 
             {controlMode === "incremental" ? (
-              executingCommand?.type === "turn" && executingCommand?.direction === "left" ? (
+              executingCommand?.type === "turn" &&
+              executingCommand?.direction === "left" ? (
                 <button
                   onClick={stopExecutingCommand}
                   onMouseEnter={() => updateStopButtonPreview(true)}
@@ -839,7 +855,8 @@ export function CompactRobotController({
               ⏹
             </button>
             {controlMode === "incremental" ? (
-              executingCommand?.type === "turn" && executingCommand?.direction === "right" ? (
+              executingCommand?.type === "turn" &&
+              executingCommand?.direction === "right" ? (
                 <button
                   onClick={stopExecutingCommand}
                   onMouseEnter={() => updateStopButtonPreview(true)}
@@ -881,7 +898,8 @@ export function CompactRobotController({
 
             <div></div>
             {controlMode === "incremental" ? (
-              executingCommand?.type === "drive" && executingCommand?.direction === "backward" ? (
+              executingCommand?.type === "drive" &&
+              executingCommand?.direction === "backward" ? (
                 <button
                   onClick={stopExecutingCommand}
                   onMouseEnter={() => updateStopButtonPreview(true)}
@@ -1096,14 +1114,14 @@ export function CompactRobotController({
       );
       return;
     }
-    
+
     const direction = distance > 0 ? "forward" : "backward";
     setExecutingCommand({
       type: "drive",
       direction,
-      originalParams: { distance: Math.abs(distance), speed }
+      originalParams: { distance: Math.abs(distance), speed },
     });
-    
+
     try {
       await onDriveCommand?.(distance, speed);
     } finally {
@@ -1118,14 +1136,14 @@ export function CompactRobotController({
       );
       return;
     }
-    
+
     const direction = angle > 0 ? "right" : "left";
     setExecutingCommand({
       type: "turn",
       direction,
-      originalParams: { angle: Math.abs(angle), speed }
+      originalParams: { angle: Math.abs(angle), speed },
     });
-    
+
     try {
       await onTurnCommand?.(angle, speed);
     } finally {
@@ -1206,9 +1224,10 @@ export function CompactRobotController({
   // Stop button preview function that behaves like the central stop button
   function updateStopButtonPreview(show: boolean) {
     if (show && executingCommand?.originalParams) {
-      const originalDistance = executingCommand.originalParams.distance || distance;
+      const originalDistance =
+        executingCommand.originalParams.distance || distance;
       const originalAngle = executingCommand.originalParams.angle || angle;
-      
+
       // Show perpendicular previews just like the central stop button
       setPerpendicularPreview({
         show: true,

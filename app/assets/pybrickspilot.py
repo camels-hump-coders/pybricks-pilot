@@ -577,6 +577,16 @@ async def background_telemetry_task():
         print("[PILOT] Parallel telemetry error:", e)
 
 
+def send_position_reset():
+    """Send a position reset command to the browser to reset robot to start position."""
+    try:
+        # Send a special telemetry command to reset position
+        print("[PILOT:POSITION_RESET]")
+        print("[PILOT] Position reset command sent to browser")
+    except Exception as e:
+        print("[PILOT] Position reset send error:", e)
+
+
 def start_parallel_instrumentation():
     """
     Start the instrumentation system in parallel with user program.
@@ -615,6 +625,8 @@ async def run_with_parallel_instrumentation(user_main_function):
         async def user_task():
             try:
                 print("[PILOT] Starting user program task")
+                # Send position reset command to browser before starting user program
+                send_position_reset()
                 await user_main_function()
                 print("[PILOT] User program task completed")
             except Exception as e:
@@ -648,6 +660,8 @@ def run_with_instrumentation(user_main_function):
     else:
         # Convert sync function to async
         async def async_wrapper():
+            # Send position reset command to browser before starting user program
+            send_position_reset()
             user_main_function()
 
         return run_task(run_with_parallel_instrumentation(async_wrapper))

@@ -2,6 +2,7 @@ import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { DebugPanel } from "../components/DebugPanel";
 import { NotificationContainer } from "../components/ErrorNotification";
+import { HubMenuInterface } from "../components/HubMenuInterface";
 import { ProgramManager } from "../components/ProgramManager";
 import { RobotConnectionSelector } from "../components/RobotConnectionSelector";
 import { TelemetryDashboard } from "../components/TelemetryDashboard";
@@ -135,6 +136,7 @@ export default function Home() {
     isPythonFilesLoading,
     pythonFilesError,
     refreshFiles,
+    createFile,
     createExampleProject,
     isRestoring,
     isSupported: isFileSystemSupported,
@@ -301,6 +303,37 @@ export default function Home() {
     }
   };
 
+  const handleCreateFile = () => {
+    const fileName = prompt("Enter file name (e.g., program.py):");
+    if (fileName && fileName.trim()) {
+      const name = fileName.trim();
+      if (!name.endsWith('.py')) {
+        showError("Invalid File Name", "File name must end with .py");
+        return;
+      }
+      
+      // Create file with basic template
+      const template = `from pybricks.hubs import PrimeHub
+from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor
+from pybricks.parameters import Button, Color, Direction, Port, Side, Stop
+from pybricks.robotics import DriveBase
+from pybricks.tools import wait, StopWatch
+
+# Initialize the hub
+hub = PrimeHub()
+
+# Your code here
+print("Hello from ${name}!")
+`;
+      
+      createFile({ name, content: template }).then(() => {
+        showSuccess("File Created", `${name} created successfully!`);
+      }).catch((error) => {
+        showError("Failed to Create File", error instanceof Error ? error.message : "Unknown error");
+      });
+    }
+  };
+
   const handleFileSystemAccess = async () => {
     try {
       await requestDirectoryAccess();
@@ -427,7 +460,13 @@ export default function Home() {
             onToggle={() => setIsTelemetryExpanded(!isTelemetryExpanded)}
             disabled={!isConnected}
           >
-            <TelemetryDashboard />
+            <div className="space-y-4">
+              {/* Hub Menu Interface - shows when hub menu is running */}
+              <HubMenuInterface />
+              
+              {/* Main Telemetry Dashboard */}
+              <TelemetryDashboard />
+            </div>
           </CollapsibleSection>
         )}
 
@@ -451,10 +490,10 @@ export default function Home() {
               onRefreshFiles={refreshFiles}
               onUnmountDirectory={unmountDirectory}
               onRequestDirectoryAccess={handleFileSystemAccess}
-              onUploadFile={handleUploadFile}
               onRunProgram={handleRunProgram}
               onStopProgram={handleStopProgram}
               onUploadAndRunFile={handleUploadAndRunFile}
+              onCreateFile={handleCreateFile}
               onCreateExampleProject={async () => {
                 try {
                   await createExampleProject();

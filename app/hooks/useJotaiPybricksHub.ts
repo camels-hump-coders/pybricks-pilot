@@ -131,6 +131,10 @@ export function useJotaiPybricksHub() {
     await pybricksHubService.uploadAndRunFileProgram(file, content, availableFiles);
   }, []);
 
+  const uploadAndRunHubMenu = useCallback(async (allPrograms: any[], availableFiles: any[]) => {
+    await pybricksHubService.uploadAndRunHubMenu(allPrograms, availableFiles);
+  }, []);
+
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
     async (distance: number, speed: number) => {
@@ -261,6 +265,7 @@ export function useJotaiPybricksHub() {
     uploadAndRunProgram,
     uploadFileProgram,
     uploadAndRunFileProgram,
+    uploadAndRunHubMenu,
 
     programStatus,
     isUploadingProgram,

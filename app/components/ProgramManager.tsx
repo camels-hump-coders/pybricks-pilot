@@ -1,11 +1,8 @@
-import { useState } from "react";
-import { useSetAtom } from "jotai";
-import type { ProgramStatus, DebugEvent } from "../services/pybricksHub";
-import type { PythonFile } from "../types/fileSystem";
-import { generatePybricksTemplate } from "../utils/pybricksAnalyzer";
-import { FileBrowser } from "./FileBrowser";
-import { setSelectedProgramAtom } from "../store/atoms/selectedProgram";
+import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useUploadProgress } from "../hooks/useUploadProgress";
+import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
+import type { PythonFile } from "../types/fileSystem";
+import { FileBrowser } from "./FileBrowser";
 
 interface ProgramManagerProps {
   // Directory and file management
@@ -20,10 +17,10 @@ interface ProgramManagerProps {
   onRequestDirectoryAccess: () => Promise<void>;
 
   // Program operations
-  onUploadFile: (file: PythonFile, content: string) => Promise<void>;
   onRunProgram: () => Promise<void>;
   onStopProgram: () => Promise<void>;
   onUploadAndRunFile: (file: PythonFile, content: string) => Promise<void>;
+  onCreateFile: () => void;
   onCreateExampleProject?: () => Promise<void>;
 
   // Status
@@ -47,10 +44,10 @@ export function ProgramManager({
   onRefreshFiles,
   onUnmountDirectory,
   onRequestDirectoryAccess,
-  onUploadFile,
   onRunProgram,
   onStopProgram,
   onUploadAndRunFile,
+  onCreateFile,
   onCreateExampleProject,
   programStatus,
   isConnected,
@@ -61,46 +58,38 @@ export function ProgramManager({
   debugEvents,
   className = "",
 }: ProgramManagerProps) {
-  const [selectedFile, setSelectedFile] = useState<PythonFile | null>(null);
-  const [programCode, setProgramCode] = useState("");
-  const [showCode, setShowCode] = useState(false);
-  
-  const setSelectedProgram = useSetAtom(setSelectedProgramAtom);
   const { uploadProgress } = useUploadProgress(debugEvents);
 
+  // Get program metadata handlers and shared state from the filesystem hook
+  const {
+    setProgramNumber,
+    setProgramSide,
+    getNextAvailableProgramNumber,
+    moveProgramUp,
+    moveProgramDown,
+    addToPrograms,
+    removeFromPrograms,
+    programCount,
+    allPrograms,
+  } = useJotaiFileSystem();
 
-  const handleFileSelect = async (file: PythonFile) => {
-    // Only allow selecting actual files, not directories
-    if (file.isDirectory) return;
+  const handleUploadAndRun = async () => {
+    // Get all programs with numbers to upload as a multi-program package
+    const programsToUpload = allPrograms;
 
-    setSelectedFile(file);
+    if (programsToUpload.length === 0) {
+      console.error("No programs selected for upload");
+      return;
+    }
+
+    // For now, we'll upload the first program as a placeholder
+    // TODO: This will be replaced with multi-program upload when hub menu is implemented
+    const firstProgram = programsToUpload[0];
     try {
-      const content = await file.handle.getFile().then((f) => f.text());
-      setProgramCode(content);
-      
-      // Update global selected program state for robot controls quick access
-      setSelectedProgram({
-        file,
-        content,
-        availableFiles: pythonFiles,
-      });
+      const content = await firstProgram.handle.getFile().then((f) => f.text());
+      await onUploadAndRunFile(firstProgram, content);
     } catch (error) {
-      console.error(
-        "Failed to read file:",
-        error instanceof Error ? error.message : String(error)
-      );
-    }
-  };
-
-  const handleUpload = () => {
-    if (selectedFile && programCode) {
-      onUploadFile(selectedFile, programCode);
-    }
-  };
-
-  const handleUploadAndRun = () => {
-    if (selectedFile && programCode) {
-      onUploadAndRunFile(selectedFile, programCode);
+      console.error("Failed to upload and run programs:", error);
     }
   };
 
@@ -149,28 +138,38 @@ export function ProgramManager({
             <FileBrowser
               directoryName={directoryName}
               pythonFiles={pythonFiles}
-              selectedFile={selectedFile}
               isLoading={isPythonFilesLoading}
               isRestoring={isRestoring}
               error={pythonFilesError}
-              onFileSelect={handleFileSelect}
               onRefresh={onRefreshFiles}
-              onUnmount={() => {
-                onUnmountDirectory();
-                setSelectedFile(null);
-                setProgramCode("");
+              onUnmount={onUnmountDirectory}
+              onCreateFile={onCreateFile}
+              onSetProgramNumber={async (fileName, programNumber) => {
+                await setProgramNumber({ fileName, programNumber });
               }}
-              onCreateFile={() => {
-                const template = generatePybricksTemplate("prime");
-                setProgramCode(template);
-                setSelectedFile(null);
+              onSetProgramSide={async (fileName, programSide) => {
+                await setProgramSide({ fileName, programSide });
+              }}
+              onGetNextAvailableProgramNumber={getNextAvailableProgramNumber}
+              onMoveProgramUp={async (fileName) => {
+                await moveProgramUp(fileName);
+              }}
+              onMoveProgramDown={async (fileName) => {
+                await moveProgramDown(fileName);
+              }}
+              onAddToPrograms={async (fileName) => {
+                await addToPrograms(fileName);
+              }}
+              onRemoveFromPrograms={async (fileName) => {
+                await removeFromPrograms(fileName);
               }}
             />
             {/* Create Example Project button if no files exist */}
             {pythonFiles.length === 0 && onCreateExampleProject && (
               <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                  No Python files found in this directory. Would you like to create an example project?
+                  No Python files found in this directory. Would you like to
+                  create an example project?
                 </p>
                 <button
                   onClick={onCreateExampleProject}
@@ -202,60 +201,81 @@ export function ProgramManager({
           </div>
         )}
 
-        {/* Selected File and Actions */}
-        {selectedFile && programCode && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Selected File: {selectedFile.name}
-              </label>
-              <button
-                onClick={() => setShowCode(!showCode)}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+        {/* Program List Status */}
+        {hasDirectoryAccess && (
+          <div
+            className={`p-3 rounded-lg border ${
+              programCount === 0
+                ? "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
+                : "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {programCount === 0
+                  ? "⚠️ No Programs Selected"
+                  : "✅ Program List Ready"}
+              </span>
+              <span
+                className={`text-sm ${
+                  programCount === 0
+                    ? "text-orange-700 dark:text-orange-300"
+                    : "text-green-700 dark:text-green-300"
+                }`}
               >
-                {showCode ? "Hide Code" : "Show Code"}
-              </button>
+                {programCount === 0
+                  ? "Select at least one file as a program using the # button"
+                  : `${programCount} program${programCount !== 1 ? "s" : ""} configured for hub menu`}
+              </span>
             </div>
+          </div>
+        )}
 
-            {showCode && (
-              <div className="mb-4">
-                <pre className="bg-gray-900 dark:bg-gray-700 text-gray-100 dark:text-gray-300 p-4 rounded-md overflow-x-auto text-sm max-h-64 overflow-y-auto">
-                  <code>{programCode}</code>
-                </pre>
-              </div>
-            )}
-
+        {/* Upload & Run Programs */}
+        {hasDirectoryAccess && (
+          <div>
             {/* Upload Actions */}
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={handleUpload}
-                  disabled={!isConnected || isUploading || isRunning}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {(isUploading || isCompiling) && (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  )}
-                  📤 {isUploading ? 'Uploading...' : 'Upload to Hub'}
-                </button>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-lg font-medium text-gray-800 dark:text-gray-200">
+                  Program Menu
+                </h4>
                 <button
                   onClick={handleUploadAndRun}
-                  disabled={!isConnected || isUploading || isRunning}
-                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={
+                    !isConnected ||
+                    isUploading ||
+                    isRunning ||
+                    programCount === 0
+                  }
+                  className="px-6 py-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+                  title={
+                    programCount === 0
+                      ? "Select at least one program first"
+                      : "Upload & Run Program Menu"
+                  }
                 >
                   {(isUploading || isCompiling) && (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   )}
-                  🚀 {isUploading ? 'Uploading...' : 'Upload & Run'}
+                  🚀 {isUploading ? "Uploading..." : "Upload & Run Menu"}
                 </button>
               </div>
+
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Upload all numbered programs to the hub and start the program
+                selection menu. Use the hub's buttons to choose which program to
+                run.
+              </p>
 
               {/* Upload Progress */}
               {uploadProgress.isVisible && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                      {uploadProgress.total > 0 ? 'Uploading...' : 'Preparing upload...'}
+                      {uploadProgress.total > 0
+                        ? "Uploading..."
+                        : "Preparing upload..."}
                     </span>
                     {uploadProgress.total > 0 && (
                       <span className="text-sm text-blue-600 dark:text-blue-400">
@@ -265,10 +285,10 @@ export function ProgramManager({
                   </div>
                   {uploadProgress.total > 0 ? (
                     <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-blue-500 dark:bg-blue-400 h-2 rounded-full transition-all duration-300 ease-out"
-                        style={{ 
-                          width: `${Math.min((uploadProgress.current / uploadProgress.total) * 100, 100)}%` 
+                        style={{
+                          width: `${Math.min((uploadProgress.current / uploadProgress.total) * 100, 100)}%`,
                         }}
                       ></div>
                     </div>
@@ -301,37 +321,42 @@ export function ProgramManager({
                   </div>
                 </div>
               )}
-              
+
               {programStatus.error && (
                 <div className="p-3 rounded-md bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700">
                   <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
                     <span>❌</span>
-                    <span className="font-medium">Error: {programStatus.error}</span>
+                    <span className="font-medium">
+                      Error: {programStatus.error}
+                    </span>
                   </div>
                 </div>
               )}
-              
-              {!programStatus.running && !programStatus.error && isConnected && (
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Ready to upload {selectedFile.name}
+
+              {!programStatus.running &&
+                !programStatus.error &&
+                isConnected &&
+                programCount > 0 && (
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Ready to upload {programCount} program
+                      {programCount !== 1 ? "s" : ""}
+                    </div>
+                    <button
+                      onClick={onRunProgram}
+                      disabled={!isConnected || isRunning || isUploading}
+                      className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 text-sm flex items-center gap-1"
+                    >
+                      {isRunning && (
+                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                      ▶️ Run
+                    </button>
                   </div>
-                  <button
-                    onClick={onRunProgram}
-                    disabled={!isConnected || isRunning || isUploading}
-                    className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 text-sm flex items-center gap-1"
-                  >
-                    {isRunning && (
-                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                    )}
-                    ▶️ Run
-                  </button>
-                </div>
-              )}
+                )}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

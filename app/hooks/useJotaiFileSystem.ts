@@ -15,6 +15,8 @@ import {
   hasDirectoryAccessAtom,
   isFileSystemSupportedAtom,
   unmountDirectoryAtom,
+  programCountAtom,
+  allProgramsAtom,
 } from "../store/atoms/fileSystem";
 
 import {
@@ -27,6 +29,15 @@ import {
   createExampleProjectAtom,
   clearPersistedDataAtom,
   getFileContentAtom,
+  setProgramNumberAtom,
+  setProgramSideAtom,
+  getProgramMetadataAtom,
+  getAllProgramsWithNumbersAtom,
+  getNextAvailableProgramNumberAtom,
+  addToProgramsAtom,
+  removeFromProgramsAtom,
+  moveProgramUpAtom,
+  moveProgramDownAtom,
 } from "../store/actions/fileSystemActions";
 
 export function useJotaiFileSystem() {
@@ -41,6 +52,10 @@ export function useJotaiFileSystem() {
   const pythonFiles = useAtomValue(pythonFilesAtom);
   const isPythonFilesLoading = useAtomValue(isPythonFilesLoadingAtom);
   const pythonFilesError = useAtomValue(pythonFilesErrorAtom);
+  
+  // Program state (derived from file state)
+  const programCount = useAtomValue(programCountAtom);
+  const allPrograms = useAtomValue(allProgramsAtom);
   
   // Operation status
   const isReadingFile = useAtomValue(isReadingFileAtom);
@@ -64,6 +79,17 @@ export function useJotaiFileSystem() {
   const unmountDirectory = useSetAtom(unmountDirectoryAtom);
   const clearPersistedData = useSetAtom(clearPersistedDataAtom);
   const getFileContentAction = useSetAtom(getFileContentAtom);
+  
+  // Program metadata actions
+  const setProgramNumber = useSetAtom(setProgramNumberAtom);
+  const setProgramSide = useSetAtom(setProgramSideAtom);
+  const getProgramMetadata = useSetAtom(getProgramMetadataAtom);
+  const getAllProgramsWithNumbers = useSetAtom(getAllProgramsWithNumbersAtom);
+  const getNextAvailableProgramNumber = useSetAtom(getNextAvailableProgramNumberAtom);
+  const addToPrograms = useSetAtom(addToProgramsAtom);
+  const removeFromPrograms = useSetAtom(removeFromProgramsAtom);
+  const moveProgramUp = useSetAtom(moveProgramUpAtom);
+  const moveProgramDown = useSetAtom(moveProgramDownAtom);
   
   // Auto-restore directory on component mount
   useEffect(() => {
@@ -125,6 +151,21 @@ export function useJotaiFileSystem() {
     createFile,
     createExampleProject,
     getFileContent,
+    
+    // Program metadata operations
+    setProgramNumber,
+    setProgramSide,
+    getProgramMetadata,
+    getAllProgramsWithNumbers,
+    getNextAvailableProgramNumber,
+    addToPrograms,
+    removeFromPrograms,
+    moveProgramUp,
+    moveProgramDown,
+    
+    // Program derived state
+    programCount,
+    allPrograms,
     
     // Browser support
     isSupported,

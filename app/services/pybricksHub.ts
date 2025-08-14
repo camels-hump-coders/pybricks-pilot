@@ -114,7 +114,7 @@ enum PybricksEvent {
 
 export interface DebugEvent {
   timestamp: number;
-  type: "connection" | "upload" | "program" | "status" | "error" | "command";
+  type: "connection" | "upload" | "program" | "status" | "error" | "command" | "stdout";
   message: string;
   details?: Record<string, any>;
 }
@@ -366,6 +366,38 @@ class PybricksHubService extends EventTarget {
     }
 
     // Upload and immediately run
+    await this.uploadCompiledProgramPybricksFlow(compilationResult.multiFileBlob, true);
+  }
+
+  async uploadAndRunHubMenu(
+    allPrograms: PythonFile[],
+    availableFiles: PythonFile[]
+  ): Promise<void> {
+    // Clear program output at the start of uploading and running a program
+    this.emitClearProgramOutputEvent();
+    
+    this.emitDebugEvent("upload", "Starting hub menu upload and run", {
+      programCount: allPrograms.filter(p => p.programNumber && !p.isDirectory).length,
+    });
+
+    // Use multi-module compiler to compile all numbered programs into a menu system
+    const compilationResult = await multiModuleCompiler.compileHubMenu(
+      allPrograms,
+      availableFiles
+    );
+    
+    if (!compilationResult.success || !compilationResult.multiFileBlob) {
+      throw new Error(
+        `Hub menu compilation failed: ${compilationResult.error || "Unknown error"}`
+      );
+    }
+
+    this.emitDebugEvent("upload", "Hub menu compiled successfully", {
+      modules: compilationResult.modules,
+      programCount: allPrograms.filter(p => p.programNumber && !p.isDirectory).length,
+    });
+
+    // Upload and immediately run the hub menu
     await this.uploadCompiledProgramPybricksFlow(compilationResult.multiFileBlob, true);
   }
 

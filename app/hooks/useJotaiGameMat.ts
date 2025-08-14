@@ -2,6 +2,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
+  calculateRobotPosition,
   controlModeAtom,
   currentScoreAtom,
   customMatConfigAtom,
@@ -200,6 +201,20 @@ export function useJotaiGameMat() {
     resetScoringAction();
   }, [resetScoringAction]);
 
+  const resetRobotToStartPosition = useCallback(() => {
+    // Reset robot position to default starting position (bottom-right)
+    const startPosition = calculateRobotPosition(robotConfig, "bottom-right");
+    setRobotPosition(startPosition);
+    // Reset telemetry reference to maintain position tracking
+    setTelemetryReference({
+      distance: 0,
+      angle: 0,
+      position: startPosition,
+    });
+    // Clear manual heading adjustment
+    setManualHeadingAdjustment(0);
+  }, [robotConfig, setRobotPosition, setTelemetryReference, setManualHeadingAdjustment]);
+
   const togglePathVisualization = useCallback(() => {
     setShowPath((prev) => !prev);
   }, [setShowPath]);
@@ -245,6 +260,7 @@ export function useJotaiGameMat() {
     // Scoring actions
     updateScoring,
     resetScoring,
+    resetRobotToStartPosition,
 
     // Movement preview
     movementPreview,

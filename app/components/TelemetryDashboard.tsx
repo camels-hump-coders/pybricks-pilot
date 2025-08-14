@@ -2,6 +2,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
+import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import {
   GameMatConfigSchema,
   type GameMatConfig,
@@ -471,9 +472,31 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     stopProgram,
     uploadAndRunProgram,
     uploadAndRunFileProgram,
+    uploadAndRunHubMenu,
     isUploadingProgram,
     debugEvents,
   } = robotConnection;
+
+  // Get file system data for program list
+  const { allPrograms, pythonFiles } = useJotaiFileSystem();
+
+  // Create a smart upload function that uses hub menu when there are numbered programs
+  const handleUploadAndRun = async (file: any, content: string, availableFiles: any[]) => {
+    // Check if there are any numbered programs
+    const numberedPrograms = allPrograms.filter(p => p.programNumber && !p.isDirectory);
+    
+    if (numberedPrograms.length > 0 && uploadAndRunHubMenu) {
+      // Use hub menu upload when there are numbered programs
+      console.log("[TelemetryDashboard] Using hub menu upload for", numberedPrograms.length, "programs");
+      await uploadAndRunHubMenu(allPrograms, pythonFiles);
+    } else if (uploadAndRunFileProgram) {
+      // Fall back to regular file upload for single files
+      console.log("[TelemetryDashboard] Using regular file upload for", file.name);
+      await uploadAndRunFileProgram(file, content, availableFiles);
+    } else {
+      throw new Error("No upload method available");
+    }
+  };
   const [showMatEditor, setShowMatEditor] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
   const [matEditorMode, setMatEditorMode] = useState<"edit" | "new">("edit");
@@ -662,7 +685,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           robotType={robotType}
           onRunProgram={runProgram}
           onStopProgram={stopProgram}
-          onUploadAndRunFile={uploadAndRunFileProgram}
+          onUploadAndRunFile={handleUploadAndRun}
           isUploading={isUploadingProgram}
           debugEvents={debugEvents}
           isCmdKeyPressed={isCmdKeyPressed}
@@ -711,7 +734,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             robotType={robotType}
             onRunProgram={runProgram}
             onStopProgram={stopProgram}
-            onUploadAndRunFile={uploadAndRunFileProgram}
+            onUploadAndRunFile={handleUploadAndRun}
             isUploading={isUploadingProgram}
             debugEvents={debugEvents}
             isCmdKeyPressed={isCmdKeyPressed}

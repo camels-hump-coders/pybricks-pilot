@@ -14,9 +14,10 @@ interface StoredFileInfo {
   lastAccessed: number;
 }
 
+
 class IndexedDBFileSystemService {
   private dbName = "PybricksFileSystem";
-  private dbVersion = 2; // Increment to handle robot config store
+  private dbVersion = 2;
   private db: IDBDatabase | null = null;
 
   async initialize(): Promise<void> {
@@ -66,6 +67,7 @@ class IndexedDBFileSystemService {
           store.createIndex("tags", "tags", { unique: false });
           store.createIndex("isDefault", "isDefault", { unique: false });
         }
+
       };
     });
   }

@@ -13,14 +13,67 @@ import {
   clearProgramOutputLogAtom,
 } from "../store/atoms/robotConnection";
 
-// Track if listeners are actually attached to the service
-// This is more reliable than a simple boolean flag
-let attachedHandlers: {
-  telemetry?: EventListener;
-  statusChange?: EventListener;
-  debugEvent?: EventListener;
-  clearProgramOutput?: EventListener;
-} = {};
+// Global singleton to track if listeners are already attached to prevent duplicates
+class EventListenerManager {
+  private static instance: EventListenerManager | null = null;
+  private isRegistered = false;
+  private handlers: {
+    telemetry?: EventListener;
+    statusChange?: EventListener;
+    debugEvent?: EventListener;
+    clearProgramOutput?: EventListener;
+  } = {};
+
+  static getInstance(): EventListenerManager {
+    if (!EventListenerManager.instance) {
+      EventListenerManager.instance = new EventListenerManager();
+    }
+    return EventListenerManager.instance;
+  }
+
+  isAlreadyRegistered(): boolean {
+    return this.isRegistered;
+  }
+
+  register(handlers: {
+    telemetry: EventListener;
+    statusChange: EventListener;
+    debugEvent: EventListener;
+    clearProgramOutput: EventListener;
+  }): void {
+    if (this.isRegistered) {
+      console.warn("[EventListenerManager] Already registered, skipping");
+      return;
+    }
+
+    this.handlers = handlers;
+    this.isRegistered = true;
+    
+    pybricksHubService.addEventListener("telemetry", handlers.telemetry);
+    pybricksHubService.addEventListener("statusChange", handlers.statusChange);
+    pybricksHubService.addEventListener("debugEvent", handlers.debugEvent);
+    pybricksHubService.addEventListener("clearProgramOutput", handlers.clearProgramOutput);
+    
+    console.log("[EventListenerManager] Event listeners registered");
+  }
+
+  unregister(): void {
+    if (!this.isRegistered || !this.handlers.telemetry) {
+      return;
+    }
+
+    pybricksHubService.removeEventListener("telemetry", this.handlers.telemetry);
+    pybricksHubService.removeEventListener("statusChange", this.handlers.statusChange!);
+    pybricksHubService.removeEventListener("debugEvent", this.handlers.debugEvent!);
+    pybricksHubService.removeEventListener("clearProgramOutput", this.handlers.clearProgramOutput!);
+    
+    this.handlers = {};
+    this.isRegistered = false;
+    console.log("[EventListenerManager] Event listeners removed");
+  }
+}
+
+const eventListenerManager = EventListenerManager.getInstance();
 
 /**
  * Hook that manages Pybricks hub event listeners centrally.
@@ -37,9 +90,8 @@ export function usePybricksHubEventManager() {
   const hasRegisteredListeners = useRef(false);
 
   useEffect(() => {
-    // Prevent multiple registrations by checking if handlers are already attached
-    if (attachedHandlers.telemetry && attachedHandlers.statusChange && 
-        attachedHandlers.debugEvent && attachedHandlers.clearProgramOutput) {
+    // Prevent multiple registrations using singleton manager
+    if (eventListenerManager.isAlreadyRegistered()) {
       console.warn("[PybricksHubEventManager] Event listeners already registered, skipping");
       return;
     }
@@ -65,6 +117,29 @@ export function usePybricksHubEventManager() {
         const timestamp = new Date().toLocaleTimeString();
         const logEntry = `[${timestamp}] ${status.output.trim()}`;
         setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
+
+        // Check for hub menu status messages
+        const output = status.output.trim();
+        if (output.includes('[PILOT:MENU_STATUS]')) {
+          try {
+            // Parse hub menu status: [PILOT:MENU_STATUS] selected=1 total=3 state=menu
+            const match = output.match(/\[PILOT:MENU_STATUS\]\s+selected=(\d+)\s+total=(\d+)\s+state=(\w+)/);
+            if (match) {
+              const [, selectedProgram, totalPrograms, menuState] = match;
+              const hubMenuEvent = new CustomEvent('hubMenuStatus', {
+                detail: {
+                  selectedProgram: parseInt(selectedProgram),
+                  totalPrograms: parseInt(totalPrograms),
+                  state: menuState,
+                  timestamp: Date.now()
+                }
+              });
+              document.dispatchEvent(hubMenuEvent);
+            }
+          } catch (e) {
+            console.warn('Failed to parse hub menu status:', output);
+          }
+        }
       }
     };
 
@@ -73,6 +148,19 @@ export function usePybricksHubEventManager() {
 
       // Add debug event to the list
       setDebugEvents((prev) => [...prev, debugEvent].slice(-500)); // Keep last 500 events
+
+      // Handle position reset events
+      if (
+        debugEvent.type === "stdout" &&
+        debugEvent.message.includes("[PILOT:POSITION_RESET]")
+      ) {
+        console.log("[PybricksHub] Position reset command received");
+        // Dispatch a custom event for position reset
+        const resetEvent = new CustomEvent("positionReset", {
+          detail: { timestamp: Date.now() }
+        });
+        document.dispatchEvent(resetEvent);
+      }
 
       // Handle disconnection events
       if (
@@ -93,33 +181,21 @@ export function usePybricksHubEventManager() {
       clearProgramOutputLog();
     };
 
-    // Add event listeners to Pybricks hub service
-    // Store handler references and register them
-    attachedHandlers.telemetry = handleTelemetry as EventListener;
-    attachedHandlers.statusChange = handleStatusChange as EventListener;
-    attachedHandlers.debugEvent = handleDebugEvent as EventListener;
-    attachedHandlers.clearProgramOutput = handleClearProgramOutput as EventListener;
-
-    pybricksHubService.addEventListener("telemetry", attachedHandlers.telemetry);
-    pybricksHubService.addEventListener("statusChange", attachedHandlers.statusChange);
-    pybricksHubService.addEventListener("debugEvent", attachedHandlers.debugEvent);
-    pybricksHubService.addEventListener("clearProgramOutput", attachedHandlers.clearProgramOutput);
+    // Register event listeners using singleton manager
+    eventListenerManager.register({
+      telemetry: handleTelemetry as EventListener,
+      statusChange: handleStatusChange as EventListener,
+      debugEvent: handleDebugEvent as EventListener,
+      clearProgramOutput: handleClearProgramOutput as EventListener,
+    });
 
     hasRegisteredListeners.current = true;
-    console.log("[PybricksHubEventManager] Event listeners registered");
 
     return () => {
       // Only remove listeners if this component registered them
-      if (hasRegisteredListeners.current && attachedHandlers.telemetry) {
-        pybricksHubService.removeEventListener("telemetry", attachedHandlers.telemetry);
-        pybricksHubService.removeEventListener("statusChange", attachedHandlers.statusChange!);
-        pybricksHubService.removeEventListener("debugEvent", attachedHandlers.debugEvent!);
-        pybricksHubService.removeEventListener("clearProgramOutput", attachedHandlers.clearProgramOutput!);
-        
-        // Clear the global handler references
-        attachedHandlers = {};
+      if (hasRegisteredListeners.current) {
+        eventListenerManager.unregister();
         hasRegisteredListeners.current = false;
-        console.log("[PybricksHubEventManager] Event listeners removed");
       }
     };
   }, []); // Empty dependency array since Jotai setters are stable

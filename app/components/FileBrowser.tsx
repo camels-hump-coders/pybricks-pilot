@@ -4,35 +4,58 @@ import type { PythonFile } from "../types/fileSystem";
 interface FileBrowserProps {
   directoryName: string;
   pythonFiles: PythonFile[];
-  selectedFile: PythonFile | null;
   isLoading: boolean;
   isRestoring?: boolean;
   error: Error | null;
-  onFileSelect: (file: PythonFile) => void;
   onRefresh: () => void;
   onUnmount: () => void;
   onCreateFile: () => void;
   className?: string;
+  // Program metadata handlers
+  onSetProgramNumber?: (fileName: string, programNumber: number | undefined) => Promise<void>;
+  onSetProgramSide?: (fileName: string, programSide: "left" | "right" | undefined) => Promise<void>;
+  onGetNextAvailableProgramNumber?: () => Promise<number>;
+  onMoveProgramUp?: (fileName: string) => Promise<void>;
+  onMoveProgramDown?: (fileName: string) => Promise<void>;
+  // Atomic program operations
+  onAddToPrograms?: (fileName: string) => Promise<void>;
+  onRemoveFromPrograms?: (fileName: string) => Promise<void>;
 }
 
 interface FileTreeItemProps {
   file: PythonFile;
   level: number;
-  selectedFile: PythonFile | null;
-  onFileSelect: (file: PythonFile) => void;
+  // Program metadata handlers
+  onSetProgramNumber?: (fileName: string, programNumber: number | undefined) => Promise<void>;
+  onSetProgramSide?: (fileName: string, programSide: "left" | "right" | undefined) => Promise<void>;
+  onGetNextAvailableProgramNumber?: () => Promise<number>;
+  onMoveProgramUp?: (fileName: string) => Promise<void>;
+  onMoveProgramDown?: (fileName: string) => Promise<void>;
+  // Atomic program operations
+  onAddToPrograms?: (fileName: string) => Promise<void>;
+  onRemoveFromPrograms?: (fileName: string) => Promise<void>;
 }
 
-function FileTreeItem({ file, level, selectedFile, onFileSelect }: FileTreeItemProps) {
+function FileTreeItem({ 
+  file, 
+  level, 
+  onSetProgramNumber,
+  onSetProgramSide,
+  onGetNextAvailableProgramNumber,
+  onMoveProgramUp,
+  onMoveProgramDown,
+  onAddToPrograms,
+  onRemoveFromPrograms
+}: FileTreeItemProps) {
   const [isExpanded, setIsExpanded] = useState(level === 0);
-  const isSelected = selectedFile?.relativePath === file.relativePath;
+  const [isSettingNumber, setIsSettingNumber] = useState(false);
   const hasChildren = file.isDirectory && file.children && file.children.length > 0;
 
   const handleClick = () => {
     if (file.isDirectory) {
       setIsExpanded(!isExpanded);
-    } else {
-      onFileSelect(file);
     }
+    // No longer select individual files - only manage programs
   };
 
   const formatFileSize = (bytes: number) => {
@@ -63,48 +86,203 @@ function FileTreeItem({ file, level, selectedFile, onFileSelect }: FileTreeItemP
     }
   };
 
+  const handleAddToPrograms = async () => {
+    if (!onAddToPrograms) return;
+    
+    setIsSettingNumber(true);
+    try {
+      await onAddToPrograms(file.name);
+    } catch (error) {
+      console.error("Failed to add to program list:", error);
+    } finally {
+      setIsSettingNumber(false);
+    }
+  };
+
+  const handleRemoveFromPrograms = async () => {
+    if (!onRemoveFromPrograms) return;
+    
+    try {
+      await onRemoveFromPrograms(file.name);
+    } catch (error) {
+      console.error("Failed to remove from program list:", error);
+    }
+  };
+
+  const handleSetProgramSide = async (side: "left" | "right") => {
+    if (!onSetProgramSide) return;
+    
+    try {
+      await onSetProgramSide(file.name, side);
+    } catch (error) {
+      console.error("Failed to set program side:", error);
+    }
+  };
+
+  const handleMoveProgramUp = async () => {
+    if (!onMoveProgramUp) return;
+    
+    try {
+      await onMoveProgramUp(file.name);
+    } catch (error) {
+      console.error("Failed to move program up:", error);
+    }
+  };
+
+  const handleMoveProgramDown = async () => {
+    if (!onMoveProgramDown) return;
+    
+    try {
+      await onMoveProgramDown(file.name);
+    } catch (error) {
+      console.error("Failed to move program down:", error);
+    }
+  };
+
   return (
     <div>
-      <button
-        onClick={handleClick}
-        className={`w-full flex items-center gap-2 p-2 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors border-b border-gray-100 dark:border-gray-700 ${
-          isSelected
-            ? "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-600"
-            : ""
-        }`}
+      <div
+        className="grid grid-cols-12 gap-2 p-2 border-b border-gray-100 dark:border-gray-700 items-center hover:bg-blue-50 dark:hover:bg-blue-900/20"
         style={{ paddingLeft: `${level * 20 + 16}px` }}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          {file.isDirectory ? (
-            <span className="text-yellow-600">
-              {isExpanded ? "📂" : "📁"}
+        {/* Name Column */}
+        <div className="col-span-4 min-w-0">
+          <button
+            onClick={handleClick}
+            className="flex items-center gap-2 min-w-0 w-full text-left"
+          >
+            {file.isDirectory ? (
+              <span className="text-yellow-600">
+                {isExpanded ? "📂" : "📁"}
+              </span>
+            ) : (
+              <span className="text-blue-600">🐍</span>
+            )}
+            
+            <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+              {file.name}
             </span>
-          ) : (
-            <span className="text-blue-600">🐍</span>
-          )}
-          
-          <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
-            {file.name}
-          </span>
-          
-          {isSelected && !file.isDirectory && (
-            <span className="text-xs bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
-              Selected
-            </span>
+          </button>
+        </div>
+
+        {/* Program Column */}
+        <div className="col-span-4 flex items-center justify-center">
+          {!file.isDirectory && (
+            <div className="flex items-center gap-1">
+              {file.programNumber ? (
+                <>
+                  {/* 1) Up arrow to move program up */}
+                  {onMoveProgramUp && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveProgramUp();
+                      }}
+                      className="text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 px-1 py-0.5 rounded"
+                      title="Move program up in order (with wrap-around)"
+                    >
+                      ↑
+                    </button>
+                  )}
+                  
+                  {/* 2) L for left side */}
+                  {onSetProgramSide && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSetProgramSide("left");
+                      }}
+                      className={`text-xs px-1.5 py-0.5 rounded border ${
+                        file.programSide === "left"
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      }`}
+                      title="Set robot starting position to left side"
+                    >
+                      L
+                    </button>
+                  )}
+                  
+                  {/* 3) #x program number */}
+                  <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-mono border border-purple-200 dark:border-purple-700">
+                    #{file.programNumber}
+                  </span>
+                  
+                  {/* 4) R for right side */}
+                  {onSetProgramSide && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSetProgramSide("right");
+                      }}
+                      className={`text-xs px-1.5 py-0.5 rounded border ${
+                        file.programSide === "right" || !file.programSide
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                      }`}
+                      title="Set robot starting position to right side"
+                    >
+                      R
+                    </button>
+                  )}
+                  
+                  {/* 5) Down arrow to move program down */}
+                  {onMoveProgramDown && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveProgramDown();
+                      }}
+                      className="text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 px-1 py-0.5 rounded"
+                      title="Move program down in order (with wrap-around)"
+                    >
+                      ↓
+                    </button>
+                  )}
+                  
+                  {/* 6) X to remove from program list */}
+                  {onRemoveFromPrograms && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFromPrograms();
+                      }}
+                      className="text-xs text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 px-1 py-0.5 rounded"
+                      title="Remove from program list"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </>
+              ) : (
+                onAddToPrograms && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToPrograms();
+                    }}
+                    disabled={isSettingNumber}
+                    className="text-xs text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 hover:border-purple-400 disabled:opacity-50"
+                    title="Add to program list for hub menu"
+                  >
+                    {isSettingNumber ? "..." : "#"}
+                  </button>
+                )
+              )}
+            </div>
           )}
         </div>
 
-        {!file.isDirectory && (
-          <>
-            <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0 text-right">
-              {formatFileSize(file.size)}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400 min-w-0 text-right">
-              {formatLastModified(file.lastModified)}
-            </div>
-          </>
-        )}
-      </button>
+        {/* Size Column */}
+        <div className="col-span-2 text-right text-sm text-gray-600 dark:text-gray-400">
+          {!file.isDirectory && formatFileSize(file.size)}
+        </div>
+
+        {/* Modified Column */}
+        <div className="col-span-2 text-right text-sm text-gray-600 dark:text-gray-400">
+          {!file.isDirectory && formatLastModified(file.lastModified)}
+        </div>
+      </div>
 
       {hasChildren && isExpanded && (
         <div>
@@ -113,8 +291,13 @@ function FileTreeItem({ file, level, selectedFile, onFileSelect }: FileTreeItemP
               key={child.relativePath}
               file={child}
               level={level + 1}
-              selectedFile={selectedFile}
-              onFileSelect={onFileSelect}
+              onSetProgramNumber={onSetProgramNumber}
+              onSetProgramSide={onSetProgramSide}
+              onGetNextAvailableProgramNumber={onGetNextAvailableProgramNumber}
+              onMoveProgramUp={onMoveProgramUp}
+              onMoveProgramDown={onMoveProgramDown}
+              onAddToPrograms={onAddToPrograms}
+              onRemoveFromPrograms={onRemoveFromPrograms}
             />
           ))}
         </div>
@@ -126,15 +309,20 @@ function FileTreeItem({ file, level, selectedFile, onFileSelect }: FileTreeItemP
 export function FileBrowser({
   directoryName,
   pythonFiles,
-  selectedFile,
   isLoading,
   isRestoring = false,
   error,
-  onFileSelect,
   onRefresh,
   onUnmount,
   onCreateFile,
   className = "",
+  onSetProgramNumber,
+  onSetProgramSide,
+  onGetNextAvailableProgramNumber,
+  onMoveProgramUp,
+  onMoveProgramDown,
+  onAddToPrograms,
+  onRemoveFromPrograms,
 }: FileBrowserProps) {
   const countPythonFiles = (files: PythonFile[]): number => {
     let count = 0;
@@ -241,9 +429,10 @@ export function FileBrowser({
           <div>
             {/* Tree Header */}
             <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-              <div className="col-span-6 text-left">Name</div>
-              <div className="col-span-3 text-right">Size</div>
-              <div className="col-span-3 text-right">Modified</div>
+              <div className="col-span-4 text-left">Name</div>
+              <div className="col-span-4 text-center">Program</div>
+              <div className="col-span-2 text-right">Size</div>
+              <div className="col-span-2 text-right">Modified</div>
             </div>
 
             {/* File Tree Items */}
@@ -252,8 +441,13 @@ export function FileBrowser({
                 key={file.relativePath}
                 file={file}
                 level={0}
-                selectedFile={selectedFile}
-                onFileSelect={onFileSelect}
+                onSetProgramNumber={onSetProgramNumber}
+                onSetProgramSide={onSetProgramSide}
+                onGetNextAvailableProgramNumber={onGetNextAvailableProgramNumber}
+                onMoveProgramUp={onMoveProgramUp}
+                onMoveProgramDown={onMoveProgramDown}
+                onAddToPrograms={onAddToPrograms}
+                onRemoveFromPrograms={onRemoveFromPrograms}
               />
             ))}
           </div>
@@ -275,11 +469,6 @@ export function FileBrowser({
             {isRestoring && (
               <span className="text-orange-600">
                 ● Restoring from storage...
-              </span>
-            )}
-            {selectedFile && (
-              <span className="text-green-600">
-                ● {selectedFile.name} selected
               </span>
             )}
           </span>

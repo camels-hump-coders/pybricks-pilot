@@ -151,6 +151,7 @@ export function EnhancedCompetitionMat({
     setScoringState,
     updateScoring,
     resetScoring,
+    resetRobotToStartPosition,
     updateRobotPositionFromTelemetry,
     movementPreview,
     setMovementPreview,
@@ -237,16 +238,30 @@ export function EnhancedCompetitionMat({
       }
     };
 
-    // Listen for global telemetry events
+    const handlePositionResetEvent = (event: CustomEvent) => {
+      console.log("[EnhancedCompetitionMat] Position reset received, resetting robot to start position");
+      // Reset robot to the starting position but keep telemetry history
+      resetRobotToStartPosition();
+    };
+
+    // Listen for global telemetry and position reset events
     document.addEventListener(
       "telemetry",
       handleTelemetryEvent as EventListener
+    );
+    document.addEventListener(
+      "positionReset",
+      handlePositionResetEvent as EventListener
     );
 
     return () => {
       document.removeEventListener(
         "telemetry",
         handleTelemetryEvent as EventListener
+      );
+      document.removeEventListener(
+        "positionReset",
+        handlePositionResetEvent as EventListener
       );
     };
   }, []); // Empty dependency array - setup once and use current values via refs
