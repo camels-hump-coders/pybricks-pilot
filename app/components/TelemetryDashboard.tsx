@@ -538,7 +538,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   } = robotConnection;
 
   // Get file system data for program list
-  const { allPrograms, pythonFiles } = useJotaiFileSystem();
+  const { allPrograms, pythonFiles, directoryHandle } = useJotaiFileSystem();
 
   // Create a smart upload function that uses hub menu when there are numbered programs
   const handleUploadAndRun = async (
@@ -614,7 +614,10 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     }
   }, [currentRobotConfig, customMatConfig, setRobotPosition]);
 
-  const handleSaveMatConfig = async (config: GameMatConfig) => {
+  const handleSaveMatConfig = async (
+    config: GameMatConfig,
+    imageFile?: File
+  ) => {
     if (!hasDirectoryAccess) {
       console.error("No directory mounted - cannot save mat configuration");
       // Fall back to in-memory only
@@ -629,12 +632,48 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         // Create new mat configuration
         const matId = await createMatConfig({ name: config.name, config });
         console.log(`Created new mat configuration with ID: ${matId}`);
+
+        // If we have an image file, save it as well
+        if (imageFile && directoryHandle) {
+          try {
+            // Save the image file to the mat's directory
+            await matConfigFileSystem.saveMatImage(
+              directoryHandle,
+              matId,
+              imageFile
+            );
+            console.log(`Saved mat image for mat: ${matId}`);
+          } catch (imageError) {
+            console.warn(
+              "Failed to save mat image, but config was saved:",
+              imageError
+            );
+          }
+        }
       } else {
         // For editing, we need to determine the mat ID
         // For now, generate ID from name (in future, we'd track the current mat ID)
         const matId = matConfigFileSystem.generateMatId(config.name);
         await saveMatConfig({ matId, config });
         console.log(`Saved mat configuration with ID: ${matId}`);
+
+        // If we have an image file, update it as well
+        if (imageFile && directoryHandle) {
+          try {
+            // Save the updated image file to the mat's directory
+            await matConfigFileSystem.saveMatImage(
+              directoryHandle,
+              matId,
+              imageFile
+            );
+            console.log(`Updated mat image for mat: ${matId}`);
+          } catch (imageError) {
+            console.warn(
+              "Failed to update mat image, but config was saved:",
+              imageError
+            );
+          }
+        }
       }
 
       setCustomMatConfig(config);

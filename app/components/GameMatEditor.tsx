@@ -12,7 +12,7 @@ import { deSkewImage } from "../utils/perspectiveTransform";
 export type { GameMatConfig };
 
 interface GameMatEditorProps {
-  onSave: (config: GameMatConfig) => void;
+  onSave: (config: GameMatConfig, imageFile?: File) => void;
   onCancel: () => void;
   initialConfig?: GameMatConfig;
 }
@@ -22,7 +22,7 @@ const MAT_HEIGHT_MM = 1137; // Official FLL mat height
 const MAGNIFIER_SIZE = 150;
 const MAGNIFIER_ZOOM = 3;
 
-type EditorMode = "upload" | "corners" | "objects" | "preview";
+type EditorMode = "upload" | "corners" | "calibration" | "objects" | "preview";
 
 export function GameMatEditor({
   onSave,
@@ -69,6 +69,25 @@ export function GameMatEditor({
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false);
   const [autoDeSkew, setAutoDeSkew] = useState(true); // Auto de-skew after setting corners
+
+  // Add calibration state
+  const [calibrationPoints, setCalibrationPoints] = useState<{
+    xAxis: { first: Point | null; second: Point | null };
+    yAxis: { first: Point | null; second: Point | null };
+  }>({
+    xAxis: { first: null, second: null },
+    yAxis: { first: null, second: null },
+  });
+  const [currentCalibrationPoint, setCurrentCalibrationPoint] = useState<{
+    axis: "xAxis" | "yAxis";
+    point: "first" | "second";
+  } | null>(null);
+
+  // Add calculated dimensions state
+  const [calculatedDimensions, setCalculatedDimensions] = useState<{
+    widthMm: number;
+    heightMm: number;
+  } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -179,6 +198,11 @@ export function GameMatEditor({
       if (areAllCornersSet()) {
         drawPerspectiveGrid(ctx, x, y, width, height);
       }
+    }
+
+    // Draw calibration points if in calibration mode
+    if (mode === "calibration") {
+      drawCalibrationPoints(ctx, x, y, width, height);
     }
 
     // Draw scoring objects (only on normalized image)
@@ -314,6 +338,103 @@ export function GameMatEditor({
     }
   };
 
+  const drawCalibrationPoints = (
+    ctx: CanvasRenderingContext2D,
+    imgX: number,
+    imgY: number,
+    imgWidth: number,
+    imgHeight: number
+  ) => {
+    // Draw X-axis calibration points
+    if (calibrationPoints.xAxis.first) {
+      const x1 = imgX + calibrationPoints.xAxis.first.x * imgWidth;
+      const y1 = imgY + calibrationPoints.xAxis.first.y * imgHeight;
+      drawCalibrationPoint(ctx, x1, y1, "X1", "#ff6b6b");
+    }
+
+    if (calibrationPoints.xAxis.second) {
+      const x2 = imgX + calibrationPoints.xAxis.second.x * imgWidth;
+      const y2 = imgY + calibrationPoints.xAxis.second.y * imgHeight;
+      drawCalibrationPoint(ctx, x2, y2, "X2", "#ff6b6b");
+
+      // Draw line between X-axis points
+      if (calibrationPoints.xAxis.first) {
+        const x1 = imgX + calibrationPoints.xAxis.first.x * imgWidth;
+        const y1 = imgY + calibrationPoints.xAxis.first.y * imgHeight;
+        ctx.strokeStyle = "#ff6b6b";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // Draw Y-axis calibration points
+    if (calibrationPoints.yAxis.first) {
+      const x1 = imgX + calibrationPoints.yAxis.first.x * imgWidth;
+      const y1 = imgY + calibrationPoints.yAxis.first.y * imgHeight;
+      drawCalibrationPoint(ctx, x1, y1, "Y1", "#4ecdc4");
+    }
+
+    if (calibrationPoints.yAxis.second) {
+      const x2 = imgX + calibrationPoints.yAxis.second.x * imgWidth;
+      const y2 = imgY + calibrationPoints.yAxis.second.y * imgHeight;
+      drawCalibrationPoint(ctx, x2, y2, "Y2", "#4ecdc4");
+
+      // Draw line between Y-axis points
+      if (calibrationPoints.yAxis.first) {
+        const x1 = imgX + calibrationPoints.yAxis.first.x * imgWidth;
+        const y1 = imgY + calibrationPoints.yAxis.first.y * imgHeight;
+        ctx.strokeStyle = "#4ecdc4";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  };
+
+  const drawCalibrationPoint = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    label: string,
+    color: string
+  ) => {
+    // Draw point marker
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw crosshair
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - 15, y);
+    ctx.lineTo(x + 15, y);
+    ctx.moveTo(x, y - 15);
+    ctx.lineTo(x, y + 15);
+    ctx.stroke();
+
+    // Draw label
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.font = "12px sans-serif";
+    ctx.strokeText(label, x + 10, y - 10);
+    ctx.fillText(label, x + 10, y - 10);
+  };
+
   const drawMissions = (
     ctx: CanvasRenderingContext2D,
     imgX: number,
@@ -439,9 +560,73 @@ export function GameMatEditor({
       );
       const normalizedData = deSkewedCanvas.toDataURL("image/png");
       setNormalizedImageData(normalizedData);
-      setMode("objects");
+      setMode("calibration"); // Move to calibration instead of objects
     };
     img.src = originalImageData;
+  };
+
+  // Add calibration functions
+  const calculateDimensionsFromCalibration = () => {
+    if (
+      !calibrationPoints.xAxis.first ||
+      !calibrationPoints.xAxis.second ||
+      !calibrationPoints.yAxis.first ||
+      !calibrationPoints.yAxis.second
+    ) {
+      return null;
+    }
+
+    // Get canvas scaling information
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const imgWidth = parseFloat(canvas.dataset.imgWidth || "0");
+    const imgHeight = parseFloat(canvas.dataset.imgHeight || "0");
+
+    // Get the de-skewed image dimensions
+    const img = imageRef.current;
+    if (!img) return null;
+
+    // Calculate X axis distance in normalized coordinates (0-1) - only consider X coordinate
+    const xDistanceNormalized = Math.abs(
+      calibrationPoints.xAxis.second.x - calibrationPoints.xAxis.first.x
+    );
+
+    // Calculate Y axis distance in normalized coordinates (0-1) - only consider Y coordinate
+    const yDistanceNormalized = Math.abs(
+      calibrationPoints.yAxis.second.y - calibrationPoints.yAxis.first.y
+    );
+
+    // Convert normalized distances to actual image pixel distances
+    const xDistancePixels = xDistanceNormalized * img.width;
+    const yDistancePixels = yDistanceNormalized * img.height;
+
+    // Calculate scale factors (image pixels per mm)
+    const xScale = xDistancePixels / 100; // 100mm reference
+    const yScale = yDistancePixels / 100; // 100mm reference
+
+    // Calculate mat dimensions in mm
+    const widthMm = img.width / xScale;
+    const heightMm = img.height / yScale;
+
+    return { widthMm, heightMm };
+  };
+
+  const handleCalibrationComplete = () => {
+    const dimensions = calculateDimensionsFromCalibration();
+    if (dimensions) {
+      setCalculatedDimensions(dimensions);
+      setMode("objects");
+    }
+  };
+
+  const resetCalibration = () => {
+    setCalibrationPoints({
+      xAxis: { first: null, second: null },
+      yAxis: { first: null, second: null },
+    });
+    setCurrentCalibrationPoint(null);
+    setCalculatedDimensions(null);
   };
 
   const getObjectAtPosition = (
@@ -571,6 +756,21 @@ export function GameMatEditor({
         // Don't perform de-skew here - let the user click the button
         // This ensures all state is properly updated
       }
+    } else if (mode === "calibration" && currentCalibrationPoint) {
+      // Set calibration point position
+      const relX = (x - imgX) / imgWidth;
+      const relY = (y - imgY) / imgHeight;
+
+      // Update calibration points
+      const newCalibrationPoints = {
+        ...calibrationPoints,
+        [currentCalibrationPoint.axis]: {
+          ...calibrationPoints[currentCalibrationPoint.axis],
+          [currentCalibrationPoint.point]: { x: relX, y: relY },
+        },
+      };
+      setCalibrationPoints(newCalibrationPoints);
+      setCurrentCalibrationPoint(null);
     } else if (mode === "objects") {
       // Check if clicking on an existing object
       const clickedObjectId = getObjectAtPosition(
@@ -634,7 +834,10 @@ export function GameMatEditor({
     const y = event.clientY - rect.top;
 
     setMousePos({ x, y });
-    setShowMagnifier(mode === "corners" && currentCorner !== null);
+    setShowMagnifier(
+      (mode === "corners" && currentCorner !== null) ||
+        (mode === "calibration" && currentCalibrationPoint !== null)
+    );
 
     const imgX = parseFloat(canvas.dataset.imgX || "0");
     const imgY = parseFloat(canvas.dataset.imgY || "0");
@@ -829,23 +1032,63 @@ export function GameMatEditor({
     );
   };
 
-  const handleSave = () => {
-    const config: GameMatConfig = {
-      version: "1.0",
-      name: matName,
-      displayName: matName,
-      imageUrl:
-        normalizedImageData || originalImageData || initialConfig?.imageUrl,
-      missions,
-      dimensions: {
-        widthMm: MAT_WIDTH_MM,
-        heightMm: MAT_HEIGHT_MM,
-      },
-      createdAt: initialConfig?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  const handleSave = async () => {
+    if (!normalizedImageData) {
+      alert(
+        "Please complete the image processing (corners and calibration) before saving"
+      );
+      return;
+    }
 
-    onSave(config);
+    try {
+      // Convert the de-skewed image to a file
+      let imageFile: File;
+
+      if (normalizedImageData.startsWith("data:")) {
+        // Handle base64 data URLs (uploaded images)
+        const base64Data = normalizedImageData.split(",")[1];
+        if (!base64Data) {
+          throw new Error("Invalid base64 data URL");
+        }
+        const binaryString = atob(base64Data);
+        const imageBytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          imageBytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Create a blob and then a file
+        const blob = new Blob([imageBytes], { type: "image/png" });
+        imageFile = new File([blob], "mat.png", { type: "image/png" });
+      } else {
+        // Handle regular URLs (Vite imports) - fetch the image
+        const response = await fetch(normalizedImageData);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        const blob = await response.blob();
+        imageFile = new File([blob], "mat.png", { type: "image/png" });
+      }
+
+      const config: GameMatConfig = {
+        version: "1.0",
+        name: matName,
+        displayName: matName,
+        imageUrl: normalizedImageData, // Use the de-skewed image
+        missions,
+        dimensions: {
+          widthMm: calculatedDimensions?.widthMm || MAT_WIDTH_MM,
+          heightMm: calculatedDimensions?.heightMm || MAT_HEIGHT_MM,
+        },
+        createdAt: initialConfig?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Pass both the config and the image file to the save handler
+      onSave(config, imageFile);
+    } catch (error) {
+      console.error("Failed to prepare image for saving:", error);
+      alert("Failed to prepare image for saving. Please try again.");
+    }
   };
 
   const handleExportTar = async () => {
@@ -862,8 +1105,8 @@ export function GameMatEditor({
         displayName: matName,
         missions,
         dimensions: {
-          widthMm: MAT_WIDTH_MM,
-          heightMm: MAT_HEIGHT_MM,
+          widthMm: calculatedDimensions?.widthMm || MAT_WIDTH_MM,
+          heightMm: calculatedDimensions?.heightMm || MAT_HEIGHT_MM,
         },
         createdAt: initialConfig?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -935,7 +1178,7 @@ export function GameMatEditor({
 ## Contents
 
 - \`config.json\` - Season configuration with ${missions.length} missions
-- \`mat.png\` - De-skewed game mat image (${MAT_WIDTH_MM}x${MAT_HEIGHT_MM}mm)
+- \`mat.png\` - De-skewed game mat image (${calculatedDimensions?.widthMm || MAT_WIDTH_MM}x${calculatedDimensions?.heightMm || MAT_HEIGHT_MM}mm)
 
 ## Missions Included
 
@@ -984,6 +1227,12 @@ ${new Date().toISOString()}
       bottomLeft: { x: 0, y: 1 },
       bottomRight: { x: 1, y: 1 },
     });
+    setCalibrationPoints({
+      xAxis: { first: null, second: null },
+      yAxis: { first: null, second: null },
+    });
+    setCurrentCalibrationPoint(null);
+    setCalculatedDimensions(null);
     setMissions([]);
     setCurrentCorner(null);
     setSelectedObject(null);
@@ -995,7 +1244,15 @@ ${new Date().toISOString()}
 
   useEffect(() => {
     drawCanvas();
-  }, [mode, corners, missions, selectedObject, hoveredObject, draggingObject]);
+  }, [
+    mode,
+    corners,
+    calibrationPoints,
+    missions,
+    selectedObject,
+    hoveredObject,
+    draggingObject,
+  ]);
 
   // Auto de-skew when all corners are set
   useEffect(() => {
@@ -1017,6 +1274,18 @@ ${new Date().toISOString()}
     originalImageData,
     normalizedImageData,
   ]);
+
+  // Reset calibration when starting fresh
+  useEffect(() => {
+    if (mode === "upload" && !originalImageData) {
+      setCalibrationPoints({
+        xAxis: { first: null, second: null },
+        yAxis: { first: null, second: null },
+      });
+      setCurrentCalibrationPoint(null);
+      setCalculatedDimensions(null);
+    }
+  }, [mode, originalImageData]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1074,18 +1343,25 @@ ${new Date().toISOString()}
               2. Set Corners
             </button>
             <button
-              onClick={() => setMode("objects")}
+              onClick={() => setMode("calibration")}
               disabled={!normalizedImageData}
+              className={`px-4 py-2 rounded ${mode === "calibration" ? "bg-blue-500 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"} disabled:opacity-50`}
+            >
+              3. Calibrate Dimensions
+            </button>
+            <button
+              onClick={() => setMode("objects")}
+              disabled={!calculatedDimensions}
               className={`px-4 py-2 rounded ${mode === "objects" ? "bg-blue-500 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"} disabled:opacity-50`}
             >
-              3. Add Objects
+              4. Add Objects
             </button>
             <button
               onClick={() => setMode("preview")}
-              disabled={!normalizedImageData}
+              disabled={!calculatedDimensions}
               className={`px-4 py-2 rounded ${mode === "preview" ? "bg-blue-500 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"} disabled:opacity-50`}
             >
-              4. Preview
+              5. Preview
             </button>
           </div>
         </div>
@@ -1287,6 +1563,145 @@ ${new Date().toISOString()}
               </div>
             )}
 
+            {mode === "calibration" && (
+              <div>
+                <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-4">
+                  Calibrate Mat Dimensions
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Click on two points on the X-axis and two points on the Y-axis
+                  that represent 100mm distances. This will allow us to
+                  automatically calculate the mat's actual dimensions.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                      X-Axis (Horizontal) - 100mm reference
+                    </h4>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() =>
+                          setCurrentCalibrationPoint({
+                            axis: "xAxis",
+                            point: "first",
+                          })
+                        }
+                        className={`w-full text-left px-3 py-2 rounded ${
+                          currentCalibrationPoint?.axis === "xAxis" &&
+                          currentCalibrationPoint?.point === "first"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        First Point {calibrationPoints.xAxis.first ? "✓" : ""}
+                      </button>
+                      <button
+                        onClick={() =>
+                          setCurrentCalibrationPoint({
+                            axis: "xAxis",
+                            point: "second",
+                          })
+                        }
+                        className={`w-full text-left px-3 py-2 rounded ${
+                          currentCalibrationPoint?.axis === "xAxis" &&
+                          currentCalibrationPoint?.point === "second"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        Second Point {calibrationPoints.xAxis.second ? "✓" : ""}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                      Y-Axis (Vertical) - 100mm reference
+                    </h4>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() =>
+                          setCurrentCalibrationPoint({
+                            axis: "yAxis",
+                            point: "first",
+                          })
+                        }
+                        className={`w-full text-left px-3 py-2 rounded ${
+                          currentCalibrationPoint?.axis === "yAxis" &&
+                          currentCalibrationPoint?.point === "first"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        First Point {calibrationPoints.yAxis.first ? "✓" : ""}
+                      </button>
+                      <button
+                        onClick={() =>
+                          setCurrentCalibrationPoint({
+                            axis: "yAxis",
+                            point: "second",
+                          })
+                        }
+                        className={`w-full text-left px-3 py-2 rounded ${
+                          currentCalibrationPoint?.axis === "yAxis" &&
+                          currentCalibrationPoint?.point === "second"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        Second Point {calibrationPoints.yAxis.second ? "✓" : ""}
+                      </button>
+                    </div>
+                  </div>
+
+                  {currentCalibrationPoint && (
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        Click on the mat to set{" "}
+                        {currentCalibrationPoint.axis === "xAxis" ? "X" : "Y"}
+                        -axis point{" "}
+                        {currentCalibrationPoint.point === "first" ? "1" : "2"}
+                      </p>
+                    </div>
+                  )}
+
+                  {calibrationPoints.xAxis.first &&
+                    calibrationPoints.xAxis.second &&
+                    calibrationPoints.yAxis.first &&
+                    calibrationPoints.yAxis.second && (
+                      <div className="space-y-2">
+                        <button
+                          onClick={handleCalibrationComplete}
+                          className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                        >
+                          Calculate Dimensions & Continue
+                        </button>
+                        <button
+                          onClick={resetCalibration}
+                          className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          Reset Calibration
+                        </button>
+                      </div>
+                    )}
+
+                  {calculatedDimensions && (
+                    <div className="mt-4 p-3 bg-green-100 dark:bg-green-900 rounded">
+                      <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
+                        Calculated Dimensions
+                      </h4>
+                      <p className="text-sm text-green-700 dark:text-green-200">
+                        Width: {calculatedDimensions.widthMm.toFixed(2)}mm
+                      </p>
+                      <p className="text-sm text-green-700 dark:text-green-200">
+                        Height: {calculatedDimensions.heightMm.toFixed(2)}mm
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {mode === "objects" && (
               <div>
                 <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-2">
@@ -1401,94 +1816,135 @@ ${new Date().toISOString()}
                                   className="w-full px-2 py-1 mb-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                                   placeholder="Objective description (optional)"
                                 />
-                                
+
                                 {/* Scoring Mode */}
                                 <select
-                                  value={objective.scoringMode || "multi-select"}
+                                  value={
+                                    objective.scoringMode || "multi-select"
+                                  }
                                   onChange={(e) =>
                                     updateObjectiveInSelected(objective.id, {
-                                      scoringMode: e.target.value as "multi-select" | "single-select",
+                                      scoringMode: e.target.value as
+                                        | "multi-select"
+                                        | "single-select",
                                     })
                                   }
                                   className="w-full px-2 py-1 mb-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
                                 >
-                                  <option value="multi-select">Multi-select (can complete multiple)</option>
-                                  <option value="single-select">Single-select (only one at a time)</option>
+                                  <option value="multi-select">
+                                    Multi-select (can complete multiple)
+                                  </option>
+                                  <option value="single-select">
+                                    Single-select (only one at a time)
+                                  </option>
                                 </select>
-                                
+
                                 {/* Choices for this objective */}
                                 <div className="space-y-1 mt-2">
                                   <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
                                     Choices ({objective.choices?.length || 0}):
                                   </div>
-                                  {objective.choices?.map((choice, choiceIndex) => (
-                                    <div key={choice.id} className="flex gap-1 items-center">
-                                      <input
-                                        type="text"
-                                        value={choice.description}
-                                        onChange={(e) => {
-                                          const updatedChoices = [...(objective.choices || [])];
-                                          updatedChoices[choiceIndex] = {
-                                            ...choice,
-                                            description: e.target.value,
-                                          };
-                                          updateObjectiveInSelected(objective.id, {
-                                            choices: updatedChoices,
-                                          });
-                                        }}
-                                        className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                        placeholder="Choice description"
-                                      />
-                                      <input
-                                        type="number"
-                                        value={choice.points}
-                                        onChange={(e) => {
-                                          const updatedChoices = [...(objective.choices || [])];
-                                          updatedChoices[choiceIndex] = {
-                                            ...choice,
-                                            points: parseInt(e.target.value) || 0,
-                                          };
-                                          updateObjectiveInSelected(objective.id, {
-                                            choices: updatedChoices,
-                                          });
-                                        }}
-                                        className="w-16 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                        placeholder="Pts"
-                                      />
-                                      <select
-                                        value={choice.type || "primary"}
-                                        onChange={(e) => {
-                                          const updatedChoices = [...(objective.choices || [])];
-                                          updatedChoices[choiceIndex] = {
-                                            ...choice,
-                                            type: e.target.value as "primary" | "bonus",
-                                          };
-                                          updateObjectiveInSelected(objective.id, {
-                                            choices: updatedChoices,
-                                          });
-                                        }}
-                                        className="px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                  {objective.choices?.map(
+                                    (choice, choiceIndex) => (
+                                      <div
+                                        key={choice.id}
+                                        className="flex gap-1 items-center"
                                       >
-                                        <option value="primary">Pri</option>
-                                        <option value="bonus">Bon</option>
-                                      </select>
-                                      <button
-                                        onClick={() => {
-                                          const updatedChoices = objective.choices?.filter(
-                                            (_, i) => i !== choiceIndex
-                                          );
-                                          updateObjectiveInSelected(objective.id, {
-                                            choices: updatedChoices,
-                                          });
-                                        }}
-                                        className="text-red-500 hover:text-red-700 text-xs px-1"
-                                        disabled={objective.choices?.length === 1}
-                                        title={objective.choices?.length === 1 ? "Must have at least one choice" : "Remove choice"}
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ))}
+                                        <input
+                                          type="text"
+                                          value={choice.description}
+                                          onChange={(e) => {
+                                            const updatedChoices = [
+                                              ...(objective.choices || []),
+                                            ];
+                                            updatedChoices[choiceIndex] = {
+                                              ...choice,
+                                              description: e.target.value,
+                                            };
+                                            updateObjectiveInSelected(
+                                              objective.id,
+                                              {
+                                                choices: updatedChoices,
+                                              }
+                                            );
+                                          }}
+                                          className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                          placeholder="Choice description"
+                                        />
+                                        <input
+                                          type="number"
+                                          value={choice.points}
+                                          onChange={(e) => {
+                                            const updatedChoices = [
+                                              ...(objective.choices || []),
+                                            ];
+                                            updatedChoices[choiceIndex] = {
+                                              ...choice,
+                                              points:
+                                                parseInt(e.target.value) || 0,
+                                            };
+                                            updateObjectiveInSelected(
+                                              objective.id,
+                                              {
+                                                choices: updatedChoices,
+                                              }
+                                            );
+                                          }}
+                                          className="w-16 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                          placeholder="Pts"
+                                        />
+                                        <select
+                                          value={choice.type || "primary"}
+                                          onChange={(e) => {
+                                            const updatedChoices = [
+                                              ...(objective.choices || []),
+                                            ];
+                                            updatedChoices[choiceIndex] = {
+                                              ...choice,
+                                              type: e.target.value as
+                                                | "primary"
+                                                | "bonus",
+                                            };
+                                            updateObjectiveInSelected(
+                                              objective.id,
+                                              {
+                                                choices: updatedChoices,
+                                              }
+                                            );
+                                          }}
+                                          className="px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                                        >
+                                          <option value="primary">Pri</option>
+                                          <option value="bonus">Bon</option>
+                                        </select>
+                                        <button
+                                          onClick={() => {
+                                            const updatedChoices =
+                                              objective.choices?.filter(
+                                                (_, i) => i !== choiceIndex
+                                              );
+                                            updateObjectiveInSelected(
+                                              objective.id,
+                                              {
+                                                choices: updatedChoices,
+                                              }
+                                            );
+                                          }}
+                                          className="text-red-500 hover:text-red-700 text-xs px-1"
+                                          disabled={
+                                            objective.choices?.length === 1
+                                          }
+                                          title={
+                                            objective.choices?.length === 1
+                                              ? "Must have at least one choice"
+                                              : "Remove choice"
+                                          }
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    )
+                                  )}
                                   <button
                                     onClick={() => {
                                       const newChoice = {
@@ -1498,7 +1954,10 @@ ${new Date().toISOString()}
                                         type: "primary" as const,
                                       };
                                       updateObjectiveInSelected(objective.id, {
-                                        choices: [...(objective.choices || []), newChoice],
+                                        choices: [
+                                          ...(objective.choices || []),
+                                          newChoice,
+                                        ],
                                       });
                                     }}
                                     className="text-xs text-blue-500 hover:text-blue-700"
@@ -1539,7 +1998,10 @@ ${new Date().toISOString()}
                     >
                       {obj.name} (
                       {obj.objectives.reduce(
-                        (sum, o) => sum + (o.choices?.reduce((cSum, c) => cSum + c.points, 0) || 0),
+                        (sum, o) =>
+                          sum +
+                          (o.choices?.reduce((cSum, c) => cSum + c.points, 0) ||
+                            0),
                         0
                       )}
                       pts)
@@ -1559,8 +2021,12 @@ ${new Date().toISOString()}
                     <strong>Mat Name:</strong> {matName}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <strong>Dimensions:</strong> {MAT_WIDTH_MM}mm ×{" "}
-                    {MAT_HEIGHT_MM}mm
+                    <strong>Dimensions:</strong>{" "}
+                    {calculatedDimensions?.widthMm.toFixed(2) || MAT_WIDTH_MM}mm
+                    ×{" "}
+                    {calculatedDimensions?.heightMm.toFixed(2) || MAT_HEIGHT_MM}
+                    mm
+                    {calculatedDimensions && " (calculated)"}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     <strong>Missions:</strong> {missions.length}
@@ -1572,7 +2038,11 @@ ${new Date().toISOString()}
                         sum +
                         obj.objectives.reduce(
                           (objSum, objective) =>
-                            objSum + (objective.choices?.reduce((cSum, c) => cSum + c.points, 0) || 0),
+                            objSum +
+                            (objective.choices?.reduce(
+                              (cSum, c) => cSum + c.points,
+                              0
+                            ) || 0),
                           0
                         ),
                       0
