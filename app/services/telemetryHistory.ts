@@ -36,35 +36,22 @@ export interface PathVisualizationOptions {
 class TelemetryHistoryService {
   private currentPath: TelemetryPath | null = null;
   private allPaths: TelemetryPath[] = [];
-  private maxHistorySize = 10000; // Maximum points to keep in memory
-  private maxHistoryTimeMs = 10 * 60 * 1000; // Default: 10 minutes in milliseconds
+  private maxHistorySize = 6000; // Maximum points to keep in memory
   private isRecording = false;
   private isProgramRunning = false;
   private lastPosition = { x: 0, y: 0, heading: 0 };
 
   /**
-   * Configure the maximum time to retain telemetry data
-   * @param minutes Maximum time in minutes (default: 10, max: 60)
-   */
-  setMaxHistoryTime(minutes: number): void {
-    // Clamp between 1 minute and 60 minutes
-    const clampedMinutes = Math.max(1, Math.min(60, minutes));
-    this.maxHistoryTimeMs = clampedMinutes * 60 * 1000;
-    console.log(`[TelemetryHistory] Max history time set to ${clampedMinutes} minutes`);
-    
-    // Clean up existing data that exceeds the new limit
-    this.cleanupOldData();
-  }
-
-  /**
    * Configure the maximum number of points to retain
-   * @param maxPoints Maximum number of points (default: 10000, max: 50000)
+   * @param maxPoints Maximum number of points (default: 6000, max: 50000)
    */
   setMaxHistorySize(maxPoints: number): void {
     // Clamp between 1000 and 50000 points
     this.maxHistorySize = Math.max(1000, Math.min(50000, maxPoints));
-    console.log(`[TelemetryHistory] Max history size set to ${this.maxHistorySize} points`);
-    
+    console.log(
+      `[TelemetryHistory] Max history size set to ${this.maxHistorySize} points`
+    );
+
     // Clean up existing data that exceeds the new limit
     this.cleanupOldData();
   }
@@ -72,47 +59,16 @@ class TelemetryHistoryService {
   /**
    * Get current retention settings
    */
-  getRetentionSettings(): { maxTimeMinutes: number; maxPoints: number } {
+  getRetentionSettings(): { maxPoints: number } {
     return {
-      maxTimeMinutes: this.maxHistoryTimeMs / (60 * 1000),
       maxPoints: this.maxHistorySize,
     };
   }
 
   /**
-   * Clean up old telemetry data based on time and count limits
+   * Clean up old telemetry data based on count limits
    */
   private cleanupOldData(): void {
-    const now = Date.now();
-    const cutoffTime = now - this.maxHistoryTimeMs;
-
-    // Clean up current path
-    if (this.currentPath) {
-      // Remove points older than the time limit
-      this.currentPath.points = this.currentPath.points.filter(
-        point => point.timestamp >= cutoffTime
-      );
-      
-      // Also enforce point count limit
-      if (this.currentPath.points.length > this.maxHistorySize) {
-        this.currentPath.points = this.currentPath.points.slice(-this.maxHistorySize);
-      }
-    }
-
-    // Clean up completed paths
-    this.allPaths = this.allPaths.filter(path => {
-      // Remove entire paths that are too old
-      if (path.endTime > 0 && path.endTime < cutoffTime) {
-        return false;
-      }
-      
-      // For paths that are still partially within time limit, filter their points
-      path.points = path.points.filter(point => point.timestamp >= cutoffTime);
-      
-      // Keep path if it still has points
-      return path.points.length > 0;
-    });
-
     // Enforce total point count across all paths
     const totalPoints = this.getTotalPointCount();
     if (totalPoints > this.maxHistorySize) {
@@ -138,7 +94,8 @@ class TelemetryHistoryService {
    * Enforce point count limit by removing oldest points
    */
   private enforcePointCountLimit(): void {
-    while (this.getTotalPointCount() > this.maxHistorySize) {
+    let totalPoints = this.getTotalPointCount();
+    while (totalPoints > this.maxHistorySize) {
       // Find the oldest path with points
       let oldestPath: TelemetryPath | null = null;
       let oldestTime = Infinity;
@@ -151,10 +108,17 @@ class TelemetryHistoryService {
       }
 
       if (oldestPath) {
-        oldestPath.points.shift(); // Remove oldest point
+        while (
+          oldestPath.points.length > 0 &&
+          totalPoints > this.maxHistorySize
+        ) {
+          oldestPath.points.shift(); // Remove oldest point
+          totalPoints -= 1;
+        }
+
         // Remove path if it has no points left
         if (oldestPath.points.length === 0) {
-          this.allPaths = this.allPaths.filter(p => p !== oldestPath);
+          this.allPaths = this.allPaths.filter((p) => p !== oldestPath);
         }
       } else {
         break; // No more points to remove
@@ -232,37 +196,23 @@ class TelemetryHistoryService {
     totalPoints: number;
     totalPaths: number;
     currentPathPoints: number;
-    oldestPointAge: number; // in minutes
     memoryUsageEstimate: string;
   } {
     const totalPoints = this.getTotalPointCount();
     const currentPathPoints = this.currentPath?.points.length || 0;
-    
-    // Find oldest point
-    let oldestTimestamp = Date.now();
-    if (this.currentPath && this.currentPath.points.length > 0) {
-      oldestTimestamp = Math.min(oldestTimestamp, this.currentPath.points[0].timestamp);
-    }
-    for (const path of this.allPaths) {
-      if (path.points.length > 0) {
-        oldestTimestamp = Math.min(oldestTimestamp, path.points[0].timestamp);
-      }
-    }
-    
-    const oldestPointAge = (Date.now() - oldestTimestamp) / (60 * 1000); // in minutes
-    
+
     // Rough memory estimate (each point is roughly 200-500 bytes)
     const avgBytesPerPoint = 350;
     const estimatedBytes = totalPoints * avgBytesPerPoint;
-    const memoryUsageEstimate = estimatedBytes > 1024 * 1024 
-      ? `${(estimatedBytes / (1024 * 1024)).toFixed(1)} MB`
-      : `${(estimatedBytes / 1024).toFixed(1)} KB`;
-    
+    const memoryUsageEstimate =
+      estimatedBytes > 1024 * 1024
+        ? `${(estimatedBytes / (1024 * 1024)).toFixed(1)} MB`
+        : `${(estimatedBytes / 1024).toFixed(1)} KB`;
+
     return {
       totalPoints,
       totalPaths: this.allPaths.length + (this.currentPath ? 1 : 0),
       currentPathPoints,
-      oldestPointAge,
       memoryUsageEstimate,
     };
   }
