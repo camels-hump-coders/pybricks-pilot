@@ -325,11 +325,15 @@ export function EnhancedCompetitionMat({
   // Convert mm to canvas pixels (accounts for mat position within table)
   // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down (no flipping needed)
   const mmToCanvas = (mmX: number, mmY: number): { x: number; y: number } => {
+    // Use configured mat dimensions instead of hardcoded constants
+    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+    
     // Use exact same calculation as drawMissions function
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
     const matX =
-      matOffset + (TABLE_WIDTH_MM * scale - MAT_WIDTH_MM * scale) / 2;
-    const matY = matOffset + (TABLE_HEIGHT_MM * scale - MAT_HEIGHT_MM * scale);
+      matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
+    const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
 
     // Convert mm coordinates to mat canvas coordinates
     // No Y-coordinate flip - keep consistent with world coordinates (Y=0 at top)
@@ -345,11 +349,15 @@ export function EnhancedCompetitionMat({
     canvasX: number,
     canvasY: number
   ): { x: number; y: number } => {
+    // Use configured mat dimensions instead of hardcoded constants
+    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+    
     // Use exact same calculation as drawMissions function
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
     const matX =
-      matOffset + (TABLE_WIDTH_MM * scale - MAT_WIDTH_MM * scale) / 2;
-    const matY = matOffset + (TABLE_HEIGHT_MM * scale - MAT_HEIGHT_MM * scale);
+      matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
+    const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
 
     // Convert canvas coordinates to mm within the mat
     // No Y-coordinate flip - keep consistent with world coordinates (Y=0 at top)
@@ -391,8 +399,8 @@ export function EnhancedCompetitionMat({
 
     // Calculate mat position - centered horizontally, flush with bottom edge of table surface
     const borderOffset = BORDER_WALL_THICKNESS_MM * scale;
-    const matWidth = MAT_WIDTH_MM * scale;
-    const matHeight = MAT_HEIGHT_MM * scale;
+    const matWidth = (migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM) * scale;
+    const matHeight = (migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM) * scale;
     const tableWidth = TABLE_WIDTH_MM * scale;
     const tableHeight = TABLE_HEIGHT_MM * scale;
 
@@ -409,7 +417,7 @@ export function EnhancedCompetitionMat({
 
     // Draw mat background or image
     if (matImageRef.current) {
-      // Draw the de-skewed mat image
+      // Draw the de-skewed mat image using configured dimensions
       ctx.drawImage(matImageRef.current, matX, matY, matWidth, matHeight);
     } else {
       // Fallback: plain mat with grid
@@ -1131,10 +1139,14 @@ export function EnhancedCompetitionMat({
   const drawMissions = (ctx: CanvasRenderingContext2D) => {
     if (!customMatConfig) return;
 
+    // Use configured mat dimensions instead of hardcoded constants
+    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+    
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
     const matX =
-      matOffset + (TABLE_WIDTH_MM * scale - MAT_WIDTH_MM * scale) / 2;
-    const matY = matOffset + (TABLE_HEIGHT_MM * scale - MAT_HEIGHT_MM * scale);
+      matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
+    const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
 
     // Store bounding boxes for accurate hit detection
     const newBounds = new Map<
@@ -1145,8 +1157,10 @@ export function EnhancedCompetitionMat({
     migratedMatConfig?.missions.forEach((obj) => {
       // Convert normalized position (0-1) to world coordinates (mm), then to canvas coordinates
       // Use the same coordinate transformation as robot positions for consistency
-      const worldX = obj.position.x * MAT_WIDTH_MM; // Convert normalized to mm
-      const worldY = obj.position.y * MAT_HEIGHT_MM; // Convert normalized to mm
+      const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+      const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+      const worldX = obj.position.x * matWidthMm; // Convert normalized to mm using configured dimensions
+      const worldY = obj.position.y * matHeightMm; // Convert normalized to mm using configured dimensions
       const pos = mmToCanvas(worldX, worldY); // Apply standardized coordinate transformation
 
       const isScored = isMissionScored(obj, scoringState);
@@ -1557,11 +1571,13 @@ export function EnhancedCompetitionMat({
 
     const mm = canvasToMm(canvasX, canvasY);
 
+    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
     if (
       mm.x >= 0 &&
-      mm.x <= MAT_WIDTH_MM &&
+      mm.x <= matWidthMm &&
       mm.y >= 0 &&
-      mm.y <= MAT_HEIGHT_MM
+      mm.y <= matHeightMm
     ) {
       const newPosition: RobotPosition = {
         x: mm.x,
@@ -1617,11 +1633,13 @@ export function EnhancedCompetitionMat({
 
     const mm = canvasToMm(canvasX, canvasY);
 
+    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
     if (
       mm.x >= 0 &&
-      mm.x <= MAT_WIDTH_MM &&
+      mm.x <= matWidthMm &&
       mm.y >= 0 &&
-      mm.y <= MAT_HEIGHT_MM
+      mm.y <= matHeightMm
     ) {
       setMousePosition({
         x: mm.x,
@@ -1840,7 +1858,7 @@ export function EnhancedCompetitionMat({
               {migratedMatConfig ? migratedMatConfig.name : "Loading..."}
               <span className="hidden sm:inline">
                 {" "}
-                - Mat: {MAT_WIDTH_MM}×{MAT_HEIGHT_MM}mm, Table: {TABLE_WIDTH_MM}
+                - Mat: {migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM}×{migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM}mm, Table: {TABLE_WIDTH_MM}
                 ×{TABLE_HEIGHT_MM}mm with {BORDER_WALL_HEIGHT_MM}mm walls
               </span>
             </p>

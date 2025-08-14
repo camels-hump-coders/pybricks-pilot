@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "name": "test-grid",
+  "displayName": "Test Grid Mat - 100mm squares",
+  "missions": [
+    {
+      "id": "origin-marker",
+      "name": "Origin (0,0)",
+      "position": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "description": "Origin point at top-left corner",
+      "objectives": [
+        {
+          "id": "mark-origin",
+          "choices": [
+            {
+              "id": "mark-origin",
+              "description": "Place robot at origin",
+              "points": 10,
+              "type": "primary"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "center-marker",
+      "name": "Center Point",
+      "position": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "description": "Center of the mat with crosshair",
+      "objectives": [
+        {
+          "id": "reach-center",
+          "choices": [
+            {
+              "id": "reach-center",
+              "description": "Navigate to center crosshair",
+              "points": 20,
+              "type": "primary"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corner-marker",
+      "name": "Far Corner",
+      "position": {
+        "x": 1.0,
+        "y": 1.0
+      },
+      "description": "Bottom-right corner of mat",
+      "objectives": [
+        {
+          "id": "reach-corner",
+          "choices": [
+            {
+              "id": "reach-corner", 
+              "description": "Navigate to far corner",
+              "points": 15,
+              "type": "primary"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grid-test-100mm",
+      "name": "100mm Test Square",
+      "position": {
+        "x": 0.0849,
+        "y": 0.0879
+      },
+      "description": "First 100mm×100mm grid square for scale verification",
+      "objectives": [
+        {
+          "id": "verify-100mm-square",
+          "choices": [
+            {
+              "id": "verify-100mm-square",
+              "description": "Robot fits exactly in 100mm square",
+              "points": 50,
+              "type": "bonus"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grid-test-200mm",
+      "name": "200mm Test Rectangle",
+      "position": {
+        "x": 0.1698,
+        "y": 0.0879
+      },
+      "description": "Two grid squares wide (200mm) for robot length test",
+      "objectives": [
+        {
+          "id": "verify-200mm-length",
+          "choices": [
+            {
+              "id": "verify-200mm-length",
+              "description": "Robot length matches 200mm span",
+              "points": 50,
+              "type": "bonus"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "dimensions": {
+    "widthMm": 2356,
+    "heightMm": 1137
+  },
+  "createdAt": "2025-08-14T16:40:00.000Z",
+  "updatedAt": "2025-08-14T16:40:00.000Z"
+}
