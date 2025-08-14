@@ -49,6 +49,9 @@ export interface ScoringState {
 const MAT_WIDTH_MM = 2356; // Official FLL mat width
 const MAT_HEIGHT_MM = 1137; // Official FLL mat height
 
+// Grid overlay state
+export const showGridOverlayAtom = atom<boolean>(false);
+
 // Helper functions for robot positioning
 export const calculateRobotPosition = (
   robotConfig: RobotConfig,

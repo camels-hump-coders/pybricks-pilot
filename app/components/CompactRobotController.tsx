@@ -1,11 +1,11 @@
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
-import { robotPositionAtom } from "../store/atoms/gameMat";
+import { robotPositionAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { HubMenuInterface } from "./HubMenuInterface";
@@ -103,6 +103,9 @@ export function CompactRobotController({
   const [motorSpeed, setMotorSpeed] = useState(100);
   const [motorAngle, setMotorAngle] = useState(90);
   const [activeMotor, setActiveMotor] = useState<string | null>(null);
+  
+  // Grid overlay state from Jotai atom
+  const [showGridOverlay, setShowGridOverlay] = useAtom(showGridOverlayAtom);
 
   // Command execution tracking for dynamic stop buttons
   const [executingCommand, setExecutingCommand] = useState<{
@@ -364,6 +367,32 @@ export function CompactRobotController({
                   Hold
                 </button>
               </div>
+              
+              {/* Grid Overlay Toggle */}
+              <button
+                onClick={() => setShowGridOverlay(!showGridOverlay)}
+                className={`ml-2 px-3 py-2 text-sm rounded transition-colors ${
+                  showGridOverlay
+                    ? "bg-blue-500 text-white shadow-sm"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+                }`}
+                title="Toggle 100mm grid overlay"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16M6 4v16M12 4v16M18 4v16"
+                  />
+                </svg>
+              </button>
 
               {/* CMD Key Status */}
               {isCmdKeyPressed && (

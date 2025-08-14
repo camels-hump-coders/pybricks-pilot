@@ -1,4 +1,4 @@
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
@@ -11,7 +11,7 @@ import {
   type PathVisualizationOptions,
   type TelemetryPoint,
 } from "../services/telemetryHistory";
-import { calculateRobotPosition } from "../store/atoms/gameMat";
+import { calculateRobotPosition, showGridOverlayAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { calculatePreviewPosition, calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
@@ -199,6 +199,9 @@ export function EnhancedCompetitionMat({
 
   // Target heading state for position setting
   const [targetHeading, setTargetHeading] = useState<number>(0);
+  
+  // Grid overlay state from Jotai atom
+  const showGridOverlay = useAtomValue(showGridOverlayAtom);
 
   // Migrate old mission format to new format - stabilize with deep comparison
   const migratedMatConfig = useMemo(() => {
@@ -603,6 +606,11 @@ export function EnhancedCompetitionMat({
       drawPerpendicularTrajectoryProjection(ctx, leftTrajectory.trajectoryPath, "left");
       drawPerpendicularTrajectoryProjection(ctx, rightTrajectory.trajectoryPath, "right");
     }
+    
+    // Draw grid overlay oriented to robot heading
+    if (showGridOverlay && currentPosition) {
+      drawGridOverlay(ctx, currentPosition);
+    }
   }, [
     scale,
     currentPosition,
@@ -618,6 +626,7 @@ export function EnhancedCompetitionMat({
     showScoring,
     controlMode,
     robotConfig,
+    showGridOverlay,
   ]); // canvasSize removed as it's handled separately
 
   const drawBorderWalls = (ctx: CanvasRenderingContext2D) => {
@@ -716,6 +725,87 @@ export function EnhancedCompetitionMat({
       ctx.lineTo(x + width, y + i);
       ctx.stroke();
     }
+  };
+
+  const drawGridOverlay = (
+    ctx: CanvasRenderingContext2D,
+    position: RobotPosition
+  ) => {
+    if (!position || position.x <= 0 || position.y <= 0) return;
+    
+    // Grid configuration
+    const GRID_SIZE_MM = 100; // 100mm grid squares
+    const gridSizePixels = GRID_SIZE_MM * scale;
+    
+    // Get robot center position in canvas coordinates
+    const centerPos = mmToCanvas(position.x, position.y);
+    
+    // Convert robot heading to radians (0° = north, clockwise positive)
+    const headingRad = (position.heading * Math.PI) / 180;
+    
+    // Save the current canvas state
+    ctx.save();
+    
+    // Set up grid styling
+    ctx.strokeStyle = "rgba(0, 150, 255, 0.3)"; // Light blue with transparency
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]); // Dashed lines
+    
+    // Calculate visible area bounds
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    // Number of grid lines to draw in each direction from center
+    const gridExtent = 20; // Will draw 40x40 grid centered on robot
+    
+    // Translate to robot position and rotate to robot heading
+    ctx.translate(centerPos.x, centerPos.y);
+    ctx.rotate(headingRad);
+    
+    // Draw vertical grid lines (parallel to robot's forward direction)
+    for (let i = -gridExtent; i <= gridExtent; i++) {
+      const x = i * gridSizePixels;
+      ctx.beginPath();
+      ctx.moveTo(x, -gridExtent * gridSizePixels);
+      ctx.lineTo(x, gridExtent * gridSizePixels);
+      ctx.stroke();
+    }
+    
+    // Draw horizontal grid lines (perpendicular to robot's forward direction)
+    for (let i = -gridExtent; i <= gridExtent; i++) {
+      const y = i * gridSizePixels;
+      ctx.beginPath();
+      ctx.moveTo(-gridExtent * gridSizePixels, y);
+      ctx.lineTo(gridExtent * gridSizePixels, y);
+      ctx.stroke();
+    }
+    
+    // Draw thicker lines at robot's axes
+    ctx.strokeStyle = "rgba(0, 100, 200, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]); // Solid lines for axes
+    
+    // Forward/backward axis (Y-axis in robot's frame)
+    ctx.beginPath();
+    ctx.moveTo(0, -gridExtent * gridSizePixels);
+    ctx.lineTo(0, gridExtent * gridSizePixels);
+    ctx.stroke();
+    
+    // Left/right axis (X-axis in robot's frame)
+    ctx.beginPath();
+    ctx.moveTo(-gridExtent * gridSizePixels, 0);
+    ctx.lineTo(gridExtent * gridSizePixels, 0);
+    ctx.stroke();
+    
+    // Add grid size label
+    ctx.fillStyle = "rgba(0, 100, 200, 0.7)";
+    ctx.font = `${12 * scale}px sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("100mm grid", gridSizePixels + 5, 5);
+    
+    // Restore the canvas state
+    ctx.restore();
   };
 
   const drawRobot = (
