@@ -8,6 +8,6 @@ export interface PythonFile {
   isDirectory?: boolean; // Add flag to distinguish directories
   children?: PythonFile[]; // Add children for directory structure
   // Program menu system properties
-  programNumber?: number; // Sequential program number for hub menu (1, 2, 3, etc.)
   programSide?: "left" | "right"; // Robot starting side for automatic positioning
+  // Note: programNumber is derived from array position in programs.json (1-based)
 }

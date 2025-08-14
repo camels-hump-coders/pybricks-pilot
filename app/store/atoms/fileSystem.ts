@@ -20,30 +20,21 @@ export const isCreatingFileAtom = atom<boolean>(false);
 // File content cache atoms
 export const fileContentCacheAtom = atom<Map<string, string>>(new Map());
 
-// Helper function to count programs recursively
-const countProgramsRecursively = (files: PythonFile[]): number => {
-  let count = 0;
-  files.forEach(file => {
-    if (file.isDirectory && file.children) {
-      count += countProgramsRecursively(file.children);
-    } else if (!file.isDirectory && file.programNumber) {
-      count++;
-    }
-  });
-  return count;
-};
+// Programs manifest atom - stores the programs.json data
+export const programsManifestAtom = atom<{ relativePath: string; programSide?: "left" | "right" }[]>([]);
 
-// Helper function to get all programs recursively
-const getAllProgramsRecursively = (files: PythonFile[]): PythonFile[] => {
-  const programs: PythonFile[] = [];
-  files.forEach(file => {
-    if (file.isDirectory && file.children) {
-      programs.push(...getAllProgramsRecursively(file.children));
-    } else if (!file.isDirectory && file.programNumber) {
-      programs.push(file);
+// Helper function to find a file by relative path recursively
+const findFileByPath = (files: PythonFile[], relativePath: string): PythonFile | null => {
+  for (const file of files) {
+    if (file.relativePath === relativePath && !file.isDirectory) {
+      return file;
     }
-  });
-  return programs;
+    if (file.isDirectory && file.children) {
+      const found = findFileByPath(file.children, relativePath);
+      if (found) return found;
+    }
+  }
+  return null;
 };
 
 // Derived atoms
@@ -54,14 +45,51 @@ export const isFileSystemSupportedAtom = atom(
 
 // Derived atom for program count
 export const programCountAtom = atom((get) => {
-  const pythonFiles = get(pythonFilesAtom);
-  return countProgramsRecursively(pythonFiles);
+  const programsManifest = get(programsManifestAtom);
+  return programsManifest.length;
 });
 
-// Derived atom for all programs with numbers
+// Derived atom for all programs with numbers (includes program number and file data)
 export const allProgramsAtom = atom((get) => {
   const pythonFiles = get(pythonFilesAtom);
-  return getAllProgramsRecursively(pythonFiles);
+  const programsManifest = get(programsManifestAtom);
+  
+  const programs: (PythonFile & { programNumber: number })[] = [];
+  
+  programsManifest.forEach((programMeta, index) => {
+    const file = findFileByPath(pythonFiles, programMeta.relativePath);
+    if (file) {
+      programs.push({
+        ...file,
+        programNumber: index + 1, // 1-based program number from array position
+        programSide: programMeta.programSide,
+      });
+    }
+  });
+  
+  return programs;
+});
+
+// Helper atom to get program info for a specific file
+export const getProgramInfoAtom = atom((get) => {
+  return (relativePath: string) => {
+    const programsManifest = get(programsManifestAtom);
+    const index = programsManifest.findIndex(p => p.relativePath === relativePath);
+    
+    if (index >= 0) {
+      return {
+        programNumber: index + 1, // 1-based
+        programSide: programsManifest[index].programSide,
+        isProgram: true,
+      };
+    }
+    
+    return {
+      programNumber: undefined,
+      programSide: undefined,
+      isProgram: false,
+    };
+  };
 });
 
 // Action atoms

@@ -10,7 +10,6 @@ async function enrichFileRecursively(
     const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, file.relativePath);
     return {
       ...file,
-      programNumber: metadata?.programNumber,
       programSide: metadata?.programSide,
     };
   } else {
@@ -96,6 +95,13 @@ export const refreshPythonFilesAtom = atom(null, async (get, set) => {
   try {
     // Get the basic file list from the file system service
     const filesWithInfo = await fileSystemService.listPythonFiles(directoryHandle);
+    
+    // Load programs manifest for program number calculation
+    const programsManifest = await programMetadataStorage.getAllPrograms(directoryHandle);
+    
+    // Store programs manifest in atom for UI access
+    const { programsManifestAtom } = await import("../atoms/fileSystem");
+    set(programsManifestAtom, programsManifest);
     
     // Load program metadata and enrich the file objects recursively
     const enrichedFiles: PythonFile[] = [];
@@ -239,17 +245,17 @@ export const getFileContentAtom = atom(
 
 // Program metadata actions
 
-// Set program number for a file
-export const setProgramNumberAtom = atom(
+// Add program to the list (position determines program number)
+export const addToProgramsAtom = atom(
   null,
-  async (get, set, params: { relativePath: string; programNumber: number | undefined }) => {
+  async (get, set, relativePath: string) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
-    await programMetadataStorage.setProgramNumber(
+    await programMetadataStorage.addProgram(
       directoryHandle,
-      params.relativePath,
-      params.programNumber
+      relativePath,
+      "right" // Default to right side
     );
 
     // Refresh to get the latest state from filesystem
@@ -286,46 +292,14 @@ export const getProgramMetadataAtom = atom(
   }
 );
 
-// Get all programs with numbers
-export const getAllProgramsWithNumbersAtom = atom(
+// Get all programs in order
+export const getAllProgramsAtom = atom(
   null,
   async (get, set) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) return [];
 
-    return await programMetadataStorage.getAllProgramsWithNumbers(directoryHandle);
-  }
-);
-
-// Get next available program number
-export const getNextAvailableProgramNumberAtom = atom(
-  null,
-  async (get, set) => {
-    const directoryHandle = get(directoryHandleAtom);
-    if (!directoryHandle) return 1;
-
-    return await programMetadataStorage.getNextAvailableProgramNumber(directoryHandle);
-  }
-);
-
-// Add file to programs (atomic operation)
-export const addToProgramsAtom = atom(
-  null,
-  async (get, set, relativePath: string) => {
-    const directoryHandle = get(directoryHandleAtom);
-    if (!directoryHandle) throw new Error("No directory selected");
-
-    // Get next available number
-    const nextNumber = await programMetadataStorage.getNextAvailableProgramNumber(directoryHandle);
-    
-    // Set both number and side in one operation
-    await programMetadataStorage.storeProgramMetadata(directoryHandle, relativePath, {
-      programNumber: nextNumber,
-      programSide: "right" // Default to right
-    });
-
-    // Refresh to get the latest state from filesystem
-    await set(refreshPythonFilesAtom);
+    return await programMetadataStorage.getAllPrograms(directoryHandle);
   }
 );
 
@@ -336,24 +310,8 @@ export const removeFromProgramsAtom = atom(
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
-    // Remove both number and side in one operation
-    await programMetadataStorage.storeProgramMetadata(directoryHandle, relativePath, {
-      programNumber: undefined,
-      programSide: undefined
-    });
-
-    // Get all remaining programs with numbers and renumber them to eliminate gaps
-    const remainingPrograms = await programMetadataStorage.getAllProgramsWithNumbers(directoryHandle);
-    
-    // Renumber all remaining programs sequentially (1, 2, 3, etc.)
-    for (let i = 0; i < remainingPrograms.length; i++) {
-      const program = remainingPrograms[i];
-      const newNumber = i + 1; // Start from 1
-      
-      if (program.programNumber !== newNumber) {
-        await programMetadataStorage.setProgramNumber(directoryHandle, program.relativePath, newNumber);
-      }
-    }
+    // Remove program from the array (automatically fixes numbering)
+    await programMetadataStorage.removeProgramMetadata(directoryHandle, relativePath);
 
     // Refresh to get the latest state from filesystem
     await set(refreshPythonFilesAtom);

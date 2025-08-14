@@ -308,15 +308,14 @@ class PybricksHubService extends EventTarget {
   }
 
   async uploadAndRunHubMenu(
-    allPrograms: PythonFile[],
+    allPrograms: (PythonFile & { programNumber: number })[],
     availableFiles: PythonFile[]
   ): Promise<void> {
     // Clear program output at the start of uploading and running a program
     this.emitClearProgramOutputEvent();
 
     this.emitDebugEvent("upload", "Starting hub menu upload and run", {
-      programCount: allPrograms.filter((p) => p.programNumber && !p.isDirectory)
-        .length,
+      programCount: allPrograms.filter((p) => !p.isDirectory).length,
     });
 
     // Use multi-module compiler to compile all numbered programs into a menu system

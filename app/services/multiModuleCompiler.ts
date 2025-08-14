@@ -323,20 +323,20 @@ class MultiModuleCompiler extends EventTarget {
    * Uses existing dependency resolution and multi-file blob creation
    */
   async compileHubMenu(
-    allPrograms: PythonFile[],
+    allPrograms: (PythonFile & { programNumber: number })[],
     availableFiles: PythonFile[]
   ): Promise<MultiModuleCompilationResult> {
     try {
       const modules: string[] = [];
 
-      // Filter and prepare numbered programs
+      // Filter and prepare numbered programs (they're already numbered and filtered)
       const numberedPrograms = allPrograms
-        .filter((file) => file.programNumber && !file.isDirectory)
-        .sort((a, b) => (a.programNumber || 0) - (b.programNumber || 0))
+        .filter((file) => !file.isDirectory)
+        .sort((a, b) => a.programNumber - b.programNumber)
         .map((file) => ({
           name: file.name.replace(".py", ""),
           moduleName: filePathToModuleName(file.relativePath),
-          number: file.programNumber!,
+          number: file.programNumber,
           side: file.programSide || "right",
           file: file,
         }));

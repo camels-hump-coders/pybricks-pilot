@@ -29,11 +29,9 @@ import {
   createExampleProjectAtom,
   clearPersistedDataAtom,
   getFileContentAtom,
-  setProgramNumberAtom,
   setProgramSideAtom,
   getProgramMetadataAtom,
-  getAllProgramsWithNumbersAtom,
-  getNextAvailableProgramNumberAtom,
+  getAllProgramsAtom,
   addToProgramsAtom,
   removeFromProgramsAtom,
   moveProgramUpAtom,
@@ -81,11 +79,9 @@ export function useJotaiFileSystem() {
   const getFileContentAction = useSetAtom(getFileContentAtom);
   
   // Program metadata actions
-  const setProgramNumber = useSetAtom(setProgramNumberAtom);
   const setProgramSide = useSetAtom(setProgramSideAtom);
   const getProgramMetadata = useSetAtom(getProgramMetadataAtom);
-  const getAllProgramsWithNumbers = useSetAtom(getAllProgramsWithNumbersAtom);
-  const getNextAvailableProgramNumber = useSetAtom(getNextAvailableProgramNumberAtom);
+  const getAllPrograms = useSetAtom(getAllProgramsAtom);
   const addToPrograms = useSetAtom(addToProgramsAtom);
   const removeFromPrograms = useSetAtom(removeFromProgramsAtom);
   const moveProgramUp = useSetAtom(moveProgramUpAtom);
@@ -153,11 +149,9 @@ export function useJotaiFileSystem() {
     getFileContent,
     
     // Program metadata operations
-    setProgramNumber,
     setProgramSide,
     getProgramMetadata,
-    getAllProgramsWithNumbers,
-    getNextAvailableProgramNumber,
+    getAllPrograms,
     addToPrograms,
     removeFromPrograms,
     moveProgramUp,

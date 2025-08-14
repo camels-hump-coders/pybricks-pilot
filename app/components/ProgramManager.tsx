@@ -63,9 +63,7 @@ export function ProgramManager({
 
   // Get program metadata handlers and shared state from the filesystem hook
   const {
-    setProgramNumber,
     setProgramSide,
-    getNextAvailableProgramNumber,
     moveProgramUp,
     moveProgramDown,
     addToPrograms,
@@ -79,16 +77,13 @@ export function ProgramManager({
   const { uploadAndRunHubMenu } = robotConnection;
 
   const handleUploadAndRun = async () => {
-    // Check if there are any numbered programs
-    const numberedPrograms = allPrograms.filter(
-      (p) => p.programNumber && !p.isDirectory
-    );
-
-    if (numberedPrograms.length > 0 && uploadAndRunHubMenu) {
+    // allPrograms already contains numbered programs with programNumber
+    // No need to filter since allPrograms is already the numbered programs list
+    if (allPrograms.length > 0 && uploadAndRunHubMenu) {
       // Use hub menu upload when there are numbered programs
       console.log(
         "[ProgramManager] Using hub menu upload for",
-        numberedPrograms.length,
+        allPrograms.length,
         "programs"
       );
       try {
@@ -152,13 +147,9 @@ export function ProgramManager({
               onRefresh={onRefreshFiles}
               onUnmount={onUnmountDirectory}
               onCreateFile={onCreateFile}
-              onSetProgramNumber={async (relativePath, programNumber) => {
-                await setProgramNumber({ relativePath, programNumber });
-              }}
               onSetProgramSide={async (relativePath, programSide) => {
                 await setProgramSide({ relativePath, programSide });
               }}
-              onGetNextAvailableProgramNumber={getNextAvailableProgramNumber}
               onMoveProgramUp={async (relativePath) => {
                 await moveProgramUp(relativePath);
               }}

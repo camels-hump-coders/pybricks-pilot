@@ -1,6 +1,5 @@
 interface ProgramMetadata {
   relativePath: string;
-  programNumber?: number;
   programSide?: "left" | "right";
 }
 
@@ -77,7 +76,6 @@ class ProgramMetadataStorage {
     const existingIndex = manifest.programs.findIndex(p => p.relativePath === relativePath);
     const programMetadata: ProgramMetadata = {
       relativePath,
-      programNumber: metadata.programNumber,
       programSide: metadata.programSide,
     };
 
@@ -90,14 +88,12 @@ class ProgramMetadataStorage {
     await this.saveProgramsManifest(dirHandle, manifest);
   }
 
-  // Get all programs with numbers, sorted by program number
-  async getAllProgramsWithNumbers(
+  // Get all programs in order (array position determines program number)
+  async getAllPrograms(
     dirHandle: FileSystemDirectoryHandle
   ): Promise<ProgramMetadata[]> {
     const manifest = await this.loadProgramsManifest(dirHandle);
-    return manifest.programs
-      .filter(p => p.programNumber !== undefined)
-      .sort((a, b) => (a.programNumber || 0) - (b.programNumber || 0));
+    return manifest.programs;
   }
 
   // Remove program metadata
@@ -110,31 +106,28 @@ class ProgramMetadataStorage {
     await this.saveProgramsManifest(dirHandle, manifest);
   }
 
-  // Get next available program number
-  async getNextAvailableProgramNumber(
-    dirHandle: FileSystemDirectoryHandle
-  ): Promise<number> {
-    const programsWithNumbers = await this.getAllProgramsWithNumbers(dirHandle);
-    const usedNumbers = programsWithNumbers.map(p => p.programNumber || 0);
-    
-    // Find the lowest available number starting from 1
-    for (let i = 1; i <= 10; i++) { // Limit to 10 programs for hub menu
-      if (!usedNumbers.includes(i)) {
-        return i;
-      }
-    }
-    
-    // If all numbers 1-10 are taken, return 11 (though this might not work on hub)
-    return usedNumbers.length + 1;
-  }
-
-  // Set program number for a file
-  async setProgramNumber(
+  // Add program to the end of the list (gets next available program number)
+  async addProgram(
     dirHandle: FileSystemDirectoryHandle,
     relativePath: string,
-    programNumber: number | undefined
+    programSide: "left" | "right" = "right"
   ): Promise<void> {
-    await this.storeProgramMetadata(dirHandle, relativePath, { programNumber });
+    const manifest = await this.loadProgramsManifest(dirHandle);
+    
+    // Check if program already exists
+    const existingIndex = manifest.programs.findIndex(p => p.relativePath === relativePath);
+    if (existingIndex >= 0) {
+      // Update existing program side but keep position
+      manifest.programs[existingIndex].programSide = programSide;
+    } else {
+      // Add new program to end of array
+      manifest.programs.push({
+        relativePath,
+        programSide,
+      });
+    }
+    
+    await this.saveProgramsManifest(dirHandle, manifest);
   }
 
   // Set program side for a file
@@ -151,25 +144,20 @@ class ProgramMetadataStorage {
     dirHandle: FileSystemDirectoryHandle,
     relativePath: string
   ): Promise<void> {
-    const allPrograms = await this.getAllProgramsWithNumbers(dirHandle);
-    const currentProgram = allPrograms.find(p => p.relativePath === relativePath);
+    const manifest = await this.loadProgramsManifest(dirHandle);
+    const currentIndex = manifest.programs.findIndex(p => p.relativePath === relativePath);
     
-    if (!currentProgram || !currentProgram.programNumber) return;
+    if (currentIndex === -1) return; // Program not found
     
-    const currentNumber = currentProgram.programNumber;
-    const currentIndex = allPrograms.findIndex(p => p.programNumber === currentNumber);
+    // Calculate swap index (wrap around to end if at beginning)
+    const swapIndex = currentIndex === 0 ? manifest.programs.length - 1 : currentIndex - 1;
     
-    if (currentIndex === -1) return;
+    // Swap the programs in the array
+    const temp = manifest.programs[currentIndex];
+    manifest.programs[currentIndex] = manifest.programs[swapIndex];
+    manifest.programs[swapIndex] = temp;
     
-    // Find the program to swap with (wrap around to end if at beginning)
-    const swapIndex = currentIndex === 0 ? allPrograms.length - 1 : currentIndex - 1;
-    const swapProgram = allPrograms[swapIndex];
-    
-    if (!swapProgram) return;
-    
-    // Swap the program numbers
-    await this.setProgramNumber(dirHandle, currentProgram.relativePath, swapProgram.programNumber);
-    await this.setProgramNumber(dirHandle, swapProgram.relativePath, currentProgram.programNumber);
+    await this.saveProgramsManifest(dirHandle, manifest);
   }
 
   // Move program down in order (with wrap-around)
@@ -177,25 +165,20 @@ class ProgramMetadataStorage {
     dirHandle: FileSystemDirectoryHandle,
     relativePath: string
   ): Promise<void> {
-    const allPrograms = await this.getAllProgramsWithNumbers(dirHandle);
-    const currentProgram = allPrograms.find(p => p.relativePath === relativePath);
+    const manifest = await this.loadProgramsManifest(dirHandle);
+    const currentIndex = manifest.programs.findIndex(p => p.relativePath === relativePath);
     
-    if (!currentProgram || !currentProgram.programNumber) return;
+    if (currentIndex === -1) return; // Program not found
     
-    const currentNumber = currentProgram.programNumber;
-    const currentIndex = allPrograms.findIndex(p => p.programNumber === currentNumber);
+    // Calculate swap index (wrap around to beginning if at end)
+    const swapIndex = currentIndex === manifest.programs.length - 1 ? 0 : currentIndex + 1;
     
-    if (currentIndex === -1) return;
+    // Swap the programs in the array
+    const temp = manifest.programs[currentIndex];
+    manifest.programs[currentIndex] = manifest.programs[swapIndex];
+    manifest.programs[swapIndex] = temp;
     
-    // Find the program to swap with (wrap around to beginning if at end)
-    const swapIndex = currentIndex === allPrograms.length - 1 ? 0 : currentIndex + 1;
-    const swapProgram = allPrograms[swapIndex];
-    
-    if (!swapProgram) return;
-    
-    // Swap the program numbers
-    await this.setProgramNumber(dirHandle, currentProgram.relativePath, swapProgram.programNumber);
-    await this.setProgramNumber(dirHandle, swapProgram.relativePath, currentProgram.programNumber);
+    await this.saveProgramsManifest(dirHandle, manifest);
   }
 
   // Validate programs manifest structure
@@ -207,7 +190,6 @@ class ProgramMetadataStorage {
       manifest.programs.every((p: any) => 
         p &&
         typeof p.relativePath === "string" &&
-        (p.programNumber === undefined || typeof p.programNumber === "number") &&
         (p.programSide === undefined || p.programSide === "left" || p.programSide === "right")
       )
     );

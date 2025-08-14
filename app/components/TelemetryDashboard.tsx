@@ -488,16 +488,13 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     content: string,
     availableFiles: any[]
   ) => {
-    // Check if there are any numbered programs
-    const numberedPrograms = allPrograms.filter(
-      (p) => p.programNumber && !p.isDirectory
-    );
-
-    if (numberedPrograms.length > 0 && uploadAndRunHubMenu) {
+    // allPrograms already contains numbered programs with programNumber
+    // No need to filter since allPrograms is already the numbered programs list
+    if (allPrograms.length > 0 && uploadAndRunHubMenu) {
       // Use hub menu upload when there are numbered programs
       console.log(
         "[TelemetryDashboard] Using hub menu upload for",
-        numberedPrograms.length,
+        allPrograms.length,
         "programs"
       );
       await uploadAndRunHubMenu(allPrograms, pythonFiles);

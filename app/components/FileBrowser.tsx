@@ -1,4 +1,6 @@
+import { useAtomValue } from "jotai";
 import { useState } from "react";
+import { getProgramInfoAtom } from "../store/atoms/fileSystem";
 import type { PythonFile } from "../types/fileSystem";
 
 interface FileBrowserProps {
@@ -12,9 +14,7 @@ interface FileBrowserProps {
   onCreateFile: () => void;
   className?: string;
   // Program metadata handlers
-  onSetProgramNumber?: (relativePath: string, programNumber: number | undefined) => Promise<void>;
   onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
-  onGetNextAvailableProgramNumber?: () => Promise<number>;
   onMoveProgramUp?: (relativePath: string) => Promise<void>;
   onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
@@ -26,9 +26,7 @@ interface FileTreeItemProps {
   file: PythonFile;
   level: number;
   // Program metadata handlers
-  onSetProgramNumber?: (relativePath: string, programNumber: number | undefined) => Promise<void>;
   onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
-  onGetNextAvailableProgramNumber?: () => Promise<number>;
   onMoveProgramUp?: (relativePath: string) => Promise<void>;
   onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
@@ -39,15 +37,15 @@ interface FileTreeItemProps {
 function FileTreeItem({ 
   file, 
   level, 
-  onSetProgramNumber,
   onSetProgramSide,
-  onGetNextAvailableProgramNumber,
   onMoveProgramUp,
   onMoveProgramDown,
   onAddToPrograms,
   onRemoveFromPrograms
 }: FileTreeItemProps) {
   const [isExpanded, setIsExpanded] = useState(level === 0);
+  const getProgramInfo = useAtomValue(getProgramInfoAtom);
+  const programInfo = getProgramInfo(file.relativePath);
   const [isSettingNumber, setIsSettingNumber] = useState(false);
   const hasChildren = file.isDirectory && file.children && file.children.length > 0;
 
@@ -113,7 +111,7 @@ function FileTreeItem({
     if (!onSetProgramSide) return;
     
     try {
-      await onSetProgramSide(file.name, side);
+      await onSetProgramSide(file.relativePath, side);
     } catch (error) {
       console.error("Failed to set program side:", error);
     }
@@ -169,7 +167,7 @@ function FileTreeItem({
         <div className="col-span-4 flex items-center justify-center">
           {!file.isDirectory && (
             <div className="flex items-center gap-1">
-              {file.programNumber ? (
+              {programInfo.isProgram ? (
                 <>
                   {/* 1) Up arrow to move program up */}
                   {onMoveProgramUp && (
@@ -193,7 +191,7 @@ function FileTreeItem({
                         handleSetProgramSide("left");
                       }}
                       className={`text-xs px-1.5 py-0.5 rounded border ${
-                        file.programSide === "left"
+                        programInfo.programSide === "left"
                           ? "bg-blue-500 text-white border-blue-500"
                           : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                       }`}
@@ -205,7 +203,7 @@ function FileTreeItem({
                   
                   {/* 3) #x program number */}
                   <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-mono border border-purple-200 dark:border-purple-700">
-                    #{file.programNumber}
+                    #{programInfo.programNumber}
                   </span>
                   
                   {/* 4) R for right side */}
@@ -216,7 +214,7 @@ function FileTreeItem({
                         handleSetProgramSide("right");
                       }}
                       className={`text-xs px-1.5 py-0.5 rounded border ${
-                        file.programSide === "right" || !file.programSide
+                        programInfo.programSide === "right" || !programInfo.programSide
                           ? "bg-blue-500 text-white border-blue-500"
                           : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                       }`}
@@ -291,9 +289,7 @@ function FileTreeItem({
               key={child.relativePath}
               file={child}
               level={level + 1}
-              onSetProgramNumber={onSetProgramNumber}
               onSetProgramSide={onSetProgramSide}
-              onGetNextAvailableProgramNumber={onGetNextAvailableProgramNumber}
               onMoveProgramUp={onMoveProgramUp}
               onMoveProgramDown={onMoveProgramDown}
               onAddToPrograms={onAddToPrograms}
@@ -316,9 +312,7 @@ export function FileBrowser({
   onUnmount,
   onCreateFile,
   className = "",
-  onSetProgramNumber,
   onSetProgramSide,
-  onGetNextAvailableProgramNumber,
   onMoveProgramUp,
   onMoveProgramDown,
   onAddToPrograms,
@@ -441,9 +435,7 @@ export function FileBrowser({
                 key={file.relativePath}
                 file={file}
                 level={0}
-                onSetProgramNumber={onSetProgramNumber}
                 onSetProgramSide={onSetProgramSide}
-                onGetNextAvailableProgramNumber={onGetNextAvailableProgramNumber}
                 onMoveProgramUp={onMoveProgramUp}
                 onMoveProgramDown={onMoveProgramDown}
                 onAddToPrograms={onAddToPrograms}
