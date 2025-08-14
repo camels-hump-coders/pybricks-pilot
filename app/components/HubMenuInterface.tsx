@@ -14,12 +14,12 @@ interface HubMenuStatus {
 export function HubMenuInterface() {
   const [hubMenuStatus, setHubMenuStatus] = useState<HubMenuStatus | null>(null);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const [pendingSelection, setPendingSelection] = useState<number | null>(null);
   const { allPrograms } = useJotaiFileSystem();
   const isConnected = useAtomValue(isConnectedAtom);
 
-  // Filter numbered programs from all programs
-  const numberedPrograms = allPrograms.filter(p => p.programNumber && !p.isDirectory)
-    .sort((a, b) => (a.programNumber || 0) - (b.programNumber || 0));
+  // allPrograms already contains only numbered programs, sorted by program number
+  const numberedPrograms = allPrograms.filter(p => !p.isDirectory);
 
   useEffect(() => {
     const handleHubMenuStatus = (event: Event) => {
@@ -27,6 +27,11 @@ export function HubMenuInterface() {
       const status = customEvent.detail;
       setHubMenuStatus(status);
       setLastUpdate(Date.now());
+      
+      // Clear pending selection when robot confirms the change
+      if (pendingSelection !== null && status.selectedProgram === pendingSelection) {
+        setPendingSelection(null);
+      }
     };
 
     document.addEventListener('hubMenuStatus', handleHubMenuStatus);
@@ -39,6 +44,9 @@ export function HubMenuInterface() {
   const handleSelectProgram = async (programNumber: number) => {
     if (!isConnected) return;
     
+    // Set pending selection for optimistic UI
+    setPendingSelection(programNumber);
+    
     try {
       const command = JSON.stringify({
         action: 'select_program',
@@ -47,6 +55,8 @@ export function HubMenuInterface() {
       await pybricksHubService.sendControlCommand(command);
     } catch (error) {
       console.error('Failed to select program:', error);
+      // Clear pending selection on error
+      setPendingSelection(null);
     }
   };
 
@@ -69,12 +79,15 @@ export function HubMenuInterface() {
   }
 
   const isStale = Date.now() - lastUpdate > 10000; // 10 seconds
-  const currentProgram = numberedPrograms.find(p => p.programNumber === hubMenuStatus.selectedProgram);
+  
+  // Use pending selection for optimistic UI, otherwise use robot's reported value
+  const displayedSelection = pendingSelection !== null ? pendingSelection : hubMenuStatus.selectedProgram;
+  const currentProgram = numberedPrograms.find(p => p.programNumber === displayedSelection);
 
   return (
     <div className="flex items-center gap-2">
       <select
-        value={hubMenuStatus.selectedProgram}
+        value={displayedSelection}
         onChange={(e) => handleSelectProgram(Number(e.target.value))}
         disabled={hubMenuStatus.state === 'running'}
         className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"

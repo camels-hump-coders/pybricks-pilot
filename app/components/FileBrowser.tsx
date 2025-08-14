@@ -3,6 +3,29 @@ import { useState } from "react";
 import { getProgramInfoAtom } from "../store/atoms/fileSystem";
 import type { PythonFile } from "../types/fileSystem";
 
+// Helper function to recursively check if a directory contains any programs
+const directoryContainsPrograms = (file: PythonFile, getProgramInfo: (relativePath: string) => { isProgram: boolean }): boolean => {
+  if (!file.isDirectory || !file.children) {
+    return false;
+  }
+  
+  // Check if any direct child files are programs
+  for (const child of file.children) {
+    if (!child.isDirectory && getProgramInfo(child.relativePath).isProgram) {
+      return true;
+    }
+  }
+  
+  // Recursively check subdirectories
+  for (const child of file.children) {
+    if (child.isDirectory && directoryContainsPrograms(child, getProgramInfo)) {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
 interface FileBrowserProps {
   directoryName: string;
   pythonFiles: PythonFile[];
@@ -43,8 +66,12 @@ function FileTreeItem({
   onAddToPrograms,
   onRemoveFromPrograms
 }: FileTreeItemProps) {
-  const [isExpanded, setIsExpanded] = useState(level === 0);
   const getProgramInfo = useAtomValue(getProgramInfoAtom);
+  
+  // Auto-expand directories that contain programs (either directly or in subdirectories)
+  const shouldAutoExpand = level === 0 || (file.isDirectory && directoryContainsPrograms(file, getProgramInfo));
+  const [isExpanded, setIsExpanded] = useState(shouldAutoExpand);
+  
   const programInfo = getProgramInfo(file.relativePath);
   const [isSettingNumber, setIsSettingNumber] = useState(false);
   const hasChildren = file.isDirectory && file.children && file.children.length > 0;
