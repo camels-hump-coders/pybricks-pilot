@@ -192,9 +192,8 @@ function ProgramPositionConfig({
       >
         <span className="font-mono">📍</span>
         <span>{currentPosition.side[0].toUpperCase()}</span>
-        <CompactHeadingSelector 
+        <HeadingDisplay 
           heading={currentPosition.heading}
-          onChange={(heading) => onPositionChange({ ...currentPosition, heading })}
           size={20}
         />
         <span>{isExpanded ? "▲" : "▼"}</span>
@@ -280,16 +279,27 @@ function ProgramPositionConfig({
           </div>
 
           {/* Heading Control */}
-          <div className="flex justify-center pt-1">
-            <div className="flex flex-col items-center gap-1">
-              <div className="text-xs text-gray-600 dark:text-gray-400">Heading</div>
-              <CompactHeadingSelector
-                heading={currentPosition.heading}
-                onChange={(heading) => onPositionChange({ ...currentPosition, heading })}
-                size={50}
-              />
-              <div className="text-xs text-gray-500 dark:text-gray-400">{currentPosition.heading}°</div>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Heading (degrees)
+            </label>
+            <input
+              type="number"
+              min="-180"
+              max="180"
+              value={currentPosition.heading}
+              onChange={(e) => {
+                e.stopPropagation();
+                const value = parseInt(e.target.value) || 0;
+                const clampedValue = Math.max(-180, Math.min(180, value));
+                onPositionChange({ 
+                  ...currentPosition, 
+                  heading: clampedValue 
+                });
+              }}
+              className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              placeholder="0° = north/forward"
+            />
           </div>
         </div>
       )}
