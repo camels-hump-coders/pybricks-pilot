@@ -35,11 +35,13 @@ import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 
 // Import program running state atoms
 import {
-  updateTelemetryTimestampAtom,
   checkProgramRunningTimeoutAtom,
+  updateTelemetryTimestampAtom,
 } from "../store/atoms/programRunning";
 
 import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+
+import { telemetryHistory } from "../services/telemetryHistory";
 
 export function useJotaiVirtualHub() {
   // Get current robot type to conditionally set up event listeners
@@ -250,6 +252,7 @@ export function useJotaiVirtualHub() {
     } catch {
       // Ignore errors - this is a best-effort reset
     }
+    telemetryHistory.onMatReset();
   }, []);
 
   // Mock instrumentation settings for compatibility

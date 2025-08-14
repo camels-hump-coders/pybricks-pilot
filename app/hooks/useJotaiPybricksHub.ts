@@ -28,6 +28,8 @@ import {
   telemetryDataAtom,
 } from "../store/atoms/robotConnection"; // Use shared robot connection atoms
 
+import { telemetryHistory } from "../services/telemetryHistory";
+
 // Use the pybricksHubService directly for Pybricks-specific operations
 // This provides cleaner separation from the generic robot interface
 
@@ -207,6 +209,7 @@ export function useJotaiPybricksHub() {
     } catch {
       // Ignore errors - this is a best-effort reset
     }
+    telemetryHistory.onMatReset();
   }, []);
 
   // Instrumentation settings (still using service directly for now)
