@@ -1483,8 +1483,8 @@ export function EnhancedCompetitionMat({
         return;
       }
 
-      // Update robot position through game mat hook (from the removed first handler)
-      updateRobotPositionFromTelemetry(receivedTelemetryData);
+      // Robot position will be updated by the manual calculation below
+      // Removed redundant updateRobotPositionFromTelemetry call that was overriding manual positioning
 
       // Ensure recording is active when we have telemetry data
       telemetryHistory.ensureRecordingActive();

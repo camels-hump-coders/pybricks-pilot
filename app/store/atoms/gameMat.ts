@@ -2,6 +2,7 @@ import { atom } from "jotai";
 import type { GameMatConfig } from "../../schemas/GameMatConfig";
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { DEFAULT_ROBOT_CONFIG, studsToMm } from "../../schemas/RobotConfig";
+import { robotConfigAtom } from "./robotConfigSimplified";
 
 export interface RobotPosition {
   x: number; // mm from left edge of mat
@@ -53,9 +54,11 @@ const MAT_HEIGHT_MM = 1137; // Official FLL mat height
 export const showGridOverlayAtom = atom<boolean>(false);
 
 // Helper functions for robot positioning
-export const calculateRobotPosition = (
+export const calculateRobotPositionWithDimensions = (
   robotConfig: RobotConfig,
-  position: "bottom-right" | "bottom-left" | "center"
+  position: "bottom-right" | "bottom-left" | "center",
+  matWidthMm: number = MAT_WIDTH_MM,
+  matHeightMm: number = MAT_HEIGHT_MM
 ): RobotPosition => {
   const robotWidthMm = studsToMm(robotConfig.dimensions.width);
   const robotLengthMm = studsToMm(robotConfig.dimensions.length);
@@ -70,9 +73,9 @@ export const calculateRobotPosition = (
     case "bottom-right":
       return {
         // Place center of rotation such that right edge of robot body is flush with mat right edge
-        x: MAT_WIDTH_MM - (robotWidthMm - centerOfRotationFromLeftMm),
+        x: matWidthMm - (robotWidthMm - centerOfRotationFromLeftMm),
         // Place center of rotation such that bottom edge of robot body is flush with mat bottom edge
-        y: MAT_HEIGHT_MM - (robotLengthMm - centerOfRotationFromTopMm),
+        y: matHeightMm - (robotLengthMm - centerOfRotationFromTopMm),
         heading: 0, // Facing north (forward)
       };
     case "bottom-left":
@@ -80,29 +83,50 @@ export const calculateRobotPosition = (
         // Place center of rotation such that left edge of robot body is flush with mat left edge
         x: centerOfRotationFromLeftMm,
         // Place center of rotation such that bottom edge of robot body is flush with mat bottom edge
-        y: MAT_HEIGHT_MM - (robotLengthMm - centerOfRotationFromTopMm),
+        y: matHeightMm - (robotLengthMm - centerOfRotationFromTopMm),
         heading: 0, // Facing north (forward)
       };
     case "center":
       return {
-        x: MAT_WIDTH_MM / 2, // Center of mat width
-        y: MAT_HEIGHT_MM / 2, // Center of mat height
+        x: matWidthMm / 2, // Center of mat width
+        y: matHeightMm / 2, // Center of mat height
         heading: 0, // Facing north (forward)
       };
     default:
       // Default to bottom-right
       return {
-        x: MAT_WIDTH_MM - (robotWidthMm - centerOfRotationFromLeftMm),
-        y: MAT_HEIGHT_MM - (robotLengthMm - centerOfRotationFromTopMm),
+        x: matWidthMm - (robotWidthMm - centerOfRotationFromLeftMm),
+        y: matHeightMm - (robotLengthMm - centerOfRotationFromTopMm),
         heading: 0,
       };
   }
 };
 
-// Robot position atoms
+// Backward compatibility function using hardcoded dimensions
+export const calculateRobotPosition = (
+  robotConfig: RobotConfig,
+  position: "bottom-right" | "bottom-left" | "center"
+): RobotPosition => {
+  return calculateRobotPositionWithDimensions(robotConfig, position, MAT_WIDTH_MM, MAT_HEIGHT_MM);
+};
+
+// Robot position atoms - derived atom that uses current mat and robot config
 export const robotPositionAtom = atom<RobotPosition>(
+  // Initial value using default dimensions
   calculateRobotPosition(DEFAULT_ROBOT_CONFIG, "bottom-right")
 );
+
+// Derived atom that recalculates initial position when mat or robot config changes
+export const initialRobotPositionAtom = atom((get) => {
+  const robotConfig = get(robotConfigAtom);
+  const matConfig = get(customMatConfigAtom);
+  
+  // Use mat dimensions from config if available, otherwise use defaults
+  const matWidthMm = matConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+  const matHeightMm = matConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+  
+  return calculateRobotPositionWithDimensions(robotConfig, "bottom-right", matWidthMm, matHeightMm);
+});
 
 export const isSettingPositionAtom = atom<boolean>(false);
 export const mousePositionAtom = atom<RobotPosition | null>(null);

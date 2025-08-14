@@ -68,6 +68,7 @@ interface CompactRobotControllerProps {
   debugEvents?: DebugEvent[];
   isCmdKeyPressed?: boolean;
   customMatConfig?: any | null; // Add mat config as prop
+  onResetTelemetry?: () => Promise<void>; // Add reset telemetry function
 }
 
 export function CompactRobotController({
@@ -89,6 +90,7 @@ export function CompactRobotController({
   debugEvents = [],
   isCmdKeyPressed,
   customMatConfig,
+  onResetTelemetry,
 }: CompactRobotControllerProps) {
   // Get current robot position from Jotai
   const currentRobotPosition = useAtomValue(robotPositionAtom);
@@ -120,6 +122,13 @@ export function CompactRobotController({
     fromSide: 50, // mm from side edge
   });
   const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(null);
+  
+  // Track last applied position for reset functionality
+  const [lastPositionSettings, setLastPositionSettings] = useState({
+    side: "right" as "left" | "right", // Default to bottom-right
+    fromBottom: 0, // Default to 0 edge offset
+    fromSide: 0,
+  });
 
   // Calculate robot position from edge-based measurements
   const calculateRobotPositionFromEdges = (
@@ -433,18 +442,49 @@ export function CompactRobotController({
               onClick={() => setIsSettingPosition(!isSettingPosition)}
               className={`px-3 py-1.5 text-xs rounded transition-colors ${
                 isSettingPosition
-                  ? "bg-green-500 text-white hover:bg-green-600"
+                  ? "bg-red-500 text-white hover:bg-red-600"
                   : "bg-blue-500 text-white hover:bg-blue-600"
               }`}
             >
-              {isSettingPosition ? "✓ Confirm" : "📍 Set Pos"}
+              {isSettingPosition ? "✕ Cancel" : "📍 Set Pos"}
             </button>
             
             <button
-              onClick={() => {
-                const defaultPosition = calculateRobotPosition(robotConfig, "bottom-right");
-                setRobotPosition(defaultPosition);
-                setIsSettingPosition(false);
+              onClick={async () => {
+                try {
+                  // First, reset the robot's drivebase telemetry
+                  if (onResetTelemetry) {
+                    await onResetTelemetry();
+                  }
+                  
+                  // Reset to the last applied position, defaulting to bottom-right with 0 offset
+                  const resetPosition = calculateRobotPositionFromEdges(
+                    lastPositionSettings.side,
+                    lastPositionSettings.fromBottom,
+                    lastPositionSettings.fromSide,
+                    0 // heading
+                  );
+                  setRobotPosition(resetPosition);
+                  setIsSettingPosition(false);
+                  
+                  // Update UI to show the reset position settings
+                  setEdgePositionSettings({
+                    side: lastPositionSettings.side,
+                    fromBottom: lastPositionSettings.fromBottom,
+                    fromSide: lastPositionSettings.fromSide,
+                  });
+                } catch (error) {
+                  console.error("Failed to reset robot position:", error);
+                  // Continue with position reset even if telemetry reset fails
+                  const resetPosition = calculateRobotPositionFromEdges(
+                    lastPositionSettings.side,
+                    lastPositionSettings.fromBottom,
+                    lastPositionSettings.fromSide,
+                    0 // heading
+                  );
+                  setRobotPosition(resetPosition);
+                  setIsSettingPosition(false);
+                }
               }}
               className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
             >
@@ -521,9 +561,31 @@ export function CompactRobotController({
 
               {/* Apply Position Button */}
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (positionPreview) {
-                    setRobotPosition(positionPreview);
+                    try {
+                      // First, reset the robot's drivebase telemetry
+                      if (onResetTelemetry) {
+                        await onResetTelemetry();
+                      }
+                      
+                      setRobotPosition(positionPreview);
+                      // Save the current settings as the last position for reset
+                      setLastPositionSettings({
+                        side: edgePositionSettings.side,
+                        fromBottom: edgePositionSettings.fromBottom,
+                        fromSide: edgePositionSettings.fromSide,
+                      });
+                    } catch (error) {
+                      console.error("Failed to reset telemetry before setting position:", error);
+                      // Continue with position setting even if telemetry reset fails
+                      setRobotPosition(positionPreview);
+                      setLastPositionSettings({
+                        side: edgePositionSettings.side,
+                        fromBottom: edgePositionSettings.fromBottom,
+                        fromSide: edgePositionSettings.fromSide,
+                      });
+                    }
                   }
                   setIsSettingPosition(false);
                 }}
@@ -532,17 +594,63 @@ export function CompactRobotController({
                 ✓ Apply Position {positionPreview && `(${Math.round(positionPreview.x)}mm, ${Math.round(positionPreview.y)}mm)`}
               </button>
 
-              {/* Quick Presets */}
+              {/* Quick-Set Buttons - Instantly apply position with telemetry reset */}
               <div className="flex gap-1">
                 <button
-                  onClick={() => setEdgePositionSettings({side: "left", fromBottom: 0, fromSide: 0})}
-                  className="flex-1 px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                  onClick={async () => {
+                    // Quick-set to bottom left position
+                    try {
+                      // First, reset the robot's drivebase telemetry
+                      if (onResetTelemetry) {
+                        await onResetTelemetry();
+                      }
+                      
+                      const bottomLeftPosition = calculateRobotPositionFromEdges("left", 0, 0, 0);
+                      setRobotPosition(bottomLeftPosition);
+                      // Save the position settings for reset button
+                      setLastPositionSettings({ side: "left", fromBottom: 0, fromSide: 0 });
+                      
+                      // Close the position setting interface
+                      setIsSettingPosition(false);
+                    } catch (error) {
+                      console.error("Failed to set bottom left position:", error);
+                      // Continue with position setting even if telemetry reset fails
+                      const bottomLeftPosition = calculateRobotPositionFromEdges("left", 0, 0, 0);
+                      setRobotPosition(bottomLeftPosition);
+                      setLastPositionSettings({ side: "left", fromBottom: 0, fromSide: 0 });
+                      setIsSettingPosition(false);
+                    }
+                  }}
+                  className="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
                 >
                   ↙️ Bottom Left
                 </button>
                 <button
-                  onClick={() => setEdgePositionSettings({side: "right", fromBottom: 0, fromSide: 0})}
-                  className="flex-1 px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                  onClick={async () => {
+                    // Quick-set to bottom right position
+                    try {
+                      // First, reset the robot's drivebase telemetry
+                      if (onResetTelemetry) {
+                        await onResetTelemetry();
+                      }
+                      
+                      const bottomRightPosition = calculateRobotPositionFromEdges("right", 0, 0, 0);
+                      setRobotPosition(bottomRightPosition);
+                      // Save the position settings for reset button
+                      setLastPositionSettings({ side: "right", fromBottom: 0, fromSide: 0 });
+                      
+                      // Close the position setting interface
+                      setIsSettingPosition(false);
+                    } catch (error) {
+                      console.error("Failed to set bottom right position:", error);
+                      // Continue with position setting even if telemetry reset fails
+                      const bottomRightPosition = calculateRobotPositionFromEdges("right", 0, 0, 0);
+                      setRobotPosition(bottomRightPosition);
+                      setLastPositionSettings({ side: "right", fromBottom: 0, fromSide: 0 });
+                      setIsSettingPosition(false);
+                    }
+                  }}
+                  className="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
                 >
                   ↘️ Bottom Right
                 </button>

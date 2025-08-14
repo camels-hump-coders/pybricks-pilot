@@ -15,7 +15,7 @@ import {
   saveMatConfigAtom,
 } from "../store/atoms/configFileSystem";
 import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
-import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
+import { currentScoreAtom, movementPreviewAtom, calculateRobotPositionWithDimensions, setRobotPositionAtom } from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import {
   robotBuilderOpenAtom,
@@ -253,6 +253,7 @@ interface RobotControlsSectionProps {
   isCmdKeyPressed: boolean;
   onRobotBuilderOpen: () => void;
   customMatConfig?: any | null; // Add mat config as prop
+  onResetTelemetry?: () => Promise<void>; // Add reset telemetry function
 }
 
 function RobotControlsSection({
@@ -273,6 +274,7 @@ function RobotControlsSection({
   isCmdKeyPressed,
   onRobotBuilderOpen,
   customMatConfig,
+  onResetTelemetry,
 }: RobotControlsSectionProps) {
   // Use Jotai atoms directly instead of prop drilling
   const [, setMovementPreview] = useAtom(movementPreviewAtom);
@@ -337,6 +339,7 @@ function RobotControlsSection({
         debugEvents={debugEvents}
         isCmdKeyPressed={isCmdKeyPressed}
         customMatConfig={customMatConfig}
+        onResetTelemetry={onResetTelemetry}
       />
     </div>
   );
@@ -523,6 +526,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     uploadAndRunHubMenu,
     isUploadingProgram,
     debugEvents,
+    resetTelemetry,
   } = robotConnection;
 
   // Get file system data for program list
@@ -571,6 +575,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
   // Use Jotai atoms for movement preview and robot position
   const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
+  const setRobotPosition = useSetAtom(setRobotPositionAtom);
 
   // Use CMD key detection hook
   const isCmdKeyPressed = useCmdKey();
@@ -582,11 +587,20 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       if (defaultMap) {
         setCustomMatConfig(defaultMap);
         setShowScoring(true);
+        
+        // Set robot to bottom-right position using the correct mat dimensions
+        const initialPosition = calculateRobotPositionWithDimensions(
+          currentRobotConfig,
+          "bottom-right",
+          defaultMap.dimensions?.widthMm || 2356,
+          defaultMap.dimensions?.heightMm || 1137
+        );
+        setRobotPosition(initialPosition);
       }
       setIsLoadingConfig(false);
     };
     loadDefaultMat();
-  }, []);
+  }, [currentRobotConfig, setRobotPosition]);
 
   const handleSaveMatConfig = async (config: GameMatConfig) => {
     if (!hasDirectoryAccess) {
@@ -643,6 +657,15 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         setShowScoring(true);
         console.log("Using custom map from filesystem:", config.name);
       }
+
+      // Set robot to bottom-right position using the new mat dimensions
+      const initialPosition = calculateRobotPositionWithDimensions(
+        currentRobotConfig,
+        "bottom-right",
+        config.dimensions?.widthMm || 2356,
+        config.dimensions?.heightMm || 1137
+      );
+      setRobotPosition(initialPosition);
     } else {
       // Clear the current map configuration (just in memory, don't delete from filesystem)
       console.log("Clearing current map configuration");
@@ -650,10 +673,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       setShowScoring(false);
     }
 
-    // Auto-reset board when switching mats
-    console.log("[TelemetryDashboard] Mat changed, triggering auto-reset");
-    const resetEvent = new CustomEvent("positionReset");
-    document.dispatchEvent(resetEvent);
+    // Robot position is automatically set above when mat is changed
   };
 
   const handleClearCustomMat = async () => {
@@ -665,6 +685,15 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     if (defaultMap) {
       setCustomMatConfig(defaultMap);
       setShowScoring(true);
+      
+      // Set robot to bottom-right position using the default mat dimensions
+      const initialPosition = calculateRobotPositionWithDimensions(
+        currentRobotConfig,
+        "bottom-right",
+        defaultMap.dimensions?.widthMm || 2356,
+        defaultMap.dimensions?.heightMm || 1137
+      );
+      setRobotPosition(initialPosition);
     } else {
       setCustomMatConfig(null);
       setShowScoring(false);
@@ -761,6 +790,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           isCmdKeyPressed={isCmdKeyPressed}
           onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
           customMatConfig={customMatConfig}
+          onResetTelemetry={resetTelemetry}
         />
 
         <MatControlsPanel
@@ -810,6 +840,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             isCmdKeyPressed={isCmdKeyPressed}
             onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
             customMatConfig={customMatConfig}
+            onResetTelemetry={resetTelemetry}
           />
 
           <MatControlsPanel
