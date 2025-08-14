@@ -31,7 +31,13 @@ import {
 } from "../store/atoms/robotConnection";
 
 // Import robot config atom
-import { robotConfigAtom } from "../store/atoms/robotConfig";
+import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+
+// Import program running state atoms
+import {
+  updateTelemetryTimestampAtom,
+  checkProgramRunningTimeoutAtom,
+} from "../store/atoms/programRunning";
 
 import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
 
@@ -72,6 +78,8 @@ export function useJotaiVirtualHub() {
   const setProgramStatus = useSetAtom(programStatusAtom);
   const setProgramOutputLog = useSetAtom(programOutputLogAtom);
   const setVirtualRobotState = useSetAtom(virtualRobotStateAtom);
+  const updateTelemetryTimestamp = useSetAtom(updateTelemetryTimestampAtom);
+  const checkProgramRunningTimeout = useSetAtom(checkProgramRunningTimeoutAtom);
 
   // Connect virtual robot service events to Jotai atoms
   useEffect(() => {
@@ -82,6 +90,10 @@ export function useJotaiVirtualHub() {
       // Transform telemetry data to use our standardized coordinate system
       const transformedTelemetry = transformTelemetryData(event.detail);
       setTelemetryData(transformedTelemetry);
+
+      // Update program running state based on telemetry reception
+      updateTelemetryTimestamp(transformedTelemetry);
+      checkProgramRunningTimeout();
 
       // Also update virtual robot state
       const state = virtualRobotService.getState();
@@ -133,6 +145,8 @@ export function useJotaiVirtualHub() {
     setProgramStatus,
     setProgramOutputLog,
     setVirtualRobotState,
+    updateTelemetryTimestamp,
+    checkProgramRunningTimeout,
   ]);
 
   // Update virtual robot service configuration when robot config changes

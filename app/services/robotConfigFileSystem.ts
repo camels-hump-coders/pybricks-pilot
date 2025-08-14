@@ -77,10 +77,15 @@ class RobotConfigFileSystem {
   }
 
   // Load a specific robot configuration
-  async loadRobotConfig(dirHandle: FileSystemDirectoryHandle, robotId: string): Promise<RobotConfig | null> {
+  async loadRobotConfig(dirHandle: FileSystemDirectoryHandle | null, robotId: string): Promise<RobotConfig | null> {
     // Return default robot config for "default" id
     if (robotId === "default") {
       return DEFAULT_ROBOT_CONFIG;
+    }
+
+    if (!dirHandle) {
+      console.warn(`Cannot load robot config '${robotId}' - no directory handle provided`);
+      return null;
     }
 
     try {

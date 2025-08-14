@@ -4,7 +4,7 @@ import type { RobotConfig } from "../../schemas/RobotConfig";
 import { matConfigFileSystem } from "../../services/matConfigFileSystem";
 import { robotConfigFileSystem } from "../../services/robotConfigFileSystem";
 import { directoryHandleAtom } from "./fileSystem";
-import { setActiveRobotConfigAtom } from "./robotConfig";
+import { initializeActiveRobotAtom } from "./robotConfigSimplified";
 
 // Mat configuration atoms
 export const availableMatConfigsAtom = atom<Array<{ id: string; name: string; displayName: string; description?: string; tags: string[] }>>([]);
@@ -74,21 +74,25 @@ export const discoverRobotConfigsAtom = atom(null, async (get, set) => {
     if (customRobotConfigs.length > 0) {
       set(availableRobotConfigsAtom, customRobotConfigs);
       
-      // Auto-activate the first custom robot
-      const firstCustomRobot = customRobotConfigs[0];
-      set(setActiveRobotConfigAtom, firstCustomRobot.id);
+      // Initialize the active robot based on available robots and localStorage preference
+      set(initializeActiveRobotAtom, customRobotConfigs);
     } else {
       // Load only the default robot when no custom robots exist
       try {
         const defaultConfig = await robotConfigFileSystem.loadRobotConfig(null, "default");
         if (defaultConfig) {
           set(availableRobotConfigsAtom, [defaultConfig]);
+          // Initialize with just the default robot
+          set(initializeActiveRobotAtom, [defaultConfig]);
         } else {
           set(availableRobotConfigsAtom, []);
+          // Initialize with empty array (will use DEFAULT_ROBOT_CONFIG)
+          set(initializeActiveRobotAtom, []);
         }
       } catch (fallbackError) {
         console.error("Failed to load default robot:", fallbackError);
         set(availableRobotConfigsAtom, []);
+        set(initializeActiveRobotAtom, []);
       }
     }
   } catch (error) {
@@ -98,12 +102,15 @@ export const discoverRobotConfigsAtom = atom(null, async (get, set) => {
       const defaultConfig = await robotConfigFileSystem.loadRobotConfig(null, "default");
       if (defaultConfig) {
         set(availableRobotConfigsAtom, [defaultConfig]);
+        set(initializeActiveRobotAtom, [defaultConfig]);
       } else {
         set(availableRobotConfigsAtom, []);
+        set(initializeActiveRobotAtom, []);
       }
     } catch (fallbackError) {
       console.error("Failed to load default robot:", fallbackError);
       set(availableRobotConfigsAtom, []);
+      set(initializeActiveRobotAtom, []);
     }
   } finally {
     set(isLoadingRobotConfigsAtom, false);

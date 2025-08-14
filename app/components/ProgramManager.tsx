@@ -1,8 +1,10 @@
+import { useAtomValue } from "jotai";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
 import type { PythonFile } from "../types/fileSystem";
+import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { FileBrowser } from "./FileBrowser";
 
 interface ProgramManagerProps {
@@ -18,7 +20,6 @@ interface ProgramManagerProps {
   onRequestDirectoryAccess: () => Promise<void>;
 
   // Program operations
-  onRunProgram: () => Promise<void>;
   onStopProgram: () => Promise<void>;
   onUploadAndRunFile: (file: PythonFile, content: string) => Promise<void>;
   onCreateFile: () => void;
@@ -45,7 +46,6 @@ export function ProgramManager({
   onRefreshFiles,
   onUnmountDirectory,
   onRequestDirectoryAccess,
-  onRunProgram,
   onStopProgram,
   onUploadAndRunFile,
   onCreateFile,
@@ -60,6 +60,9 @@ export function ProgramManager({
   className = "",
 }: ProgramManagerProps) {
   const { uploadProgress } = useUploadProgress(debugEvents);
+
+  // Get centralized program running state
+  const isProgramRunning = useAtomValue(isProgramRunningAtom);
 
   // Get program metadata handlers and shared state from the filesystem hook
   const {
@@ -299,8 +302,8 @@ export function ProgramManager({
                 </div>
               )}
 
-              {/* Program Status */}
-              {programStatus.running && (
+              {/* Program Status - Only show Stop button when program is running based on telemetry */}
+              {isProgramRunning && (
                 <div className="p-3 rounded-md bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
@@ -308,7 +311,7 @@ export function ProgramManager({
                       <span className="font-medium">Program Running...</span>
                     </div>
                     <button
-                      onClick={onStopProgram}
+                      onClick={onStopProgram} // Only send stop command to robot
                       disabled={!isConnected || isStopping}
                       className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 text-sm flex items-center gap-1"
                     >
@@ -332,27 +335,6 @@ export function ProgramManager({
                 </div>
               )}
 
-              {!programStatus.running &&
-                !programStatus.error &&
-                isConnected &&
-                programCount > 0 && (
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Ready to upload {programCount} program
-                      {programCount !== 1 ? "s" : ""}
-                    </div>
-                    <button
-                      onClick={onRunProgram}
-                      disabled={!isConnected || isRunning || isUploading}
-                      className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 text-sm flex items-center gap-1"
-                    >
-                      {isRunning && (
-                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                      )}
-                      ▶️ Run
-                    </button>
-                  </div>
-                )}
             </div>
           </div>
         )}

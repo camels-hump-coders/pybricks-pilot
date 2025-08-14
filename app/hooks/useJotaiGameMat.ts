@@ -24,7 +24,7 @@ import {
   type ObjectiveState,
   type RobotPosition,
 } from "../store/atoms/gameMat";
-import { robotConfigAtom } from "../store/atoms/robotConfig";
+import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 
 export function useJotaiGameMat() {
   // Robot position state

@@ -16,11 +16,12 @@ import {
 } from "../store/atoms/configFileSystem";
 import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
+import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import {
   robotBuilderOpenAtom,
   robotConfigAtom,
-  setActiveRobotConfigAtom,
-} from "../store/atoms/robotConfig";
+  setActiveRobotAtom,
+} from "../store/atoms/robotConfigSimplified";
 import { CompactRobotController } from "./CompactRobotController";
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
@@ -241,7 +242,6 @@ interface RobotControlsSectionProps {
   telemetryData?: any;
   isConnected: boolean;
   robotType?: "real" | "virtual" | null;
-  onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
   onUploadAndRunFile?: (
     file: any,
@@ -265,7 +265,6 @@ function RobotControlsSection({
   telemetryData,
   isConnected,
   robotType,
-  onRunProgram,
   onStopProgram,
   onUploadAndRunFile,
   isUploading,
@@ -337,7 +336,6 @@ function RobotControlsSection({
         // Robot position automatically available via Jotai in CompactRobotController
         onPreviewUpdate={setMovementPreview}
         robotType={robotType}
-        onRunProgram={onRunProgram}
         onStopProgram={onStopProgram}
         onUploadAndRunFile={onUploadAndRunFile}
         isUploading={isUploading}
@@ -565,12 +563,12 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const currentScore = useAtomValue(currentScoreAtom);
   const [robotBuilderOpen, setRobotBuilderOpen] = useAtom(robotBuilderOpenAtom);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-  const setRobotConfig = useSetAtom(robotConfigAtom);
-  const setActiveRobotConfig = useSetAtom(setActiveRobotConfigAtom);
+  const setActiveRobot = useSetAtom(setActiveRobotAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
 
   // Filesystem-based configuration atoms
   const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
+  const isProgramRunning = useAtomValue(isProgramRunningAtom);
   const createMatConfig = useSetAtom(createMatConfigAtom);
   const saveMatConfig = useSetAtom(saveMatConfigAtom);
   const discoverMats = useSetAtom(discoverMatConfigsAtom);
@@ -655,7 +653,11 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       setCustomMatConfig(null);
       setShowScoring(false);
     }
-    // Score is automatically reset via Jotai atoms
+
+    // Auto-reset board when switching mats
+    console.log("[TelemetryDashboard] Mat changed, triggering auto-reset");
+    const resetEvent = new CustomEvent("positionReset");
+    document.dispatchEvent(resetEvent);
   };
 
   const handleClearCustomMat = async () => {
@@ -756,7 +758,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           telemetryData={telemetryData}
           isConnected={isConnected}
           robotType={robotType}
-          onRunProgram={runProgram}
           onStopProgram={stopProgram}
           onUploadAndRunFile={handleUploadAndRun}
           isUploading={isUploadingProgram}
@@ -805,7 +806,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             telemetryData={telemetryData}
             isConnected={isConnected}
             robotType={robotType}
-            onRunProgram={runProgram}
             onStopProgram={stopProgram}
             onUploadAndRunFile={handleUploadAndRun}
             isUploading={isUploadingProgram}
@@ -831,28 +831,30 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       </div>
 
       {/* Telemetry Data Grid Below */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Motors and sensors column */}
-        <div className="space-y-6">
-          <MotorStatus motorData={telemetryData?.motors} />
-          <SensorDisplay sensorData={telemetryData?.sensors} />
-          <DrivebaseDisplay drivebaseData={telemetryData?.drivebase} />
+      {isProgramRunning && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Motors and sensors column */}
+          <div className="space-y-6">
+            <MotorStatus motorData={telemetryData?.motors} />
+            <SensorDisplay sensorData={telemetryData?.sensors} />
+            <DrivebaseDisplay drivebaseData={telemetryData?.drivebase} />
+          </div>
+
+          {/* Hub data column */}
+          <div className="space-y-6">
+            <IMUDisplay hubData={telemetryData?.hub} />
+
+            {/* Program Output Log */}
+            <ProgramOutputLog
+              outputLog={programOutputLog}
+              onClear={clearProgramOutputLog}
+            />
+          </div>
         </div>
+      )}
 
-        {/* Hub data column */}
-        <div className="space-y-6">
-          <IMUDisplay hubData={telemetryData?.hub} />
-
-          {/* Program Output Log */}
-          <ProgramOutputLog
-            outputLog={programOutputLog}
-            onClear={clearProgramOutputLog}
-          />
-        </div>
-      </div>
-
-      {/* No data state */}
-      {isConnected && !telemetryData && (
+      {/* No program running state */}
+      {isConnected && !isProgramRunning && (
         <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
           <div className="text-yellow-600 dark:text-yellow-400 text-2xl mb-2">
             ⚠️
@@ -861,8 +863,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             Waiting for Data
           </h3>
           <p className="text-sm text-yellow-700 dark:text-yellow-400">
-            Hub is connected but no telemetry data is being received. Make sure
-            your program is sending telemetry data.
+            Hub is connected but no program is currently running. Upload and run
+            a program to see real-time telemetry and controls.
           </p>
         </div>
       )}
@@ -875,8 +877,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         isOpen={robotBuilderOpen}
         onClose={() => setRobotBuilderOpen(false)}
         onRobotChange={(config) => {
-          // Use the proper Jotai atom that includes position reset logic
-          setActiveRobotConfig(config.id);
+          // Use the simplified atom to update robot and save preference
+          setActiveRobot(config);
         }}
       />
     </div>

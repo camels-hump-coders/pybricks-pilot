@@ -9,7 +9,8 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useNotifications } from "../hooks/useNotifications";
-import { initializeRobotConfigAtom } from "../store/atoms/robotConfig";
+// Robot config initialization now handled by filesystem discovery
+import { discoverRobotConfigsAtom } from "../store/atoms/configFileSystem";
 import type { Route } from "./+types/home";
 
 // Helper component for collapsible sections - defined outside to prevent re-creation
@@ -99,7 +100,6 @@ export default function Home() {
     connectionError,
     telemetryData,
     programStatus,
-    runProgram,
     stopProgram,
     sendDriveCommand,
     sendTurnCommand,
@@ -146,23 +146,8 @@ export default function Home() {
     showInfo,
   } = useNotifications();
 
-  // Robot configuration initialization
-  const initializeRobotConfig = useSetAtom(initializeRobotConfigAtom);
-
-  // Initialize robot configuration from IndexedDB on startup
-  useEffect(() => {
-    const initConfig = async () => {
-      try {
-        await initializeRobotConfig();
-        console.log("Robot configuration initialized from IndexedDB");
-      } catch (error) {
-        console.warn("Failed to initialize robot configuration:", error);
-        // Continue with default configuration if initialization fails
-      }
-    };
-
-    initConfig();
-  }, []); // Run only once on mount
+  // Robot configuration discovery
+  const discoverRobotConfigs = useSetAtom(discoverRobotConfigsAtom);
 
   // Auto-expand programs section when connected (but keep it closed initially for mobile)
   useEffect(() => {
@@ -171,6 +156,17 @@ export default function Home() {
       setIsProgramsExpanded(true);
     }
   }, [isConnected]);
+
+  // Discover robot configurations when directory handle changes
+  useEffect(() => {
+    const { directoryHandle } = fileSystem;
+    if (directoryHandle) {
+      console.log("Directory handle changed, discovering robot configurations...");
+      discoverRobotConfigs().catch(error => {
+        console.warn("Robot discovery failed on directory change:", error);
+      });
+    }
+  }, [fileSystem.directoryHandle, discoverRobotConfigs]);
 
   // Enhanced error handling with notifications
   const handleConnect = async (options: any) => {
@@ -209,17 +205,6 @@ export default function Home() {
     }
   };
 
-  const handleRunProgram = async () => {
-    try {
-      await runProgram();
-      showSuccess("Program Started", "Program is now running");
-    } catch (error) {
-      showError(
-        "Failed to Start",
-        error instanceof Error ? error.message : "Failed to start program"
-      );
-    }
-  };
 
   const handleStopProgram = async () => {
     try {
@@ -273,6 +258,15 @@ print("Hello from ${name}!")
     try {
       await requestDirectoryAccess();
       showSuccess("Directory Access", "Directory access granted successfully!");
+      
+      // Discover robot configurations when directory is mounted
+      try {
+        await discoverRobotConfigs();
+        console.log("Robot discovery completed after directory mount");
+      } catch (discoveryError) {
+        console.warn("Robot discovery failed:", discoveryError);
+        // Don't show error to user as this is not critical for directory access
+      }
     } catch (error) {
       showError(
         "Directory Access Failed",
@@ -416,7 +410,6 @@ print("Hello from ${name}!")
             onRefreshFiles={refreshFiles}
             onUnmountDirectory={unmountDirectory}
             onRequestDirectoryAccess={handleFileSystemAccess}
-            onRunProgram={handleRunProgram}
             onStopProgram={handleStopProgram}
             onUploadAndRunFile={async (file, content) => {
               // Placeholder - hub menu system handles program upload

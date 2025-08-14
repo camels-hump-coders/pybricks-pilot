@@ -12,7 +12,7 @@ import {
   type TelemetryPoint,
 } from "../services/telemetryHistory";
 import { calculateRobotPosition } from "../store/atoms/gameMat";
-import { robotConfigAtom } from "../store/atoms/robotConfig";
+import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { calculatePreviewPosition, calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 
@@ -226,29 +226,15 @@ export function EnhancedCompetitionMat({
     }
   }, [isConnected]);
 
-  // Subscribe to telemetry events for robot position updates only
+  // Handle position reset events only - telemetry is handled in the combined handler below
   useEffect(() => {
-    const handleTelemetryEvent = (event: CustomEvent) => {
-      const telemetryData = event.detail;
-
-      if (telemetryData?.drivebase) {
-        // Update robot position through game mat hook
-        updateRobotPositionFromTelemetry(telemetryData);
-        // Canvas redraw will happen automatically via currentPosition dependency
-      }
-    };
-
     const handlePositionResetEvent = (event: CustomEvent) => {
       console.log("[EnhancedCompetitionMat] Position reset received, resetting robot to start position");
       // Reset robot to the starting position but keep telemetry history
       resetRobotToStartPosition();
     };
 
-    // Listen for global telemetry and position reset events
-    document.addEventListener(
-      "telemetry",
-      handleTelemetryEvent as EventListener
-    );
+    // Listen for position reset events
     document.addEventListener(
       "positionReset",
       handlePositionResetEvent as EventListener
@@ -256,15 +242,11 @@ export function EnhancedCompetitionMat({
 
     return () => {
       document.removeEventListener(
-        "telemetry",
-        handleTelemetryEvent as EventListener
-      );
-      document.removeEventListener(
         "positionReset",
         handlePositionResetEvent as EventListener
       );
     };
-  }, []); // Empty dependency array - setup once and use current values via refs
+  }, [resetRobotToStartPosition]);
 
   // Load and process mat image
   useEffect(() => {
@@ -1402,6 +1384,9 @@ export function EnhancedCompetitionMat({
         return;
       }
 
+      // Update robot position through game mat hook (from the removed first handler)
+      updateRobotPositionFromTelemetry(receivedTelemetryData);
+
       // Ensure recording is active when we have telemetry data
       telemetryHistory.ensureRecordingActive();
 
@@ -1519,7 +1504,7 @@ export function EnhancedCompetitionMat({
     return () => {
       document.removeEventListener("telemetry", handleTelemetryEvent);
     };
-  }, [isConnected]); // Only depend on isConnected, everything else uses refs
+  }, [isConnected, updateRobotPositionFromTelemetry]); // Added dependency for robot position updates
 
   const checkMissionClick = (
     canvasX: number,
