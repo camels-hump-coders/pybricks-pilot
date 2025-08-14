@@ -67,6 +67,7 @@ export function ProgramManager({
   // Get program metadata handlers and shared state from the filesystem hook
   const {
     setProgramSide,
+    setProgramStartPosition,
     moveProgramUp,
     moveProgramDown,
     addToPrograms,
@@ -152,6 +153,9 @@ export function ProgramManager({
               onCreateFile={onCreateFile}
               onSetProgramSide={async (relativePath, programSide) => {
                 await setProgramSide({ relativePath, programSide });
+              }}
+              onSetProgramStartPosition={async (relativePath, programStartPosition) => {
+                await setProgramStartPosition({ relativePath, programStartPosition });
               }}
               onMoveProgramUp={async (relativePath) => {
                 await moveProgramUp(relativePath);

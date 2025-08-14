@@ -10,7 +10,7 @@ async function enrichFileRecursively(
     const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, file.relativePath);
     return {
       ...file,
-      programSide: metadata?.programSide,
+      programStartPosition: metadata?.programStartPosition,
     };
   } else {
     // For directories, recursively process all children
@@ -29,7 +29,7 @@ async function enrichFileRecursively(
 }
 import { fileSystemService } from "../../services/fileSystem";
 import { programMetadataStorage } from "../../services/programMetadataStorage";
-import type { PythonFile } from "../../types/fileSystem";
+import type { PythonFile, RobotStartPosition } from "../../types/fileSystem";
 import {
   directoryHandleAtom,
   directoryNameAtom,
@@ -342,6 +342,24 @@ export const moveProgramDownAtom = atom(
     await programMetadataStorage.moveProgramDown(directoryHandle, relativePath);
 
     // Full refresh needed for reordering since we need to reload metadata for all files
+    await set(refreshPythonFilesAtom);
+  }
+);
+
+// Set program start position for a file
+export const setProgramStartPositionAtom = atom(
+  null,
+  async (get, set, params: { relativePath: string; programStartPosition: RobotStartPosition | undefined }) => {
+    const directoryHandle = get(directoryHandleAtom);
+    if (!directoryHandle) throw new Error("No directory selected");
+
+    await programMetadataStorage.setProgramStartPosition(
+      directoryHandle,
+      params.relativePath,
+      params.programStartPosition
+    );
+
+    // Refresh to get the latest state from filesystem
     await set(refreshPythonFilesAtom);
   }
 );

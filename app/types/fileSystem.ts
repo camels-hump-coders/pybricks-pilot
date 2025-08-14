@@ -1,3 +1,11 @@
+// Robot starting position configuration
+export interface RobotStartPosition {
+  side: "left" | "right";
+  fromBottom: number; // mm from bottom edge
+  fromSide: number; // mm from side edge  
+  heading: number; // degrees (-180 to 180, 0 = north/forward)
+}
+
 export interface PythonFile {
   handle: FileSystemFileHandle;
   name: string;
@@ -8,6 +16,6 @@ export interface PythonFile {
   isDirectory?: boolean; // Add flag to distinguish directories
   children?: PythonFile[]; // Add children for directory structure
   // Program menu system properties
-  programSide?: "left" | "right"; // Robot starting side for automatic positioning
+  programStartPosition?: RobotStartPosition; // Robot starting position configuration
   // Note: programNumber is derived from array position in config/programs.json (1-based)
 }

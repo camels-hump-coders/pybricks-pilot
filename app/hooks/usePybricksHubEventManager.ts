@@ -111,6 +111,32 @@ export function usePybricksHubEventManager() {
         document.dispatchEvent(resetEvent);
       }
 
+      // Handle position set events
+      if (
+        debugEvent.type === "stdout" &&
+        debugEvent.message.includes("[PILOT:SET_POSITION]")
+      ) {
+        try {
+          // Extract position data from message
+          const match = debugEvent.message.match(/\[PILOT:SET_POSITION\]\s*({.*})/);
+          if (match) {
+            const positionData = JSON.parse(match[1]);
+            console.log("[PybricksHub] Position set command received:", positionData);
+            
+            // Dispatch a custom event for position setting
+            const setPositionEvent = new CustomEvent("setPosition", {
+              detail: { 
+                position: positionData,
+                timestamp: Date.now() 
+              }
+            });
+            document.dispatchEvent(setPositionEvent);
+          }
+        } catch (error) {
+          console.error("[PybricksHub] Failed to parse position data:", error);
+        }
+      }
+
       // Handle disconnection events
       if (
         debugEvent.type === "connection" &&

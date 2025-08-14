@@ -1,6 +1,8 @@
+import type { RobotStartPosition } from "../types/fileSystem";
+
 interface ProgramMetadata {
   relativePath: string;
-  programSide?: "left" | "right";
+  programStartPosition?: RobotStartPosition; // Full position configuration
 }
 
 interface ProgramsManifest {
@@ -81,7 +83,7 @@ class ProgramMetadataStorage {
     const existingIndex = manifest.programs.findIndex(p => p.relativePath === relativePath);
     const programMetadata: ProgramMetadata = {
       relativePath,
-      programSide: metadata.programSide,
+      programStartPosition: metadata.programStartPosition,
     };
 
     if (existingIndex >= 0) {
@@ -115,33 +117,54 @@ class ProgramMetadataStorage {
   async addProgram(
     dirHandle: FileSystemDirectoryHandle,
     relativePath: string,
-    programSide: "left" | "right" = "right"
+    defaultSide: "left" | "right" = "right"
   ): Promise<void> {
     const manifest = await this.loadProgramsManifest(dirHandle);
     
     // Check if program already exists
     const existingIndex = manifest.programs.findIndex(p => p.relativePath === relativePath);
     if (existingIndex >= 0) {
-      // Update existing program side but keep position
-      manifest.programs[existingIndex].programSide = programSide;
+      // Program already exists, don't modify it
+      return;
     } else {
-      // Add new program to end of array
+      // Add new program to end of array with default position
       manifest.programs.push({
         relativePath,
-        programSide,
+        programStartPosition: {
+          side: defaultSide,
+          fromBottom: 0,
+          fromSide: 0,
+          heading: 0,
+        },
       });
     }
     
     await this.saveProgramsManifest(dirHandle, manifest);
   }
 
-  // Set program side for a file
+  // Set program side for a file (legacy - updates programStartPosition.side)
   async setProgramSide(
     dirHandle: FileSystemDirectoryHandle,
     relativePath: string,
     programSide: "left" | "right" | undefined
   ): Promise<void> {
-    await this.storeProgramMetadata(dirHandle, relativePath, { programSide });
+    const existingMetadata = await this.getProgramMetadata(dirHandle, relativePath);
+    const updatedPosition: RobotStartPosition = {
+      side: programSide || "right",
+      fromBottom: existingMetadata?.programStartPosition?.fromBottom || 0,
+      fromSide: existingMetadata?.programStartPosition?.fromSide || 0,
+      heading: existingMetadata?.programStartPosition?.heading || 0,
+    };
+    await this.setProgramStartPosition(dirHandle, relativePath, updatedPosition);
+  }
+
+  // Set program start position for a file
+  async setProgramStartPosition(
+    dirHandle: FileSystemDirectoryHandle,
+    relativePath: string,
+    programStartPosition: RobotStartPosition | undefined
+  ): Promise<void> {
+    await this.storeProgramMetadata(dirHandle, relativePath, { programStartPosition });
   }
 
   // Move program up in order (with wrap-around)
@@ -195,8 +218,22 @@ class ProgramMetadataStorage {
       manifest.programs.every((p: any) => 
         p &&
         typeof p.relativePath === "string" &&
-        (p.programSide === undefined || p.programSide === "left" || p.programSide === "right")
+        (p.programStartPosition === undefined || this.isValidStartPosition(p.programStartPosition))
       )
+    );
+  }
+
+  // Validate robot start position structure
+  private isValidStartPosition(position: any): position is RobotStartPosition {
+    return (
+      position &&
+      typeof position.side === "string" &&
+      (position.side === "left" || position.side === "right") &&
+      typeof position.fromBottom === "number" &&
+      typeof position.fromSide === "number" &&
+      typeof position.heading === "number" &&
+      position.heading >= -180 &&
+      position.heading <= 180
     );
   }
 

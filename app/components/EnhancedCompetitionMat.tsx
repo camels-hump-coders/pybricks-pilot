@@ -236,10 +236,50 @@ export function EnhancedCompetitionMat({
       resetRobotToStartPosition();
     };
 
-    // Listen for position reset events
+    const handleSetPositionEvent = (event: CustomEvent<{position: any}>) => {
+      const positionData = event.detail.position;
+      console.log("[EnhancedCompetitionMat] Position set received:", positionData);
+      
+      try {
+        // Calculate robot position from edge measurements (similar to CompactRobotController logic)
+        const robotConfig = robotConfigAtom;
+        const matWidth = MAT_WIDTH_MM;
+        const matHeight = MAT_HEIGHT_MM;
+        
+        // Convert program position to mat coordinates
+        let x: number, y: number;
+        
+        if (positionData.side === "left") {
+          x = positionData.fromSide; // Distance from left edge
+        } else {
+          x = matWidth - positionData.fromSide; // Distance from right edge
+        }
+        
+        y = matHeight - positionData.fromBottom; // Distance from bottom edge (mat coordinates are top-origin)
+        
+        const robotPosition: RobotPosition = {
+          x,
+          y,
+          heading: positionData.heading
+        };
+        
+        console.log("[EnhancedCompetitionMat] Setting robot position to:", robotPosition);
+        
+        // Use the existing setRobotPosition function without reset functions to preserve telemetry
+        gameMat.setRobotPosition(robotPosition);
+      } catch (error) {
+        console.error("[EnhancedCompetitionMat] Failed to set robot position:", error);
+      }
+    };
+
+    // Listen for position reset and set events
     document.addEventListener(
       "positionReset",
       handlePositionResetEvent as EventListener
+    );
+    document.addEventListener(
+      "setPosition",
+      handleSetPositionEvent as EventListener
     );
 
     return () => {
@@ -247,8 +287,12 @@ export function EnhancedCompetitionMat({
         "positionReset",
         handlePositionResetEvent as EventListener
       );
+      document.removeEventListener(
+        "setPosition", 
+        handleSetPositionEvent as EventListener
+      );
     };
-  }, [resetRobotToStartPosition]);
+  }, [resetRobotToStartPosition, gameMat]);
 
   // Load and process mat image
   useEffect(() => {

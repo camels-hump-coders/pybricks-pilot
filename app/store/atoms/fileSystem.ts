@@ -62,7 +62,7 @@ export const allProgramsAtom = atom((get) => {
       programs.push({
         ...file,
         programNumber: index + 1, // 1-based program number from array position
-        programSide: programMeta.programSide,
+        programStartPosition: programMeta.programStartPosition,
       });
     }
   });
@@ -79,14 +79,14 @@ export const getProgramInfoAtom = atom((get) => {
     if (index >= 0) {
       return {
         programNumber: index + 1, // 1-based
-        programSide: programsManifest[index].programSide,
+        programStartPosition: programsManifest[index].programStartPosition,
         isProgram: true,
       };
     }
     
     return {
       programNumber: undefined,
-      programSide: undefined,
+      programStartPosition: undefined,
       isProgram: false,
     };
   };

@@ -666,7 +666,25 @@ async def _run_menu_program():
     selected = _menu_programs[_menu_current_index]
     _menu_state = "running"
 
-    print("[PILOT:POSITION_RESET]")  # Signal position reset
+    # Apply the program's configured position
+    position = selected.get("position")
+    if position:
+        print("[PILOT:SET_POSITION]", json.dumps({
+            "side": position["side"],
+            "fromBottom": position["fromBottom"],
+            "fromSide": position["fromSide"],
+            "heading": position["heading"]
+        }))
+        print("[PILOT:MENU] Setting robot position:", 
+              position["side"], "side,",
+              position["fromBottom"], "mm from bottom,",
+              position["fromSide"], "mm from side,",
+              position["heading"], "° heading")
+    else:
+        # Fallback to legacy position reset
+        print("[PILOT:POSITION_RESET]")
+        print("[PILOT:MENU] Using default position reset")
+
     print("[PILOT:MENU] Starting Program", selected["num"], ":", selected["name"])
     print("[PILOT:MENU] Starting side:", selected["side"])
     _send_menu_status()

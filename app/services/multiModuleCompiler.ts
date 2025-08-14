@@ -36,13 +36,23 @@ function generateHubMenuMainModule(
     name: string;
     number: number;
     side: string;
+    position?: {
+      side: string;
+      fromBottom: number;
+      fromSide: number;
+      heading: number;
+    };
     moduleName: string;
   }>
 ): string {
   const programList = programs
     .map(
-      (prog) =>
-        `    {"num": ${prog.number}, "name": "${prog.name}", "side": "${prog.side}", "file": "${prog.name}", "main": program_${prog.name}},`
+      (prog) => {
+        const positionData = prog.position ? 
+          `"position": {"side": "${prog.position.side}", "fromBottom": ${prog.position.fromBottom}, "fromSide": ${prog.position.fromSide}, "heading": ${prog.position.heading}}` : 
+          `"position": {"side": "${prog.side}", "fromBottom": 0, "fromSide": 0, "heading": 0}`;
+        return `    {"num": ${prog.number}, "name": "${prog.name}", "side": "${prog.side}", ${positionData}, "file": "${prog.name}", "main": program_${prog.name}},`;
+      }
     )
     .join("\n");
 
@@ -337,7 +347,8 @@ class MultiModuleCompiler extends EventTarget {
           name: file.name.replace(".py", ""),
           moduleName: filePathToModuleName(file.relativePath),
           number: file.programNumber,
-          side: file.programSide || "right",
+          side: file.programStartPosition?.side || "right",
+          position: file.programStartPosition,
           file: file,
         }));
 

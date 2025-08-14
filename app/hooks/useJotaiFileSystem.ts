@@ -36,6 +36,7 @@ import {
   removeFromProgramsAtom,
   moveProgramUpAtom,
   moveProgramDownAtom,
+  setProgramStartPositionAtom,
 } from "../store/actions/fileSystemActions";
 
 export function useJotaiFileSystem() {
@@ -80,6 +81,7 @@ export function useJotaiFileSystem() {
   
   // Program metadata actions
   const setProgramSide = useSetAtom(setProgramSideAtom);
+  const setProgramStartPosition = useSetAtom(setProgramStartPositionAtom);
   const getProgramMetadata = useSetAtom(getProgramMetadataAtom);
   const getAllPrograms = useSetAtom(getAllProgramsAtom);
   const addToPrograms = useSetAtom(addToProgramsAtom);
@@ -150,6 +152,7 @@ export function useJotaiFileSystem() {
     
     // Program metadata operations
     setProgramSide,
+    setProgramStartPosition,
     getProgramMetadata,
     getAllPrograms,
     addToPrograms,

@@ -1,7 +1,7 @@
 import { useAtomValue } from "jotai";
 import { useState } from "react";
 import { getProgramInfoAtom } from "../store/atoms/fileSystem";
-import type { PythonFile } from "../types/fileSystem";
+import type { PythonFile, RobotStartPosition } from "../types/fileSystem";
 
 // Helper function to recursively check if a directory contains any programs
 const directoryContainsPrograms = (file: PythonFile, getProgramInfo: (relativePath: string) => { isProgram: boolean }): boolean => {
@@ -26,6 +26,277 @@ const directoryContainsPrograms = (file: PythonFile, getProgramInfo: (relativePa
   return false;
 };
 
+// Radial Heading Selector Component (compact version for FileBrowser)
+interface CompactHeadingSelectorProps {
+  heading: number;
+  onChange: (heading: number) => void;
+  size?: number;
+}
+
+function CompactHeadingSelector({ heading, onChange, size = 40 }: CompactHeadingSelectorProps) {
+  const radius = size / 2 - 4;
+  const centerX = size / 2;
+  const centerY = size / 2;
+  
+  // Convert heading to angle for display (0° = north/up, clockwise)
+  const displayAngle = heading - 90; // Offset so 0° points up
+  const radians = (displayAngle * Math.PI) / 180;
+  const indicatorX = centerX + radius * 0.6 * Math.cos(radians);
+  const indicatorY = centerY + radius * 0.6 * Math.sin(radians);
+  
+  const handleClick = (event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const mouseX = event.clientX - centerX;
+    const mouseY = event.clientY - centerY;
+    
+    // Calculate angle from center (0° = north/up, clockwise)
+    let angle = Math.atan2(mouseY, mouseX) * (180 / Math.PI);
+    angle = angle + 90; // Convert to our heading system
+    
+    // Normalize to -180 to 180 range
+    if (angle > 180) angle -= 360;
+    if (angle < -180) angle += 360;
+    
+    onChange(Math.round(angle));
+  };
+  
+  return (
+    <div 
+      className="relative cursor-pointer bg-gray-100 dark:bg-gray-700 rounded-full border border-gray-300 dark:border-gray-600 hover:border-blue-400 transition-colors select-none"
+      style={{ width: size, height: size }}
+      onClick={handleClick}
+      title={`Robot heading: ${heading}° (click to change)`}
+    >
+      {/* Robot direction indicator */}
+      <div
+        className="absolute w-1.5 h-1.5 bg-blue-500 rounded-full border border-white shadow-sm"
+        style={{
+          left: indicatorX - 3,
+          top: indicatorY - 3,
+        }}
+      />
+      
+      {/* Center dot */}
+      <div
+        className="absolute w-1 h-1 bg-gray-400 rounded-full"
+        style={{
+          left: centerX - 2,
+          top: centerY - 2,
+        }}
+      />
+    </div>
+  );
+}
+
+// Display-only heading indicator (no interaction)
+interface HeadingDisplayProps {
+  heading: number;
+  size?: number;
+}
+
+function HeadingDisplay({ heading, size = 20 }: HeadingDisplayProps) {
+  const radius = size / 2 - 2;
+  const centerX = size / 2;
+  const centerY = size / 2;
+  
+  // Convert heading to angle for display (0° = north/up, clockwise)
+  const displayAngle = heading - 90; // Offset so 0° points up
+  const radians = (displayAngle * Math.PI) / 180;
+  
+  // Calculate arrow points
+  const arrowLength = radius * 0.7;
+  const arrowEndX = centerX + arrowLength * Math.cos(radians);
+  const arrowEndY = centerY + arrowLength * Math.sin(radians);
+  
+  // Calculate arrow head points
+  const arrowHeadLength = 3;
+  const arrowHeadAngle = Math.PI / 6; // 30 degrees
+  const leftHeadX = arrowEndX - arrowHeadLength * Math.cos(radians - arrowHeadAngle);
+  const leftHeadY = arrowEndY - arrowHeadLength * Math.sin(radians - arrowHeadAngle);
+  const rightHeadX = arrowEndX - arrowHeadLength * Math.cos(radians + arrowHeadAngle);
+  const rightHeadY = arrowEndY - arrowHeadLength * Math.sin(radians + arrowHeadAngle);
+  
+  return (
+    <div 
+      className="relative bg-gray-100 dark:bg-gray-700 rounded-full border border-gray-300 dark:border-gray-600"
+      style={{ width: size, height: size }}
+      title={`Robot heading: ${heading}°`}
+    >
+      <svg 
+        className="absolute inset-0" 
+        width={size} 
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+      >
+        {/* Arrow line */}
+        <line
+          x1={centerX}
+          y1={centerY}
+          x2={arrowEndX}
+          y2={arrowEndY}
+          stroke="#3B82F6"
+          strokeWidth="1"
+        />
+        {/* Arrow head */}
+        <polyline
+          points={`${leftHeadX},${leftHeadY} ${arrowEndX},${arrowEndY} ${rightHeadX},${rightHeadY}`}
+          stroke="#3B82F6"
+          strokeWidth="1"
+          fill="none"
+        />
+        {/* Center dot */}
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r="1"
+          fill="#9CA3AF"
+        />
+      </svg>
+    </div>
+  );
+}
+
+// Program Position Configuration Component
+interface ProgramPositionConfigProps {
+  position?: RobotStartPosition;
+  onPositionChange: (position: RobotStartPosition) => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function ProgramPositionConfig({ 
+  position, 
+  onPositionChange, 
+  isExpanded, 
+  onToggle 
+}: ProgramPositionConfigProps) {
+  const currentPosition: RobotStartPosition = position || {
+    side: "right",
+    fromBottom: 0,
+    fromSide: 0,
+    heading: 0,
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Toggle button with current position summary */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className="flex items-center gap-2 px-2 py-1 text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded border border-green-200 dark:border-green-700 hover:bg-green-200 dark:hover:bg-green-900/70 transition-colors"
+        title={`Robot position: ${currentPosition.side} side, ${currentPosition.fromBottom}mm from bottom, ${currentPosition.fromSide}mm from side, ${currentPosition.heading}° heading`}
+      >
+        <span className="font-mono">📍</span>
+        <span>{currentPosition.side[0].toUpperCase()}</span>
+        <CompactHeadingSelector 
+          heading={currentPosition.heading}
+          onChange={(heading) => onPositionChange({ ...currentPosition, heading })}
+          size={20}
+        />
+        <span>{isExpanded ? "▲" : "▼"}</span>
+      </button>
+
+      {/* Expanded configuration form */}
+      {isExpanded && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-2 space-y-2">
+          <div className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">
+            🎯 Robot Starting Position
+          </div>
+          
+          {/* Side Selection */}
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPositionChange({ ...currentPosition, side: "left" });
+              }}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                currentPosition.side === "left"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+              }`}
+            >
+              ← Left Side
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPositionChange({ ...currentPosition, side: "right" });
+              }}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                currentPosition.side === "right"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+              }`}
+            >
+              Right Side →
+            </button>
+          </div>
+
+          {/* Distance Controls */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                From Bottom (mm)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="1000"
+                value={currentPosition.fromBottom}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onPositionChange({ 
+                    ...currentPosition, 
+                    fromBottom: Math.max(0, parseInt(e.target.value) || 0) 
+                  });
+                }}
+                className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                From {currentPosition.side === "left" ? "Left" : "Right"} (mm)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="2000"
+                value={currentPosition.fromSide}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onPositionChange({ 
+                    ...currentPosition, 
+                    fromSide: Math.max(0, parseInt(e.target.value) || 0) 
+                  });
+                }}
+                className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              />
+            </div>
+          </div>
+
+          {/* Heading Control */}
+          <div className="flex justify-center pt-1">
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-xs text-gray-600 dark:text-gray-400">Heading</div>
+              <CompactHeadingSelector
+                heading={currentPosition.heading}
+                onChange={(heading) => onPositionChange({ ...currentPosition, heading })}
+                size={50}
+              />
+              <div className="text-xs text-gray-500 dark:text-gray-400">{currentPosition.heading}°</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FileBrowserProps {
   directoryName: string;
   pythonFiles: PythonFile[];
@@ -38,6 +309,7 @@ interface FileBrowserProps {
   className?: string;
   // Program metadata handlers
   onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
+  onSetProgramStartPosition?: (relativePath: string, programStartPosition: import("../types/fileSystem").RobotStartPosition | undefined) => Promise<void>;
   onMoveProgramUp?: (relativePath: string) => Promise<void>;
   onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
@@ -50,6 +322,7 @@ interface FileTreeItemProps {
   level: number;
   // Program metadata handlers
   onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
+  onSetProgramStartPosition?: (relativePath: string, programStartPosition: import("../types/fileSystem").RobotStartPosition | undefined) => Promise<void>;
   onMoveProgramUp?: (relativePath: string) => Promise<void>;
   onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
@@ -61,6 +334,7 @@ function FileTreeItem({
   file, 
   level, 
   onSetProgramSide,
+  onSetProgramStartPosition,
   onMoveProgramUp,
   onMoveProgramDown,
   onAddToPrograms,
@@ -74,6 +348,7 @@ function FileTreeItem({
   
   const programInfo = getProgramInfo(file.relativePath);
   const [isSettingNumber, setIsSettingNumber] = useState(false);
+  const [isPositionExpanded, setIsPositionExpanded] = useState(false);
   const hasChildren = file.isDirectory && file.children && file.children.length > 0;
 
   const handleClick = () => {
@@ -164,6 +439,15 @@ function FileTreeItem({
     }
   };
 
+  const handleSetProgramStartPosition = async (position: RobotStartPosition) => {
+    if (!onSetProgramStartPosition) return;
+    try {
+      await onSetProgramStartPosition(file.relativePath, position);
+    } catch (error) {
+      console.error("Failed to set program start position:", error);
+    }
+  };
+
   return (
     <div>
       <div
@@ -210,46 +494,20 @@ function FileTreeItem({
                     </button>
                   )}
                   
-                  {/* 2) L for left side */}
-                  {onSetProgramSide && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSetProgramSide("left");
-                      }}
-                      className={`text-xs px-1.5 py-0.5 rounded border ${
-                        programInfo.programSide === "left"
-                          ? "bg-blue-500 text-white border-blue-500"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                      }`}
-                      title="Set robot starting position to left side"
-                    >
-                      L
-                    </button>
+                  {/* 2) Position Configuration */}
+                  {onSetProgramStartPosition && (
+                    <ProgramPositionConfig
+                      position={programInfo.programStartPosition}
+                      onPositionChange={handleSetProgramStartPosition}
+                      isExpanded={isPositionExpanded}
+                      onToggle={() => setIsPositionExpanded(!isPositionExpanded)}
+                    />
                   )}
                   
                   {/* 3) #x program number */}
                   <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-mono border border-purple-200 dark:border-purple-700">
                     #{programInfo.programNumber}
                   </span>
-                  
-                  {/* 4) R for right side */}
-                  {onSetProgramSide && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSetProgramSide("right");
-                      }}
-                      className={`text-xs px-1.5 py-0.5 rounded border ${
-                        programInfo.programSide === "right" || !programInfo.programSide
-                          ? "bg-blue-500 text-white border-blue-500"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                      }`}
-                      title="Set robot starting position to right side"
-                    >
-                      R
-                    </button>
-                  )}
                   
                   {/* 5) Down arrow to move program down */}
                   {onMoveProgramDown && (
@@ -317,6 +575,7 @@ function FileTreeItem({
               file={child}
               level={level + 1}
               onSetProgramSide={onSetProgramSide}
+              onSetProgramStartPosition={onSetProgramStartPosition}
               onMoveProgramUp={onMoveProgramUp}
               onMoveProgramDown={onMoveProgramDown}
               onAddToPrograms={onAddToPrograms}
@@ -340,6 +599,7 @@ export function FileBrowser({
   onCreateFile,
   className = "",
   onSetProgramSide,
+  onSetProgramStartPosition,
   onMoveProgramUp,
   onMoveProgramDown,
   onAddToPrograms,
@@ -463,6 +723,7 @@ export function FileBrowser({
                 file={file}
                 level={0}
                 onSetProgramSide={onSetProgramSide}
+                onSetProgramStartPosition={onSetProgramStartPosition}
                 onMoveProgramUp={onMoveProgramUp}
                 onMoveProgramDown={onMoveProgramDown}
                 onAddToPrograms={onAddToPrograms}
