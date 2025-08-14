@@ -99,12 +99,8 @@ export default function Home() {
     connectionError,
     telemetryData,
     programStatus,
-    uploadProgram,
     runProgram,
     stopProgram,
-    uploadAndRunProgram,
-    uploadFileProgram,
-    uploadAndRunFileProgram,
     sendDriveCommand,
     sendTurnCommand,
     sendStopCommand,
@@ -140,7 +136,6 @@ export default function Home() {
     isRestoring,
     isSupported: isFileSystemSupported,
   } = fileSystem;
-
 
   const {
     notifications,
@@ -211,18 +206,6 @@ export default function Home() {
     }
   };
 
-  const handleUploadProgram = async (code: string) => {
-    try {
-      await uploadProgram(code);
-      showSuccess("Upload Complete", "Program uploaded successfully!");
-    } catch (error) {
-      showError(
-        "Upload Failed",
-        error instanceof Error ? error.message : "Failed to upload program"
-      );
-    }
-  };
-
   const handleRunProgram = async () => {
     try {
       await runProgram();
@@ -247,70 +230,15 @@ export default function Home() {
     }
   };
 
-  const handleUploadAndRun = async (code: string) => {
-    try {
-      await uploadAndRunProgram(code);
-      showSuccess(
-        "Upload & Run Complete",
-        "Program uploaded and started successfully!"
-      );
-    } catch (error) {
-      showError(
-        "Upload & Run Failed",
-        error instanceof Error
-          ? error.message
-          : "Failed to upload and run program"
-      );
-    }
-  };
-
-  // New file-based handlers
-  const handleUploadFile = async (file: any, content: string) => {
-    if (!uploadFileProgram) {
-      showError("Upload Failed", "File upload not supported for this robot type");
-      return;
-    }
-    try {
-      await uploadFileProgram(file, content, pythonFiles);
-      showSuccess("Upload Complete", `${file.name} uploaded successfully!`);
-    } catch (error) {
-      showError(
-        "Upload Failed",
-        error instanceof Error ? error.message : "Failed to upload file"
-      );
-    }
-  };
-
-  const handleUploadAndRunFile = async (file: any, content: string) => {
-    if (!uploadAndRunFileProgram) {
-      showError("Upload & Run Failed", "File upload & run not supported for this robot type");
-      return;
-    }
-    try {
-      await uploadAndRunFileProgram(file, content, pythonFiles);
-      showSuccess(
-        "Upload & Run Complete",
-        `${file.name} uploaded and started successfully!`
-      );
-    } catch (error) {
-      showError(
-        "Upload & Run Failed",
-        error instanceof Error
-          ? error.message
-          : "Failed to upload and run file"
-      );
-    }
-  };
-
   const handleCreateFile = () => {
     const fileName = prompt("Enter file name (e.g., program.py):");
     if (fileName && fileName.trim()) {
       const name = fileName.trim();
-      if (!name.endsWith('.py')) {
+      if (!name.endsWith(".py")) {
         showError("Invalid File Name", "File name must end with .py");
         return;
       }
-      
+
       // Create file with basic template
       const template = `from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor
@@ -324,12 +252,17 @@ hub = PrimeHub()
 # Your code here
 print("Hello from ${name}!")
 `;
-      
-      createFile({ name, content: template }).then(() => {
-        showSuccess("File Created", `${name} created successfully!`);
-      }).catch((error) => {
-        showError("Failed to Create File", error instanceof Error ? error.message : "Unknown error");
-      });
+
+      createFile({ name, content: template })
+        .then(() => {
+          showSuccess("File Created", `${name} created successfully!`);
+        })
+        .catch((error) => {
+          showError(
+            "Failed to Create File",
+            error instanceof Error ? error.message : "Unknown error"
+          );
+        });
     }
   };
 
@@ -357,7 +290,6 @@ print("Hello from ${name}!")
       showError("File System Error", pythonFilesError.message);
     }
   }, [pythonFilesError, showError]);
-
 
   useEffect(() => {
     if (programStatus.error) {
@@ -485,14 +417,19 @@ print("Hello from ${name}!")
               onRequestDirectoryAccess={handleFileSystemAccess}
               onRunProgram={handleRunProgram}
               onStopProgram={handleStopProgram}
-              onUploadAndRunFile={handleUploadAndRunFile}
               onCreateFile={handleCreateFile}
               onCreateExampleProject={async () => {
                 try {
                   await createExampleProject();
-                  showSuccess("Example Project Created", "Created example directory with program.py template");
+                  showSuccess(
+                    "Example Project Created",
+                    "Created example directory with program.py template"
+                  );
                 } catch (error) {
-                  showError("Failed to Create Example", error instanceof Error ? error.message : "Unknown error");
+                  showError(
+                    "Failed to Create Example",
+                    error instanceof Error ? error.message : "Unknown error"
+                  );
                 }
               }}
               programStatus={programStatus}

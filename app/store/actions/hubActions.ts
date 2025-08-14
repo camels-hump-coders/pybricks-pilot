@@ -9,7 +9,6 @@ import {
   isRunningProgramAtom,
   isSendingCommandAtom,
   isStoppingProgramAtom,
-  isUploadingProgramAtom,
   programOutputLogAtom,
   programStatusAtom,
   resetTelemetryAtom,
@@ -52,23 +51,6 @@ export const disconnectHubAtom = atom(null, async (get, set) => {
   }
 });
 
-// Upload program action
-export const uploadProgramAtom = atom(
-  null,
-  async (get, set, pythonCode: string) => {
-    const isConnected = get(isConnectedAtom);
-    if (!isConnected) throw new Error("Hub not connected");
-
-    set(isUploadingProgramAtom, true);
-
-    try {
-      await pybricksHubService.uploadProgram(pythonCode);
-    } finally {
-      set(isUploadingProgramAtom, false);
-    }
-  }
-);
-
 // Run program action
 export const runProgramAtom = atom(null, async (get, set) => {
   const isConnected = get(isConnectedAtom);
@@ -97,31 +79,6 @@ export const stopProgramAtom = atom(null, async (get, set) => {
     set(isStoppingProgramAtom, false);
   }
 });
-
-// Upload and run program action
-export const uploadAndRunProgramAtom = atom(
-  null,
-  async (get, set, pythonCode: string) => {
-    const isConnected = get(isConnectedAtom);
-    if (!isConnected) throw new Error("Hub not connected");
-
-    set(programOutputLogAtom, []); // Clear previous output
-    set(isUploadingProgramAtom, true);
-
-    try {
-      // First stop any running program
-      await pybricksHubService.stopProgram();
-
-      // Wait a bit for the hub to be ready
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Upload and run atomically
-      await pybricksHubService.uploadAndRunProgram(pythonCode);
-    } finally {
-      set(isUploadingProgramAtom, false);
-    }
-  }
-);
 
 // Send control command action
 export const sendControlCommandAtom = atom(

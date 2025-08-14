@@ -7,11 +7,11 @@ import type { DebugEvent } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { robotPositionAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfig";
+import { HubMenuInterface } from "./HubMenuInterface";
 import {
   calculatePreviewPosition,
   calculateTrajectoryProjection,
 } from "./MovementPreview";
-import { HubMenuInterface } from "./HubMenuInterface";
 
 type ControlMode = "incremental" | "continuous";
 
@@ -327,7 +327,7 @@ export function CompactRobotController({
               </div>
             </div>
           )}
-          
+
           {/* Hub Menu Interface - Compact selector for hub menu programs */}
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">

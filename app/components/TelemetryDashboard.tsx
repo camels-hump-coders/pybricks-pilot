@@ -1,8 +1,8 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
-import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import {
   GameMatConfigSchema,
   type GameMatConfig,
@@ -211,7 +211,11 @@ interface RobotControlsSectionProps {
   robotType?: "real" | "virtual" | null;
   onRunProgram?: () => Promise<void>;
   onStopProgram?: () => Promise<void>;
-  onUploadAndRunFile?: (file: any, content: string, availableFiles: any[]) => Promise<void>;
+  onUploadAndRunFile?: (
+    file: any,
+    content: string,
+    availableFiles: any[]
+  ) => Promise<void>;
   isUploading?: boolean;
   debugEvents?: any[];
   isCmdKeyPressed: boolean;
@@ -470,8 +474,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     sendMotorStopCommand,
     runProgram,
     stopProgram,
-    uploadAndRunProgram,
-    uploadAndRunFileProgram,
     uploadAndRunHubMenu,
     isUploadingProgram,
     debugEvents,
@@ -481,18 +483,24 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const { allPrograms, pythonFiles } = useJotaiFileSystem();
 
   // Create a smart upload function that uses hub menu when there are numbered programs
-  const handleUploadAndRun = async (file: any, content: string, availableFiles: any[]) => {
+  const handleUploadAndRun = async (
+    file: any,
+    content: string,
+    availableFiles: any[]
+  ) => {
     // Check if there are any numbered programs
-    const numberedPrograms = allPrograms.filter(p => p.programNumber && !p.isDirectory);
-    
+    const numberedPrograms = allPrograms.filter(
+      (p) => p.programNumber && !p.isDirectory
+    );
+
     if (numberedPrograms.length > 0 && uploadAndRunHubMenu) {
       // Use hub menu upload when there are numbered programs
-      console.log("[TelemetryDashboard] Using hub menu upload for", numberedPrograms.length, "programs");
+      console.log(
+        "[TelemetryDashboard] Using hub menu upload for",
+        numberedPrograms.length,
+        "programs"
+      );
       await uploadAndRunHubMenu(allPrograms, pythonFiles);
-    } else if (uploadAndRunFileProgram) {
-      // Fall back to regular file upload for single files
-      console.log("[TelemetryDashboard] Using regular file upload for", file.name);
-      await uploadAndRunFileProgram(file, content, availableFiles);
     } else {
       throw new Error("No upload method available");
     }
@@ -748,9 +756,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             currentScore={currentScore}
             onMapSelectorOpen={() => setShowMapSelector(true)}
             onMatEditorOpen={(mode) => {
-            setMatEditorMode(mode);
-            setShowMatEditor(true);
-          }}
+              setMatEditorMode(mode);
+              setShowMatEditor(true);
+            }}
             onScoringToggle={() => setShowScoring(!showScoring)}
             onClearMat={handleClearCustomMat}
           />

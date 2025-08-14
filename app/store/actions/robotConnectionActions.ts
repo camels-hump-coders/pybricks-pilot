@@ -10,7 +10,6 @@ import {
   isRunningProgramAtom,
   isSendingCommandAtom,
   isStoppingProgramAtom,
-  isUploadingProgramAtom,
   programOutputLogAtom,
   programStatusAtom,
   resetRobotTypeAtom,
@@ -65,23 +64,6 @@ export const disconnectRobotAtom = atom(null, async (get, set) => {
   }
 });
 
-// Upload program action
-export const uploadProgramAtom = atom(
-  null,
-  async (get, set, pythonCode: string) => {
-    const isConnected = get(isConnectedAtom);
-    if (!isConnected) throw new Error("Robot not connected");
-
-    set(isUploadingProgramAtom, true);
-
-    try {
-      await robotConnectionManager.uploadProgram(pythonCode);
-    } finally {
-      set(isUploadingProgramAtom, false);
-    }
-  }
-);
-
 // Run program action
 export const runProgramAtom = atom(null, async (get, set) => {
   const isConnected = get(isConnectedAtom);
@@ -110,21 +92,6 @@ export const stopProgramAtom = atom(null, async (get, set) => {
     set(isStoppingProgramAtom, false);
   }
 });
-
-// Upload and run program action
-export const uploadAndRunProgramAtom = atom(
-  null,
-  async (get, set, pythonCode: string) => {
-    const isConnected = get(isConnectedAtom);
-    if (!isConnected) throw new Error("Robot not connected");
-
-    set(programOutputLogAtom, []); // Clear previous output
-
-    // First upload, then run
-    await set(uploadProgramAtom, pythonCode);
-    await set(runProgramAtom);
-  }
-);
 
 // Send control command action
 export const sendControlCommandAtom = atom(

@@ -105,11 +105,6 @@ export function useJotaiPybricksHub() {
     }
   }, [setIsDisconnecting, setHubInfo, setIsConnected]);
 
-  // Pybricks hub program management
-  const uploadProgram = useCallback(async (code: string) => {
-    await pybricksHubService.uploadProgram(code);
-  }, []);
-
   const runProgram = useCallback(async () => {
     await pybricksHubService.runProgram();
   }, []);
@@ -118,22 +113,12 @@ export function useJotaiPybricksHub() {
     await pybricksHubService.stopProgram();
   }, []);
 
-  const uploadAndRunProgram = useCallback(async (code: string) => {
-    await pybricksHubService.uploadAndRunProgram(code);
-  }, []);
-
-  // New file-based upload methods
-  const uploadFileProgram = useCallback(async (file: any, content: string, availableFiles: any[]) => {
-    await pybricksHubService.uploadFileProgram(file, content, availableFiles);
-  }, []);
-
-  const uploadAndRunFileProgram = useCallback(async (file: any, content: string, availableFiles: any[]) => {
-    await pybricksHubService.uploadAndRunFileProgram(file, content, availableFiles);
-  }, []);
-
-  const uploadAndRunHubMenu = useCallback(async (allPrograms: any[], availableFiles: any[]) => {
-    await pybricksHubService.uploadAndRunHubMenu(allPrograms, availableFiles);
-  }, []);
+  const uploadAndRunHubMenu = useCallback(
+    async (allPrograms: any[], availableFiles: any[]) => {
+      await pybricksHubService.uploadAndRunHubMenu(allPrograms, availableFiles);
+    },
+    []
+  );
 
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
@@ -259,12 +244,8 @@ export function useJotaiPybricksHub() {
     isDisconnecting,
 
     // Program management
-    uploadProgram,
     runProgram,
     stopProgram,
-    uploadAndRunProgram,
-    uploadFileProgram,
-    uploadAndRunFileProgram,
     uploadAndRunHubMenu,
 
     programStatus,

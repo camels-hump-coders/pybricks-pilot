@@ -158,22 +158,12 @@ export function useJotaiVirtualHub() {
     return virtualRobotService.isConnected();
   }, []);
 
-  // Virtual robot program management
-  const uploadProgram = useCallback(async (code: string) => {
-    await virtualRobotService.uploadProgram(code);
-  }, []);
-
   const runProgram = useCallback(async () => {
     await virtualRobotService.runProgram();
   }, []);
 
   const stopProgram = useCallback(async () => {
     await virtualRobotService.stopProgram();
-  }, []);
-
-  const uploadAndRunProgram = useCallback(async (code: string) => {
-    await virtualRobotService.uploadProgram(code);
-    await virtualRobotService.runProgram();
   }, []);
 
   // Virtual robot control commands
@@ -286,10 +276,8 @@ export function useJotaiVirtualHub() {
     hubInfo: null, // Virtual robot doesn't have hub info
 
     // Program management
-    uploadProgram,
     runProgram,
     stopProgram,
-    uploadAndRunProgram,
 
     // Program state
     programStatus,

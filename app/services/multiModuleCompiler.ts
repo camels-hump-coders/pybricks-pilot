@@ -52,198 +52,30 @@ This module provides program selection using hub buttons and LED display
 """
 
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Button, Color
-from pybricks.tools import wait, StopWatch, run_task, multitask
+from pybricks.tools import run_task, multitask
 from pybricks import version
-from pybrickspilot import background_telemetry_task
-
-${programs.map((p) => `from ${p.moduleName} import main as program_${p.name}`).join("\n")}
+import pybrickspilot as pilot
 
 print("PyBricks Pilot Menu v1.0")
 print(f"PyBricks {version}")
 
-# Initialize the hub
-hub = PrimeHub()
-
-# Set stop button to Bluetooth button to free up CENTER for program selection
-hub.system.set_stop_button(Button.BLUETOOTH)
+${programs.map((p) => `from ${p.moduleName} import main as program_${p.name}`).join("\n")}
 
 # Program list (generated from your numbered programs)
 PROGRAMS = [
 ${programList}
 ]
 
-def show_program_number(num):
-    """Display a program number on the hub display"""
-    hub.display.number(num)
+# Initialize the hub menu with pybrickspilot
+pilot.init_hub_menu(PROGRAMS)
 
-def check_ui_commands():
-    """Check for incoming commands from UI via stdin (non-blocking)"""
-    try:
-        from pybricks.tools import read_input_byte
-        stdin_data = []
-        while True:
-            try:
-                # Try to read a byte using Pybricks non-blocking method
-                byte = read_input_byte()
-                if byte is None:
-                    break
-                if byte == ord('\\n'):
-                    # Complete command received
-                    if stdin_data:
-                        command = bytes(stdin_data).decode('utf-8').strip()
-                        return command
-                    break
-                stdin_data.append(byte)
-            except:
-                break
-    except:
-        pass
-    return None
-
-def run_selected_program(program_info):
-    """Execute the selected program"""
-    print(f"[PILOT:POSITION_RESET]")  # Signal for position reset
-    print(f"Running Program {program_info['num']}: {program_info['name']}")
-    print(f"Starting side: {program_info['side']}")
-    
-    # Set hub light to red for program running
-    hub.light.on(Color.RED)
-    
-    # Import and run the selected program
-    try:
-        # Dynamic import based on filename
-        run_task(multitask(program_info['main'](), background_telemetry_task(), race=True))
-        print(f"Program {program_info['num']} completed successfully")
-    except Exception as e:
-        print(f"Error running program {program_info['num']}: {e}")
-        # Show error on display
-        hub.display.text("ERR")
-        wait(2000)
-    
-    # Return hub light to green for menu mode
-    hub.light.on(Color.GREEN)
-
-def main_menu():
-    """Main menu loop"""
-    if not PROGRAMS:
-        print("No programs configured!")
-        hub.display.number(0)
-        return
-    
-    current_index = 0
-    
-    print(f"PyBricks Pilot Menu - {len(PROGRAMS)} programs available")
-    print("Controls: Left/Right buttons to navigate, Center button to select")
-    print("Note: Bluetooth button stops programs")
-    print("Status: Green light = menu mode, Red light = program running")
-    print("Auto-advance: Menu advances to next program after completion")
-    
-    # Set hub light to green for menu mode
-    hub.light.on(Color.GREEN)
-    
-    # Show initial program
-    show_program_number(PROGRAMS[current_index]['num'])
-    hub.speaker.beep(frequency=440, duration=100)
-    
-    # Send initial menu status to UI
-    print(f"[PILOT:MENU_STATUS] selected={PROGRAMS[current_index]['num']} total={len(PROGRAMS)} state=menu")
-    
-    while True:
-        # Check for UI commands first
-        ui_command = check_ui_commands()
-        if ui_command:
-            try:
-                import json
-                command_data = json.loads(ui_command)
-                if command_data.get('action') == 'select_program':
-                    # UI wants to select a specific program number
-                    target_num = command_data.get('program_number')
-                    for i, prog in enumerate(PROGRAMS):
-                        if prog['num'] == target_num:
-                            current_index = i
-                            show_program_number(PROGRAMS[current_index]['num'])
-                            hub.speaker.beep(frequency=440, duration=100)
-                            print(f"UI Selected: Program {PROGRAMS[current_index]['num']} - {PROGRAMS[current_index]['name']}")
-                            print(f"[PILOT:MENU_STATUS] selected={PROGRAMS[current_index]['num']} total={len(PROGRAMS)} state=menu")
-                            break
-                elif command_data.get('action') == 'run_selected':
-                    # UI wants to run the currently selected program
-                    selected = PROGRAMS[current_index]
-                    hub.speaker.beep(frequency=660, duration=200)
-                    print(f"UI Starting Program {selected['num']}: {selected['name']}")
-                    print(f"[PILOT:MENU_STATUS] selected={selected['num']} total={len(PROGRAMS)} state=running")
-                    
-                    # Run the program
-                    run_selected_program(selected)
-                    
-                    # Auto-advance to next program (wrap around)
-                    current_index = (current_index + 1) % len(PROGRAMS)
-                    
-                    # Return to menu after program completes
-                    print("Returning to menu...")
-                    print(f"Auto-advanced to Program {PROGRAMS[current_index]['num']}: {PROGRAMS[current_index]['name']}")
-                    show_program_number(PROGRAMS[current_index]['num'])
-                    print(f"[PILOT:MENU_STATUS] selected={PROGRAMS[current_index]['num']} total={len(PROGRAMS)} state=menu")
-                    wait(1000)
-            except:
-                print(f"Invalid UI command: {ui_command}")
-        
-        # Check for button presses (non-blocking)
-        pressed = hub.buttons.pressed()
-        
-        if Button.LEFT in pressed:
-            # Previous program
-            current_index = (current_index - 1) % len(PROGRAMS)
-            show_program_number(PROGRAMS[current_index]['num'])
-            hub.speaker.beep(frequency=330, duration=100)
-            print(f"Selected: Program {PROGRAMS[current_index]['num']} - {PROGRAMS[current_index]['name']}")
-            print(f"[PILOT:MENU_STATUS] selected={PROGRAMS[current_index]['num']} total={len(PROGRAMS)} state=menu")
-            wait(300)  # Debounce
-            
-        elif Button.RIGHT in pressed:
-            # Next program
-            current_index = (current_index + 1) % len(PROGRAMS)
-            show_program_number(PROGRAMS[current_index]['num'])
-            hub.speaker.beep(frequency=550, duration=100)
-            print(f"Selected: Program {PROGRAMS[current_index]['num']} - {PROGRAMS[current_index]['name']}")
-            print(f"[PILOT:MENU_STATUS] selected={PROGRAMS[current_index]['num']} total={len(PROGRAMS)} state=menu")
-            wait(300)  # Debounce
-            
-        elif Button.CENTER in pressed:
-            # Run selected program
-            selected = PROGRAMS[current_index]
-            hub.speaker.beep(frequency=660, duration=200)
-            print(f"Starting Program {selected['num']}: {selected['name']}")
-            print(f"[PILOT:MENU_STATUS] selected={selected['num']} total={len(PROGRAMS)} state=running")
-            
-            # Run the program
-            run_selected_program(selected)
-            
-            # Auto-advance to next program (wrap around)
-            current_index = (current_index + 1) % len(PROGRAMS)
-            
-            # Return to menu after program completes
-            print("Returning to menu...")
-            print(f"Auto-advanced to Program {PROGRAMS[current_index]['num']}: {PROGRAMS[current_index]['name']}")
-            show_program_number(PROGRAMS[current_index]['num'])
-            print(f"[PILOT:MENU_STATUS] selected={PROGRAMS[current_index]['num']} total={len(PROGRAMS)} state=menu")
-            wait(1000)
-        
-        wait(50)  # Small delay to prevent excessive CPU usage
-
-# Run the menu
-if __name__ == "__main__":
-    try:
-        main_menu()
-    except KeyboardInterrupt:
-        print("Menu interrupted")
-        hub.display.off()
-        hub.light.off()
-    except Exception as e:
-        print(f"Menu error: {e}")
-        hub.display.off()
-        hub.light.off()
+try:
+    # Run the hub menu loop
+    run_task(multitask(pilot.background_telemetry_task(), pilot.run_hub_menu(), race=True))
+except KeyboardInterrupt:
+    print("Menu interrupted")
+except Exception as e:
+    print(f"Menu error: {e}")
 `;
 }
 

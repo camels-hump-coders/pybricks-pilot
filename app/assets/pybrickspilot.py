@@ -28,7 +28,7 @@ import ujson as json
 from pybricks.tools import StopWatch
 from pybricks.tools import read_input_byte
 from pybricks.tools import run_task, multitask, wait
-from pybricks.parameters import Color
+from pybricks.parameters import Color, Button
 
 _stopwatch = None
 
@@ -53,6 +53,15 @@ _telemetry_interval_ms = 100  # Send telemetry every 100ms
 _last_telemetry_time = 0
 # Command buffer for non-blocking input processing
 _command_buffer = ""
+
+# Hub menu state management
+_menu_programs = []  # List of program dictionaries
+_menu_current_index = 0
+_menu_active = False
+_menu_state = "idle"  # idle, menu, running
+_menu_last_button_time = 0
+_menu_button_debounce_ms = 300
+_menu_run_requested = False  # Flag for UI-requested program run
 
 
 def register_hub(hub):
@@ -366,7 +375,7 @@ async def send_telemetry():
         print("[PILOT] Telemetry error:", e)
 
 
-def _execute_command(command):
+async def _execute_command(command):
     """Execute a received command."""
     try:
         action = command.get("action")
@@ -401,7 +410,7 @@ def _execute_command(command):
             speed = command.get("speed", 100)
             # Use turn() method with wait=False for non-blocking execution
             _drivebase.settings(turn_rate=speed)
-            _drivebase.turn(angle, wait=False)
+            await _drivebase.turn(angle, wait=False)
             print("[PILOT] Executed turn:", angle, "° at", speed, "°/s (non-blocking)")
 
         elif action == "stop":
@@ -410,10 +419,10 @@ def _execute_command(command):
             if motor_name and motor_name in _motors:
                 # Stop specific motor
                 motor = _motors[motor_name]
-                motor.stop()
+                await motor.stop()
                 print("[PILOT] Stopped motor '" + motor_name + "'")
             elif _drivebase:
-                _drivebase.stop()
+                await _drivebase.stop()
                 print("[PILOT] Executed stop")
 
         elif action == "drive_continuous" and _drivebase:
@@ -421,7 +430,7 @@ def _execute_command(command):
             speed = command.get("speed", 0)
             turn_rate = command.get("turn_rate", 0)
             # Use drive() method for continuous movement
-            _drivebase.drive(speed, turn_rate)
+            await _drivebase.drive(speed, turn_rate)
             print("[PILOT] Continuous drive:", speed, "mm/s, turn:", turn_rate, "°/s")
 
         elif action == "motor":
@@ -434,7 +443,7 @@ def _execute_command(command):
                 speed = command.get("speed", 100)
 
                 if angle is not None:
-                    motor.run_angle(speed, angle)
+                    await motor.run_angle(speed, angle)
                     print(
                         "[PILOT] Motor '" + motor_name + "':",
                         angle,
@@ -444,7 +453,7 @@ def _execute_command(command):
                     )
                 else:
                     # Continuous run
-                    motor.run(speed)
+                    await motor.run(speed)
                     print(
                         "[PILOT] Motor '" + motor_name + "': running at", speed, "°/s"
                     )
@@ -469,6 +478,27 @@ def _execute_command(command):
             except Exception as e:
                 print("[PILOT] Drivebase reset error:", e)
 
+        elif action == "select_program" and _menu_active:
+            # Select a specific program in the menu: {"action": "select_program", "program_number": 1}
+            program_number = command.get("program_number")
+            if program_number:
+                for i, prog in enumerate(_menu_programs):
+                    if prog["num"] == program_number:
+                        _menu_current_index = i
+                        if _hub:
+                            _hub.display.number(prog["num"])
+                        print("[PILOT:MENU] UI selected:", prog["name"])
+                        _send_menu_status()
+                        break
+
+        elif action == "run_selected" and _menu_active and _menu_state == "menu":
+            # Run the currently selected program: {"action": "run_selected"}
+            print("[PILOT:MENU] UI requested run")
+            # Note: _run_menu_program is async, we'll need to handle this differently
+            # For now, just set a flag that the menu loop can check
+            global _menu_run_requested
+            _menu_run_requested = True
+
         else:
             print("[PILOT] Unknown command action:", action)
 
@@ -476,7 +506,7 @@ def _execute_command(command):
         print("[PILOT] Command execution error:", e)
 
 
-def process_commands():
+async def process_commands():
     """Process any incoming commands from stdin using non-blocking read_input_byte."""
     global _command_buffer
 
@@ -500,7 +530,7 @@ def process_commands():
                 # Check for complete command (newline terminated)
                 if char == "\n":
                     # Process complete commands in buffer
-                    _process_buffered_commands()
+                    await _process_buffered_commands()
 
             except Exception as e:
                 # Error reading byte, stop reading
@@ -510,7 +540,7 @@ def process_commands():
         print("[PILOT] Command processing error:", e)
 
 
-def _process_buffered_commands():
+async def _process_buffered_commands():
     """Process all complete commands in the buffer."""
     global _command_buffer
 
@@ -525,23 +555,196 @@ def _process_buffered_commands():
         for i in range(len(lines) - 1):
             command_line = lines[i].strip()
             if command_line:
-                _process_command_line(command_line)
+                await _process_command_line(command_line)
 
     except Exception as e:
         print("[PILOT] Buffer processing error:", e)
 
 
-def _process_command_line(command_text):
+async def _process_command_line(command_text):
     """Process a single command line."""
     try:
         print("[PILOT] Received command:", command_text)
 
         # Parse JSON command
         command = json.loads(command_text)
-        _execute_command(command)
+        await _execute_command(command)
 
     except Exception as e:
         print("[PILOT] Command parse/execute error:", e)
+
+
+# Hub menu management functions
+def init_hub_menu(programs):
+    """Initialize the hub menu with a list of programs.
+
+    Args:
+        programs: List of program dictionaries with keys:
+            - num: Program number to display
+            - name: Program name
+            - side: Starting side (left/right)
+            - main: Callable main function for the program
+    """
+    global _menu_programs, _menu_current_index, _menu_active, _menu_state, _hub
+
+    _menu_programs = programs
+    _menu_current_index = 0
+    _menu_active = True
+    _menu_state = "menu"
+
+    if _hub:
+        # Set stop button to Bluetooth to free up CENTER for selection
+        _hub.system.set_stop_button(Button.BLUETOOTH)
+        # Set hub light to green for menu mode
+        _hub.light.on(Color.GREEN)
+        # Display initial program number
+        if programs:
+            _hub.display.number(1)
+
+    print("[PILOT:MENU] Initialized with", len(programs), "programs")
+    _send_menu_status()
+
+
+def _send_menu_status():
+    """Send hub menu status to UI."""
+    global _menu_programs, _menu_current_index, _menu_state
+
+    if _menu_programs and _menu_current_index < len(_menu_programs):
+        current = _menu_programs[_menu_current_index]
+        print(
+            "[PILOT:MENU_STATUS] selected={} total={} state={}".format(
+                current["num"], len(_menu_programs), _menu_state
+            )
+        )
+
+
+def _process_menu_buttons():
+    """Process hub button presses for menu navigation."""
+    global _hub, _menu_current_index, _menu_last_button_time, _menu_state
+
+    if not _hub or not _menu_active or _menu_state != "menu":
+        return
+
+    current_time = get_time_ms()
+
+    # Debounce buttons
+    if current_time - _menu_last_button_time < _menu_button_debounce_ms:
+        return
+
+    pressed = _hub.buttons.pressed()
+
+    if Button.LEFT in pressed:
+        # Previous program
+        _menu_current_index = (_menu_current_index - 1) % len(_menu_programs)
+        _hub.display.number(_menu_programs[_menu_current_index]["num"])
+        print("[PILOT:MENU] Selected:", _menu_programs[_menu_current_index]["name"])
+        _send_menu_status()
+        _menu_last_button_time = current_time
+
+    elif Button.RIGHT in pressed:
+        # Next program
+        _menu_current_index = (_menu_current_index + 1) % len(_menu_programs)
+        _hub.display.number(_menu_programs[_menu_current_index]["num"])
+        print("[PILOT:MENU] Selected:", _menu_programs[_menu_current_index]["name"])
+        _send_menu_status()
+        _menu_last_button_time = current_time
+
+    elif Button.CENTER in pressed:
+        # Run selected program - set flag for async handler
+        global _menu_run_requested
+        _menu_run_requested = True
+        _menu_last_button_time = current_time
+
+
+async def _run_menu_program():
+    """Run the currently selected menu program."""
+    global _menu_state, _menu_current_index, _hub
+
+    if not _menu_programs or _menu_current_index >= len(_menu_programs):
+        return
+
+    selected = _menu_programs[_menu_current_index]
+    _menu_state = "running"
+
+    print("[PILOT:POSITION_RESET]")  # Signal position reset
+    print("[PILOT:MENU] Starting Program", selected["num"], ":", selected["name"])
+    print("[PILOT:MENU] Starting side:", selected["side"])
+    _send_menu_status()
+
+    if _hub:
+        await _hub.speaker.beep(frequency=660, duration=200)
+        _hub.light.on(Color.RED)
+
+    try:
+        # Run the program's main function with telemetry
+        await selected["main"]()
+        print("[PILOT:MENU] Program", selected["num"], "completed successfully")
+    except Exception as e:
+        print("[PILOT:MENU] Program error:", e)
+        if _hub:
+            _hub.display.text("ERR")
+            wait(2000)
+
+    # Return to menu state
+    _menu_state = "menu"
+
+    # Auto-advance to next program
+    _menu_current_index = (_menu_current_index + 1) % len(_menu_programs)
+
+    if _hub:
+        _hub.light.on(Color.GREEN)
+        _hub.display.number(_menu_programs[_menu_current_index]["num"])
+
+    print("[PILOT:MENU] Returned to menu")
+    print("[PILOT:MENU] Auto-advanced to:", _menu_programs[_menu_current_index]["name"])
+    _send_menu_status()
+
+
+async def process_menu_commands():
+    """Process both button presses and UI commands for menu control.
+    This should be called in the main loop when menu is active."""
+
+    global _menu_run_requested
+
+    if not _menu_active:
+        return
+
+    # Process hub button presses
+    _process_menu_buttons()
+
+    # Process UI commands through existing command system
+    await process_commands()
+
+    # Check if UI requested a program run
+    if _menu_run_requested and _menu_state == "menu":
+        _menu_run_requested = False
+        # Return True to signal that a program should be run
+        return True
+
+    return False
+
+
+async def run_hub_menu():
+    """Main hub menu loop that handles program selection and execution."""
+    global _menu_active, _menu_state
+
+    if not _menu_active or not _menu_programs:
+        print("[PILOT:MENU] Menu not initialized or no programs available")
+        return
+
+    print("[PILOT:MENU] Starting menu loop")
+
+    while _menu_active:
+        if _menu_state == "menu":
+            # Process commands (buttons and UI)
+            should_run = await process_menu_commands()
+
+            if should_run:
+                # Run the selected program
+                await _run_menu_program()
+
+        # Small delay to prevent busy looping
+        await wait(50)
 
 
 async def background_telemetry_task():
@@ -557,20 +760,13 @@ async def background_telemetry_task():
         "ms",
     )
 
-    # Send initial telemetry
-    await send_telemetry()
-
     try:
         while True:
             # Send telemetry data
             await send_telemetry()
 
-            # Process any available commands (non-blocking with read_input_byte)
-            process_commands()
-
             # Wait for the configured interval (async)
             await wait(_telemetry_interval_ms)
-
     except KeyboardInterrupt:
         print("[PILOT] Parallel telemetry stopped")
     except Exception as e:
@@ -585,86 +781,6 @@ def send_position_reset():
         print("[PILOT] Position reset command sent to browser")
     except Exception as e:
         print("[PILOT] Position reset send error:", e)
-
-
-def start_parallel_instrumentation():
-    """
-    Start the instrumentation system in parallel with user program.
-    This runs telemetry and command processing without interfering with user loops.
-
-    Call this once at the beginning of your program after registering hardware.
-    """
-    print("[PILOT] Starting parallel instrumentation")
-
-    # For MicroPython/Pybricks, we'll use a simple approach:
-    # The telemetry will be sent whenever send_telemetry() is called
-    # Commands will be processed when process_commands() is called
-    # But we won't modify the user's code structure
-
-    print("[PILOT] Instrumentation active - call send_telemetry() periodically")
-
-
-async def run_with_parallel_instrumentation(user_main_function):
-    """
-    Run user's program in parallel with telemetry and command processing.
-    Uses Pybricks multitask to run both tasks concurrently.
-
-    Example:
-        async def my_program():
-            # All your robot code here
-            for i in range(10):
-                robot.drive(100, 0)
-                await wait(1000)  # Use await with async
-
-        await run_with_parallel_instrumentation(my_program)
-    """
-    print("[PILOT] Running program with parallel instrumentation")
-
-    try:
-        # Create the user program task
-        async def user_task():
-            try:
-                print("[PILOT] Starting user program task")
-                # Send position reset command to browser before starting user program
-                send_position_reset()
-                await user_main_function()
-                print("[PILOT] User program task completed")
-            except Exception as e:
-                print("[PILOT] User program error:", e)
-                raise
-
-        # Run both tasks in parallel using multitask
-        print("[PILOT] Starting parallel execution: user program + telemetry")
-        await multitask(background_telemetry_task(), user_task())
-
-    except KeyboardInterrupt:
-        print("[PILOT] Program interrupted")
-    except Exception as e:
-        print("[PILOT] Parallel execution error:", e)
-    finally:
-        print("[PILOT] Parallel instrumentation terminated")
-
-
-def run_with_instrumentation(user_main_function):
-    """
-    Run user's complete program with automatic instrumentation.
-    Legacy function for backwards compatibility.
-    """
-    # Convert sync function to async if needed
-    if (
-        hasattr(user_main_function, "__code__")
-        and user_main_function.__code__.co_flags & 0x80
-    ):
-        # Function is already async
-        return run_task(run_with_parallel_instrumentation(user_main_function))
-    else:
-        # Convert sync function to async
-        async def async_wrapper():
-            # Send position reset command to browser before starting user program
-            send_position_reset()
-            user_main_function()
-
-        return run_task(run_with_parallel_instrumentation(async_wrapper))
 
 
 # Convenience functions for quick setup

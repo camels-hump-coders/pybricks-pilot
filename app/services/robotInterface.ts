@@ -7,7 +7,6 @@ interface RobotInterface {
   isConnected(): boolean;
 
   // Program management
-  uploadProgram(code: string): Promise<void>;
   runProgram(): Promise<void>;
   stopProgram(): Promise<void>;
 
@@ -133,7 +132,7 @@ class RobotConnectionManager {
 
   private setupRobotEventForwarding(): void {
     if (!this.currentRobot) return;
-    
+
     // Only set up event forwarding in the browser
     if (typeof document === "undefined") {
       return;
@@ -151,12 +150,6 @@ class RobotConnectionManager {
 
       this.currentRobot!.addEventListener(eventType, listener);
     });
-  }
-
-  // Delegate all robot methods to the current robot
-  async uploadProgram(code: string): Promise<void> {
-    if (!this.currentRobot) throw new Error("No robot connected");
-    return this.currentRobot.uploadProgram(code);
   }
 
   async runProgram(): Promise<void> {

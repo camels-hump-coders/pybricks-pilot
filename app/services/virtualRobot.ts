@@ -644,21 +644,6 @@ class VirtualRobotService extends EventTarget {
     return this.state;
   }
 
-  // Program management
-  async uploadProgram(code: string): Promise<void> {
-    if (!this._isConnected) return;
-
-    // Simulate upload delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Dispatch status change event
-    this.dispatchEvent(
-      new CustomEvent("statusChange", {
-        detail: { running: false, output: "Program uploaded successfully" },
-      })
-    );
-  }
-
   async runProgram(): Promise<void> {
     if (!this._isConnected) return;
 
