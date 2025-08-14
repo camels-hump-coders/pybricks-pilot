@@ -15,6 +15,8 @@ import { showGridOverlayAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
+import { TelemetryPlayback } from "./TelemetryPlayback";
+import type { TelemetryData } from "../services/pybricksHub";
 
 interface RobotPosition {
   x: number; // mm from left edge of mat
@@ -195,6 +197,10 @@ export function EnhancedCompetitionMat({
 
   // Pseudo code panel state
   const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useState(true);
+  
+  // Ghost robot state for telemetry playback
+  const [ghostPosition, setGhostPosition] = useState<RobotPosition | null>(null);
+  const [playbackTelemetry, setPlaybackTelemetry] = useState<TelemetryData | null>(null);
 
   // Target heading state for position setting
   const [targetHeading, setTargetHeading] = useState<number>(0);
@@ -446,6 +452,11 @@ export function EnhancedCompetitionMat({
     // Draw robot
     if (currentPosition) {
       drawRobot(ctx, currentPosition, false);
+    }
+    
+    // Draw ghost robot from telemetry playback
+    if (ghostPosition) {
+      drawRobot(ctx, ghostPosition, true, "playback");
     }
 
     // Draw movement preview robots (dual previews)
@@ -849,7 +860,7 @@ export function EnhancedCompetitionMat({
     ctx: CanvasRenderingContext2D,
     position: RobotPosition,
     isGhost = false,
-    previewType?: "primary" | "secondary" | "perpendicular",
+    previewType?: "primary" | "secondary" | "perpendicular" | "playback",
     direction?: "forward" | "backward" | "left" | "right"
   ) => {
     // SIMPLIFIED MODEL: position IS the center of rotation
@@ -888,6 +899,9 @@ export function EnhancedCompetitionMat({
       if (previewType === "perpendicular") {
         // Perpendicular previews should be much more subtle
         ctx.globalAlpha = 0.3;
+      } else if (previewType === "playback") {
+        // Playback ghost robot - distinct purple color
+        ctx.globalAlpha = 0.7;
       } else {
         // Primary/secondary previews - make them highly visible
         ctx.globalAlpha = 0.9;
@@ -895,7 +909,11 @@ export function EnhancedCompetitionMat({
 
       // Different colors for different movement directions
       let bodyColor, borderColor;
-      if (direction === "forward") {
+      if (previewType === "playback") {
+        // Playback ghost - purple/magenta theme
+        bodyColor = "rgba(147, 51, 234, 0.2)";
+        borderColor = "#9333ea";
+      } else if (direction === "forward") {
         // Forward - subtle green (matching forward button)
         bodyColor =
           previewType === "perpendicular"
@@ -1890,6 +1908,7 @@ export function EnhancedCompetitionMat({
     customMatConfig?.name,
     scoringState,
     showScoring,
+    ghostPosition,  // Added to trigger redraw when ghost moves
     updateCanvas,
   ]);
 
@@ -2519,6 +2538,14 @@ export function EnhancedCompetitionMat({
             onToggle={() => setIsPseudoCodeExpanded(false)}
           />
         )}
+      </div>
+      
+      {/* Telemetry Playback Controls */}
+      <div className="mt-4">
+        <TelemetryPlayback
+          onGhostPositionUpdate={setGhostPosition}
+          onTelemetryDataUpdate={setPlaybackTelemetry}
+        />
       </div>
     </div>
   );
