@@ -97,6 +97,8 @@ export function RobotBuilder({
     }
 
     try {
+      let activeRobotConfig = config;
+      
       if (config.id === "default") {
         // Cannot save over default robot - need to create new one
         const newRobotId = await createRobotConfig({ 
@@ -107,6 +109,13 @@ export function RobotBuilder({
           }
         });
         console.log(`Created new robot configuration with ID: ${newRobotId}`);
+        
+        // Create the config object with the new ID for activation
+        activeRobotConfig = {
+          ...config,
+          id: newRobotId,
+          name: config.name + " (Custom)"
+        };
       } else {
         // Save existing custom robot
         await saveRobotConfig({ robotId: config.id, config });
@@ -116,8 +125,8 @@ export function RobotBuilder({
       // Refresh robot discovery to show the new/updated robot
       discoverRobots();
 
-      // Notify parent of change
-      onRobotChange(config);
+      // Notify parent of change with the correct robot ID
+      onRobotChange(activeRobotConfig);
 
       // Close the modal on successful save
       onClose();

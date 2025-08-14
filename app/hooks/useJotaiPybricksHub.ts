@@ -82,8 +82,11 @@ export function useJotaiPybricksHub() {
       if (info) {
         setHubInfo(info);
         setIsConnected(true);
+        return info;
+      } else {
+        // User cancelled the connection - throw an error to prevent success notification
+        throw new Error("Connection cancelled by user");
       }
-      return info;
     } catch (error) {
       setConnectionError(error as Error);
       setIsConnected(false);

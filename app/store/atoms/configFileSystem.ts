@@ -4,6 +4,7 @@ import type { RobotConfig } from "../../schemas/RobotConfig";
 import { matConfigFileSystem } from "../../services/matConfigFileSystem";
 import { robotConfigFileSystem } from "../../services/robotConfigFileSystem";
 import { directoryHandleAtom } from "./fileSystem";
+import { setActiveRobotConfigAtom } from "./robotConfig";
 
 // Mat configuration atoms
 export const availableMatConfigsAtom = atom<Array<{ id: string; name: string; displayName: string; description?: string; tags: string[] }>>([]);
@@ -43,30 +44,62 @@ export const discoverRobotConfigsAtom = atom(null, async (get, set) => {
   
   set(isLoadingRobotConfigsAtom, true);
   try {
-    // Discover robot metadata
-    const robotMetadata = await robotConfigFileSystem.discoverRobots(directoryHandle!);
+    // Discover custom robot metadata (only if directory is available)
+    const customRobotConfigs: RobotConfig[] = [];
     
-    // Load full configurations for each robot
-    const robotConfigs: RobotConfig[] = [];
-    for (const meta of robotMetadata) {
+    if (directoryHandle) {
       try {
-        const config = await robotConfigFileSystem.loadRobotConfig(directoryHandle!, meta.id);
-        if (config) {
-          robotConfigs.push(config);
+        const robotMetadata = await robotConfigFileSystem.discoverRobots(directoryHandle);
+        
+        // Load full configurations for each custom robot (excluding default)
+        for (const meta of robotMetadata) {
+          if (meta.id !== "default") { // Skip the default robot that's always included by discoverRobots
+            try {
+              const config = await robotConfigFileSystem.loadRobotConfig(directoryHandle, meta.id);
+              if (config) {
+                customRobotConfigs.push(config);
+              }
+            } catch (error) {
+              console.warn(`Failed to load full config for robot ${meta.id}:`, error);
+            }
+          }
         }
-      } catch (error) {
-        console.warn(`Failed to load full config for robot ${meta.id}:`, error);
+      } catch (discoverError) {
+        console.warn("Failed to discover robots from directory:", discoverError);
+        // Continue with empty customRobotConfigs, will fall back to default
       }
     }
     
-    set(availableRobotConfigsAtom, robotConfigs);
+    // If we have custom robots, use only those. Otherwise, fall back to default.
+    if (customRobotConfigs.length > 0) {
+      set(availableRobotConfigsAtom, customRobotConfigs);
+      
+      // Auto-activate the first custom robot
+      const firstCustomRobot = customRobotConfigs[0];
+      set(setActiveRobotConfigAtom, firstCustomRobot.id);
+    } else {
+      // Load only the default robot when no custom robots exist
+      try {
+        const defaultConfig = await robotConfigFileSystem.loadRobotConfig(null, "default");
+        if (defaultConfig) {
+          set(availableRobotConfigsAtom, [defaultConfig]);
+        } else {
+          set(availableRobotConfigsAtom, []);
+        }
+      } catch (fallbackError) {
+        console.error("Failed to load default robot:", fallbackError);
+        set(availableRobotConfigsAtom, []);
+      }
+    }
   } catch (error) {
     console.error("Failed to discover robot configurations:", error);
-    // Fallback to just the default robot
+    // Fallback to just the default robot on any error
     try {
-      const defaultConfig = await robotConfigFileSystem.loadRobotConfig(directoryHandle!, "default");
+      const defaultConfig = await robotConfigFileSystem.loadRobotConfig(null, "default");
       if (defaultConfig) {
         set(availableRobotConfigsAtom, [defaultConfig]);
+      } else {
+        set(availableRobotConfigsAtom, []);
       }
     } catch (fallbackError) {
       console.error("Failed to load default robot:", fallbackError);

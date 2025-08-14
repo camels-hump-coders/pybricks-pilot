@@ -183,12 +183,15 @@ export default function Home() {
         `Successfully connected to the ${robotTypeText}!`
       );
     } catch (error) {
-      showError(
-        "Connection Failed",
-        error instanceof Error
-          ? error.message
-          : "Failed to connect to the robot"
-      );
+      const errorMessage = error instanceof Error ? error.message : "Failed to connect to the robot";
+      
+      // Don't show error notification for user cancellation
+      if (errorMessage.includes("cancelled by user") || errorMessage.includes("User cancelled")) {
+        // User cancelled the connection - no notification needed
+        return;
+      }
+      
+      showError("Connection Failed", errorMessage);
     }
   };
 
