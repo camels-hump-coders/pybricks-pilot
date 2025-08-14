@@ -2,7 +2,6 @@ import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { DebugPanel } from "../components/DebugPanel";
 import { NotificationContainer } from "../components/ErrorNotification";
-import { HubMenuInterface } from "../components/HubMenuInterface";
 import { ProgramManager } from "../components/ProgramManager";
 import { RobotConnectionSelector } from "../components/RobotConnectionSelector";
 import { TelemetryDashboard } from "../components/TelemetryDashboard";
@@ -460,13 +459,7 @@ print("Hello from ${name}!")
             onToggle={() => setIsTelemetryExpanded(!isTelemetryExpanded)}
             disabled={!isConnected}
           >
-            <div className="space-y-4">
-              {/* Hub Menu Interface - shows when hub menu is running */}
-              <HubMenuInterface />
-              
-              {/* Main Telemetry Dashboard */}
-              <TelemetryDashboard />
-            </div>
+            <TelemetryDashboard />
           </CollapsibleSection>
         )}
 

@@ -72,74 +72,34 @@ export function HubMenuInterface() {
   const currentProgram = numberedPrograms.find(p => p.programNumber === hubMenuStatus.selectedProgram);
 
   return (
-    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold text-gray-800">
-          Hub Menu Control
-        </h3>
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isStale ? 'bg-red-500' : hubMenuStatus.state === 'running' ? 'bg-red-500' : 'bg-green-500'}`} />
-          <span className="text-sm text-gray-600">
-            {isStale ? 'Stale' : hubMenuStatus.state === 'running' ? 'Running' : 'Menu'}
-          </span>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <div className="text-sm text-gray-600 mb-2">
-          Currently Selected: Program {hubMenuStatus.selectedProgram}
-        </div>
-        {currentProgram && (
-          <div className="text-sm font-medium text-gray-800">
-            {currentProgram.name} 
-            <span className="text-gray-500 ml-2">({currentProgram.programSide} side)</span>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        {numberedPrograms.map((program) => {
-          const isSelected = program.programNumber === hubMenuStatus.selectedProgram;
-          return (
-            <button
-              key={program.programNumber}
-              onClick={() => handleSelectProgram(program.programNumber!)}
-              disabled={hubMenuStatus.state === 'running'}
-              className={`
-                px-3 py-2 rounded text-sm font-medium transition-colors
-                ${isSelected 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }
-                ${hubMenuStatus.state === 'running' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-              `}
-            >
-              #{program.programNumber} {program.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={handleRunSelected}
-          disabled={hubMenuStatus.state === 'running'}
-          className={`
-            flex-1 px-4 py-2 rounded font-medium transition-colors
-            ${hubMenuStatus.state === 'running'
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-green-600 text-white hover:bg-green-700'
-            }
-          `}
-        >
-          {hubMenuStatus.state === 'running' ? 'Program Running...' : 'Run Selected Program'}
-        </button>
-      </div>
-
-      <div className="mt-3 text-xs text-gray-500">
-        Hub reports {hubMenuStatus.totalPrograms} programs available
-        {isStale && ' (connection may be lost)'}
-      </div>
+    <div className="flex items-center gap-2">
+      <select
+        value={hubMenuStatus.selectedProgram}
+        onChange={(e) => handleSelectProgram(Number(e.target.value))}
+        disabled={hubMenuStatus.state === 'running'}
+        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {numberedPrograms.map((program) => (
+          <option key={program.programNumber} value={program.programNumber}>
+            #{program.programNumber} {program.name} ({program.programSide})
+          </option>
+        ))}
+      </select>
+      
+      <button
+        onClick={handleRunSelected}
+        disabled={hubMenuStatus.state === 'running'}
+        className={`
+          px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2
+          ${hubMenuStatus.state === 'running'
+            ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+            : 'bg-green-600 text-white hover:bg-green-700'
+          }
+        `}
+      >
+        <div className={`w-2 h-2 rounded-full ${hubMenuStatus.state === 'running' ? 'bg-red-500 animate-pulse' : 'bg-green-400'}`} />
+        {hubMenuStatus.state === 'running' ? 'Running' : 'Run'}
+      </button>
     </div>
   );
 }
