@@ -241,17 +241,6 @@ class TelemetryHistoryService {
     return this.isProgramRunning;
   }
 
-  // Automatic recording methods
-  onProgramStart(): void {
-    this.isProgramRunning = true;
-    this.startRecording();
-  }
-
-  onProgramStop(): void {
-    this.isProgramRunning = false;
-    this.stopRecording();
-  }
-
   onMatReset(): void {
     this.stopRecording(); // Stop current recording if any
     this.clearHistory(); // Clear all history

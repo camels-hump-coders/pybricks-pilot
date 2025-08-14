@@ -15,7 +15,12 @@ import {
   saveMatConfigAtom,
 } from "../store/atoms/configFileSystem";
 import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
-import { currentScoreAtom, movementPreviewAtom, calculateRobotPositionWithDimensions, setRobotPositionAtom } from "../store/atoms/gameMat";
+import {
+  calculateRobotPositionWithDimensions,
+  currentScoreAtom,
+  movementPreviewAtom,
+  setRobotPositionAtom,
+} from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import {
   robotBuilderOpenAtom,
@@ -296,7 +301,7 @@ function RobotControlsSection({
           {currentRobotConfig.dimensions.width * 8}×
           {currentRobotConfig.dimensions.length * 8}mm)
         </div>
-        
+
         {/* Customize Robot Button/Info */}
         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
           {hasDirectoryAccess ? (
@@ -308,11 +313,14 @@ function RobotControlsSection({
             </button>
           ) : (
             <div className="flex items-start gap-2">
-              <span className="text-yellow-600 dark:text-yellow-400 text-xs">📁</span>
+              <span className="text-yellow-600 dark:text-yellow-400 text-xs">
+                📁
+              </span>
               <div className="text-xs text-gray-600 dark:text-gray-400">
                 <div>Mount a directory to customize robot</div>
                 <div className="text-xs mt-0.5 text-gray-500 dark:text-gray-500">
-                  Configs saved to <code className="font-mono text-xs">./config/robots/</code>
+                  Configs saved to{" "}
+                  <code className="font-mono text-xs">./config/robots/</code>
                 </div>
               </div>
             </div>
@@ -587,20 +595,24 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       if (defaultMap) {
         setCustomMatConfig(defaultMap);
         setShowScoring(true);
-        
-        // Set robot to bottom-right position using the correct mat dimensions
-        const initialPosition = calculateRobotPositionWithDimensions(
-          currentRobotConfig,
-          "bottom-right",
-          defaultMap.dimensions?.widthMm || 2356,
-          defaultMap.dimensions?.heightMm || 1137
-        );
-        setRobotPosition(initialPosition);
       }
       setIsLoadingConfig(false);
     };
     loadDefaultMat();
-  }, [currentRobotConfig, setRobotPosition]);
+  }, [setRobotPosition]);
+
+  useEffect(() => {
+    if (currentRobotConfig && customMatConfig) {
+      // Set robot to bottom-right position using the correct mat dimensions
+      const initialPosition = calculateRobotPositionWithDimensions(
+        currentRobotConfig,
+        "bottom-right",
+        customMatConfig.dimensions?.widthMm || 2356,
+        customMatConfig.dimensions?.heightMm || 1137
+      );
+      setRobotPosition(initialPosition);
+    }
+  }, [currentRobotConfig, customMatConfig, setRobotPosition]);
 
   const handleSaveMatConfig = async (config: GameMatConfig) => {
     if (!hasDirectoryAccess) {
@@ -685,7 +697,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     if (defaultMap) {
       setCustomMatConfig(defaultMap);
       setShowScoring(true);
-      
+
       // Set robot to bottom-right position using the default mat dimensions
       const initialPosition = calculateRobotPositionWithDimensions(
         currentRobotConfig,
