@@ -9,5 +9,5 @@ export interface PythonFile {
   children?: PythonFile[]; // Add children for directory structure
   // Program menu system properties
   programSide?: "left" | "right"; // Robot starting side for automatic positioning
-  // Note: programNumber is derived from array position in programs.json (1-based)
+  // Note: programNumber is derived from array position in config/programs.json (1-based)
 }

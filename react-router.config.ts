@@ -4,5 +4,7 @@ export default {
   // Config options...
   // Server-side render by default, to enable SPA mode set this to `false`
   ssr: false,
-  basename: process.env.GITHUB_PAGES === "true" ? "/pybricks-pilot" : "/",
+  // NOTE: we now use a custom domain of pybrickspilot.org, so no need for a basename
+  // basename: process.env.GITHUB_PAGES === "true" ? "/pybricks-pilot" : "/",
+  basename: "/",
 } satisfies Config;

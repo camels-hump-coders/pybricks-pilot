@@ -20,7 +20,7 @@ export const isCreatingFileAtom = atom<boolean>(false);
 // File content cache atoms
 export const fileContentCacheAtom = atom<Map<string, string>>(new Map());
 
-// Programs manifest atom - stores the programs.json data
+// Programs manifest atom - stores the config/programs.json data
 export const programsManifestAtom = atom<{ relativePath: string; programSide?: "left" | "right" }[]>([]);
 
 // Helper function to find a file by relative path recursively

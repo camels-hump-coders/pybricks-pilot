@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import type { RobotConfig } from "../schemas/RobotConfig";
 import {
@@ -7,6 +8,16 @@ import {
   studsToMm,
 } from "../schemas/RobotConfig";
 import { robotConfigStorage } from "../services/robotConfigStorage";
+import { 
+  availableRobotConfigsAtom, 
+  discoverRobotConfigsAtom,
+  saveRobotConfigAtom,
+  createRobotConfigAtom,
+  deleteRobotConfigAtom,
+  duplicateRobotConfigAtom,
+  loadRobotConfigAtom
+} from "../store/atoms/configFileSystem";
+import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 
 interface RobotBuilderProps {
   isOpen: boolean;
@@ -24,23 +35,32 @@ export function RobotBuilder({
   const [config, setConfig] = useState<RobotConfig>(
     initialConfig || DEFAULT_ROBOT_CONFIG
   );
-  const [savedConfigs, setSavedConfigs] = useState<RobotConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { directoryHandle } = useJotaiFileSystem();
+  
+  // Use filesystem-based configuration atoms
+  const savedConfigs = useAtomValue(availableRobotConfigsAtom);
+  const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
+  const discoverRobots = useSetAtom(discoverRobotConfigsAtom);
+  const saveRobotConfig = useSetAtom(saveRobotConfigAtom);
+  const createRobotConfig = useSetAtom(createRobotConfigAtom);
+  const deleteRobotConfig = useSetAtom(deleteRobotConfigAtom);
+  const duplicateRobotConfig = useSetAtom(duplicateRobotConfigAtom);
+  const loadRobotConfig = useSetAtom(loadRobotConfigAtom);
 
   // Load saved configurations
   useEffect(() => {
-    loadSavedConfigs();
-  }, []);
+    discoverRobots();
+  }, [discoverRobots]);
 
-  // Try to load from working directory if available
+  // Discover robot configurations when directory changes
   useEffect(() => {
     if (directoryHandle) {
-      loadFromWorkingDirectory();
+      discoverRobots();
     }
-  }, [directoryHandle]);
+  }, [directoryHandle, discoverRobots]);
 
   // Automatically recalculate center of rotation when robot dimensions or wheel positions change
   useEffect(() => {
@@ -63,51 +83,38 @@ export function RobotBuilder({
     config.wheels.left.distanceFromTop,
   ]);
 
-  const loadSavedConfigs = async () => {
-    try {
-      const configs = await robotConfigStorage.loadAllConfigs();
-      setSavedConfigs(configs);
-    } catch (error) {
-      console.warn("Failed to load saved configurations:", error);
-    }
-  };
-
-  const loadFromWorkingDirectory = async () => {
-    if (!directoryHandle) return;
-
-    try {
-      const workingDirConfig =
-        await robotConfigStorage.loadFromWorkingDirectory(directoryHandle);
-      if (workingDirConfig) {
-        setConfig(workingDirConfig);
-        onRobotChange(workingDirConfig);
-      }
-    } catch (error) {
-      console.warn("Failed to load from working directory:", error);
-    }
-  };
+  // loadSavedConfigs and loadFromWorkingDirectory are no longer needed
+  // as we use filesystem-based atoms that automatically discover configurations
 
   const saveConfig = async () => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      // Save to IndexedDB
-      await robotConfigStorage.saveConfig(config);
+    if (!hasDirectoryAccess && config.id !== "default") {
+      setError("No directory mounted - cannot save custom robot configurations");
+      setIsLoading(false);
+      return;
+    }
 
-      // Save to working directory if available
-      if (directoryHandle) {
-        await robotConfigStorage.saveToWorkingDirectory(
-          directoryHandle,
-          config
-        );
+    try {
+      if (config.id === "default") {
+        // Cannot save over default robot - need to create new one
+        const newRobotId = await createRobotConfig({ 
+          name: config.name + " (Custom)", 
+          config: {
+            ...config,
+            name: config.name + " (Custom)"
+          }
+        });
+        console.log(`Created new robot configuration with ID: ${newRobotId}`);
+      } else {
+        // Save existing custom robot
+        await saveRobotConfig({ robotId: config.id, config });
+        console.log(`Saved robot configuration with ID: ${config.id}`);
       }
 
-      // Set as active configuration
-      await robotConfigStorage.setActiveConfig(config.id);
-
-      // Reload saved configs
-      await loadSavedConfigs();
+      // Refresh robot discovery to show the new/updated robot
+      discoverRobots();
 
       // Notify parent of change
       onRobotChange(config);
@@ -123,7 +130,7 @@ export function RobotBuilder({
 
   const loadConfig = async (configId: string) => {
     try {
-      const loadedConfig = await robotConfigStorage.loadConfig(configId);
+      const loadedConfig = await loadRobotConfig(configId);
       if (loadedConfig) {
         setConfig(loadedConfig);
         onRobotChange(loadedConfig);
@@ -134,17 +141,29 @@ export function RobotBuilder({
   };
 
   const duplicateConfig = async () => {
+    if (!hasDirectoryAccess) {
+      setError("No directory mounted - cannot duplicate robot configurations");
+      return;
+    }
+
     try {
       const newName =
         config.name === "Default FLL Robot"
           ? "Custom Robot"
           : `${config.name} (Copy)`;
-      const duplicated = await robotConfigStorage.duplicateConfig(
-        config.id,
+      const newRobotId = await duplicateRobotConfig({
+        originalId: config.id,
         newName
-      );
-      setConfig(duplicated);
-      setSavedConfigs((prev) => [...prev, duplicated]);
+      });
+      
+      // Load the duplicated config
+      const duplicated = await loadRobotConfig(newRobotId);
+      if (duplicated) {
+        setConfig(duplicated);
+      }
+      
+      // Refresh robot discovery
+      discoverRobots();
     } catch (error) {
       setError(`Failed to duplicate configuration: ${error}`);
     }
@@ -156,12 +175,23 @@ export function RobotBuilder({
       return;
     }
 
+    if (!hasDirectoryAccess) {
+      setError("No directory mounted - cannot delete robot configurations");
+      return;
+    }
+
     try {
-      await robotConfigStorage.deleteConfig(config.id);
-      const defaultConfig = await robotConfigStorage.getActiveConfig();
-      setConfig(defaultConfig);
-      onRobotChange(defaultConfig);
-      await loadSavedConfigs();
+      await deleteRobotConfig(config.id);
+      
+      // Switch to default robot after deletion
+      const defaultConfig = await loadRobotConfig("default");
+      if (defaultConfig) {
+        setConfig(defaultConfig);
+        onRobotChange(defaultConfig);
+      }
+      
+      // Refresh robot discovery
+      discoverRobots();
     } catch (error) {
       setError(`Failed to delete configuration: ${error}`);
     }
@@ -315,15 +345,17 @@ export function RobotBuilder({
           <div className="flex items-center space-x-2">
             <button
               onClick={duplicateConfig}
-              disabled={isLoading}
+              disabled={isLoading || !hasDirectoryAccess}
               className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+              title={!hasDirectoryAccess ? "Mount a directory to duplicate robots" : ""}
             >
               Duplicate
             </button>
             <button
               onClick={saveConfig}
-              disabled={isLoading}
+              disabled={isLoading || (!hasDirectoryAccess && config.id !== "default")}
               className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+              title={!hasDirectoryAccess && config.id !== "default" ? "Mount a directory to save custom robots" : ""}
             >
               {isLoading ? "Saving..." : "Save"}
             </button>
@@ -338,6 +370,19 @@ export function RobotBuilder({
             </button>
           </div>
         </div>
+
+        {/* Warning if no directory is mounted */}
+        {!hasDirectoryAccess && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-4 py-2">
+            <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+              <span>⚠️</span>
+              <span className="text-sm">
+                No directory mounted - You can view the default robot but cannot save custom configurations.
+                Mount a directory to save robots to <code className="font-mono text-xs">./config/robots/</code>
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Error Display */}
         {error && (

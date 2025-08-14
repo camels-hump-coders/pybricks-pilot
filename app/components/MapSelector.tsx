@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { GameMatConfigSchema, type GameMatConfig } from "../schemas/GameMatConfig";
-import { matConfigStorage } from "../services/matConfigStorage";
+import { 
+  availableMatConfigsAtom, 
+  isLoadingMatConfigsAtom, 
+  discoverMatConfigsAtom,
+  loadMatConfigAtom 
+} from "../store/atoms/configFileSystem";
+import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
   eager: true,
@@ -67,27 +74,20 @@ export function MapSelector({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [availableMaps] = useState<BuiltInMap[]>(BUILT_IN_MAPS);
-  const [customMaps, setCustomMaps] = useState<GameMatConfig[]>([]);
-  const [isLoadingCustomMaps, setIsLoadingCustomMaps] = useState(true);
+  
+  // Use filesystem-based mat configuration atoms
+  const customMats = useAtomValue(availableMatConfigsAtom);
+  const isLoadingCustomMaps = useAtomValue(isLoadingMatConfigsAtom);
+  const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
+  const discoverMats = useSetAtom(discoverMatConfigsAtom);
+  const loadMat = useSetAtom(loadMatConfigAtom);
 
-  // Load custom maps from IndexedDB on mount
+  // Load custom maps from filesystem on mount and when directory changes
   useEffect(() => {
-    const loadCustomMaps = async () => {
-      try {
-        // For now, we'll just check if there's a saved custom config
-        // In the future, we could extend this to support multiple custom maps
-        const savedConfig = await matConfigStorage.loadConfig();
-        if (savedConfig) {
-          setCustomMaps([savedConfig]);
-        }
-      } catch (error) {
-        console.error("Failed to load custom maps:", error);
-      } finally {
-        setIsLoadingCustomMaps(false);
-      }
-    };
-    loadCustomMaps();
-  }, []);
+    if (hasDirectoryAccess) {
+      discoverMats();
+    }
+  }, [hasDirectoryAccess, discoverMats]);
 
   const loadBuiltInMap = (mapInfo: BuiltInMap) => {
     setIsLoading(true);
@@ -111,16 +111,21 @@ export function MapSelector({
     }
   };
 
-  const loadCustomMap = (customMap: GameMatConfig) => {
+  const loadCustomMap = async (matId: string) => {
     setIsLoading(true);
     setLoadError(null);
 
     try {
-      onMapChange(customMap);
+      const config = await loadMat(matId);
+      if (config) {
+        onMapChange(config);
+      } else {
+        throw new Error("Failed to load mat configuration");
+      }
     } catch (error) {
-      console.error("Error loading custom map:", error);
+      console.error(`Error loading custom map ${matId}:`, error);
       setLoadError(
-        `Failed to load ${customMap.name}: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to load custom map: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } finally {
       setIsLoading(false);
@@ -209,31 +214,46 @@ export function MapSelector({
         </div>
 
         {/* Custom Maps */}
-        {!isLoadingCustomMaps && customMaps.length > 0 && (
+        {hasDirectoryAccess && !isLoadingCustomMaps && customMats.length > 0 && (
           <div>
             <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">
               Your Custom Maps
             </h4>
             <div className="space-y-2">
-              {customMaps.map((customMap) => (
+              {customMats.map((matInfo) => (
                 <button
-                  key={customMap.name}
-                  onClick={() => loadCustomMap(customMap)}
+                  key={matInfo.id}
+                  onClick={() => loadCustomMap(matInfo.id)}
                   disabled={isLoading}
                   className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    currentMap?.name === customMap.name
+                    currentMap?.name === matInfo.name
                       ? "border-green-500 bg-green-50 dark:bg-green-900/20"
                       : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                   } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <div className="font-medium text-gray-800 dark:text-gray-200">
-                    {customMap.name}
+                    {matInfo.displayName}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Custom map with {customMap.missions?.length || 0} missions
+                    {matInfo.description || `Custom map from ./config/mats/${matInfo.id}/`}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    ID: {matInfo.id}
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Show message when no directory is mounted */}
+        {!hasDirectoryAccess && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <div className="flex">
+              <div className="text-blue-400 mr-2">ℹ️</div>
+              <div className="text-sm text-blue-700 dark:text-blue-300">
+                Mount a directory to access your custom maps from ./config/mats/
+              </div>
             </div>
           </div>
         )}

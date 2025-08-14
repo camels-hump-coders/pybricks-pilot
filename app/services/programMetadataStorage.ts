@@ -9,15 +9,18 @@ interface ProgramsManifest {
 }
 
 class ProgramMetadataStorage {
+  private readonly CONFIG_DIR = "config";
   private readonly PROGRAMS_FILE = "programs.json";
   private readonly MANIFEST_VERSION = "1.0";
 
-  // Load programs manifest from working directory
+  // Load programs manifest from config directory
   async loadProgramsManifest(
     dirHandle: FileSystemDirectoryHandle
   ): Promise<ProgramsManifest> {
     try {
-      const programsFileHandle = await dirHandle.getFileHandle(this.PROGRAMS_FILE);
+      // Ensure config directory exists
+      const configHandle = await dirHandle.getDirectoryHandle(this.CONFIG_DIR, { create: true });
+      const programsFileHandle = await configHandle.getFileHandle(this.PROGRAMS_FILE);
       const programsFile = await programsFileHandle.getFile();
       const content = await programsFile.text();
       const manifest = JSON.parse(content) as ProgramsManifest;
@@ -26,22 +29,24 @@ class ProgramMetadataStorage {
       if (this.isValidProgramsManifest(manifest)) {
         return manifest;
       } else {
-        console.warn("Invalid programs manifest in programs.json, using default");
+        console.warn("Invalid programs manifest in config/programs.json, using default");
         return this.createDefaultManifest();
       }
     } catch (error) {
-      // programs.json doesn't exist or can't be read, return default
+      // config/programs.json doesn't exist or can't be read, return default
       return this.createDefaultManifest();
     }
   }
 
-  // Save programs manifest to working directory
+  // Save programs manifest to config directory
   async saveProgramsManifest(
     dirHandle: FileSystemDirectoryHandle,
     manifest: ProgramsManifest
   ): Promise<void> {
     try {
-      const programsFileHandle = await dirHandle.getFileHandle(this.PROGRAMS_FILE, {
+      // Ensure config directory exists
+      const configHandle = await dirHandle.getDirectoryHandle(this.CONFIG_DIR, { create: true });
+      const programsFileHandle = await configHandle.getFileHandle(this.PROGRAMS_FILE, {
         create: true,
       });
       const writable = await programsFileHandle.createWritable();
@@ -50,7 +55,7 @@ class ProgramMetadataStorage {
       await writable.close();
     } catch (error) {
       throw new Error(
-        `Failed to save programs manifest to working directory: ${error}`
+        `Failed to save programs manifest to config directory: ${error}`
       );
     }
   }

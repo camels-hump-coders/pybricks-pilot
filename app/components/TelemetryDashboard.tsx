@@ -7,8 +7,14 @@ import {
   GameMatConfigSchema,
   type GameMatConfig,
 } from "../schemas/GameMatConfig";
-import { matConfigStorage } from "../services/matConfigStorage";
+import { matConfigFileSystem } from "../services/matConfigFileSystem";
 import type { ProgramStatus } from "../services/pybricksHub";
+import {
+  createMatConfigAtom,
+  discoverMatConfigsAtom,
+  saveMatConfigAtom,
+} from "../store/atoms/configFileSystem";
+import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 import { currentScoreAtom, movementPreviewAtom } from "../store/atoms/gameMat";
 import {
   robotBuilderOpenAtom,
@@ -113,6 +119,8 @@ function MatControlsPanel({
   onScoringToggle,
   onClearMat,
 }: MatControlsPanelProps) {
+  // Use Jotai atom directly instead of prop
+  const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
       <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
@@ -136,22 +144,46 @@ function MatControlsPanel({
             disabled={isLoadingConfig}
             className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            🗺️ Select Map
+            🗺️ Select Mat
           </button>
-          <button
-            onClick={() => onMatEditorOpen("edit")}
-            disabled={!customMatConfig || isLoadingConfig}
-            className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title={!customMatConfig ? "Select a map first" : "Edit current map"}
-          >
-            ✏️ Edit Mat
-          </button>
-          <button
-            onClick={() => onMatEditorOpen("new")}
-            className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
-          >
-            ➕ New Mat
-          </button>
+
+          {hasDirectoryAccess ? (
+            <>
+              <button
+                onClick={() => onMatEditorOpen("edit")}
+                disabled={!customMatConfig || isLoadingConfig}
+                className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  !customMatConfig ? "Select a map first" : "Edit current map"
+                }
+              >
+                ✏️ Edit Mat
+              </button>
+              <button
+                onClick={() => onMatEditorOpen("new")}
+                className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+              >
+                ➕ New Mat
+              </button>
+            </>
+          ) : (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-600 dark:text-yellow-400">📁</span>
+                <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                  <div className="font-medium">
+                    Mount a directory to create or edit mats
+                  </div>
+                  <div className="text-xs mt-1 text-yellow-600 dark:text-yellow-400">
+                    Mat configurations are saved to{" "}
+                    <code className="font-mono">
+                      ./config/mats/&lt;id&gt;/mat.json
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Scoring and Mat Actions */}
@@ -244,6 +276,7 @@ function RobotControlsSection({
   // Use Jotai atoms directly instead of prop drilling
   const [, setMovementPreview] = useAtom(movementPreviewAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
+  const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
   return (
     <div className="space-y-4">
       {/* Current Robot Display */}
@@ -264,12 +297,31 @@ function RobotControlsSection({
 
       {/* Robot Builder Button */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
-        <button
-          onClick={onRobotBuilderOpen}
-          className="w-full px-4 py-2 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-        >
-          🧱 Customize Robot
-        </button>
+        {hasDirectoryAccess ? (
+          <button
+            onClick={onRobotBuilderOpen}
+            className="w-full px-4 py-2 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+          >
+            🧱 Customize Robot
+          </button>
+        ) : (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <span className="text-yellow-600 dark:text-yellow-400">📁</span>
+              <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                <div className="font-medium">
+                  Mount a directory to customize robot
+                </div>
+                <div className="text-xs mt-1 text-yellow-600 dark:text-yellow-400">
+                  Robot configurations are saved to{" "}
+                  <code className="font-mono">
+                    ./config/robots/&lt;id&gt;/robot.json
+                  </code>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <CompactRobotController
@@ -517,6 +569,12 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const setActiveRobotConfig = useSetAtom(setActiveRobotConfigAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
 
+  // Filesystem-based configuration atoms
+  const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
+  const createMatConfig = useSetAtom(createMatConfigAtom);
+  const saveMatConfig = useSetAtom(saveMatConfigAtom);
+  const discoverMats = useSetAtom(discoverMatConfigsAtom);
+
   // Use Jotai atoms for movement preview and robot position
   const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
 
@@ -537,14 +595,37 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   }, []);
 
   const handleSaveMatConfig = async (config: GameMatConfig) => {
-    try {
-      await matConfigStorage.saveConfig(config);
+    if (!hasDirectoryAccess) {
+      console.error("No directory mounted - cannot save mat configuration");
+      // Fall back to in-memory only
       setCustomMatConfig(config);
       setShowMatEditor(false);
       setShowScoring(true);
+      return;
+    }
+
+    try {
+      if (matEditorMode === "new") {
+        // Create new mat configuration
+        const matId = await createMatConfig({ name: config.name, config });
+        console.log(`Created new mat configuration with ID: ${matId}`);
+      } else {
+        // For editing, we need to determine the mat ID
+        // For now, generate ID from name (in future, we'd track the current mat ID)
+        const matId = matConfigFileSystem.generateMatId(config.name);
+        await saveMatConfig({ matId, config });
+        console.log(`Saved mat configuration with ID: ${matId}`);
+      }
+
+      setCustomMatConfig(config);
+      setShowMatEditor(false);
+      setShowScoring(true);
+
+      // Refresh mat discovery to show the new/updated mat
+      discoverMats();
     } catch (error) {
       console.error("Failed to save mat configuration:", error);
-      // Still set the config in memory even if storage fails
+      // Still set the config in memory even if filesystem save fails
       setCustomMatConfig(config);
       setShowMatEditor(false);
       setShowScoring(true);
@@ -563,25 +644,14 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         setShowScoring(true);
         console.log("Using built-in map:", config.name);
       } else {
-        // Custom maps are saved to IndexedDB
-        try {
-          await matConfigStorage.saveConfig(config);
-          setCustomMatConfig(config);
-          setShowScoring(true);
-        } catch (error) {
-          console.error("Failed to save custom map configuration:", error);
-          // Still set the config in memory even if storage fails
-          setCustomMatConfig(config);
-          setShowScoring(true);
-        }
+        // Custom maps - just set in memory, they're already saved to filesystem via loadMatConfig
+        setCustomMatConfig(config);
+        setShowScoring(true);
+        console.log("Using custom map from filesystem:", config.name);
       }
     } else {
-      // Clear the current map configuration
-      try {
-        await matConfigStorage.deleteConfig();
-      } catch (error) {
-        console.error("Failed to delete custom mat configuration:", error);
-      }
+      // Clear the current map configuration (just in memory, don't delete from filesystem)
+      console.log("Clearing current map configuration");
       setCustomMatConfig(null);
       setShowScoring(false);
     }
@@ -589,11 +659,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   };
 
   const handleClearCustomMat = async () => {
-    try {
-      await matConfigStorage.deleteConfig();
-    } catch (error) {
-      console.error("Failed to delete custom mat configuration:", error);
-    }
+    // Just clear in-memory state - filesystem configurations are managed elsewhere
+    console.log("Clearing custom mat configuration from memory");
+
     // Always fall back to the default unearthed mat
     const defaultMap = getDefaultUnearthedMap();
     if (defaultMap) {

@@ -333,12 +333,11 @@ print("Hello from ${name}!")
               {/* Quick Action Buttons - Only show when robot type is selected */}
               {robotType && (
                 <>
-                  {robotType === "real" && !isFileSystemSupported ? (
+                  {!isFileSystemSupported ? (
                     <div className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900 px-2 py-1 rounded">
                       File API N/A
                     </div>
                   ) : (
-                    robotType === "real" &&
                     !hasDirectoryAccess && (
                       <button
                         onClick={handleFileSystemAccess}
@@ -395,57 +394,55 @@ print("Hello from ${name}!")
           </CollapsibleSection>
         )}
 
-        {/* 2. Program Management Section (Priority 2) - Only show for real robots */}
-        {robotType === "real" && (
-          <CollapsibleSection
-            title="Program Management"
-            icon="📝"
-            priority={2}
-            isExpanded={isProgramsExpanded}
-            onToggle={() => setIsProgramsExpanded(!isProgramsExpanded)}
-            disabled={!isConnected}
-          >
-            <ProgramManager
-              directoryName={directoryName}
-              pythonFiles={pythonFiles}
-              hasDirectoryAccess={hasDirectoryAccess}
-              isPythonFilesLoading={isPythonFilesLoading}
-              pythonFilesError={pythonFilesError}
-              isRestoring={isRestoring}
-              onRefreshFiles={refreshFiles}
-              onUnmountDirectory={unmountDirectory}
-              onRequestDirectoryAccess={handleFileSystemAccess}
-              onRunProgram={handleRunProgram}
-              onStopProgram={handleStopProgram}
-              onUploadAndRunFile={async (file, content) => {
-                // Placeholder - hub menu system handles program upload
-                console.log("onUploadAndRunFile called for:", file.relativePath);
-              }}
-              onCreateFile={handleCreateFile}
-              onCreateExampleProject={async () => {
-                try {
-                  await createExampleProject();
-                  showSuccess(
-                    "Example Project Created",
-                    "Created example directory with program.py template"
-                  );
-                } catch (error) {
-                  showError(
-                    "Failed to Create Example",
-                    error instanceof Error ? error.message : "Unknown error"
-                  );
-                }
-              }}
-              programStatus={programStatus}
-              isConnected={isConnected}
-              isUploading={isUploadingProgram}
-              isRunning={isRunningProgram}
-              isStopping={isStoppingProgram}
-              isCompiling={false}
-              debugEvents={debugEvents}
-            />
-          </CollapsibleSection>
-        )}
+        {/* 2. Program Management Section (Priority 2) */}
+        <CollapsibleSection
+          title="Program Management"
+          icon="📝"
+          priority={2}
+          isExpanded={isProgramsExpanded}
+          onToggle={() => setIsProgramsExpanded(!isProgramsExpanded)}
+          disabled={false}
+        >
+          <ProgramManager
+            directoryName={directoryName}
+            pythonFiles={pythonFiles}
+            hasDirectoryAccess={hasDirectoryAccess}
+            isPythonFilesLoading={isPythonFilesLoading}
+            pythonFilesError={pythonFilesError}
+            isRestoring={isRestoring}
+            onRefreshFiles={refreshFiles}
+            onUnmountDirectory={unmountDirectory}
+            onRequestDirectoryAccess={handleFileSystemAccess}
+            onRunProgram={handleRunProgram}
+            onStopProgram={handleStopProgram}
+            onUploadAndRunFile={async (file, content) => {
+              // Placeholder - hub menu system handles program upload
+              console.log("onUploadAndRunFile called for:", file.relativePath);
+            }}
+            onCreateFile={handleCreateFile}
+            onCreateExampleProject={async () => {
+              try {
+                await createExampleProject();
+                showSuccess(
+                  "Example Project Created",
+                  "Created example directory with program.py template"
+                );
+              } catch (error) {
+                showError(
+                  "Failed to Create Example",
+                  error instanceof Error ? error.message : "Unknown error"
+                );
+              }
+            }}
+            programStatus={programStatus}
+            isConnected={isConnected}
+            isUploading={isUploadingProgram}
+            isRunning={isRunningProgram}
+            isStopping={isStoppingProgram}
+            isCompiling={false}
+            debugEvents={debugEvents}
+          />
+        </CollapsibleSection>
       </main>
 
       {/* Notification System */}
