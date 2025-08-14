@@ -1,5 +1,5 @@
-import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAtomValue } from "jotai";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
@@ -11,9 +11,9 @@ import {
   type PathVisualizationOptions,
   type TelemetryPoint,
 } from "../services/telemetryHistory";
-import { calculateRobotPosition, showGridOverlayAtom } from "../store/atoms/gameMat";
+import { showGridOverlayAtom } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import { calculatePreviewPosition, calculateTrajectoryProjection } from "./MovementPreview";
+import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 
 interface RobotPosition {
@@ -191,26 +191,16 @@ export function EnhancedCompetitionMat({
     x: number;
     y: number;
   } | null>(null);
+  const [loadedImage, setLoadedImage] = useState<null | string>(null);
 
   // Pseudo code panel state
   const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useState(true);
 
   // Target heading state for position setting
   const [targetHeading, setTargetHeading] = useState<number>(0);
-  
+
   // Grid overlay state from Jotai atom
   const showGridOverlay = useAtomValue(showGridOverlayAtom);
-
-
-  // Migrate old mission format to new format - stabilize with deep comparison
-  const migratedMatConfig = useMemo(() => {
-    if (!customMatConfig) return null;
-
-    return {
-      ...customMatConfig,
-      missions: customMatConfig.missions.map(migrateMissionFormat),
-    };
-  }, [customMatConfig?.name, customMatConfig?.missions?.length]); // Only re-compute if mat actually changes
 
   // Track if we've already initialized recording for this connection
   const recordingInitializedRef = useRef(false);
@@ -231,44 +221,55 @@ export function EnhancedCompetitionMat({
   // Handle position reset events only - telemetry is handled in the combined handler below
   useEffect(() => {
     const handlePositionResetEvent = (event: CustomEvent) => {
-      console.log("[EnhancedCompetitionMat] Position reset received, resetting robot to start position");
+      console.log(
+        "[EnhancedCompetitionMat] Position reset received, resetting robot to start position"
+      );
       // Reset robot to the starting position but keep telemetry history
       resetRobotToStartPosition();
     };
 
-    const handleSetPositionEvent = (event: CustomEvent<{position: any}>) => {
+    const handleSetPositionEvent = (event: CustomEvent<{ position: any }>) => {
       const positionData = event.detail.position;
-      console.log("[EnhancedCompetitionMat] Position set received:", positionData);
-      
+      console.log(
+        "[EnhancedCompetitionMat] Position set received:",
+        positionData
+      );
+
       try {
         // Calculate robot position from edge measurements (similar to CompactRobotController logic)
         const robotConfig = robotConfigAtom;
         const matWidth = MAT_WIDTH_MM;
         const matHeight = MAT_HEIGHT_MM;
-        
+
         // Convert program position to mat coordinates
         let x: number, y: number;
-        
+
         if (positionData.side === "left") {
           x = positionData.fromSide; // Distance from left edge
         } else {
           x = matWidth - positionData.fromSide; // Distance from right edge
         }
-        
+
         y = matHeight - positionData.fromBottom; // Distance from bottom edge (mat coordinates are top-origin)
-        
+
         const robotPosition: RobotPosition = {
           x,
           y,
-          heading: positionData.heading
+          heading: positionData.heading,
         };
-        
-        console.log("[EnhancedCompetitionMat] Setting robot position to:", robotPosition);
-        
+
+        console.log(
+          "[EnhancedCompetitionMat] Setting robot position to:",
+          robotPosition
+        );
+
         // Use the existing setRobotPosition function without reset functions to preserve telemetry
         gameMat.setRobotPosition(robotPosition);
       } catch (error) {
-        console.error("[EnhancedCompetitionMat] Failed to set robot position:", error);
+        console.error(
+          "[EnhancedCompetitionMat] Failed to set robot position:",
+          error
+        );
       }
     };
 
@@ -288,34 +289,11 @@ export function EnhancedCompetitionMat({
         handlePositionResetEvent as EventListener
       );
       document.removeEventListener(
-        "setPosition", 
+        "setPosition",
         handleSetPositionEvent as EventListener
       );
     };
   }, [resetRobotToStartPosition, gameMat]);
-
-  // Load and process mat image
-  useEffect(() => {
-    if (migratedMatConfig) {
-      const img = new Image();
-      img.onload = () => {
-        matImageRef.current = img;
-        // Force canvas size update and redraw
-        updateCanvasSize();
-      };
-
-      // Load image from URL (either from Vite import or custom path)
-      if (migratedMatConfig.imageUrl) {
-        // From Vite glob import
-        img.src = migratedMatConfig.imageUrl;
-      } else {
-        console.warn(
-          "No image URL provided for mat config:",
-          migratedMatConfig.name
-        );
-      }
-    }
-  }, [migratedMatConfig]);
 
   // Calculate canvas size and scale based on container
   const updateCanvasSize = useCallback(() => {
@@ -372,13 +350,12 @@ export function EnhancedCompetitionMat({
   // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down (no flipping needed)
   const mmToCanvas = (mmX: number, mmY: number): { x: number; y: number } => {
     // Use configured mat dimensions instead of hardcoded constants
-    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
-    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
-    
+    const matWidthMm = customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+
     // Use exact same calculation as drawMissions function
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
-    const matX =
-      matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
+    const matX = matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
     const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
 
     // Convert mm coordinates to mat canvas coordinates
@@ -387,30 +364,6 @@ export function EnhancedCompetitionMat({
     const canvasY = matY + mmY * scale; // Y=0 at top, Y+ down
 
     return { x: canvasX, y: canvasY };
-  };
-
-  // Convert canvas pixels to mm (accounts for mat position within table)
-  // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down (no flipping needed)
-  const canvasToMm = (
-    canvasX: number,
-    canvasY: number
-  ): { x: number; y: number } => {
-    // Use configured mat dimensions instead of hardcoded constants
-    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
-    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
-    
-    // Use exact same calculation as drawMissions function
-    const matOffset = BORDER_WALL_THICKNESS_MM * scale;
-    const matX =
-      matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
-    const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
-
-    // Convert canvas coordinates to mm within the mat
-    // No Y-coordinate flip - keep consistent with world coordinates (Y=0 at top)
-    const mmX = (canvasX - matX) / scale;
-    const mmY = (canvasY - matY) / scale; // Y=0 at top, Y+ down
-
-    return { x: mmX, y: mmY };
   };
 
   const drawCanvas = useCallback(() => {
@@ -445,8 +398,10 @@ export function EnhancedCompetitionMat({
 
     // Calculate mat position - centered horizontally, flush with bottom edge of table surface
     const borderOffset = BORDER_WALL_THICKNESS_MM * scale;
-    const matWidth = (migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM) * scale;
-    const matHeight = (migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM) * scale;
+    const matWidth =
+      (customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM) * scale;
+    const matHeight =
+      (customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM) * scale;
     const tableWidth = TABLE_WIDTH_MM * scale;
     const tableHeight = TABLE_HEIGHT_MM * scale;
 
@@ -641,12 +596,28 @@ export function EnhancedCompetitionMat({
       );
 
       // Draw all trajectory options
-      drawPerpendicularTrajectoryProjection(ctx, forwardTrajectory.trajectoryPath, "forward");
-      drawPerpendicularTrajectoryProjection(ctx, backwardTrajectory.trajectoryPath, "backward");
-      drawPerpendicularTrajectoryProjection(ctx, leftTrajectory.trajectoryPath, "left");
-      drawPerpendicularTrajectoryProjection(ctx, rightTrajectory.trajectoryPath, "right");
+      drawPerpendicularTrajectoryProjection(
+        ctx,
+        forwardTrajectory.trajectoryPath,
+        "forward"
+      );
+      drawPerpendicularTrajectoryProjection(
+        ctx,
+        backwardTrajectory.trajectoryPath,
+        "backward"
+      );
+      drawPerpendicularTrajectoryProjection(
+        ctx,
+        leftTrajectory.trajectoryPath,
+        "left"
+      );
+      drawPerpendicularTrajectoryProjection(
+        ctx,
+        rightTrajectory.trajectoryPath,
+        "right"
+      );
     }
-    
+
     // Draw grid overlay oriented to robot heading
     if (showGridOverlay && currentPosition) {
       drawGridOverlay(ctx, currentPosition);
@@ -660,13 +631,40 @@ export function EnhancedCompetitionMat({
     pathOptions,
     hoveredObject,
     hoveredPoint,
-    migratedMatConfig,
+    customMatConfig,
     scoringState,
     showScoring,
     controlMode,
     robotConfig,
+    loadedImage,
     showGridOverlay,
   ]); // canvasSize removed as it's handled separately
+
+  // Load and process mat image
+  useEffect(() => {
+    if (customMatConfig) {
+      const imageUrl = customMatConfig.imageUrl;
+      if (!imageUrl) {
+        console.warn(
+          "No image URL provided for mat config:",
+          customMatConfig.name
+        );
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        matImageRef.current = img;
+        // Force canvas size update and redraw
+        updateCanvasSize();
+        setLoadedImage(imageUrl);
+      };
+
+      // Load image from URL (either from Vite import or custom path)
+      // From Vite glob import
+      img.src = imageUrl;
+    }
+  }, [customMatConfig, updateCanvasSize]);
 
   const drawBorderWalls = (ctx: CanvasRenderingContext2D) => {
     const thickness = BORDER_WALL_THICKNESS_MM * scale;
@@ -771,36 +769,36 @@ export function EnhancedCompetitionMat({
     position: RobotPosition
   ) => {
     if (!position || position.x <= 0 || position.y <= 0) return;
-    
+
     // Grid configuration
     const GRID_SIZE_MM = 100; // 100mm grid squares
     const gridSizePixels = GRID_SIZE_MM * scale;
-    
+
     // Get robot center position in canvas coordinates
     const centerPos = mmToCanvas(position.x, position.y);
-    
+
     // Convert robot heading to radians (0° = north, clockwise positive)
     const headingRad = (position.heading * Math.PI) / 180;
-    
+
     // Save the current canvas state
     ctx.save();
-    
+
     // Set up grid styling
     ctx.strokeStyle = "rgba(0, 150, 255, 0.3)"; // Light blue with transparency
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 5]); // Dashed lines
-    
+
     // Calculate visible area bounds
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     // Number of grid lines to draw in each direction from center
     const gridExtent = 20; // Will draw 40x40 grid centered on robot
-    
+
     // Translate to robot position and rotate to robot heading
     ctx.translate(centerPos.x, centerPos.y);
     ctx.rotate(headingRad);
-    
+
     // Draw vertical grid lines (parallel to robot's forward direction)
     for (let i = -gridExtent; i <= gridExtent; i++) {
       const x = i * gridSizePixels;
@@ -809,7 +807,7 @@ export function EnhancedCompetitionMat({
       ctx.lineTo(x, gridExtent * gridSizePixels);
       ctx.stroke();
     }
-    
+
     // Draw horizontal grid lines (perpendicular to robot's forward direction)
     for (let i = -gridExtent; i <= gridExtent; i++) {
       const y = i * gridSizePixels;
@@ -818,31 +816,31 @@ export function EnhancedCompetitionMat({
       ctx.lineTo(gridExtent * gridSizePixels, y);
       ctx.stroke();
     }
-    
+
     // Draw thicker lines at robot's axes
     ctx.strokeStyle = "rgba(0, 100, 200, 0.5)";
     ctx.lineWidth = 2;
     ctx.setLineDash([]); // Solid lines for axes
-    
+
     // Forward/backward axis (Y-axis in robot's frame)
     ctx.beginPath();
     ctx.moveTo(0, -gridExtent * gridSizePixels);
     ctx.lineTo(0, gridExtent * gridSizePixels);
     ctx.stroke();
-    
+
     // Left/right axis (X-axis in robot's frame)
     ctx.beginPath();
     ctx.moveTo(-gridExtent * gridSizePixels, 0);
     ctx.lineTo(gridExtent * gridSizePixels, 0);
     ctx.stroke();
-    
+
     // Add grid size label
     ctx.fillStyle = "rgba(0, 100, 200, 0.7)";
     ctx.font = `${12 * scale}px sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillText("100mm grid", gridSizePixels + 5, 5);
-    
+
     // Restore the canvas state
     ctx.restore();
   };
@@ -899,23 +897,38 @@ export function EnhancedCompetitionMat({
       let bodyColor, borderColor;
       if (direction === "forward") {
         // Forward - subtle green (matching forward button)
-        bodyColor = previewType === "perpendicular" ? "rgba(0, 255, 0, 0.05)" : "rgba(0, 255, 0, 0.15)";
+        bodyColor =
+          previewType === "perpendicular"
+            ? "rgba(0, 255, 0, 0.05)"
+            : "rgba(0, 255, 0, 0.15)";
         borderColor = "#00ff00";
       } else if (direction === "backward") {
         // Backward - subtle orange (matching backward button)
-        bodyColor = previewType === "perpendicular" ? "rgba(255, 165, 0, 0.05)" : "rgba(255, 165, 0, 0.15)";
+        bodyColor =
+          previewType === "perpendicular"
+            ? "rgba(255, 165, 0, 0.05)"
+            : "rgba(255, 165, 0, 0.15)";
         borderColor = "#ffa500";
       } else if (direction === "left") {
         // Left - subtle purple (matching left turn button)
-        bodyColor = previewType === "perpendicular" ? "rgba(128, 0, 128, 0.05)" : "rgba(128, 0, 128, 0.15)";
+        bodyColor =
+          previewType === "perpendicular"
+            ? "rgba(128, 0, 128, 0.05)"
+            : "rgba(128, 0, 128, 0.15)";
         borderColor = "#800080";
       } else if (direction === "right") {
         // Right - subtle cyan (matching right turn button)
-        bodyColor = previewType === "perpendicular" ? "rgba(6, 182, 212, 0.05)" : "rgba(6, 182, 212, 0.15)";
+        bodyColor =
+          previewType === "perpendicular"
+            ? "rgba(6, 182, 212, 0.05)"
+            : "rgba(6, 182, 212, 0.15)";
         borderColor = "#06b6d4";
       } else {
         // Default preview - subtle cyan
-        bodyColor = previewType === "perpendicular" ? "rgba(0, 255, 255, 0.05)" : "rgba(0, 255, 255, 0.15)";
+        bodyColor =
+          previewType === "perpendicular"
+            ? "rgba(0, 255, 255, 0.05)"
+            : "rgba(0, 255, 255, 0.15)";
         borderColor = "#00ffff";
       }
 
@@ -1269,12 +1282,11 @@ export function EnhancedCompetitionMat({
     if (!customMatConfig) return;
 
     // Use configured mat dimensions instead of hardcoded constants
-    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
-    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
-    
+    const matWidthMm = customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
-    const matX =
-      matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
+    const matX = matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
     const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
 
     // Store bounding boxes for accurate hit detection
@@ -1283,11 +1295,12 @@ export function EnhancedCompetitionMat({
       { x: number; y: number; width: number; height: number }
     >();
 
-    migratedMatConfig?.missions.forEach((obj) => {
+    customMatConfig?.missions.forEach((obj) => {
       // Convert normalized position (0-1) to world coordinates (mm), then to canvas coordinates
       // Use the same coordinate transformation as robot positions for consistency
-      const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
-      const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+      const matWidthMm = customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+      const matHeightMm =
+        customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
       const worldX = obj.position.x * matWidthMm; // Convert normalized to mm using configured dimensions
       const worldY = obj.position.y * matHeightMm; // Convert normalized to mm using configured dimensions
       const pos = mmToCanvas(worldX, worldY); // Apply standardized coordinate transformation
@@ -1332,8 +1345,9 @@ export function EnhancedCompetitionMat({
       ctx.shadowOffsetY = 0;
 
       // Calculate percentage completion
-      const completionPercentage = maxPoints > 0 ? currentPoints / maxPoints : 0;
-      
+      const completionPercentage =
+        maxPoints > 0 ? currentPoints / maxPoints : 0;
+
       // Draw hover ring
       if (isHovered) {
         ctx.beginPath();
@@ -1359,11 +1373,11 @@ export function EnhancedCompetitionMat({
         ctx.beginPath();
         ctx.moveTo(pos.x, pos.y); // Start at center
         ctx.arc(
-          pos.x, 
-          pos.y, 
-          radius, 
+          pos.x,
+          pos.y,
+          radius,
           -Math.PI / 2, // Start at top (12 o'clock)
-          -Math.PI / 2 + (completionPercentage * 2 * Math.PI), // End based on percentage
+          -Math.PI / 2 + completionPercentage * 2 * Math.PI, // End based on percentage
           false // Clockwise
         );
         ctx.closePath(); // Close the pie slice
@@ -1477,7 +1491,7 @@ export function EnhancedCompetitionMat({
   const telemetryReferenceRef = useRef(telemetryReference);
   const currentPositionRef = useRef(currentPosition);
   const manualHeadingAdjustmentRef = useRef(manualHeadingAdjustment);
-  const migratedMatConfigRef = useRef(migratedMatConfig);
+  const customMatConfigRef = useRef(customMatConfig);
   const showScoringRef = useRef(showScoring);
   const isCmdKeyPressedRef = useRef(isCmdKeyPressed);
   isCmdKeyPressedRef.current = isCmdKeyPressed;
@@ -1496,8 +1510,8 @@ export function EnhancedCompetitionMat({
   }, [manualHeadingAdjustment]);
 
   useEffect(() => {
-    migratedMatConfigRef.current = migratedMatConfig;
-  }, [migratedMatConfig]);
+    customMatConfigRef.current = customMatConfig;
+  }, [customMatConfig]);
 
   useEffect(() => {
     showScoringRef.current = showScoring;
@@ -1670,7 +1684,9 @@ export function EnhancedCompetitionMat({
     return null;
   };
 
-  const handleCanvasClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasClick = async (
+    event: React.MouseEvent<HTMLCanvasElement>
+  ) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -1795,9 +1811,7 @@ export function EnhancedCompetitionMat({
       const currentObjectives = prev[objectId]?.objectives || {};
       const currentState = currentObjectives[objectiveId];
       const isCompleted = currentState?.completed || false;
-      const mission = migratedMatConfig?.missions.find(
-        (m) => m.id === objectId
-      );
+      const mission = customMatConfig?.missions.find((m) => m.id === objectId);
       const objective = mission?.objectives.find((o) => o.id === objectiveId);
 
       if (!objective) return prev;
@@ -1832,7 +1846,7 @@ export function EnhancedCompetitionMat({
       };
 
       const newTotal =
-        migratedMatConfig?.missions.reduce(
+        customMatConfig?.missions.reduce(
           (sum, object) => sum + getTotalPointsForMission(object, newState),
           0
         ) || 0;
@@ -1873,7 +1887,7 @@ export function EnhancedCompetitionMat({
     movementPreview,
     hoveredObject,
     hoveredPoint,
-    migratedMatConfig?.name,
+    customMatConfig?.name,
     scoringState,
     showScoring,
     updateCanvas,
@@ -1932,11 +1946,13 @@ export function EnhancedCompetitionMat({
               Competition Table & Mat
             </h3>
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-              {migratedMatConfig ? migratedMatConfig.name : "Loading..."}
+              {customMatConfig ? customMatConfig.name : "Loading..."}
               <span className="hidden sm:inline">
                 {" "}
-                - Mat: {migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM}×{migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM}mm, Table: {TABLE_WIDTH_MM}
-                ×{TABLE_HEIGHT_MM}mm with {BORDER_WALL_HEIGHT_MM}mm walls
+                - Mat: {customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM}×
+                {customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM}mm,
+                Table: {TABLE_WIDTH_MM}×{TABLE_HEIGHT_MM}mm with{" "}
+                {BORDER_WALL_HEIGHT_MM}mm walls
               </span>
             </p>
           </div>
@@ -1964,17 +1980,17 @@ export function EnhancedCompetitionMat({
             </select>
 
             {/* Prominent Score Display */}
-            {migratedMatConfig && showScoring && (
+            {customMatConfig && showScoring && (
               <div className="bg-gradient-to-r from-green-400 to-blue-500 dark:from-green-500 dark:to-blue-600 text-white px-3 py-2 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
                 <div className="text-center">
                   <div className="text-lg font-bold">
-                    {migratedMatConfig.missions.reduce(
+                    {customMatConfig.missions.reduce(
                       (sum, obj) =>
                         sum + getTotalPointsForMission(obj, scoringState),
                       0
                     )}
                     /
-                    {migratedMatConfig.missions.reduce(
+                    {customMatConfig.missions.reduce(
                       (sum, obj) => sum + getMaxPointsForMission(obj),
                       0
                     )}
@@ -1982,7 +1998,6 @@ export function EnhancedCompetitionMat({
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
@@ -2222,12 +2237,12 @@ export function EnhancedCompetitionMat({
                 ▶
               </span>
               {missionsExpanded ? "Collapse" : "Expand"} (
-              {migratedMatConfig?.missions.length || 0})
+              {customMatConfig?.missions.length || 0})
             </button>
           </div>
           {missionsExpanded && (
             <div className="space-y-4">
-              {migratedMatConfig?.missions.map((obj) => (
+              {customMatConfig?.missions.map((obj) => (
                 <div
                   key={obj.id}
                   className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 sm:p-3"
@@ -2344,7 +2359,7 @@ export function EnhancedCompetitionMat({
           <div className="fixed right-0 top-0 h-full z-50 w-full max-w-sm bg-white dark:bg-gray-800 border-l border-gray-300 dark:border-gray-600 shadow-xl transform transition-transform duration-300 ease-in-out">
             <div className="p-4 flex flex-col h-full">
               {(() => {
-                const obj = migratedMatConfig?.missions.find(
+                const obj = customMatConfig?.missions.find(
                   (o) => o.id === popoverObject
                 );
                 if (!obj) return null;

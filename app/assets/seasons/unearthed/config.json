@@ -612,8 +612,8 @@
     }
   ],
   "dimensions": {
-    "widthMm": 1999.9999999999982,
-    "heightMm": 1135.523819035253
+    "widthMm": 1999,
+    "heightMm": 1135
   },
   "createdAt": "2025-08-11T13:43:21.682Z",
   "updatedAt": "2025-08-13T13:23:03.844Z"
