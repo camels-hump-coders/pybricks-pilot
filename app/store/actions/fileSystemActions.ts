@@ -73,7 +73,7 @@ export const refreshPythonFilesAtom = atom(null, async (get, set) => {
     for (const file of filesWithInfo) {
       if (!file.isDirectory) {
         // Load metadata for individual files
-        const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, file.name);
+        const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, file.relativePath);
         enrichedFiles.push({
           ...file,
           programNumber: metadata?.programNumber,
@@ -85,7 +85,7 @@ export const refreshPythonFilesAtom = atom(null, async (get, set) => {
         if (file.children) {
           for (const child of file.children) {
             if (!child.isDirectory) {
-              const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, child.name);
+              const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, child.relativePath);
               enrichedChildren.push({
                 ...child,
                 programNumber: metadata?.programNumber,
@@ -242,13 +242,13 @@ export const getFileContentAtom = atom(
 // Set program number for a file
 export const setProgramNumberAtom = atom(
   null,
-  async (get, set, params: { fileName: string; programNumber: number | undefined }) => {
+  async (get, set, params: { relativePath: string; programNumber: number | undefined }) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
     await programMetadataStorage.setProgramNumber(
       directoryHandle,
-      params.fileName,
+      params.relativePath,
       params.programNumber
     );
 
@@ -260,13 +260,13 @@ export const setProgramNumberAtom = atom(
 // Set program side for a file
 export const setProgramSideAtom = atom(
   null,
-  async (get, set, params: { fileName: string; programSide: "left" | "right" | undefined }) => {
+  async (get, set, params: { relativePath: string; programSide: "left" | "right" | undefined }) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
     await programMetadataStorage.setProgramSide(
       directoryHandle,
-      params.fileName,
+      params.relativePath,
       params.programSide
     );
 
@@ -278,11 +278,11 @@ export const setProgramSideAtom = atom(
 // Get program metadata for a file
 export const getProgramMetadataAtom = atom(
   null,
-  async (get, set, fileName: string) => {
+  async (get, set, relativePath: string) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) return null;
 
-    return await programMetadataStorage.getProgramMetadata(directoryHandle, fileName);
+    return await programMetadataStorage.getProgramMetadata(directoryHandle, relativePath);
   }
 );
 
@@ -311,7 +311,7 @@ export const getNextAvailableProgramNumberAtom = atom(
 // Add file to programs (atomic operation)
 export const addToProgramsAtom = atom(
   null,
-  async (get, set, fileName: string) => {
+  async (get, set, relativePath: string) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
@@ -319,7 +319,7 @@ export const addToProgramsAtom = atom(
     const nextNumber = await programMetadataStorage.getNextAvailableProgramNumber(directoryHandle);
     
     // Set both number and side in one operation
-    await programMetadataStorage.storeProgramMetadata(directoryHandle, fileName, {
+    await programMetadataStorage.storeProgramMetadata(directoryHandle, relativePath, {
       programNumber: nextNumber,
       programSide: "right" // Default to right
     });
@@ -332,12 +332,12 @@ export const addToProgramsAtom = atom(
 // Remove from programs (atomic operation)
 export const removeFromProgramsAtom = atom(
   null,
-  async (get, set, fileName: string) => {
+  async (get, set, relativePath: string) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
     // Remove both number and side in one operation
-    await programMetadataStorage.storeProgramMetadata(directoryHandle, fileName, {
+    await programMetadataStorage.storeProgramMetadata(directoryHandle, relativePath, {
       programNumber: undefined,
       programSide: undefined
     });
@@ -351,7 +351,7 @@ export const removeFromProgramsAtom = atom(
       const newNumber = i + 1; // Start from 1
       
       if (program.programNumber !== newNumber) {
-        await programMetadataStorage.setProgramNumber(directoryHandle, program.fileName, newNumber);
+        await programMetadataStorage.setProgramNumber(directoryHandle, program.relativePath, newNumber);
       }
     }
 
@@ -363,11 +363,11 @@ export const removeFromProgramsAtom = atom(
 // Move program up in order
 export const moveProgramUpAtom = atom(
   null,
-  async (get, set, fileName: string) => {
+  async (get, set, relativePath: string) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
-    await programMetadataStorage.moveProgramUp(directoryHandle, fileName);
+    await programMetadataStorage.moveProgramUp(directoryHandle, relativePath);
 
     // Full refresh needed for reordering since we need to reload metadata for all files
     await set(refreshPythonFilesAtom);
@@ -377,11 +377,11 @@ export const moveProgramUpAtom = atom(
 // Move program down in order
 export const moveProgramDownAtom = atom(
   null,
-  async (get, set, fileName: string) => {
+  async (get, set, relativePath: string) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
-    await programMetadataStorage.moveProgramDown(directoryHandle, fileName);
+    await programMetadataStorage.moveProgramDown(directoryHandle, relativePath);
 
     // Full refresh needed for reordering since we need to reload metadata for all files
     await set(refreshPythonFilesAtom);

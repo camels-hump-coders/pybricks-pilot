@@ -417,6 +417,10 @@ print("Hello from ${name}!")
               onRequestDirectoryAccess={handleFileSystemAccess}
               onRunProgram={handleRunProgram}
               onStopProgram={handleStopProgram}
+              onUploadAndRunFile={async (file, content) => {
+                // Placeholder - hub menu system handles program upload
+                console.log("onUploadAndRunFile called for:", file.relativePath);
+              }}
               onCreateFile={handleCreateFile}
               onCreateExampleProject={async () => {
                 try {

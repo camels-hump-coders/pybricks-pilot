@@ -1,5 +1,5 @@
 interface ProgramMetadata {
-  fileName: string;
+  relativePath: string;
   programNumber?: number;
   programSide?: "left" | "right";
 }
@@ -59,24 +59,24 @@ class ProgramMetadataStorage {
   // Get program metadata for a specific file
   async getProgramMetadata(
     dirHandle: FileSystemDirectoryHandle,
-    fileName: string
+    relativePath: string
   ): Promise<ProgramMetadata | null> {
     const manifest = await this.loadProgramsManifest(dirHandle);
-    return manifest.programs.find(p => p.fileName === fileName) || null;
+    return manifest.programs.find(p => p.relativePath === relativePath) || null;
   }
 
   // Store program metadata for a specific file
   async storeProgramMetadata(
     dirHandle: FileSystemDirectoryHandle,
-    fileName: string,
+    relativePath: string,
     metadata: Partial<ProgramMetadata>
   ): Promise<void> {
     const manifest = await this.loadProgramsManifest(dirHandle);
     
     // Find existing entry or create new one
-    const existingIndex = manifest.programs.findIndex(p => p.fileName === fileName);
+    const existingIndex = manifest.programs.findIndex(p => p.relativePath === relativePath);
     const programMetadata: ProgramMetadata = {
-      fileName,
+      relativePath,
       programNumber: metadata.programNumber,
       programSide: metadata.programSide,
     };
@@ -103,10 +103,10 @@ class ProgramMetadataStorage {
   // Remove program metadata
   async removeProgramMetadata(
     dirHandle: FileSystemDirectoryHandle,
-    fileName: string
+    relativePath: string
   ): Promise<void> {
     const manifest = await this.loadProgramsManifest(dirHandle);
-    manifest.programs = manifest.programs.filter(p => p.fileName !== fileName);
+    manifest.programs = manifest.programs.filter(p => p.relativePath !== relativePath);
     await this.saveProgramsManifest(dirHandle, manifest);
   }
 
@@ -131,28 +131,28 @@ class ProgramMetadataStorage {
   // Set program number for a file
   async setProgramNumber(
     dirHandle: FileSystemDirectoryHandle,
-    fileName: string,
+    relativePath: string,
     programNumber: number | undefined
   ): Promise<void> {
-    await this.storeProgramMetadata(dirHandle, fileName, { programNumber });
+    await this.storeProgramMetadata(dirHandle, relativePath, { programNumber });
   }
 
   // Set program side for a file
   async setProgramSide(
     dirHandle: FileSystemDirectoryHandle,
-    fileName: string,
+    relativePath: string,
     programSide: "left" | "right" | undefined
   ): Promise<void> {
-    await this.storeProgramMetadata(dirHandle, fileName, { programSide });
+    await this.storeProgramMetadata(dirHandle, relativePath, { programSide });
   }
 
   // Move program up in order (with wrap-around)
   async moveProgramUp(
     dirHandle: FileSystemDirectoryHandle,
-    fileName: string
+    relativePath: string
   ): Promise<void> {
     const allPrograms = await this.getAllProgramsWithNumbers(dirHandle);
-    const currentProgram = allPrograms.find(p => p.fileName === fileName);
+    const currentProgram = allPrograms.find(p => p.relativePath === relativePath);
     
     if (!currentProgram || !currentProgram.programNumber) return;
     
@@ -168,17 +168,17 @@ class ProgramMetadataStorage {
     if (!swapProgram) return;
     
     // Swap the program numbers
-    await this.setProgramNumber(dirHandle, currentProgram.fileName, swapProgram.programNumber);
-    await this.setProgramNumber(dirHandle, swapProgram.fileName, currentProgram.programNumber);
+    await this.setProgramNumber(dirHandle, currentProgram.relativePath, swapProgram.programNumber);
+    await this.setProgramNumber(dirHandle, swapProgram.relativePath, currentProgram.programNumber);
   }
 
   // Move program down in order (with wrap-around)
   async moveProgramDown(
     dirHandle: FileSystemDirectoryHandle,
-    fileName: string
+    relativePath: string
   ): Promise<void> {
     const allPrograms = await this.getAllProgramsWithNumbers(dirHandle);
-    const currentProgram = allPrograms.find(p => p.fileName === fileName);
+    const currentProgram = allPrograms.find(p => p.relativePath === relativePath);
     
     if (!currentProgram || !currentProgram.programNumber) return;
     
@@ -194,8 +194,8 @@ class ProgramMetadataStorage {
     if (!swapProgram) return;
     
     // Swap the program numbers
-    await this.setProgramNumber(dirHandle, currentProgram.fileName, swapProgram.programNumber);
-    await this.setProgramNumber(dirHandle, swapProgram.fileName, currentProgram.programNumber);
+    await this.setProgramNumber(dirHandle, currentProgram.relativePath, swapProgram.programNumber);
+    await this.setProgramNumber(dirHandle, swapProgram.relativePath, currentProgram.programNumber);
   }
 
   // Validate programs manifest structure
@@ -206,7 +206,7 @@ class ProgramMetadataStorage {
       Array.isArray(manifest.programs) &&
       manifest.programs.every((p: any) => 
         p &&
-        typeof p.fileName === "string" &&
+        typeof p.relativePath === "string" &&
         (p.programNumber === undefined || typeof p.programNumber === "number") &&
         (p.programSide === undefined || p.programSide === "left" || p.programSide === "right")
       )

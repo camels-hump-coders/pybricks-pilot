@@ -12,28 +12,28 @@ interface FileBrowserProps {
   onCreateFile: () => void;
   className?: string;
   // Program metadata handlers
-  onSetProgramNumber?: (fileName: string, programNumber: number | undefined) => Promise<void>;
-  onSetProgramSide?: (fileName: string, programSide: "left" | "right" | undefined) => Promise<void>;
+  onSetProgramNumber?: (relativePath: string, programNumber: number | undefined) => Promise<void>;
+  onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
   onGetNextAvailableProgramNumber?: () => Promise<number>;
-  onMoveProgramUp?: (fileName: string) => Promise<void>;
-  onMoveProgramDown?: (fileName: string) => Promise<void>;
+  onMoveProgramUp?: (relativePath: string) => Promise<void>;
+  onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
-  onAddToPrograms?: (fileName: string) => Promise<void>;
-  onRemoveFromPrograms?: (fileName: string) => Promise<void>;
+  onAddToPrograms?: (relativePath: string) => Promise<void>;
+  onRemoveFromPrograms?: (relativePath: string) => Promise<void>;
 }
 
 interface FileTreeItemProps {
   file: PythonFile;
   level: number;
   // Program metadata handlers
-  onSetProgramNumber?: (fileName: string, programNumber: number | undefined) => Promise<void>;
-  onSetProgramSide?: (fileName: string, programSide: "left" | "right" | undefined) => Promise<void>;
+  onSetProgramNumber?: (relativePath: string, programNumber: number | undefined) => Promise<void>;
+  onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
   onGetNextAvailableProgramNumber?: () => Promise<number>;
-  onMoveProgramUp?: (fileName: string) => Promise<void>;
-  onMoveProgramDown?: (fileName: string) => Promise<void>;
+  onMoveProgramUp?: (relativePath: string) => Promise<void>;
+  onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
-  onAddToPrograms?: (fileName: string) => Promise<void>;
-  onRemoveFromPrograms?: (fileName: string) => Promise<void>;
+  onAddToPrograms?: (relativePath: string) => Promise<void>;
+  onRemoveFromPrograms?: (relativePath: string) => Promise<void>;
 }
 
 function FileTreeItem({ 
@@ -91,7 +91,7 @@ function FileTreeItem({
     
     setIsSettingNumber(true);
     try {
-      await onAddToPrograms(file.name);
+      await onAddToPrograms(file.relativePath);
     } catch (error) {
       console.error("Failed to add to program list:", error);
     } finally {
@@ -103,7 +103,7 @@ function FileTreeItem({
     if (!onRemoveFromPrograms) return;
     
     try {
-      await onRemoveFromPrograms(file.name);
+      await onRemoveFromPrograms(file.relativePath);
     } catch (error) {
       console.error("Failed to remove from program list:", error);
     }
@@ -123,7 +123,7 @@ function FileTreeItem({
     if (!onMoveProgramUp) return;
     
     try {
-      await onMoveProgramUp(file.name);
+      await onMoveProgramUp(file.relativePath);
     } catch (error) {
       console.error("Failed to move program up:", error);
     }
@@ -133,7 +133,7 @@ function FileTreeItem({
     if (!onMoveProgramDown) return;
     
     try {
-      await onMoveProgramDown(file.name);
+      await onMoveProgramDown(file.relativePath);
     } catch (error) {
       console.error("Failed to move program down:", error);
     }

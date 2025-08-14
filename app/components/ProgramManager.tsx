@@ -144,24 +144,24 @@ export function ProgramManager({
               onRefresh={onRefreshFiles}
               onUnmount={onUnmountDirectory}
               onCreateFile={onCreateFile}
-              onSetProgramNumber={async (fileName, programNumber) => {
-                await setProgramNumber({ fileName, programNumber });
+              onSetProgramNumber={async (relativePath, programNumber) => {
+                await setProgramNumber({ relativePath, programNumber });
               }}
-              onSetProgramSide={async (fileName, programSide) => {
-                await setProgramSide({ fileName, programSide });
+              onSetProgramSide={async (relativePath, programSide) => {
+                await setProgramSide({ relativePath, programSide });
               }}
               onGetNextAvailableProgramNumber={getNextAvailableProgramNumber}
-              onMoveProgramUp={async (fileName) => {
-                await moveProgramUp(fileName);
+              onMoveProgramUp={async (relativePath) => {
+                await moveProgramUp(relativePath);
               }}
-              onMoveProgramDown={async (fileName) => {
-                await moveProgramDown(fileName);
+              onMoveProgramDown={async (relativePath) => {
+                await moveProgramDown(relativePath);
               }}
-              onAddToPrograms={async (fileName) => {
-                await addToPrograms(fileName);
+              onAddToPrograms={async (relativePath) => {
+                await addToPrograms(relativePath);
               }}
-              onRemoveFromPrograms={async (fileName) => {
-                await removeFromPrograms(fileName);
+              onRemoveFromPrograms={async (relativePath) => {
+                await removeFromPrograms(relativePath);
               }}
             />
             {/* Create Example Project button if no files exist */}
