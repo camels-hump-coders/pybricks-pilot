@@ -139,8 +139,6 @@ export function EnhancedCompetitionMat({
   const {
     robotPosition: currentPosition,
     setRobotPosition: setCurrentPosition,
-    isSettingPosition,
-    setIsSettingPosition,
     mousePosition,
     setMousePosition,
     telemetryReference,
@@ -202,6 +200,7 @@ export function EnhancedCompetitionMat({
   
   // Grid overlay state from Jotai atom
   const showGridOverlay = useAtomValue(showGridOverlayAtom);
+
 
   // Migrate old mission format to new format - stabilize with deep comparison
   const migratedMatConfig = useMemo(() => {
@@ -446,9 +445,6 @@ export function EnhancedCompetitionMat({
     }
 
     // Draw robot
-    if (isSettingPosition && mousePosition) {
-      drawRobot(ctx, mousePosition, true);
-    }
     if (currentPosition) {
       drawRobot(ctx, currentPosition, false);
     }
@@ -615,7 +611,6 @@ export function EnhancedCompetitionMat({
     scale,
     currentPosition,
     mousePosition,
-    isSettingPosition,
     movementPreview,
     perpendicularPreview,
     pathOptions,
@@ -1642,8 +1637,8 @@ export function EnhancedCompetitionMat({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
-    // Check for mission clicks first (if scoring is enabled)
-    if (showScoring && !isSettingPosition) {
+    // Check for mission clicks (if scoring is enabled)
+    if (showScoring) {
       const clickedObjectId = checkMissionClick(canvasX, canvasY);
       if (clickedObjectId) {
         setPopoverObject(clickedObjectId);
@@ -1654,38 +1649,6 @@ export function EnhancedCompetitionMat({
         setPopoverObject(null);
         setPopoverPosition(null);
       }
-    }
-
-    // Handle position setting (existing logic)
-    if (!isSettingPosition || !currentPosition) return;
-
-    const mm = canvasToMm(canvasX, canvasY);
-
-    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
-    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
-    if (
-      mm.x >= 0 &&
-      mm.x <= matWidthMm &&
-      mm.y >= 0 &&
-      mm.y <= matHeightMm
-    ) {
-      const newPosition: RobotPosition = {
-        x: mm.x,
-        y: mm.y,
-        heading: targetHeading, // Use target heading for new position
-      };
-
-      // MANUAL POSITION SETTING: Perform full reset then set robot position
-      await setCurrentPosition(newPosition, {
-        resetTelemetry,
-        clearProgramOutputLog,
-        setAccumulatedTelemetry,
-        setManualHeadingAdjustment,
-        setScoringState,
-      });
-      
-      // End position setting mode
-      setIsSettingPosition(false);
     }
   };
 
@@ -1702,8 +1665,8 @@ export function EnhancedCompetitionMat({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
-    // Check for telemetry point hover (if path visualization is enabled and not setting position)
-    if (pathOptions.showMarkers && !isSettingPosition) {
+    // Check for telemetry point hover (if path visualization is enabled)
+    if (pathOptions.showMarkers) {
       checkTelemetryPointHover(canvasX, canvasY, event.pageX, event.pageY);
     } else {
       setHoveredPoint(null);
@@ -1712,30 +1675,11 @@ export function EnhancedCompetitionMat({
     }
 
     // Check for mission hover
-    if (showScoring && !isSettingPosition) {
+    if (showScoring) {
       const hoveredObjectId = checkMissionClick(canvasX, canvasY);
       setHoveredObject(hoveredObjectId);
     } else {
       setHoveredObject(null);
-    }
-
-    if (!isSettingPosition || !currentPosition) return;
-
-    const mm = canvasToMm(canvasX, canvasY);
-
-    const matWidthMm = migratedMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
-    const matHeightMm = migratedMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
-    if (
-      mm.x >= 0 &&
-      mm.x <= matWidthMm &&
-      mm.y >= 0 &&
-      mm.y <= matHeightMm
-    ) {
-      setMousePosition({
-        x: mm.x,
-        y: mm.y,
-        heading: targetHeading, // Use target heading for preview
-      });
     }
   };
 
@@ -1882,7 +1826,6 @@ export function EnhancedCompetitionMat({
     scale,
     currentPosition,
     mousePosition,
-    isSettingPosition,
     movementPreview,
     hoveredObject,
     hoveredPoint,
@@ -1996,114 +1939,6 @@ export function EnhancedCompetitionMat({
               </div>
             )}
 
-            <button
-              onClick={() => {
-                const newSettingState = !isSettingPosition;
-                setIsSettingPosition(newSettingState);
-                
-                // Initialize target heading to 0 when entering position setting mode
-                if (newSettingState) {
-                  setTargetHeading(0);
-                }
-              }}
-              className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded transition-colors ${
-                isSettingPosition
-                  ? "bg-green-500 text-white hover:bg-green-600"
-                  : "bg-blue-500 text-white hover:bg-blue-600"
-              }`}
-            >
-              {isSettingPosition ? "✓ Confirm" : "📍 Set Pos"}
-            </button>
-
-
-            {/* Position shortcuts - only visible when setting position */}
-            {isSettingPosition && (
-              <>
-                <button
-                  onClick={async () => {
-                    const newPosition = calculateRobotPosition(
-                      robotConfig,
-                      "bottom-left"
-                    );
-
-                    // Use target heading when using position shortcuts
-                    const newPositionWithTargetHeading = {
-                      ...newPosition,
-                      heading: targetHeading,
-                    };
-
-                    // MANUAL POSITION SETTING: Perform full reset then set robot position
-                    await setCurrentPosition(newPositionWithTargetHeading, {
-                      resetTelemetry,
-                      clearProgramOutputLog,
-                      setAccumulatedTelemetry,
-                      setManualHeadingAdjustment,
-                      setScoringState,
-                    });
-                    
-                    setIsSettingPosition(false);
-                  }}
-                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-                  title="Position robot flush against bottom-left corner"
-                >
-                  ↙️ Bottom Left
-                </button>
-                <button
-                  onClick={async () => {
-                    const newPosition = calculateRobotPosition(
-                      robotConfig,
-                      "bottom-right"
-                    );
-
-                    // Use target heading when using position shortcuts
-                    const newPositionWithTargetHeading = {
-                      ...newPosition,
-                      heading: targetHeading,
-                    };
-
-                    // MANUAL POSITION SETTING: Perform full reset then set robot position
-                    await setCurrentPosition(newPositionWithTargetHeading, {
-                      resetTelemetry,
-                      clearProgramOutputLog,
-                      setAccumulatedTelemetry,
-                      setManualHeadingAdjustment,
-                      setScoringState,
-                    });
-                    
-                    setIsSettingPosition(false);
-                  }}
-                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-                  title="Position robot flush against bottom-right corner"
-                >
-                  ↘️ Bottom Right
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={async () => {
-                // Reset to default position based on current robot configuration
-                const newPosition = calculateRobotPosition(
-                  robotConfig,
-                  "bottom-right"
-                );
-
-                // RESET FUNCTIONALITY: Perform full reset then set robot position
-                await setCurrentPosition(newPosition, {
-                  resetTelemetry,
-                  clearProgramOutputLog,
-                  setAccumulatedTelemetry,
-                  setManualHeadingAdjustment,
-                  setScoringState,
-                });
-
-                // Clear pseudo code panel
-                setIsPseudoCodeExpanded(false);
-              }}
-              className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-orange-500 text-white rounded hover:bg-orange-600"
-            >
-              🔄 Reset
-            </button>
           </div>
         </div>
       </div>
@@ -2121,11 +1956,7 @@ export function EnhancedCompetitionMat({
             setTooltipPosition(null);
           }}
           className={`block mx-auto rounded shadow-2xl ${
-            isSettingPosition
-              ? "cursor-crosshair"
-              : hoveredObject
-                ? "cursor-pointer"
-                : "cursor-default"
+            hoveredObject ? "cursor-pointer" : "cursor-default"
           }`}
           style={{ maxWidth: "100%", maxHeight: "600px" }}
         />

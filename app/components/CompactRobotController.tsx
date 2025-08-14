@@ -1,11 +1,12 @@
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
-import { robotPositionAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
+import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
+import { calculateRobotPosition, customMatConfigAtom, robotPositionAtom, setRobotPositionAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { HubMenuInterface } from "./HubMenuInterface";
@@ -66,6 +67,7 @@ interface CompactRobotControllerProps {
   isUploading?: boolean;
   debugEvents?: DebugEvent[];
   isCmdKeyPressed?: boolean;
+  customMatConfig?: any | null; // Add mat config as prop
 }
 
 export function CompactRobotController({
@@ -86,10 +88,12 @@ export function CompactRobotController({
   isUploading,
   debugEvents = [],
   isCmdKeyPressed,
+  customMatConfig,
 }: CompactRobotControllerProps) {
   // Get current robot position from Jotai
   const currentRobotPosition = useAtomValue(robotPositionAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
+  // customMatConfig is now passed as prop
 
   // Upload progress from centralized hook
   const { uploadProgress } = useUploadProgress(debugEvents);
@@ -106,6 +110,90 @@ export function CompactRobotController({
   
   // Grid overlay state from Jotai atom
   const [showGridOverlay, setShowGridOverlay] = useAtom(showGridOverlayAtom);
+
+  // Position setting state
+  const setRobotPosition = useSetAtom(setRobotPositionAtom);
+  const [isSettingPosition, setIsSettingPosition] = useState(false);
+  const [edgePositionSettings, setEdgePositionSettings] = useState({
+    side: "right" as "left" | "right",
+    fromBottom: 100, // mm from bottom edge
+    fromSide: 50, // mm from side edge
+  });
+  const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(null);
+
+  // Calculate robot position from edge-based measurements
+  const calculateRobotPositionFromEdges = (
+    side: "left" | "right",
+    fromBottomMm: number,
+    fromSideMm: number,
+    heading: number = 0
+  ): RobotPosition => {
+    const robotWidthMm = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM;
+    const robotLengthMm = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM;
+    const centerOfRotationFromLeftMm = robotConfig.centerOfRotation.distanceFromLeftEdge * LEGO_STUD_SIZE_MM;
+    const centerOfRotationFromTopMm = robotConfig.centerOfRotation.distanceFromTop * LEGO_STUD_SIZE_MM;
+    
+    // Mat dimensions from current mat config (fallback to FLL default)
+    const matWidthMm = customMatConfig?.dimensions?.widthMm || 2356;
+    const matHeightMm = customMatConfig?.dimensions?.heightMm || 1137;
+    
+
+    let x: number;
+    let y: number;
+
+    if (side === "left") {
+      // fromSideMm is distance from left edge to the left edge of robot
+      x = fromSideMm + centerOfRotationFromLeftMm;
+    } else {
+      // fromSideMm is distance from right edge to the right edge of robot  
+      x = matWidthMm - fromSideMm - (robotWidthMm - centerOfRotationFromLeftMm);
+    }
+
+    // fromBottomMm is distance from bottom edge to the bottom edge of robot
+    y = matHeightMm - fromBottomMm - (robotLengthMm - centerOfRotationFromTopMm);
+
+    return {
+      x,
+      y,
+      heading,
+    };
+  };
+
+  // Update position preview when edge settings change
+  useEffect(() => {
+    if (isSettingPosition) {
+      const preview = calculateRobotPositionFromEdges(
+        edgePositionSettings.side,
+        edgePositionSettings.fromBottom,
+        edgePositionSettings.fromSide,
+        currentRobotPosition.heading
+      );
+      setPositionPreview(preview);
+    } else {
+      setPositionPreview(null);
+    }
+  }, [isSettingPosition, edgePositionSettings, currentRobotPosition.heading, robotConfig]);
+
+  // Send position preview to mat visualization
+  useEffect(() => {
+    if (positionPreview && onPreviewUpdate) {
+      onPreviewUpdate({
+        type: "position" as any, // Special type for position preview
+        direction: null,
+        positions: {
+          primary: positionPreview,
+          secondary: null,
+        },
+      });
+    } else if (!positionPreview && onPreviewUpdate && isSettingPosition === false) {
+      // Clear preview when exiting position setting mode
+      onPreviewUpdate({
+        type: null,
+        direction: null,
+        positions: { primary: null, secondary: null },
+      });
+    }
+  }, [positionPreview, onPreviewUpdate, isSettingPosition]);
 
   // Command execution tracking for dynamic stop buttons
   const [executingCommand, setExecutingCommand] = useState<{
@@ -328,6 +416,137 @@ export function CompactRobotController({
                 Hub Menu Remote
               </div>
               <HubMenuInterface />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Position Controls */}
+      {isFullyConnected && (
+        <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
+            Robot Position
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsSettingPosition(!isSettingPosition)}
+              className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                isSettingPosition
+                  ? "bg-green-500 text-white hover:bg-green-600"
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              }`}
+            >
+              {isSettingPosition ? "✓ Confirm" : "📍 Set Pos"}
+            </button>
+            
+            <button
+              onClick={() => {
+                const defaultPosition = calculateRobotPosition(robotConfig, "bottom-right");
+                setRobotPosition(defaultPosition);
+                setIsSettingPosition(false);
+              }}
+              className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+            >
+              🔄 Reset
+            </button>
+          </div>
+
+          {/* Edge-based position settings - only visible when setting position */}
+          {isSettingPosition && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-3 space-y-3">
+              <div className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-2">
+                🎯 Position Robot by Edges
+              </div>
+              
+              {/* Side Selection */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setEdgePositionSettings(prev => ({...prev, side: "left"}))}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    edgePositionSettings.side === "left"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  ← Left Side
+                </button>
+                <button
+                  onClick={() => setEdgePositionSettings(prev => ({...prev, side: "right"}))}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    edgePositionSettings.side === "right"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  Right Side →
+                </button>
+              </div>
+
+              {/* Distance Controls */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    From Bottom (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={edgePositionSettings.fromBottom}
+                    onChange={(e) => setEdgePositionSettings(prev => ({
+                      ...prev,
+                      fromBottom: Math.max(0, parseInt(e.target.value) || 0)
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    From {edgePositionSettings.side === "left" ? "Left" : "Right"} (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="2000"
+                    value={edgePositionSettings.fromSide}
+                    onChange={(e) => setEdgePositionSettings(prev => ({
+                      ...prev,
+                      fromSide: Math.max(0, parseInt(e.target.value) || 0)
+                    }))}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Apply Position Button */}
+              <button
+                onClick={() => {
+                  if (positionPreview) {
+                    setRobotPosition(positionPreview);
+                  }
+                  setIsSettingPosition(false);
+                }}
+                className="w-full px-3 py-1.5 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
+              >
+                ✓ Apply Position {positionPreview && `(${Math.round(positionPreview.x)}mm, ${Math.round(positionPreview.y)}mm)`}
+              </button>
+
+              {/* Quick Presets */}
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setEdgePositionSettings({side: "left", fromBottom: 0, fromSide: 0})}
+                  className="flex-1 px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                >
+                  ↙️ Bottom Left
+                </button>
+                <button
+                  onClick={() => setEdgePositionSettings({side: "right", fromBottom: 0, fromSide: 0})}
+                  className="flex-1 px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                >
+                  ↘️ Bottom Right
+                </button>
+              </div>
             </div>
           )}
         </div>

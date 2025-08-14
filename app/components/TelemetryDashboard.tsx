@@ -252,6 +252,7 @@ interface RobotControlsSectionProps {
   debugEvents?: any[];
   isCmdKeyPressed: boolean;
   onRobotBuilderOpen: () => void;
+  customMatConfig?: any | null; // Add mat config as prop
 }
 
 function RobotControlsSection({
@@ -271,6 +272,7 @@ function RobotControlsSection({
   debugEvents,
   isCmdKeyPressed,
   onRobotBuilderOpen,
+  customMatConfig,
 }: RobotControlsSectionProps) {
   // Use Jotai atoms directly instead of prop drilling
   const [, setMovementPreview] = useAtom(movementPreviewAtom);
@@ -334,6 +336,7 @@ function RobotControlsSection({
         isUploading={isUploading}
         debugEvents={debugEvents}
         isCmdKeyPressed={isCmdKeyPressed}
+        customMatConfig={customMatConfig}
       />
     </div>
   );
@@ -757,6 +760,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           debugEvents={debugEvents}
           isCmdKeyPressed={isCmdKeyPressed}
           onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
+          customMatConfig={customMatConfig}
         />
 
         <MatControlsPanel
@@ -805,6 +809,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             debugEvents={debugEvents}
             isCmdKeyPressed={isCmdKeyPressed}
             onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
+            customMatConfig={customMatConfig}
           />
 
           <MatControlsPanel
