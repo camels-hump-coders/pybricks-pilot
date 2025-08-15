@@ -5,54 +5,12 @@ export interface MissionDrawingUtils {
   scale: number;
 }
 
-export interface ScoringState {
-  [objectId: string]: {
-    objectives: {
-      [objectiveId: string]: {
-        completed: boolean;
-        points: number;
-        selectedChoiceId?: string;
-      };
-    };
-  };
-}
-
-/**
- * Check if a mission is scored (has any objectives completed)
- */
-export function isMissionScored(mission: Mission, scoringState: ScoringState): boolean {
-  const missionState = scoringState[mission.id];
-  if (!missionState?.objectives) return false;
-  
-  return Object.values(missionState.objectives).some(obj => obj.completed);
-}
-
-/**
- * Get total points earned for a mission
- */
-export function getTotalPointsForMission(mission: Mission, scoringState: ScoringState): number {
-  const missionState = scoringState[mission.id];
-  if (!missionState?.objectives) return 0;
-  
-  return Object.values(missionState.objectives).reduce((sum, obj) => {
-    return sum + (obj.completed ? obj.points : 0);
-  }, 0);
-}
-
-/**
- * Get maximum possible points for a mission
- */
-export function getMaxPointsForMission(mission: Mission): number {
-  return mission.objectives.reduce((sum, objective) => {
-    if (objective.choices && objective.choices.length > 0) {
-      // For choice objectives, use the maximum points from all choices
-      return sum + Math.max(...objective.choices.map(choice => choice.points));
-    } else {
-      // For simple objectives, use the objective points
-      return sum + (objective.points || 0);
-    }
-  }, 0);
-}
+import { 
+  isMissionScored, 
+  getTotalPointsForMission, 
+  getMaxPointsForMission, 
+  type ScoringState 
+} from "../../utils/scoringUtils";
 
 /**
  * Draw missions on the canvas
