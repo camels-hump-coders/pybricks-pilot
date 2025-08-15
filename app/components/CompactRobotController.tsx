@@ -290,13 +290,100 @@ export function CompactRobotController({
 
   // Effect to automatically show/hide trajectory overlay based on toggle state
   useEffect(() => {
-    if (showTrajectoryOverlay) {
-      // Always show perpendicular previews when toggle is enabled
+    if (showTrajectoryOverlay && currentRobotPosition && robotConfig) {
+      // Calculate all 4 possible movement positions with colors
+      const ghosts = [];
+
+      // Forward drive position (green)
+      const forwardPosition = calculatePreviewPosition(
+        currentRobotPosition,
+        distance,
+        angle,
+        "drive",
+        "forward",
+        robotConfig
+      );
+      ghosts.push({
+        position: forwardPosition,
+        type: "drive" as const,
+        direction: "forward" as const,
+        color: "#10b981", // green-500
+        label: `Forward ${distance}mm`
+      });
+
+      // Backward drive position (orange)
+      const backwardPosition = calculatePreviewPosition(
+        currentRobotPosition,
+        distance,
+        angle,
+        "drive",
+        "backward",
+        robotConfig
+      );
+      ghosts.push({
+        position: backwardPosition,
+        type: "drive" as const,
+        direction: "backward" as const,
+        color: "#f97316", // orange-500
+        label: `Backward ${distance}mm`
+      });
+
+      // Left turn + drive position (purple) - turn then move forward by distance
+      const leftTurnPosition = calculatePreviewPosition(
+        currentRobotPosition,
+        distance,
+        angle,
+        "turn",
+        "left",
+        robotConfig
+      );
+      // After turning left, move forward by the configured distance
+      const leftExtendedPosition = calculatePreviewPosition(
+        leftTurnPosition,
+        distance,
+        angle,
+        "drive",
+        "forward",
+        robotConfig
+      );
+      ghosts.push({
+        position: leftExtendedPosition,
+        type: "turn" as const,
+        direction: "left" as const,
+        color: "#8b5cf6", // purple-500
+        label: `Turn Left ${angle}° + Forward ${distance}mm`
+      });
+
+      // Right turn + drive position (cyan) - turn then move forward by distance
+      const rightTurnPosition = calculatePreviewPosition(
+        currentRobotPosition,
+        distance,
+        angle,
+        "turn",
+        "right",
+        robotConfig
+      );
+      // After turning right, move forward by the configured distance
+      const rightExtendedPosition = calculatePreviewPosition(
+        rightTurnPosition,
+        distance,
+        angle,
+        "drive",
+        "forward",
+        robotConfig
+      );
+      ghosts.push({
+        position: rightExtendedPosition,
+        type: "turn" as const,
+        direction: "right" as const,
+        color: "#06b6d4", // cyan-500
+        label: `Turn Right ${angle}° + Forward ${distance}mm`
+      });
+
+      // Always show all 4 ghost positions when toggle is enabled
       setPerpendicularPreview({
         show: true,
-        activeMovementType: null,
-        hoveredButtonType: "drive", // Show both drive and turn options
-        hoveredDirection: "forward",
+        ghosts,
         distance,
         angle,
       });
@@ -304,14 +391,12 @@ export function CompactRobotController({
       // Hide perpendicular previews when toggle is disabled
       setPerpendicularPreview({
         show: false,
-        activeMovementType: null,
-        hoveredButtonType: null,
-        hoveredDirection: null,
+        ghosts: [],
         distance,
         angle,
       });
     }
-  }, [showTrajectoryOverlay, distance, angle, setPerpendicularPreview]);
+  }, [showTrajectoryOverlay, distance, angle, setPerpendicularPreview, currentRobotPosition, robotConfig]);
 
   // Position setting state
   const setRobotPosition = useSetAtom(setRobotPositionAtom);

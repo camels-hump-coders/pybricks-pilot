@@ -556,84 +556,55 @@ export function EnhancedCompetitionMat({
       { mmToCanvas, scale }
     );
 
-    // Draw perpendicular preview trajectories - show ALL movement options when hovering over stop button
+    // Draw perpendicular preview ghosts - show robot ghosts at all 4 possible movement positions
     if (
       perpendicularPreview.show &&
-      perpendicularPreview.hoveredButtonType &&
+      perpendicularPreview.ghosts.length > 0 &&
       currentPosition &&
       currentPosition.x > 0 &&
       currentPosition.y > 0
     ) {
-      // For stop button hover, show both drive and turn trajectories
-      // Drive trajectories
-      const forwardTrajectory = calculateTrajectoryProjection(
-        currentPosition,
-        perpendicularPreview.distance,
-        perpendicularPreview.angle,
-        "drive",
-        "forward",
-        2356,
-        1137,
-        robotConfig
-      );
-      const backwardTrajectory = calculateTrajectoryProjection(
-        currentPosition,
-        perpendicularPreview.distance,
-        perpendicularPreview.angle,
-        "drive",
-        "backward",
-        2356,
-        1137,
-        robotConfig
-      );
-
-      // Turn trajectories
-      const leftTrajectory = calculateTrajectoryProjection(
-        currentPosition,
-        perpendicularPreview.distance,
-        perpendicularPreview.angle,
-        "turn",
-        "left",
-        2356,
-        1137,
-        robotConfig
-      );
-      const rightTrajectory = calculateTrajectoryProjection(
-        currentPosition,
-        perpendicularPreview.distance,
-        perpendicularPreview.angle,
-        "turn",
-        "right",
-        2356,
-        1137,
-        robotConfig
-      );
-
-      // Draw all trajectory options
-      drawPerpendicularTrajectoryProjection(
-        ctx,
-        forwardTrajectory.trajectoryPath,
-        "forward",
-        { mmToCanvas, scale }
-      );
-      drawPerpendicularTrajectoryProjection(
-        ctx,
-        backwardTrajectory.trajectoryPath,
-        "backward",
-        { mmToCanvas, scale }
-      );
-      drawPerpendicularTrajectoryProjection(
-        ctx,
-        leftTrajectory.trajectoryPath,
-        "left",
-        { mmToCanvas, scale }
-      );
-      drawPerpendicularTrajectoryProjection(
-        ctx,
-        rightTrajectory.trajectoryPath,
-        "right",
-        { mmToCanvas, scale }
-      );
+      // Draw each ghost robot with its appropriate color
+      perpendicularPreview.ghosts.forEach(ghost => {
+        // Set custom color for this ghost
+        ctx.save();
+        ctx.globalAlpha = 0.5; // Make ghosts semi-transparent
+        ctx.strokeStyle = ghost.color;
+        ctx.fillStyle = ghost.color;
+        
+        // Draw ghost robot at the calculated position
+        drawRobot(
+          ctx,
+          ghost.position,
+          robotConfig,
+          { mmToCanvas, scale },
+          true, // isGhost
+          "perpendicular", // previewType
+          ghost.direction // direction
+        );
+        
+        ctx.restore();
+        
+        // Calculate trajectory for this ghost to show path
+        const trajectory = calculateTrajectoryProjection(
+          currentPosition,
+          perpendicularPreview.distance,
+          perpendicularPreview.angle,
+          ghost.type,
+          ghost.direction,
+          2356,
+          1137,
+          robotConfig
+        );
+        
+        // Draw trajectory path 
+        drawPerpendicularTrajectoryProjection(
+          ctx,
+          trajectory.trajectoryPath,
+          ghost.direction,
+          { mmToCanvas, scale }
+        );
+      });
     }
 
     // Draw robot-oriented grid overlay

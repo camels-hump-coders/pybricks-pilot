@@ -150,19 +150,23 @@ export const totalScoreAtom = atom<number>(0);
 // Movement preview atom
 export const movementPreviewAtom = atom<MovementPreview | null>(null);
 
-// Perpendicular motion preview atom - for showing opposite motion during active movement
+// Perpendicular motion preview atom - for showing all 4 possible movement options
+export interface PerpendicularPreviewGhost {
+  position: RobotPosition;
+  type: "drive" | "turn";
+  direction: "forward" | "backward" | "left" | "right";
+  color: string; // CSS color for the ghost robot
+  label: string; // Description for the movement
+}
+
 export const perpendicularPreviewAtom = atom<{
   show: boolean;
-  activeMovementType: "drive" | "turn" | null;
-  hoveredButtonType: "drive" | "turn" | null;
-  hoveredDirection: "forward" | "backward" | "left" | "right" | null;
+  ghosts: PerpendicularPreviewGhost[];
   distance: number;
   angle: number;
 }>({
   show: false,
-  activeMovementType: null,
-  hoveredButtonType: null,
-  hoveredDirection: null,
+  ghosts: [],
   distance: 100,
   angle: 45,
 });
