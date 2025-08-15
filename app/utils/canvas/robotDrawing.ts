@@ -1,5 +1,6 @@
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { LEGO_STUD_SIZE_MM } from "../../schemas/RobotConfig";
+import { calculateRobotBounds } from "./robotBounds";
 
 export interface RobotPosition {
   x: number; // mm from left edge of mat
@@ -29,41 +30,24 @@ export function drawRobot(
 ) {
   const { mmToCanvas, scale } = utils;
   
-  // SIMPLIFIED MODEL: position IS the center of rotation
-  const centerOfRotationPos = mmToCanvas(position.x, position.y);
-  const heading = (position.heading * Math.PI) / 180;
-
-  // Calculate robot body offset from center of rotation
-  const robotCenterX = robotConfig.dimensions.width / 2; // Center of robot width in studs
-  const robotCenterY = robotConfig.dimensions.length / 2; // Center of robot length in studs
-  const centerOfRotationX = robotConfig.centerOfRotation.distanceFromLeftEdge; // In studs from left edge
-  const centerOfRotationY = robotConfig.centerOfRotation.distanceFromTop; // In studs from top edge
-
-  // Calculate offset from center of rotation to robot center (in mm, scaled)
-  // This is the INVERSE of the previous calculation
-  const robotBodyOffsetX =
-    (robotCenterX - centerOfRotationX) * LEGO_STUD_SIZE_MM * scale;
-  const robotBodyOffsetY =
-    (robotCenterY - centerOfRotationY) * LEGO_STUD_SIZE_MM * scale;
+  // Use the shared robot bounds utility
+  const bounds = calculateRobotBounds(position, robotConfig, utils);
 
   ctx.save();
 
   // Translate to center of rotation position
-  ctx.translate(centerOfRotationPos.x, centerOfRotationPos.y);
+  ctx.translate(bounds.centerOfRotation.x, bounds.centerOfRotation.y);
   // Rotate around center of rotation
-  ctx.rotate(heading);
+  ctx.rotate(bounds.heading);
   // Translate to robot body center for drawing
-  ctx.translate(robotBodyOffsetX, robotBodyOffsetY);
+  ctx.translate(bounds.robotBodyOffsetX, bounds.robotBodyOffsetY);
 
   // NOTE: Now drawing robot body at (0,0) which is the robot's geometric center
 
-  const robotWidth = robotConfig.dimensions.width * 8 * scale; // Convert studs to mm
-  const robotLength = robotConfig.dimensions.length * 8 * scale; // Convert studs to mm
-
   if (isGhost) {
-    drawGhostRobot(ctx, robotConfig, scale, robotWidth, robotLength, robotBodyOffsetX, robotBodyOffsetY, previewType, direction);
+    drawGhostRobot(ctx, robotConfig, scale, bounds.robotWidth, bounds.robotLength, bounds.robotBodyOffsetX, bounds.robotBodyOffsetY, previewType, direction);
   } else {
-    drawRegularRobot(ctx, robotConfig, scale, robotWidth, robotLength, robotBodyOffsetX, robotBodyOffsetY);
+    drawRegularRobot(ctx, robotConfig, scale, bounds.robotWidth, bounds.robotLength, bounds.robotBodyOffsetX, bounds.robotBodyOffsetY);
   }
 
   ctx.restore();
