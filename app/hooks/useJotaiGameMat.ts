@@ -29,6 +29,7 @@ import {
   splinePathsAtom,
   selectedSplinePointIdAtom,
   hoveredSplinePointIdAtom,
+  hoveredCurvatureHandlePointIdAtom,
   splinePathCommandsAtom,
   isExecutingSplinePathAtom,
   executingCommandIndexAtom,
@@ -94,6 +95,7 @@ export function useJotaiGameMat() {
   const [splinePaths, setSplinePaths] = useAtom(splinePathsAtom);
   const [selectedSplinePointId, setSelectedSplinePointId] = useAtom(selectedSplinePointIdAtom);
   const [hoveredSplinePointId, setHoveredSplinePointId] = useAtom(hoveredSplinePointIdAtom);
+  const [hoveredCurvatureHandlePointId, setHoveredCurvatureHandlePointId] = useAtom(hoveredCurvatureHandlePointIdAtom);
   const [splinePathCommands, setSplinePathCommands] = useAtom(splinePathCommandsAtom);
   const [isExecutingSplinePath, setIsExecutingSplinePath] = useAtom(isExecutingSplinePathAtom);
   const [executingCommandIndex, setExecutingCommandIndex] = useAtom(executingCommandIndexAtom);
@@ -461,6 +463,8 @@ export function useJotaiGameMat() {
     setSelectedSplinePointId,
     hoveredSplinePointId,
     setHoveredSplinePointId,
+    hoveredCurvatureHandlePointId,
+    setHoveredCurvatureHandlePointId,
     splinePathCommands,
     setSplinePathCommands,
     isExecutingSplinePath,

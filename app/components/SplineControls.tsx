@@ -24,8 +24,13 @@ export function SplineControls({
     <div className="space-y-4">
       <div className="text-center text-purple-600 dark:text-purple-400">
         <div className="text-lg font-semibold">📐 Spline Path Planning</div>
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          Click on the mat to add waypoints to your path
+        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <div>Click on the mat to add waypoints to your path</div>
+          <div className="text-xs">
+            • <span className="text-blue-600 dark:text-blue-400">Drag points</span> to move them
+            • <span className="text-orange-600 dark:text-orange-400">Orange handles</span> adjust curve smoothness (auto-added to intermediate points)
+            • <span className="text-red-600 dark:text-red-400">Delete/Backspace</span> removes selected points
+          </div>
         </div>
       </div>
 

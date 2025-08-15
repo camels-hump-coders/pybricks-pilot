@@ -115,6 +115,8 @@ export function EnhancedCompetitionMat({
     setSelectedSplinePointId,
     hoveredSplinePointId,
     setHoveredSplinePointId,
+    hoveredCurvatureHandlePointId,
+    setHoveredCurvatureHandlePointId,
     enterSplinePathMode,
     exitSplinePathMode,
     addSplinePointAtMousePosition,
@@ -183,6 +185,8 @@ export function EnhancedCompetitionMat({
   const [draggedCurvatureHandle, setDraggedCurvatureHandle] = useState<{
     pointId: string;
   } | null>(null);
+
+  // Hover states are now managed by Jotai atoms
 
   // Ghost robot state for telemetry playback
   const ghostRobot = useAtomValue(ghostRobotAtom);
@@ -593,7 +597,7 @@ export function EnhancedCompetitionMat({
 
     // Draw spline paths
     if (isSplinePathMode && currentSplinePath && currentSplinePath.points.length > 0) {
-      drawSplinePath(ctx, currentSplinePath, selectedSplinePointId, { mmToCanvas, scale });
+      drawSplinePath(ctx, currentSplinePath, selectedSplinePointId, { mmToCanvas, scale }, hoveredSplinePointId, hoveredCurvatureHandlePointId);
     }
 
     // Draw completed spline paths
@@ -759,6 +763,7 @@ export function EnhancedCompetitionMat({
             const coords = coordinateUtils.mmToCanvas(x, y);
             return { x: coords.x, y: coords.y };
           },
+          scale,
         };
         
         // First check for curvature handle clicks (highest priority)
@@ -882,6 +887,46 @@ export function EnhancedCompetitionMat({
         
         updateCurvatureHandle(draggedCurvatureHandle.pointId, curvatureHandle);
       }
+    }
+
+    // Check for spline element hover (only when not dragging)
+    if (isSplinePathMode && currentSplinePath && !isDraggingPoint && !isDraggingControlPoint && !isDraggingCurvatureHandle) {
+      const utils = {
+        mmToCanvas: (x: number, y: number) => {
+          const coords = coordinateUtils.mmToCanvas(x, y);
+          return { x: coords.x, y: coords.y };
+        },
+        scale,
+      };
+
+      // Check for curvature handle hover (highest priority)
+      const hoveredCurvatureHandle = findClickedCurvatureHandle(canvasX, canvasY, currentSplinePath, utils);
+      if (hoveredCurvatureHandle) {
+        setHoveredCurvatureHandlePointId(hoveredCurvatureHandle.pointId);
+        setHoveredSplinePointId(null);
+        // Set cursor to pointer to indicate interactivity
+        if (canvas.style.cursor !== 'grab') canvas.style.cursor = 'grab';
+      } else {
+        setHoveredCurvatureHandlePointId(null);
+
+        // Check for spline point hover
+        const hoveredPointId = findClickedSplinePoint(canvasX, canvasY);
+        if (hoveredPointId) {
+          setHoveredSplinePointId(hoveredPointId);
+          // Set cursor to pointer to indicate interactivity
+          if (canvas.style.cursor !== 'grab') canvas.style.cursor = 'grab';
+        } else {
+          setHoveredSplinePointId(null);
+          // Reset cursor
+          if (canvas.style.cursor !== 'default') canvas.style.cursor = 'default';
+        }
+      }
+    } else if (!isSplinePathMode) {
+      // Clear hover states when not in spline mode
+      setHoveredSplinePointId(null);
+      setHoveredCurvatureHandlePointId(null);
+      // Reset cursor
+      if (canvas.style.cursor !== 'default') canvas.style.cursor = 'default';
     }
 
     // Check for telemetry point hover (if path visualization is enabled)
@@ -1163,6 +1208,7 @@ export function EnhancedCompetitionMat({
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
+          onMouseDown={handleCanvasClick}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={() => {
             // Stop dragging when mouse is released
@@ -1190,6 +1236,20 @@ export function EnhancedCompetitionMat({
             // Stop dragging when mouse leaves
             setIsDraggingPoint(false);
             setDraggedPointId(null);
+            setIsDraggingControlPoint(false);
+            setDraggedControlPoint(null);
+            setIsDraggingCurvatureHandle(false);
+            setDraggedCurvatureHandle(null);
+            
+            // Clear spline hover states
+            setHoveredSplinePointId(null);
+            setHoveredCurvatureHandlePointId(null);
+            
+            // Reset cursor
+            const canvas = canvasRef.current;
+            if (canvas && canvas.style.cursor !== 'default') {
+              canvas.style.cursor = 'default';
+            }
           }}
           className={`block w-full rounded shadow-2xl ${
             hoveredObject

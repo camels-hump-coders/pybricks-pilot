@@ -338,16 +338,14 @@ function RobotControlsSection({
         onMotorStopCommand={onMotorStopCommand}
         telemetryData={telemetryData}
         isConnected={isConnected}
-        // Robot position automatically available via Jotai in CompactRobotController
-        onPreviewUpdate={setMovementPreview}
         robotType={robotType}
+        onResetTelemetry={onResetTelemetry}
+        customMatConfig={customMatConfig}
         onStopProgram={onStopProgram}
         onUploadAndRunFile={onUploadAndRunFile}
         isUploading={isUploading}
         debugEvents={debugEvents}
-        isCmdKeyPressed={isCmdKeyPressed}
-        customMatConfig={customMatConfig}
-        onResetTelemetry={onResetTelemetry}
+        onPreviewUpdate={() => {}} // TODO: Add preview update functionality
       />
     </div>
   );

@@ -14,7 +14,9 @@ export function drawSplinePath(
   ctx: CanvasRenderingContext2D,
   splinePath: SplinePath,
   selectedPointId: string | null,
-  utils: RobotDrawingUtils
+  utils: RobotDrawingUtils,
+  hoveredSplinePointId?: string | null,
+  hoveredCurvatureHandlePointId?: string | null
 ) {
   if (!splinePath.points || splinePath.points.length === 0) {
     return;
@@ -123,20 +125,23 @@ export function drawSplinePath(
         point.position.y + point.curvatureHandle.y
       );
       
+      const isHoveredCurvatureHandle = hoveredCurvatureHandlePointId === point.id;
+      
       // Draw handle line
       ctx.beginPath();
       ctx.moveTo(canvasPos.x, canvasPos.y);
       ctx.lineTo(handlePos.x, handlePos.y);
-      ctx.strokeStyle = "#f97316"; // Orange for curvature handles
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isHoveredCurvatureHandle ? "#ea580c" : "#f97316"; // Darker orange on hover
+      ctx.lineWidth = isHoveredCurvatureHandle ? 3 : 2; // Thicker line on hover
       ctx.setLineDash([5, 3]);
       ctx.stroke();
       ctx.setLineDash([]);
       
-      // Draw handle circle
+      // Draw handle circle with hover effect
+      const handleRadius = isHoveredCurvatureHandle ? 8 : 6; // Larger on hover
       ctx.beginPath();
-      ctx.arc(handlePos.x, handlePos.y, 6, 0, 2 * Math.PI);
-      ctx.fillStyle = "#f97316"; // Orange fill
+      ctx.arc(handlePos.x, handlePos.y, handleRadius, 0, 2 * Math.PI);
+      ctx.fillStyle = isHoveredCurvatureHandle ? "#ea580c" : "#f97316"; // Darker orange on hover
       ctx.fill();
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
@@ -148,6 +153,15 @@ export function drawSplinePath(
       ctx.arc(handlePos.x, handlePos.y, strengthRadius, 0, 2 * Math.PI);
       ctx.fillStyle = "#ffffff";
       ctx.fill();
+      
+      // Add glow effect when hovered
+      if (isHoveredCurvatureHandle) {
+        ctx.beginPath();
+        ctx.arc(handlePos.x, handlePos.y, handleRadius + 4, 0, 2 * Math.PI);
+        ctx.strokeStyle = "rgba(234, 88, 12, 0.3)"; // Semi-transparent orange glow
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      }
     }
 
     // Draw control points if they exist and point is selected
@@ -205,13 +219,27 @@ export function drawSplinePath(
       }
     }
 
-    // Draw point circle
+    // Draw point circle with hover effect
+    const isHovered = hoveredSplinePointId === point.id;
+    const pointRadius = isSelected ? 8 : (isHovered ? 7 : 6); // Larger when hovered
+    
+    // Add glow effect when hovered
+    if (isHovered && !isSelected) {
+      ctx.beginPath();
+      ctx.arc(canvasPos.x, canvasPos.y, pointRadius + 4, 0, 2 * Math.PI);
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.3)"; // Semi-transparent blue glow
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+    
     ctx.beginPath();
-    ctx.arc(canvasPos.x, canvasPos.y, isSelected ? 8 : 6, 0, 2 * Math.PI);
+    ctx.arc(canvasPos.x, canvasPos.y, pointRadius, 0, 2 * Math.PI);
     
     // Fill color based on state
     if (isSelected) {
       ctx.fillStyle = "#ef4444"; // Red for selected
+    } else if (isHovered) {
+      ctx.fillStyle = "#3b82f6"; // Blue for hovered
     } else if (isFirst) {
       ctx.fillStyle = "#10b981"; // Green for start
     } else if (isLast && splinePath.isComplete) {

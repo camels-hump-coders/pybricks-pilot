@@ -15,6 +15,7 @@ interface ManualControlsProps {
   executingCommand: ExecutingCommand | null;
   isFullyConnected: boolean;
   onUpdatePreview: (type: "drive" | "turn" | null, direction: "forward" | "backward" | "left" | "right" | null) => void;
+  onUpdateDualPreview?: (type: "drive" | "turn", distance?: number, angle?: number) => void;
   onSendStepDrive: (distance: number, speed: number) => void;
   onSendStepTurn: (angle: number, speed: number) => void;
   onStartContinuousDrive: (direction: "forward" | "backward") => void;
@@ -36,6 +37,7 @@ export function ManualControls({
   executingCommand,
   isFullyConnected,
   onUpdatePreview,
+  onUpdateDualPreview,
   onSendStepDrive,
   onSendStepTurn,
   onStartContinuousDrive,
@@ -66,8 +68,23 @@ export function ManualControls({
                 step="10"
                 value={distance}
                 onChange={(e) => setDistance(Number(e.target.value))}
-                onMouseEnter={() => onUpdatePreview("drive", "forward")}
-                onMouseLeave={() => onUpdatePreview(null, null)}
+                onInput={(e) => {
+                  // Update preview in real-time as slider is dragged
+                  if (onUpdateDualPreview) {
+                    const currentValue = Number((e.target as HTMLInputElement).value);
+                    onUpdateDualPreview("drive", currentValue, angle);
+                  }
+                }}
+                onMouseEnter={() => {
+                  // Show dual drive previews when hovering over distance slider
+                  if (onUpdateDualPreview) {
+                    onUpdateDualPreview("drive", distance, angle);
+                  }
+                }}
+                onMouseLeave={() => {
+                  // Clear preview when leaving slider
+                  onUpdatePreview(null, null);
+                }}
                 className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
               />
             </div>
@@ -82,8 +99,23 @@ export function ManualControls({
                 step="5"
                 value={angle}
                 onChange={(e) => setAngle(Number(e.target.value))}
-                onMouseEnter={() => onUpdatePreview("turn", "left")}
-                onMouseLeave={() => onUpdatePreview(null, null)}
+                onInput={(e) => {
+                  // Update preview in real-time as slider is dragged
+                  if (onUpdateDualPreview) {
+                    const currentValue = Number((e.target as HTMLInputElement).value);
+                    onUpdateDualPreview("turn", distance, currentValue);
+                  }
+                }}
+                onMouseEnter={() => {
+                  // Show dual turn previews when hovering over angle slider
+                  if (onUpdateDualPreview) {
+                    onUpdateDualPreview("turn", distance, angle);
+                  }
+                }}
+                onMouseLeave={() => {
+                  // Clear preview when leaving slider
+                  onUpdatePreview(null, null);
+                }}
                 className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
               />
             </div>

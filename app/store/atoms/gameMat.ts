@@ -687,6 +687,7 @@ export const currentSplinePathAtom = atom<SplinePath | null>(null);
 export const splinePathsAtom = atom<SplinePath[]>([]);
 export const selectedSplinePointIdAtom = atom<string | null>(null);
 export const hoveredSplinePointIdAtom = atom<string | null>(null);
+export const hoveredCurvatureHandlePointIdAtom = atom<string | null>(null);
 export const splinePathCommandsAtom = atom<SplinePathCommand[]>([]);
 
 // Spline path execution state
