@@ -53,6 +53,7 @@ import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
+import { findClickedControlPoint, findClickedCurvatureHandle } from "../utils/canvas/splinePathDrawing";
 
 // RobotPosition interface now imported from utils/canvas
 
@@ -127,6 +128,13 @@ export function EnhancedCompetitionMat({
     updateSplinePoint,
     deleteSplinePoint,
     completeSplinePath,
+    // Control point actions
+    addControlPoint,
+    updateControlPoint,
+    removeControlPoint,
+    // Curvature handle actions
+    updateCurvatureHandle,
+    addCurvatureHandlesToIntermediatePoints,
   } = gameMat;
 
   // Local state that doesn't need to be in Jotai
@@ -168,6 +176,19 @@ export function EnhancedCompetitionMat({
   // Spline path dragging state
   const [isDraggingPoint, setIsDraggingPoint] = useState(false);
   const [draggedPointId, setDraggedPointId] = useState<string | null>(null);
+  
+  // Control point dragging state
+  const [isDraggingControlPoint, setIsDraggingControlPoint] = useState(false);
+  const [draggedControlPoint, setDraggedControlPoint] = useState<{
+    pointId: string;
+    controlType: "before" | "after";
+  } | null>(null);
+  
+  // Curvature handle dragging state
+  const [isDraggingCurvatureHandle, setIsDraggingCurvatureHandle] = useState(false);
+  const [draggedCurvatureHandle, setDraggedCurvatureHandle] = useState<{
+    pointId: string;
+  } | null>(null);
 
   // Ghost robot state for telemetry playback
   const ghostRobot = useAtomValue(ghostRobotAtom);
@@ -769,6 +790,33 @@ export function EnhancedCompetitionMat({
       
       // Check if clicking on an existing point for selection/editing or dragging
       if (currentSplinePath) {
+        // First check for control point clicks
+        const utils = {
+          mmToCanvas: (x: number, y: number) => {
+            const coords = coordinateUtils.mmToCanvas(x, y);
+            return { x: coords.x, y: coords.y };
+          },
+        };
+        
+        // First check for curvature handle clicks (highest priority)
+        const clickedCurvatureHandle = findClickedCurvatureHandle(canvasX, canvasY, currentSplinePath, utils);
+        if (clickedCurvatureHandle) {
+          setSelectedSplinePointId(clickedCurvatureHandle.pointId);
+          setDraggedCurvatureHandle(clickedCurvatureHandle);
+          setIsDraggingCurvatureHandle(true);
+          return;
+        }
+        
+        // Then check for control point clicks
+        const clickedControlPoint = findClickedControlPoint(canvasX, canvasY, currentSplinePath, utils);
+        if (clickedControlPoint) {
+          setSelectedSplinePointId(clickedControlPoint.pointId);
+          setDraggedControlPoint(clickedControlPoint);
+          setIsDraggingControlPoint(true);
+          return;
+        }
+        
+        // Then check for regular point clicks
         const clickedPointId = findClickedSplinePoint(canvasX, canvasY);
         if (clickedPointId) {
           setSelectedSplinePointId(clickedPointId);
@@ -865,6 +913,46 @@ export function EnhancedCompetitionMat({
             heading: point.position.heading // Keep existing heading
           }
         });
+      }
+    }
+    
+    // Handle control point dragging
+    if (isSplinePathMode && isDraggingControlPoint && draggedControlPoint) {
+      const matPos = canvasToMm(canvasX, canvasY);
+      // Find the point and update the control point relative to the point position
+      const point = currentSplinePath?.points.find(p => p.id === draggedControlPoint.pointId);
+      if (point) {
+        const controlPoint = {
+          x: matPos.x - point.position.x,
+          y: matPos.y - point.position.y
+        };
+        updateControlPoint(draggedControlPoint.pointId, draggedControlPoint.controlType, controlPoint);
+      }
+    }
+    
+    // Handle curvature handle dragging
+    if (isSplinePathMode && isDraggingCurvatureHandle && draggedCurvatureHandle) {
+      const matPos = canvasToMm(canvasX, canvasY);
+      // Find the point and update the curvature handle relative to the point position
+      const point = currentSplinePath?.points.find(p => p.id === draggedCurvatureHandle.pointId);
+      if (point && point.curvatureHandle) {
+        const handleOffset = {
+          x: matPos.x - point.position.x,
+          y: matPos.y - point.position.y
+        };
+        
+        // Calculate strength based on distance from point (0-1 scale)
+        const distance = Math.sqrt(handleOffset.x * handleOffset.x + handleOffset.y * handleOffset.y);
+        const maxDistance = 100; // 100mm max distance for full strength
+        const strength = Math.min(distance / maxDistance, 1);
+        
+        const curvatureHandle = {
+          x: handleOffset.x,
+          y: handleOffset.y,
+          strength: strength
+        };
+        
+        updateCurvatureHandle(draggedCurvatureHandle.pointId, curvatureHandle);
       }
     }
 
@@ -1090,6 +1178,7 @@ export function EnhancedCompetitionMat({
       if (isSplinePathMode && event.key === "Escape") {
         exitSplinePathMode();
       }
+      
     };
     
     document.addEventListener("keydown", handleKeyDown);
@@ -1197,6 +1286,10 @@ export function EnhancedCompetitionMat({
             // Stop dragging when mouse is released
             setIsDraggingPoint(false);
             setDraggedPointId(null);
+            setIsDraggingControlPoint(false);
+            setDraggedControlPoint(null);
+            setIsDraggingCurvatureHandle(false);
+            setDraggedCurvatureHandle(null);
           }}
           onMouseLeave={() => {
             setMousePosition(null);

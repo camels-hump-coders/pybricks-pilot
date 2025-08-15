@@ -88,30 +88,90 @@ export function convertSplinePathToSmoothCommands(path: SplinePath): SplinePathC
   for (let i = 0; i < path.points.length - 1; i++) {
     const currentPoint = path.points[i];
     const nextPoint = path.points[i + 1];
-    const nextNextPoint = path.points[i + 2]; // Look ahead for arc calculation
     
     // Calculate basic movement parameters
     const dx = nextPoint.position.x - currentPoint.position.x;
     const dy = nextPoint.position.y - currentPoint.position.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // If we have a next-next point, consider using an arc
-    if (nextNextPoint && currentPoint.controlPoints?.after && nextPoint.controlPoints?.before) {
-      // Calculate arc parameters based on control points
-      // This is a simplified arc calculation - could be enhanced with proper bezier curve math
-      const arcRadius = distance / 2; // Simplified radius calculation
-      const arcAngle = 45; // Simplified arc angle
+    // Priority 1: Use curvature handles for smooth arc commands
+    if (currentPoint.curvatureHandle || nextPoint.curvatureHandle) {
+      let arcRadius = distance / 2; // Default radius
+      let arcAngle = 30; // Default arc angle
+      let turnSpeed = 100; // Speed for turning
+      
+      // Calculate arc parameters based on curvature handles
+      if (currentPoint.curvatureHandle) {
+        const handleLength = Math.sqrt(
+          currentPoint.curvatureHandle.x * currentPoint.curvatureHandle.x + 
+          currentPoint.curvatureHandle.y * currentPoint.curvatureHandle.y
+        );
+        const strength = currentPoint.curvatureHandle.strength;
+        
+        // Stronger curvature = tighter radius, larger angle
+        arcRadius = Math.max(30, handleLength * (1 - strength * 0.5));
+        arcAngle = Math.min(90, 20 + (strength * 60)); // 20-80 degree range
+        turnSpeed = Math.max(50, 150 - (strength * 100)); // Slower for tighter curves
+      }
+      
+      if (nextPoint.curvatureHandle) {
+        const handleLength = Math.sqrt(
+          nextPoint.curvatureHandle.x * nextPoint.curvatureHandle.x + 
+          nextPoint.curvatureHandle.y * nextPoint.curvatureHandle.y
+        );
+        const strength = nextPoint.curvatureHandle.strength;
+        
+        // Average with previous point's calculations if both exist
+        if (currentPoint.curvatureHandle) {
+          arcRadius = (arcRadius + Math.max(30, handleLength * (1 - strength * 0.5))) / 2;
+          arcAngle = (arcAngle + Math.min(90, 20 + (strength * 60))) / 2;
+          turnSpeed = (turnSpeed + Math.max(50, 150 - (strength * 100))) / 2;
+        } else {
+          arcRadius = Math.max(30, handleLength * (1 - strength * 0.5));
+          arcAngle = Math.min(90, 20 + (strength * 60));
+          turnSpeed = Math.max(50, 150 - (strength * 100));
+        }
+      }
       
       commands.push({
         type: "arc",
         radius: arcRadius,
         angle: arcAngle,
+        speed: turnSpeed,
+        fromPoint: currentPoint.id,
+        toPoint: nextPoint.id
+      });
+    }
+    // Priority 2: Use manual control points if available
+    else if (currentPoint.controlPoints?.after || nextPoint.controlPoints?.before) {
+      // Calculate arc parameters based on control points
+      const cp1 = currentPoint.controlPoints?.after || { x: 0, y: 0 };
+      const cp2 = nextPoint.controlPoints?.before || { x: 0, y: 0 };
+      
+      // Calculate the curve radius from control points
+      const cp1Length = Math.sqrt(cp1.x * cp1.x + cp1.y * cp1.y);
+      const cp2Length = Math.sqrt(cp2.x * cp2.x + cp2.y * cp2.y);
+      const avgControlLength = (cp1Length + cp2Length) / 2;
+      
+      // Use control point length to determine arc radius (more control = tighter curve)
+      const arcRadius = Math.max(50, Math.min(avgControlLength, distance / 2));
+      
+      // Calculate the curve angle from the control points
+      const startAngle = normalizeAngle(Math.atan2(cp1.y, cp1.x) * 180 / Math.PI);
+      const endAngle = normalizeAngle(Math.atan2(-cp2.y, -cp2.x) * 180 / Math.PI);
+      const arcAngle = normalizeAngle(endAngle - startAngle);
+      
+      commands.push({
+        type: "arc",
+        radius: arcRadius,
+        angle: Math.abs(arcAngle),
         speed: 150,
         fromPoint: currentPoint.id,
         toPoint: nextPoint.id
       });
-    } else {
-      // Fall back to turn + drive for simple segments
+    } 
+    // Priority 3: Fall back to turn + drive for simple segments
+    else {
       const requiredHeading = normalizeAngle(Math.atan2(dy, dx) * 180 / Math.PI + 90);
       const turnAngle = calculateTurnAngle(currentPoint.position.heading, requiredHeading);
       
