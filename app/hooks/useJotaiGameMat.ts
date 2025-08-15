@@ -6,10 +6,13 @@ import {
   controlModeAtom,
   currentScoreAtom,
   customMatConfigAtom,
+  isMouseMovementPlanningModeAtom,
   isSettingPositionAtom,
   manualHeadingAdjustmentAtom,
   maxPathPointsAtom,
   mousePositionAtom,
+  movementPlanningGhostPositionAtom,
+  movementPlanningTargetAtom,
   movementPreviewAtom,
   pathColorModeAtom,
   pathOpacityAtom,
@@ -50,7 +53,9 @@ export function useJotaiGameMat() {
   const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
 
   // Perpendicular motion preview
-  const [perpendicularPreview, setPerpendicularPreview] = useAtom(perpendicularPreviewAtom);
+  const [perpendicularPreview, setPerpendicularPreview] = useAtom(
+    perpendicularPreviewAtom
+  );
 
   // Path visualization
   const [showPath, setShowPath] = useAtom(showPathAtom);
@@ -60,6 +65,11 @@ export function useJotaiGameMat() {
 
   // Control mode
   const [controlMode, setControlMode] = useAtom(controlModeAtom);
+
+  // Mouse movement planning mode
+  const [isMouseMovementPlanningMode, setIsMouseMovementPlanningMode] = useAtom(isMouseMovementPlanningModeAtom);
+  const [movementPlanningGhostPosition, setMovementPlanningGhostPosition] = useAtom(movementPlanningGhostPositionAtom);
+  const [movementPlanningTarget, setMovementPlanningTarget] = useAtom(movementPlanningTargetAtom);
 
   // Derived values
   const currentScore = useAtomValue(currentScoreAtom);
@@ -164,7 +174,19 @@ export function useJotaiGameMat() {
 
   // Wrapper functions for backward compatibility
   const setRobotPosition = useCallback(
-    async (position: RobotPosition, resetFunctions?: { resetTelemetry: () => Promise<void>; clearProgramOutputLog: () => void; setAccumulatedTelemetry: (state: { distance: number; angle: number }) => void; setManualHeadingAdjustment: (adjustment: number) => void; setScoringState: (state: any) => void; }) => {
+    async (
+      position: RobotPosition,
+      resetFunctions?: {
+        resetTelemetry: () => Promise<void>;
+        clearProgramOutputLog: () => void;
+        setAccumulatedTelemetry: (state: {
+          distance: number;
+          angle: number;
+        }) => void;
+        setManualHeadingAdjustment: (adjustment: number) => void;
+        setScoringState: (state: any) => void;
+      }
+    ) => {
       // MANUAL POSITION SETTING: Perform same reset steps as reset button before setting position
       if (resetFunctions) {
         await resetFunctions.resetTelemetry();
@@ -173,19 +195,19 @@ export function useJotaiGameMat() {
         resetFunctions.setManualHeadingAdjustment(0);
         resetFunctions.setScoringState({});
       }
-      
+
       // This bypasses the delta-based telemetry system for manual positioning
       setRobotPositionDirect(position);
-      
+
       // Reset telemetry reference to the new position
       setTelemetryReference({
         distance: 0,
         angle: 0,
         position: position,
       });
-      
+
       // Clear telemetry history when manually setting position
-      telemetryHistory.onMatReset();
+      telemetryHistory.startNewPath();
     },
     [setRobotPositionDirect, setTelemetryReference]
   );
@@ -213,7 +235,12 @@ export function useJotaiGameMat() {
     });
     // Clear manual heading adjustment
     setManualHeadingAdjustment(0);
-  }, [robotConfig, setRobotPosition, setTelemetryReference, setManualHeadingAdjustment]);
+  }, [
+    robotConfig,
+    setRobotPosition,
+    setTelemetryReference,
+    setManualHeadingAdjustment,
+  ]);
 
   const togglePathVisualization = useCallback(() => {
     setShowPath((prev) => !prev);
@@ -233,6 +260,67 @@ export function useJotaiGameMat() {
       }
     });
   }, [setPathColorMode]);
+
+  // Mouse movement planning helpers
+  const enterMouseMovementPlanningMode = useCallback(() => {
+    setIsMouseMovementPlanningMode(true);
+  }, [setIsMouseMovementPlanningMode]);
+
+  const exitMouseMovementPlanningMode = useCallback(() => {
+    setIsMouseMovementPlanningMode(false);
+    setMovementPlanningGhostPosition(null);
+    setMovementPlanningTarget(null);
+  }, [setIsMouseMovementPlanningMode, setMovementPlanningGhostPosition, setMovementPlanningTarget]);
+
+  const updateMouseMovementGhost = useCallback((mouseX: number, mouseY: number) => {
+    if (!isMouseMovementPlanningMode) return;
+
+    // Calculate heading from current robot position to mouse
+    const dx = mouseX - robotPosition.x;
+    const dy = mouseY - robotPosition.y;
+    // Use same formula as CompactRobotController: Math.atan2(dy, dx) + 90
+    let heading = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+    // Normalize to -180 to 180 range to match our heading system
+    if (heading > 180) heading -= 360;
+
+    setMovementPlanningGhostPosition({
+      x: mouseX,
+      y: mouseY,
+      heading
+    });
+  }, [isMouseMovementPlanningMode, robotPosition, setMovementPlanningGhostPosition]);
+
+  const calculateMovementCommands = useCallback((targetX: number, targetY: number) => {
+    // Helper function to normalize heading to -180 to 180 range
+    const normalizeHeading = (heading: number): number => {
+      let normalized = heading % 360;
+      if (normalized > 180) {
+        normalized -= 360;
+      } else if (normalized < -180) {
+        normalized += 360;
+      }
+      return normalized;
+    };
+
+    // Calculate distance and angle to target
+    const dx = targetX - robotPosition.x;
+    const dy = targetY - robotPosition.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    // Use same formula as CompactRobotController: Math.atan2(dy, dx) + 90
+    const targetHeading = normalizeHeading(Math.atan2(dy, dx) * 180 / Math.PI + 90);
+    
+    // Calculate turn angle (shortest path) - both headings now normalized
+    const currentHeading = normalizeHeading(robotPosition.heading);
+    let turnAngle = targetHeading - currentHeading;
+    if (turnAngle > 180) turnAngle -= 360;
+    if (turnAngle < -180) turnAngle += 360;
+
+    return {
+      turnAngle,
+      driveDistance: distance,
+      targetHeading
+    };
+  }, [robotPosition]);
 
   return {
     // Robot position
@@ -285,5 +373,14 @@ export function useJotaiGameMat() {
     // Control mode
     controlMode,
     setControlMode,
+
+    // Mouse movement planning mode
+    isMouseMovementPlanningMode,
+    movementPlanningGhostPosition,
+    movementPlanningTarget,
+    enterMouseMovementPlanningMode,
+    exitMouseMovementPlanningMode,
+    updateMouseMovementGhost,
+    calculateMovementCommands,
   };
 }

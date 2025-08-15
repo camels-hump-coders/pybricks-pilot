@@ -40,6 +40,7 @@ class TelemetryHistoryService {
   private isRecording = false;
   private isProgramRunning = false;
   private lastPosition = { x: 0, y: 0, heading: 0 };
+  private selectedPathChangeCallback: ((pathId: string | null) => void) | null = null;
 
   /**
    * Configure the maximum number of points to retain
@@ -233,6 +234,12 @@ class TelemetryHistoryService {
     }
   }
 
+  deletePath(pathId: string): boolean {
+    const initialLength = this.allPaths.length;
+    this.allPaths = this.allPaths.filter(path => path.id !== pathId);
+    return this.allPaths.length < initialLength; // Return true if a path was deleted
+  }
+
   isRecordingActive(): boolean {
     return this.isRecording;
   }
@@ -251,6 +258,11 @@ class TelemetryHistoryService {
   startNewPath(): void {
     this.stopRecording(); // Stop current recording and save to allPaths
     this.startRecording(); // Start new recording
+    
+    // Auto-select the new path
+    if (this.currentPath && this.selectedPathChangeCallback) {
+      this.selectedPathChangeCallback(this.currentPath.id);
+    }
   }
 
   // Ensure recording is active when telemetry data is available
@@ -467,6 +479,16 @@ class TelemetryHistoryService {
     } catch (error) {
       console.error("Failed to import telemetry history:", error);
     }
+  }
+
+  // Set callback for when selected path should change
+  setSelectedPathChangeCallback(callback: (pathId: string | null) => void): void {
+    this.selectedPathChangeCallback = callback;
+  }
+
+  // Remove the callback
+  removeSelectedPathChangeCallback(): void {
+    this.selectedPathChangeCallback = null;
   }
 }
 

@@ -202,14 +202,16 @@ export function useJotaiPybricksHub() {
   }, []);
 
   // Reset telemetry
-  const resetTelemetry = useCallback(async () => {
+  const resetTelemetry = useCallback(async (startNewPath: boolean = true) => {
     const resetCommand = JSON.stringify({ action: "reset_drivebase" });
     try {
       await pybricksHubService.sendControlCommand(resetCommand);
     } catch {
       // Ignore errors - this is a best-effort reset
     }
-    telemetryHistory.onMatReset();
+    if (startNewPath) {
+      telemetryHistory.startNewPath();
+    }
   }, []);
 
   // Instrumentation settings (still using service directly for now)

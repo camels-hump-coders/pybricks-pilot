@@ -234,3 +234,8 @@ export const resetScoringAtom = atom(null, (get, set) => {
   set(scoringStateAtom, {});
   set(totalScoreAtom, 0);
 });
+
+// Mouse movement planning mode atoms
+export const isMouseMovementPlanningModeAtom = atom<boolean>(false);
+export const movementPlanningGhostPositionAtom = atom<RobotPosition | null>(null);
+export const movementPlanningTargetAtom = atom<RobotPosition | null>(null);

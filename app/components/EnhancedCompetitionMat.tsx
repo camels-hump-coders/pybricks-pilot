@@ -7,14 +7,17 @@ import type { GameMatConfig, Mission } from "../schemas/GameMatConfig";
 import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
 import {
   telemetryHistory,
-  type ColorMode,
-  type PathVisualizationOptions,
   type TelemetryPoint,
 } from "../services/telemetryHistory";
 import { showGridOverlayAtom } from "../store/atoms/gameMat";
+import { telemetryDataAtom } from "../store/atoms/robotConnection";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import { allTelemetryPointsAtom } from "../store/atoms/telemetryPoints";
+import {
+  allTelemetryPointsAtom,
+  pathVisualizationOptionsAtom,
+  selectedPathPointsAtom,
+} from "../store/atoms/telemetryPoints";
 import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { TelemetryPlayback } from "./TelemetryPlayback";
@@ -132,7 +135,13 @@ export function EnhancedCompetitionMat({
   const matImageRef = useRef<HTMLCanvasElement | HTMLImageElement | null>(null);
 
   const robotConnection = useJotaiRobotConnection();
-  const { resetTelemetry, clearProgramOutputLog } = robotConnection;
+  const {
+    resetTelemetry,
+    clearProgramOutputLog,
+    sendDriveCommand,
+    sendTurnCommand,
+    isConnected: robotIsConnected,
+  } = robotConnection;
 
   // Get robot configuration
   const robotConfig = useAtomValue(robotConfigAtom);
@@ -159,6 +168,13 @@ export function EnhancedCompetitionMat({
     setMovementPreview,
     perpendicularPreview,
     currentScore,
+    // Mouse movement planning mode
+    isMouseMovementPlanningMode,
+    movementPlanningGhostPosition,
+    enterMouseMovementPlanningMode,
+    exitMouseMovementPlanningMode,
+    updateMouseMovementGhost,
+    calculateMovementCommands,
   } = gameMat;
 
   // Local state that doesn't need to be in Jotai
@@ -181,14 +197,9 @@ export function EnhancedCompetitionMat({
     Map<string, { x: number; y: number; width: number; height: number }>
   >(new Map());
 
-  // Path visualization state
-  const [pathOptions, setPathOptions] = useState<PathVisualizationOptions>({
-    showPath: true,
-    showMarkers: true,
-    colorMode: "none",
-    opacity: 0.8,
-    strokeWidth: 3,
-  });
+  // Path visualization state from atom
+  const pathOptions = useAtomValue(pathVisualizationOptionsAtom);
+  const selectedPathPoints = useAtomValue(selectedPathPointsAtom);
   const [hoveredPoint, setHoveredPoint] = useState<TelemetryPoint | null>(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number>(-1);
   const [tooltipPosition, setTooltipPosition] = useState<{
@@ -209,6 +220,13 @@ export function EnhancedCompetitionMat({
 
   // Grid overlay state from Jotai atom
   const showGridOverlay = useAtomValue(showGridOverlayAtom);
+  
+  // Fresh telemetry data from atom (not stale closure data)
+  const currentTelemetryData = useAtomValue(telemetryDataAtom);
+  
+  // Use a ref to always have access to the latest telemetry data
+  const telemetryDataRef = useRef(currentTelemetryData);
+  telemetryDataRef.current = currentTelemetryData;
 
   // Track if we've already initialized recording for this connection
   const recordingInitializedRef = useRef(false);
@@ -374,6 +392,85 @@ export function EnhancedCompetitionMat({
     return { x: canvasX, y: canvasY };
   };
 
+  const canvasToMm = (
+    canvasX: number,
+    canvasY: number
+  ): { x: number; y: number } => {
+    // Use configured mat dimensions instead of hardcoded constants
+    const matWidthMm = customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
+    const matHeightMm = customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
+
+    // Use exact same calculation as mmToCanvas but inverted
+    const matOffset = BORDER_WALL_THICKNESS_MM * scale;
+    const matX = matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
+    const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
+
+    // Convert canvas coordinates back to mm coordinates
+    const mmX = (canvasX - matX) / scale;
+    const mmY = (canvasY - matY) / scale;
+
+    return { x: mmX, y: mmY };
+  };
+
+  // Helper function to normalize heading to -180 to 180 range
+  const normalizeHeading = (heading: number): number => {
+    let normalized = heading % 360;
+    if (normalized > 180) {
+      normalized -= 360;
+    } else if (normalized < -180) {
+      normalized += 360;
+    }
+    return normalized;
+  };
+
+  // Function to wait for robot to reach desired heading and maintain it
+  const waitForDesiredHeading = (targetHeading: number): Promise<void> => {
+    return new Promise((resolve) => {
+      let stableStartTime: number | null = null;
+      const headingTolerance = 10; // Degrees tolerance for heading accuracy
+      const stabilityDuration = 500; // Half a second in milliseconds
+
+      const interval = setInterval(() => {
+        // Get current fresh telemetry data from the ref (always latest)
+        const currentHeading = telemetryDataRef.current?.hub?.imu?.heading;
+
+        if (currentHeading === undefined) {
+          return;
+        }
+
+        // Normalize both headings to -180 to 180 range
+        const normalizedTarget = normalizeHeading(targetHeading);
+        const normalizedCurrent = normalizeHeading(currentHeading);
+
+        // Calculate heading difference with normalized values (handle wraparound)
+        let headingDiff = Math.abs(normalizedTarget - normalizedCurrent);
+        if (headingDiff > 180) {
+          headingDiff = 360 - headingDiff;
+        }
+
+        console.log({
+          normalizedTarget,
+          normalizedCurrent,
+          headingDiff,
+        });
+
+        // Check if robot is within heading tolerance
+        if (headingDiff <= headingTolerance) {
+          if (stableStartTime === null) {
+            stableStartTime = Date.now();
+          } else if (Date.now() - stableStartTime >= stabilityDuration) {
+            // Robot has been at target heading for required duration
+            clearInterval(interval);
+            resolve();
+          }
+        } else {
+          // Reset stability timer if heading moved outside tolerance
+          stableStartTime = null;
+        }
+      }, 100);
+    });
+  };
+
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -459,6 +556,11 @@ export function EnhancedCompetitionMat({
     // Draw ghost robot from telemetry playback
     if (ghostPosition) {
       drawRobot(ctx, ghostPosition, true, "playback");
+    }
+
+    // Draw movement planning ghost robot
+    if (movementPlanningGhostPosition) {
+      drawRobot(ctx, movementPlanningGhostPosition, true, "planning");
     }
 
     // Draw movement preview robots (dual previews)
@@ -862,7 +964,12 @@ export function EnhancedCompetitionMat({
     ctx: CanvasRenderingContext2D,
     position: RobotPosition,
     isGhost = false,
-    previewType?: "primary" | "secondary" | "perpendicular" | "playback",
+    previewType?:
+      | "primary"
+      | "secondary"
+      | "perpendicular"
+      | "playback"
+      | "planning",
     direction?: "forward" | "backward" | "left" | "right"
   ) => {
     // SIMPLIFIED MODEL: position IS the center of rotation
@@ -904,6 +1011,9 @@ export function EnhancedCompetitionMat({
       } else if (previewType === "playback") {
         // Playback ghost robot - distinct purple color
         ctx.globalAlpha = 0.7;
+      } else if (previewType === "planning") {
+        // Planning ghost robot - orange color for mouse movement
+        ctx.globalAlpha = 0.8;
       } else {
         // Primary/secondary previews - make them highly visible
         ctx.globalAlpha = 0.9;
@@ -915,6 +1025,10 @@ export function EnhancedCompetitionMat({
         // Playback ghost - purple/magenta theme
         bodyColor = "rgba(147, 51, 234, 0.2)";
         borderColor = "#9333ea";
+      } else if (previewType === "planning") {
+        // Planning ghost - orange theme for mouse movement
+        bodyColor = "rgba(255, 140, 0, 0.2)";
+        borderColor = "#ff8c00";
       } else if (direction === "forward") {
         // Forward - subtle green (matching forward button)
         bodyColor =
@@ -1417,17 +1531,9 @@ export function EnhancedCompetitionMat({
   };
 
   const drawTelemetryPath = (ctx: CanvasRenderingContext2D) => {
-    const currentPath = telemetryHistory.getCurrentPath();
-    const allPaths = telemetryHistory.getAllPaths();
-
-    // Draw all completed paths first
-    allPaths.forEach((path) => {
-      drawPath(ctx, path.points, pathOptions.opacity * 0.7);
-    });
-
-    // Draw current recording path
-    if (currentPath && currentPath.points.length > 0) {
-      drawPath(ctx, currentPath.points, pathOptions.opacity);
+    // Draw only the selected path points from the atom
+    if (selectedPathPoints.length > 0) {
+      drawPath(ctx, selectedPathPoints, pathOptions.opacity);
     }
   };
 
@@ -1701,6 +1807,21 @@ export function EnhancedCompetitionMat({
     return null;
   };
 
+  // Helper function to check if a click is on the robot
+  const checkRobotClick = (canvasX: number, canvasY: number): boolean => {
+    if (!currentPosition) return false;
+
+    const robotCanvasPos = mmToCanvas(currentPosition.x, currentPosition.y);
+    const robotSize = 50; // Approximate click radius in pixels
+
+    const distance = Math.sqrt(
+      Math.pow(canvasX - robotCanvasPos.x, 2) +
+        Math.pow(canvasY - robotCanvasPos.y, 2)
+    );
+
+    return distance <= robotSize;
+  };
+
   const handleCanvasClick = async (
     event: React.MouseEvent<HTMLCanvasElement>
   ) => {
@@ -1713,6 +1834,51 @@ export function EnhancedCompetitionMat({
     const scaleY = canvas.height / rect.height;
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
+
+    // Check for robot click to enter/exit mouse movement planning mode
+    if (checkRobotClick(canvasX, canvasY)) {
+      if (isMouseMovementPlanningMode) {
+        exitMouseMovementPlanningMode();
+      } else {
+        enterMouseMovementPlanningMode();
+      }
+      return;
+    }
+
+    // If in mouse movement planning mode, handle mat clicks for movement
+    if (isMouseMovementPlanningMode) {
+      const matPos = canvasToMm(canvasX, canvasY);
+      const commands = calculateMovementCommands(matPos.x, matPos.y);
+
+      console.log("Performing movement commands", {
+        commands,
+      });
+
+      // Execute movement commands (turn then drive)
+      if (robotIsConnected && commands.turnAngle !== 0) {
+        try {
+          // Send turn command first
+          await sendTurnCommand(commands.turnAngle, 100); // 100 deg/s speed
+
+          // Wait for robot to reach desired heading and maintain it
+          await waitForDesiredHeading(commands.targetHeading);
+
+          if (commands.driveDistance > 5) {
+            // Only drive if distance is meaningful
+            await sendDriveCommand(commands.driveDistance, 200); // 200 mm/s speed
+          }
+        } catch (error) {
+          console.error("Failed to execute movement commands:", error);
+        }
+      } else if (robotIsConnected && commands.driveDistance > 5) {
+        // Just drive if no turn needed
+        await sendDriveCommand(commands.driveDistance, 200);
+      }
+
+      // Exit planning mode after executing command
+      exitMouseMovementPlanningMode();
+      return;
+    }
 
     // Check for mission clicks (if scoring is enabled)
     if (showScoring) {
@@ -1742,6 +1908,12 @@ export function EnhancedCompetitionMat({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
+    // Update ghost robot position when in mouse movement planning mode
+    if (isMouseMovementPlanningMode) {
+      const matPos = canvasToMm(canvasX, canvasY);
+      updateMouseMovementGhost(matPos.x, matPos.y);
+    }
+
     // Check for telemetry point hover (if path visualization is enabled)
     if (pathOptions.showMarkers) {
       checkTelemetryPointHover(canvasX, canvasY, event.pageX, event.pageY);
@@ -1766,27 +1938,17 @@ export function EnhancedCompetitionMat({
     pageX: number,
     pageY: number
   ) => {
-    const currentPath = telemetryHistory.getCurrentPath();
-    const allPaths = telemetryHistory.getAllPaths();
+    // Use selected path points from atom
     const allPoints: {
       point: TelemetryPoint;
       pathIndex: number;
       pointIndex: number;
     }[] = [];
 
-    // Collect all points from all paths
-    allPaths.forEach((path, pathIndex) => {
-      path.points.forEach((point, pointIndex) => {
-        allPoints.push({ point, pathIndex: pathIndex + 1, pointIndex });
-      });
+    // Collect points from selected path
+    selectedPathPoints.forEach((point, pointIndex) => {
+      allPoints.push({ point, pathIndex: 1, pointIndex });
     });
-
-    // Add current path points
-    if (currentPath && currentPath.points.length > 0) {
-      currentPath.points.forEach((point, pointIndex) => {
-        allPoints.push({ point, pathIndex: 0, pointIndex }); // 0 for current path
-      });
-    }
 
     // Find closest point within hover radius
     let closestPoint = null;
@@ -1975,30 +2137,19 @@ export function EnhancedCompetitionMat({
           </div>
 
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-            {/* Color Mode Selector */}
-            <select
-              value={pathOptions.colorMode}
-              onChange={(e) =>
-                setPathOptions((prev) => ({
-                  ...prev,
-                  colorMode: e.target.value as ColorMode,
-                }))
-              }
-              className="px-1 sm:px-2 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-              title="Choose how to color the robot's path: Solid (blue), Speed (green→red), Motor Load (blue→red), Color Sensor (actual colors), Distance (red=close, green=far), Reflection (black→white), Force (light→dark)"
-            >
-              <option value="none">Solid</option>
-              <option value="speed">Speed</option>
-              <option value="motorLoad">Motor Load</option>
-              <option value="colorSensor">Color Sensor</option>
-              <option value="distanceSensor">Distance</option>
-              <option value="reflectionSensor">Reflection</option>
-              <option value="forceSensor">Force</option>
-            </select>
+            {/* Mouse Movement Planning Mode Indicator */}
+            {isMouseMovementPlanningMode && (
+              <div className="bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg border-2 border-white dark:border-gray-300 animate-pulse">
+                <div className="text-center">
+                  <div className="text-sm font-bold">🎯 Planning Mode</div>
+                  <div className="text-xs">Click mat to move robot</div>
+                </div>
+              </div>
+            )}
 
             {/* Prominent Score Display */}
             {customMatConfig && showScoring && (
-              <div className="bg-gradient-to-r from-green-400 to-blue-500 dark:from-green-500 dark:to-blue-600 text-white px-3 py-2 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
+              <div className="bg-gradient-to-r from-green-400 to-blue-500 dark:from-green-500 dark:to-blue-600 text-white px-3 py-3 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
                 <div className="text-center">
                   <div className="text-lg font-bold">
                     {customMatConfig.missions.reduce(
@@ -2030,9 +2181,17 @@ export function EnhancedCompetitionMat({
             setHoveredPoint(null);
             setHoveredPointIndex(-1);
             setTooltipPosition(null);
+            // Exit planning mode when mouse leaves canvas
+            if (isMouseMovementPlanningMode) {
+              exitMouseMovementPlanningMode();
+            }
           }}
           className={`block mx-auto rounded shadow-2xl ${
-            hoveredObject ? "cursor-pointer" : "cursor-default"
+            isMouseMovementPlanningMode
+              ? "cursor-crosshair"
+              : hoveredObject
+                ? "cursor-pointer"
+                : "cursor-default"
           }`}
           style={{ maxWidth: "100%", maxHeight: "600px" }}
         />
@@ -2067,37 +2226,14 @@ export function EnhancedCompetitionMat({
               <span className="text-gray-300">Time:</span>
               <span className="ml-2">
                 {(() => {
-                  const currentPath = telemetryHistory.getCurrentPath();
-                  const allPaths = telemetryHistory.getAllPaths();
-
-                  // Find the recording start time
-                  let recordingStartTime = hoveredPoint.timestamp;
-
-                  // Check if this point is in the current path
-                  if (
-                    currentPath &&
-                    currentPath.points.some(
-                      (p) => p.timestamp === hoveredPoint.timestamp
-                    )
-                  ) {
-                    recordingStartTime = currentPath.startTime;
-                  } else {
-                    // Check completed paths
-                    for (const path of allPaths) {
-                      if (
-                        path.points.some(
-                          (p) => p.timestamp === hoveredPoint.timestamp
-                        )
-                      ) {
-                        recordingStartTime = path.startTime;
-                        break;
-                      }
-                    }
+                  // Calculate relative time from first point in selected path
+                  if (selectedPathPoints.length > 0) {
+                    const firstPointTime = selectedPathPoints[0].timestamp;
+                    const relativeTime =
+                      (hoveredPoint.timestamp - firstPointTime) / 1000;
+                    return `${relativeTime.toFixed(1)}s`;
                   }
-
-                  const relativeTime =
-                    (hoveredPoint.timestamp - recordingStartTime) / 1000;
-                  return `${relativeTime.toFixed(1)}s`;
+                  return "0.0s";
                 })()}
               </span>
             </div>

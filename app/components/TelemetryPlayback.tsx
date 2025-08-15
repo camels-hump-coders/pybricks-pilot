@@ -1,7 +1,8 @@
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   telemetryHistory,
+  type ColorMode,
   type TelemetryPoint,
 } from "../services/telemetryHistory";
 import {
@@ -16,6 +17,8 @@ import {
   selectedTelemetryPathAtom,
   telemetryPathsAtom,
   telemetryTotalDurationAtom,
+  colorModeAtom,
+  updateTelemetryDataAtom,
 } from "../store/atoms/telemetryPoints";
 import { TelemetryTooltip } from "./TelemetryTooltip";
 
@@ -40,6 +43,9 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
   });
   const [selectedPoint] = useState<TelemetryPoint | null>(null);
 
+  // Path visualization state from atom
+  const [colorMode, setColorMode] = useAtom(colorModeAtom);
+
   // Telemetry data from atoms
   const allPoints = useAtomValue(allTelemetryPointsAtom);
   const selectedPoints = useAtomValue(selectedPathPointsAtom);
@@ -49,10 +55,44 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
   const currentPath = useAtomValue(currentTelemetryPathAtom);
   const totalDuration = useAtomValue(telemetryTotalDurationAtom);
   const clearTelemetryHistory = useSetAtom(clearTelemetryHistoryAtom);
+  const updateTelemetryData = useSetAtom(updateTelemetryDataAtom);
 
   // Ghost position atoms
   const updateGhostRobot = useSetAtom(updateGhostRobotAtom);
   const hideGhostRobot = useSetAtom(hideGhostRobotAtom);
+
+  // Set up callback for telemetry service to auto-select new paths
+  useEffect(() => {
+    const handlePathSelection = (pathId: string | null) => {
+      setSelectedPathId(pathId);
+    };
+
+    telemetryHistory.setSelectedPathChangeCallback(handlePathSelection);
+
+    return () => {
+      telemetryHistory.removeSelectedPathChangeCallback();
+    };
+  }, [setSelectedPathId]);
+
+  // Sync telemetry data from service to atoms
+  useEffect(() => {
+    const syncTelemetryData = () => {
+      const paths = telemetryHistory.getAllPaths();
+      const currentPath = telemetryHistory.getCurrentPath();
+      
+      updateTelemetryData({ paths, currentPath });
+    };
+
+    // Initial sync
+    syncTelemetryData();
+
+    // Set up interval to periodically sync (useful for real-time updates)
+    const interval = setInterval(syncTelemetryData, 100);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [updateTelemetryData]);
 
   // Local state for windowed data
   const [windowedPoints, setWindowedPoints] = useState<TelemetryPoint[]>([]);
@@ -314,41 +354,108 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
   return (
     <div className="p-4 space-y-4">
       {/* Path Selection */}
-      <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
-        <label className="text-sm text-gray-600 dark:text-gray-400">
-          Path:
-        </label>
-        <select
-          value={selectedPathId || ""}
-          onChange={(e) => {
-            const pathId = e.target.value || null;
-            setSelectedPathId(pathId);
-            // Reset playback when switching paths
-            setCurrentTime(0);
-            setIsPlaying(false);
-            setHasStartedPlayback(false);
-          }}
-          className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
-        >
-          <option value="">All Paths Combined</option>
+      {(allPaths.length > 0 || currentPath) && (
+        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2">
+          <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            Recorded Paths
+          </h4>
+          
+          {/* All Paths Combined Option */}
+          <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="all-paths"
+                name="path-selection"
+                checked={!selectedPathId}
+                onChange={() => {
+                  setSelectedPathId(null);
+                  setCurrentTime(0);
+                  setIsPlaying(false);
+                  setHasStartedPlayback(false);
+                }}
+                className="text-blue-600"
+              />
+              <label htmlFor="all-paths" className="text-sm text-gray-800 dark:text-gray-200">
+                All Paths Combined ({allPoints.length} total pts)
+              </label>
+            </div>
+          </div>
+
+          {/* Individual Paths */}
           {allPaths.map((path) => {
             const pathDate = new Date(path.startTime).toLocaleTimeString();
-            const duration = ((path.endTime - path.startTime) / 1000).toFixed(
-              1
-            );
+            const duration = ((path.endTime - path.startTime) / 1000).toFixed(1);
+            const isSelected = selectedPathId === path.id;
+            
             return (
-              <option key={path.id} value={path.id}>
-                Path {pathDate} ({duration}s, {path.points.length} pts)
-              </option>
+              <div key={path.id} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id={`path-${path.id}`}
+                    name="path-selection"
+                    checked={isSelected}
+                    onChange={() => {
+                      setSelectedPathId(path.id);
+                      setCurrentTime(0);
+                      setIsPlaying(false);
+                      setHasStartedPlayback(false);
+                    }}
+                    className="text-blue-600"
+                  />
+                  <label htmlFor={`path-${path.id}`} className="text-sm text-gray-800 dark:text-gray-200">
+                    Path {pathDate} ({duration}s, {path.points.length} pts)
+                  </label>
+                </div>
+                <button
+                  onClick={() => {
+                    const wasDeleted = telemetryHistory.deletePath(path.id);
+                    if (wasDeleted && selectedPathId === path.id) {
+                      // If we deleted the currently selected path, switch to all paths
+                      setSelectedPathId(null);
+                      setCurrentTime(0);
+                      setIsPlaying(false);
+                      setHasStartedPlayback(false);
+                    }
+                  }}
+                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  title="Delete this path"
+                >
+                  🗑️
+                </button>
+              </div>
             );
           })}
+
+          {/* Current Path (if active) */}
           {currentPath && (
-            <option value={currentPath.id}>
-              Current Path ({currentPath.points.length} pts) ⚡
-            </option>
+            <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  id="current-path"
+                  name="path-selection"
+                  checked={selectedPathId === currentPath.id}
+                  onChange={() => {
+                    setSelectedPathId(currentPath.id);
+                    setCurrentTime(0);
+                    setIsPlaying(false);
+                    setHasStartedPlayback(false);
+                  }}
+                  className="text-blue-600"
+                />
+                <label htmlFor="current-path" className="text-sm text-gray-800 dark:text-gray-200">
+                  Current Path ({currentPath.points.length} pts) ⚡
+                </label>
+              </div>
+              <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                Recording
+              </span>
+            </div>
           )}
-        </select>
-      </div>
+        </div>
+      )}
 
       {/* Playback Controls */}
       <div className="flex items-center gap-4">
@@ -587,6 +694,35 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
         <div className="bg-gray-50 dark:bg-gray-900 rounded p-2">
           <div className="text-gray-500 dark:text-gray-400">Window Size</div>
           <div className="font-mono text-lg">{formatTime(windowDuration)}</div>
+        </div>
+      </div>
+
+      {/* Path Visualization Settings */}
+      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2">
+        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          Path Visualization
+        </h4>
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          Choose how to color the robot's path on the competition mat. Colors represent different sensor data or robot states over time.
+        </p>
+        <div className="flex items-center gap-2">
+          <label htmlFor="color-mode" className="text-sm text-gray-600 dark:text-gray-400">
+            Color Mode:
+          </label>
+          <select
+            id="color-mode"
+            value={colorMode}
+            onChange={(e) => setColorMode(e.target.value as ColorMode)}
+            className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+          >
+            <option value="none">Solid Blue</option>
+            <option value="speed">Speed (Green → Red)</option>
+            <option value="motorLoad">Motor Load (Blue → Red)</option>
+            <option value="colorSensor">Color Sensor (Actual Colors)</option>
+            <option value="distanceSensor">Distance (Red=Close, Green=Far)</option>
+            <option value="reflectionSensor">Reflection (Black → White)</option>
+            <option value="forceSensor">Force (Light → Dark)</option>
+          </select>
         </div>
       </div>
 

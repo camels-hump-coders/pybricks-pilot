@@ -245,14 +245,16 @@ export function useJotaiVirtualHub() {
   }, []);
 
   // Reset telemetry (virtual robot specific)
-  const resetTelemetry = useCallback(async () => {
+  const resetTelemetry = useCallback(async (startNewPath: boolean = true) => {
     const resetCommand = JSON.stringify({ action: "reset_drivebase" });
     try {
       await virtualRobotService.sendControlCommand(resetCommand);
     } catch {
       // Ignore errors - this is a best-effort reset
     }
-    telemetryHistory.onMatReset();
+    if (startNewPath) {
+      telemetryHistory.startNewPath();
+    }
   }, []);
 
   // Mock instrumentation settings for compatibility

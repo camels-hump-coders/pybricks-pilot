@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import type { TelemetryPoint, TelemetryPath } from "../../services/telemetryHistory";
+import type { TelemetryPoint, TelemetryPath, ColorMode, PathVisualizationOptions } from "../../services/telemetryHistory";
 
 // Atom for all telemetry points (combined from all paths)
 export const allTelemetryPointsAtom = atom<TelemetryPoint[]>([]);
@@ -111,5 +111,26 @@ export const startNewTelemetryPathAtom = atom(
   (get, set) => {
     // This will be handled by the telemetryHistory service
     // The atoms will be updated via useTelemetryDataSync
+  }
+);
+
+// Path visualization options atom
+export const pathVisualizationOptionsAtom = atom<PathVisualizationOptions>({
+  showPath: true,
+  showMarkers: true,
+  colorMode: "none",
+  opacity: 0.8,
+  strokeWidth: 3,
+});
+
+// Color mode atom (derived from pathVisualizationOptionsAtom)
+export const colorModeAtom = atom(
+  (get) => get(pathVisualizationOptionsAtom).colorMode,
+  (get, set, newColorMode: ColorMode) => {
+    const currentOptions = get(pathVisualizationOptionsAtom);
+    set(pathVisualizationOptionsAtom, {
+      ...currentOptions,
+      colorMode: newColorMode,
+    });
   }
 );

@@ -3,10 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useUploadProgress } from "../hooks/useUploadProgress";
+import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
 import type { DebugEvent } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
-import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
-import { calculateRobotPosition, customMatConfigAtom, robotPositionAtom, setRobotPositionAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
+import {
+  robotPositionAtom,
+  setRobotPositionAtom,
+  showGridOverlayAtom,
+} from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { HubMenuInterface } from "./HubMenuInterface";
@@ -68,7 +72,7 @@ interface CompactRobotControllerProps {
   debugEvents?: DebugEvent[];
   isCmdKeyPressed?: boolean;
   customMatConfig?: any | null; // Add mat config as prop
-  onResetTelemetry?: () => Promise<void>; // Add reset telemetry function
+  onResetTelemetry?: (startNewPath?: boolean) => Promise<void>; // Add reset telemetry function
 }
 
 // Radial Heading Selector Component
@@ -78,79 +82,93 @@ interface HeadingSelectorProps {
   size?: number;
 }
 
-function RadialHeadingSelector({ heading, onChange, size = 80 }: HeadingSelectorProps) {
+function RadialHeadingSelector({
+  heading,
+  onChange,
+  size = 80,
+}: HeadingSelectorProps) {
   const radius = size / 2 - 8;
   const centerX = size / 2;
   const centerY = size / 2;
   const [isDragging, setIsDragging] = useState(false);
-  
+
   // Convert heading to angle for display (0° = north/up, clockwise)
   const displayAngle = heading - 90; // Offset so 0° points up
   const radians = (displayAngle * Math.PI) / 180;
   const indicatorX = centerX + radius * 0.7 * Math.cos(radians);
   const indicatorY = centerY + radius * 0.7 * Math.sin(radians);
-  
-  const calculateAngleFromMouse = (clientX: number, clientY: number, rect: DOMRect) => {
+
+  const calculateAngleFromMouse = (
+    clientX: number,
+    clientY: number,
+    rect: DOMRect
+  ) => {
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     const mouseX = clientX - centerX;
     const mouseY = clientY - centerY;
-    
+
     // Calculate angle from center (0° = north/up, clockwise)
     let angle = Math.atan2(mouseY, mouseX) * (180 / Math.PI);
     angle = angle + 90; // Convert to our heading system
-    
+
     // Normalize to -180 to 180 range
     if (angle > 180) angle -= 360;
     if (angle < -180) angle += 360;
-    
+
     return Math.round(angle);
   };
-  
+
   const handleMouseDown = (event: React.MouseEvent) => {
     setIsDragging(true);
     const rect = event.currentTarget.getBoundingClientRect();
     const angle = calculateAngleFromMouse(event.clientX, event.clientY, rect);
     onChange(angle);
   };
-  
+
   const handleMouseMove = (event: React.MouseEvent) => {
     if (!isDragging) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const angle = calculateAngleFromMouse(event.clientX, event.clientY, rect);
     onChange(angle);
   };
-  
+
   const handleMouseUp = () => {
     setIsDragging(false);
   };
-  
+
   // Global mouse events for dragging
   useEffect(() => {
     if (isDragging) {
       const handleGlobalMouseMove = (event: MouseEvent) => {
-        const selector = document.querySelector('[data-heading-selector]') as HTMLElement;
+        const selector = document.querySelector(
+          "[data-heading-selector]"
+        ) as HTMLElement;
         if (selector) {
           const rect = selector.getBoundingClientRect();
-          const angle = calculateAngleFromMouse(event.clientX, event.clientY, rect);
+          const angle = calculateAngleFromMouse(
+            event.clientX,
+            event.clientY,
+            rect
+          );
           onChange(angle);
         }
       };
-      
+
       const handleGlobalMouseUp = () => {
         setIsDragging(false);
       };
-      
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-      
+
+      document.addEventListener("mousemove", handleGlobalMouseMove);
+      document.addEventListener("mouseup", handleGlobalMouseUp);
+
       return () => {
-        document.removeEventListener('mousemove', handleGlobalMouseMove);
-        document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.removeEventListener("mousemove", handleGlobalMouseMove);
+        document.removeEventListener("mouseup", handleGlobalMouseUp);
       };
     }
   }, [isDragging, onChange]);
-  
+
   // Common direction markers
   const directions = [
     { angle: 0, label: "N", desc: "Forward" },
@@ -158,12 +176,14 @@ function RadialHeadingSelector({ heading, onChange, size = 80 }: HeadingSelector
     { angle: 180, label: "S", desc: "Backward" },
     { angle: -90, label: "W", desc: "Left" },
   ];
-  
+
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="text-xs text-gray-600 dark:text-gray-400">Robot Heading</div>
-      <div 
-        className={`relative cursor-pointer bg-gray-100 dark:bg-gray-700 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-blue-400 transition-colors select-none ${isDragging ? 'border-blue-500' : ''}`}
+      <div className="text-xs text-gray-600 dark:text-gray-400">
+        Robot Heading
+      </div>
+      <div
+        className={`relative cursor-pointer bg-gray-100 dark:bg-gray-700 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-blue-400 transition-colors select-none ${isDragging ? "border-blue-500" : ""}`}
         style={{ width: size, height: size }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -177,7 +197,7 @@ function RadialHeadingSelector({ heading, onChange, size = 80 }: HeadingSelector
           const markerRadians = (markerAngle * Math.PI) / 180;
           const markerX = centerX + (radius - 4) * Math.cos(markerRadians);
           const markerY = centerY + (radius - 4) * Math.sin(markerRadians);
-          
+
           return (
             <div
               key={angle}
@@ -185,16 +205,16 @@ function RadialHeadingSelector({ heading, onChange, size = 80 }: HeadingSelector
               style={{
                 left: markerX,
                 top: markerY,
-                transform: 'translate(-50%, -50%)',
-                width: '12px',
-                height: '12px',
+                transform: "translate(-50%, -50%)",
+                width: "12px",
+                height: "12px",
               }}
             >
               {label}
             </div>
           );
         })}
-        
+
         {/* Robot direction indicator */}
         <div
           className="absolute w-3 h-3 bg-blue-500 rounded-full border border-white shadow-md pointer-events-none"
@@ -203,7 +223,7 @@ function RadialHeadingSelector({ heading, onChange, size = 80 }: HeadingSelector
             top: indicatorY - 6,
           }}
         />
-        
+
         {/* Center dot */}
         <div
           className="absolute w-2 h-2 bg-gray-400 rounded-full pointer-events-none"
@@ -214,7 +234,8 @@ function RadialHeadingSelector({ heading, onChange, size = 80 }: HeadingSelector
         />
       </div>
       <div className="text-xs text-center text-gray-500 dark:text-gray-400">
-        {heading}° ({directions.find(d => d.angle === heading)?.desc || "Custom"})
+        {heading}° (
+        {directions.find((d) => d.angle === heading)?.desc || "Custom"})
       </div>
     </div>
   );
@@ -258,7 +279,7 @@ export function CompactRobotController({
   const [motorSpeed, setMotorSpeed] = useState(100);
   const [motorAngle, setMotorAngle] = useState(90);
   const [activeMotor, setActiveMotor] = useState<string | null>(null);
-  
+
   // Grid overlay state from Jotai atom
   const [showGridOverlay, setShowGridOverlay] = useAtom(showGridOverlayAtom);
 
@@ -271,8 +292,10 @@ export function CompactRobotController({
     fromSide: 50, // mm from side edge
     heading: 0, // degrees (0 = north/forward, 90 = east/right, 180 = south/backward, 270 = west/left)
   });
-  const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(null);
-  
+  const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(
+    null
+  );
+
   // Track last applied position for reset functionality
   const [lastPositionSettings, setLastPositionSettings] = useState({
     side: "right" as "left" | "right", // Default to bottom-right
@@ -290,13 +313,14 @@ export function CompactRobotController({
   ): RobotPosition => {
     const robotWidthMm = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM;
     const robotLengthMm = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM;
-    const centerOfRotationFromLeftMm = robotConfig.centerOfRotation.distanceFromLeftEdge * LEGO_STUD_SIZE_MM;
-    const centerOfRotationFromTopMm = robotConfig.centerOfRotation.distanceFromTop * LEGO_STUD_SIZE_MM;
-    
+    const centerOfRotationFromLeftMm =
+      robotConfig.centerOfRotation.distanceFromLeftEdge * LEGO_STUD_SIZE_MM;
+    const centerOfRotationFromTopMm =
+      robotConfig.centerOfRotation.distanceFromTop * LEGO_STUD_SIZE_MM;
+
     // Mat dimensions from current mat config (fallback to FLL default)
     const matWidthMm = customMatConfig?.dimensions?.widthMm || 2356;
     const matHeightMm = customMatConfig?.dimensions?.heightMm || 1137;
-    
 
     let x: number;
     let y: number;
@@ -305,12 +329,13 @@ export function CompactRobotController({
       // fromSideMm is distance from left edge to the left edge of robot
       x = fromSideMm + centerOfRotationFromLeftMm;
     } else {
-      // fromSideMm is distance from right edge to the right edge of robot  
+      // fromSideMm is distance from right edge to the right edge of robot
       x = matWidthMm - fromSideMm - (robotWidthMm - centerOfRotationFromLeftMm);
     }
 
     // fromBottomMm is distance from bottom edge to the bottom edge of robot
-    y = matHeightMm - fromBottomMm - (robotLengthMm - centerOfRotationFromTopMm);
+    y =
+      matHeightMm - fromBottomMm - (robotLengthMm - centerOfRotationFromTopMm);
 
     return {
       x,
@@ -345,7 +370,11 @@ export function CompactRobotController({
           secondary: null,
         },
       });
-    } else if (!positionPreview && onPreviewUpdate && isSettingPosition === false) {
+    } else if (
+      !positionPreview &&
+      onPreviewUpdate &&
+      isSettingPosition === false
+    ) {
       // Clear preview when exiting position setting mode
       onPreviewUpdate({
         type: null,
@@ -587,7 +616,7 @@ export function CompactRobotController({
           <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">
             Robot Position
           </div>
-          
+
           <div className="flex gap-2">
             <button
               onClick={() => setIsSettingPosition(!isSettingPosition)}
@@ -599,15 +628,14 @@ export function CompactRobotController({
             >
               {isSettingPosition ? "✕ Cancel" : "📍 Set Pos"}
             </button>
-            
+
             <button
               onClick={async () => {
                 try {
-                  // First, reset the robot's drivebase telemetry
                   if (onResetTelemetry) {
-                    await onResetTelemetry();
+                    await onResetTelemetry(false);
                   }
-                  
+
                   // Reset to the last applied position, defaulting to bottom-right with 0 offset
                   const resetPosition = calculateRobotPositionFromEdges(
                     lastPositionSettings.side,
@@ -617,7 +645,7 @@ export function CompactRobotController({
                   );
                   setRobotPosition(resetPosition);
                   setIsSettingPosition(false);
-                  
+
                   // Update UI to show the reset position settings
                   setEdgePositionSettings({
                     side: lastPositionSettings.side,
@@ -627,7 +655,7 @@ export function CompactRobotController({
                   });
                 } catch (error) {
                   console.error("Failed to reset robot position:", error);
-                  // Continue with position reset even if telemetry reset fails
+                  // Continue with position reset even if telemetry path start fails
                   const resetPosition = calculateRobotPositionFromEdges(
                     lastPositionSettings.side,
                     lastPositionSettings.fromBottom,
@@ -637,6 +665,9 @@ export function CompactRobotController({
                   setRobotPosition(resetPosition);
                   setIsSettingPosition(false);
                 }
+
+                // First, start a new telemetry path (preserving history)
+                telemetryHistory.startNewPath();
               }}
               className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
             >
@@ -650,11 +681,16 @@ export function CompactRobotController({
               <div className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-2">
                 🎯 Position Robot by Edges
               </div>
-              
+
               {/* Side Selection */}
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => setEdgePositionSettings(prev => ({...prev, side: "left"}))}
+                  onClick={() =>
+                    setEdgePositionSettings((prev) => ({
+                      ...prev,
+                      side: "left",
+                    }))
+                  }
                   className={`px-2 py-1 text-xs rounded transition-colors ${
                     edgePositionSettings.side === "left"
                       ? "bg-blue-500 text-white"
@@ -664,7 +700,12 @@ export function CompactRobotController({
                   ← Left Side
                 </button>
                 <button
-                  onClick={() => setEdgePositionSettings(prev => ({...prev, side: "right"}))}
+                  onClick={() =>
+                    setEdgePositionSettings((prev) => ({
+                      ...prev,
+                      side: "right",
+                    }))
+                  }
                   className={`px-2 py-1 text-xs rounded transition-colors ${
                     edgePositionSettings.side === "right"
                       ? "bg-blue-500 text-white"
@@ -686,26 +727,32 @@ export function CompactRobotController({
                     min="0"
                     max="1000"
                     value={edgePositionSettings.fromBottom}
-                    onChange={(e) => setEdgePositionSettings(prev => ({
-                      ...prev,
-                      fromBottom: Math.max(0, parseInt(e.target.value) || 0)
-                    }))}
+                    onChange={(e) =>
+                      setEdgePositionSettings((prev) => ({
+                        ...prev,
+                        fromBottom: Math.max(0, parseInt(e.target.value) || 0),
+                      }))
+                    }
                     className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    From {edgePositionSettings.side === "left" ? "Left" : "Right"} (mm)
+                    From{" "}
+                    {edgePositionSettings.side === "left" ? "Left" : "Right"}{" "}
+                    (mm)
                   </label>
                   <input
                     type="number"
                     min="0"
                     max="2000"
                     value={edgePositionSettings.fromSide}
-                    onChange={(e) => setEdgePositionSettings(prev => ({
-                      ...prev,
-                      fromSide: Math.max(0, parseInt(e.target.value) || 0)
-                    }))}
+                    onChange={(e) =>
+                      setEdgePositionSettings((prev) => ({
+                        ...prev,
+                        fromSide: Math.max(0, parseInt(e.target.value) || 0),
+                      }))
+                    }
                     className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -715,10 +762,12 @@ export function CompactRobotController({
               <div className="flex justify-center pt-2">
                 <RadialHeadingSelector
                   heading={edgePositionSettings.heading}
-                  onChange={(heading) => setEdgePositionSettings(prev => ({
-                    ...prev,
-                    heading
-                  }))}
+                  onChange={(heading) =>
+                    setEdgePositionSettings((prev) => ({
+                      ...prev,
+                      heading,
+                    }))
+                  }
                   size={100}
                 />
               </div>
@@ -728,11 +777,10 @@ export function CompactRobotController({
                 onClick={async () => {
                   if (positionPreview) {
                     try {
-                      // First, reset the robot's drivebase telemetry
                       if (onResetTelemetry) {
-                        await onResetTelemetry();
+                        await onResetTelemetry(false);
                       }
-                      
+
                       setRobotPosition(positionPreview);
                       // Save the current settings as the last position for reset
                       setLastPositionSettings({
@@ -742,8 +790,11 @@ export function CompactRobotController({
                         heading: edgePositionSettings.heading,
                       });
                     } catch (error) {
-                      console.error("Failed to reset telemetry before setting position:", error);
-                      // Continue with position setting even if telemetry reset fails
+                      console.error(
+                        "Failed to start new telemetry path before setting position:",
+                        error
+                      );
+                      // Continue with position setting even if telemetry path start fails
                       setRobotPosition(positionPreview);
                       setLastPositionSettings({
                         side: edgePositionSettings.side,
@@ -752,12 +803,15 @@ export function CompactRobotController({
                         heading: edgePositionSettings.heading,
                       });
                     }
+                    telemetryHistory.startNewPath();
                   }
                   setIsSettingPosition(false);
                 }}
                 className="w-full px-3 py-1.5 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
               >
-                ✓ Apply Position {positionPreview && `(${Math.round(positionPreview.x)}mm, ${Math.round(positionPreview.y)}mm)`}
+                ✓ Apply Position{" "}
+                {positionPreview &&
+                  `(${Math.round(positionPreview.x)}mm, ${Math.round(positionPreview.y)}mm)`}
               </button>
 
               {/* Quick-Set Buttons - Instantly apply position with telemetry reset */}
@@ -766,26 +820,43 @@ export function CompactRobotController({
                   onClick={async () => {
                     // Quick-set to bottom left position
                     try {
-                      // First, reset the robot's drivebase telemetry
                       if (onResetTelemetry) {
-                        await onResetTelemetry();
+                        await onResetTelemetry(false);
                       }
-                      
-                      const bottomLeftPosition = calculateRobotPositionFromEdges("left", 0, 0, 0);
+
+                      const bottomLeftPosition =
+                        calculateRobotPositionFromEdges("left", 0, 0, 0);
                       setRobotPosition(bottomLeftPosition);
                       // Save the position settings for reset button
-                      setLastPositionSettings({ side: "left", fromBottom: 0, fromSide: 0, heading: 0 });
-                      
+                      setLastPositionSettings({
+                        side: "left",
+                        fromBottom: 0,
+                        fromSide: 0,
+                        heading: 0,
+                      });
+
                       // Close the position setting interface
                       setIsSettingPosition(false);
                     } catch (error) {
-                      console.error("Failed to set bottom left position:", error);
-                      // Continue with position setting even if telemetry reset fails
-                      const bottomLeftPosition = calculateRobotPositionFromEdges("left", 0, 0, 0);
+                      console.error(
+                        "Failed to set bottom left position:",
+                        error
+                      );
+                      // Continue with position setting even if telemetry path start fails
+                      const bottomLeftPosition =
+                        calculateRobotPositionFromEdges("left", 0, 0, 0);
                       setRobotPosition(bottomLeftPosition);
-                      setLastPositionSettings({ side: "left", fromBottom: 0, fromSide: 0, heading: 0 });
+                      setLastPositionSettings({
+                        side: "left",
+                        fromBottom: 0,
+                        fromSide: 0,
+                        heading: 0,
+                      });
                       setIsSettingPosition(false);
                     }
+
+                    // First, start a new telemetry path (preserving history)
+                    telemetryHistory.startNewPath();
                   }}
                   className="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
                 >
@@ -795,26 +866,43 @@ export function CompactRobotController({
                   onClick={async () => {
                     // Quick-set to bottom right position
                     try {
-                      // First, reset the robot's drivebase telemetry
                       if (onResetTelemetry) {
-                        await onResetTelemetry();
+                        await onResetTelemetry(false);
                       }
-                      
-                      const bottomRightPosition = calculateRobotPositionFromEdges("right", 0, 0, 0);
+
+                      const bottomRightPosition =
+                        calculateRobotPositionFromEdges("right", 0, 0, 0);
                       setRobotPosition(bottomRightPosition);
                       // Save the position settings for reset button
-                      setLastPositionSettings({ side: "right", fromBottom: 0, fromSide: 0, heading: 0 });
-                      
+                      setLastPositionSettings({
+                        side: "right",
+                        fromBottom: 0,
+                        fromSide: 0,
+                        heading: 0,
+                      });
+
                       // Close the position setting interface
                       setIsSettingPosition(false);
                     } catch (error) {
-                      console.error("Failed to set bottom right position:", error);
-                      // Continue with position setting even if telemetry reset fails
-                      const bottomRightPosition = calculateRobotPositionFromEdges("right", 0, 0, 0);
+                      console.error(
+                        "Failed to set bottom right position:",
+                        error
+                      );
+                      // Continue with position setting even if telemetry path start fails
+                      const bottomRightPosition =
+                        calculateRobotPositionFromEdges("right", 0, 0, 0);
                       setRobotPosition(bottomRightPosition);
-                      setLastPositionSettings({ side: "right", fromBottom: 0, fromSide: 0, heading: 0 });
+                      setLastPositionSettings({
+                        side: "right",
+                        fromBottom: 0,
+                        fromSide: 0,
+                        heading: 0,
+                      });
                       setIsSettingPosition(false);
                     }
+
+                    // First, start a new telemetry path (preserving history)
+                    telemetryHistory.startNewPath();
                   }}
                   className="flex-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors font-medium"
                 >
@@ -860,7 +948,7 @@ export function CompactRobotController({
                   Hold
                 </button>
               </div>
-              
+
               {/* Grid Overlay Toggle */}
               <button
                 onClick={() => setShowGridOverlay(!showGridOverlay)}
