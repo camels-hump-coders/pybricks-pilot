@@ -6,13 +6,10 @@ import {
   controlModeAtom,
   currentScoreAtom,
   customMatConfigAtom,
-  isMouseMovementPlanningModeAtom,
   isSettingPositionAtom,
   manualHeadingAdjustmentAtom,
   maxPathPointsAtom,
   mousePositionAtom,
-  movementPlanningGhostPositionAtom,
-  movementPlanningTargetAtom,
   movementPreviewAtom,
   pathColorModeAtom,
   pathOpacityAtom,
@@ -90,11 +87,6 @@ export function useJotaiGameMat() {
 
   // Control mode
   const [controlMode, setControlMode] = useAtom(controlModeAtom);
-
-  // Mouse movement planning mode
-  const [isMouseMovementPlanningMode, setIsMouseMovementPlanningMode] = useAtom(isMouseMovementPlanningModeAtom);
-  const [movementPlanningGhostPosition, setMovementPlanningGhostPosition] = useAtom(movementPlanningGhostPositionAtom);
-  const [movementPlanningTarget, setMovementPlanningTarget] = useAtom(movementPlanningTargetAtom);
 
   // Spline path planning mode
   const [isSplinePathMode, setIsSplinePathMode] = useAtom(isSplinePathModeAtom);
@@ -313,66 +305,6 @@ export function useJotaiGameMat() {
     });
   }, [setPathColorMode]);
 
-  // Mouse movement planning helpers
-  const enterMouseMovementPlanningMode = useCallback(() => {
-    setIsMouseMovementPlanningMode(true);
-  }, [setIsMouseMovementPlanningMode]);
-
-  const exitMouseMovementPlanningMode = useCallback(() => {
-    setIsMouseMovementPlanningMode(false);
-    setMovementPlanningGhostPosition(null);
-    setMovementPlanningTarget(null);
-  }, [setIsMouseMovementPlanningMode, setMovementPlanningGhostPosition, setMovementPlanningTarget]);
-
-  const updateMouseMovementGhost = useCallback((mouseX: number, mouseY: number) => {
-    if (!isMouseMovementPlanningMode) return;
-
-    // Calculate heading from current robot position to mouse
-    const dx = mouseX - robotPosition.x;
-    const dy = mouseY - robotPosition.y;
-    // Use same formula as CompactRobotController: Math.atan2(dy, dx) + 90
-    let heading = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
-    // Normalize to -180 to 180 range to match our heading system
-    if (heading > 180) heading -= 360;
-
-    setMovementPlanningGhostPosition({
-      x: mouseX,
-      y: mouseY,
-      heading
-    });
-  }, [isMouseMovementPlanningMode, robotPosition, setMovementPlanningGhostPosition]);
-
-  const calculateMovementCommands = useCallback((targetX: number, targetY: number) => {
-    // Helper function to normalize heading to -180 to 180 range
-    const normalizeHeading = (heading: number): number => {
-      let normalized = heading % 360;
-      if (normalized > 180) {
-        normalized -= 360;
-      } else if (normalized < -180) {
-        normalized += 360;
-      }
-      return normalized;
-    };
-
-    // Calculate distance and angle to target
-    const dx = targetX - robotPosition.x;
-    const dy = targetY - robotPosition.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    // Use same formula as CompactRobotController: Math.atan2(dy, dx) + 90
-    const targetHeading = normalizeHeading(Math.atan2(dy, dx) * 180 / Math.PI + 90);
-    
-    // Calculate turn angle (shortest path) - both headings now normalized
-    const currentHeading = normalizeHeading(robotPosition.heading);
-    let turnAngle = targetHeading - currentHeading;
-    if (turnAngle > 180) turnAngle -= 360;
-    if (turnAngle < -180) turnAngle += 360;
-
-    return {
-      turnAngle,
-      driveDistance: distance,
-      targetHeading
-    };
-  }, [robotPosition]);
 
   // Spline path helper functions
   const createSplinePath = useCallback((name: string) => {
@@ -422,15 +354,8 @@ export function useJotaiGameMat() {
   }, [addCurvatureHandlesToIntermediatePointsAction]);
 
   const enterSplinePathMode = useCallback((pathName: string = "New Path") => {
-    // Exit any other planning modes first
-    if (isMouseMovementPlanningMode) {
-      setIsMouseMovementPlanningMode(false);
-      setMovementPlanningGhostPosition(null);
-      setMovementPlanningTarget(null);
-    }
-    
     createSplinePath(pathName);
-  }, [isMouseMovementPlanningMode, setIsMouseMovementPlanningMode, setMovementPlanningGhostPosition, setMovementPlanningTarget, createSplinePath]);
+  }, [createSplinePath]);
 
   const exitSplinePathMode = useCallback(() => {
     if (currentSplinePath && !currentSplinePath.isComplete) {
@@ -524,15 +449,6 @@ export function useJotaiGameMat() {
     // Control mode
     controlMode,
     setControlMode,
-
-    // Mouse movement planning mode
-    isMouseMovementPlanningMode,
-    movementPlanningGhostPosition,
-    movementPlanningTarget,
-    enterMouseMovementPlanningMode,
-    exitMouseMovementPlanningMode,
-    updateMouseMovementGhost,
-    calculateMovementCommands,
 
     // Spline path planning mode
     isSplinePathMode,

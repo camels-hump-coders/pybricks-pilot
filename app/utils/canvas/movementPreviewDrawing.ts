@@ -193,25 +193,3 @@ export function drawPerpendicularPreview(
   });
 }
 
-/**
- * Draw movement planning ghost robot
- */
-export function drawMovementPlanningGhost(
-  ctx: CanvasRenderingContext2D,
-  movementPlanningGhostPosition: RobotPosition | null,
-  robotConfig: RobotConfig,
-  utils: RobotDrawingUtils
-) {
-  if (!movementPlanningGhostPosition) {
-    return;
-  }
-
-  drawRobot(
-    ctx,
-    movementPlanningGhostPosition,
-    robotConfig,
-    utils,
-    true,
-    "planning"
-  );
-}

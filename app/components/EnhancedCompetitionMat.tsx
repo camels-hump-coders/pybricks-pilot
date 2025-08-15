@@ -107,13 +107,6 @@ export function EnhancedCompetitionMat({
     updateRobotPositionFromTelemetry,
     movementPreview,
     perpendicularPreview,
-    // Mouse movement planning mode
-    isMouseMovementPlanningMode,
-    movementPlanningGhostPosition,
-    enterMouseMovementPlanningMode,
-    exitMouseMovementPlanningMode,
-    updateMouseMovementGhost,
-    calculateMovementCommands,
     // Spline path planning
     isSplinePathMode,
     currentSplinePath,
@@ -535,17 +528,6 @@ export function EnhancedCompetitionMat({
       );
     }
 
-    // Draw movement planning ghost robot
-    if (movementPlanningGhostPosition) {
-      drawRobot(
-        ctx,
-        movementPlanningGhostPosition,
-        robotConfig,
-        { mmToCanvas, scale },
-        true,
-        "planning"
-      );
-    }
 
     // Draw movement preview robots (dual previews)
     drawMovementPreview(
@@ -724,21 +706,6 @@ export function EnhancedCompetitionMat({
     return null;
   };
 
-  // Helper function to check if a click is on the robot
-  const checkRobotClick = (canvasX: number, canvasY: number): boolean => {
-    if (!currentPosition) return false;
-
-    const robotCanvasPos = mmToCanvas(currentPosition.x, currentPosition.y);
-    const robotSize = 50; // Approximate click radius in pixels
-
-    const distance = Math.sqrt(
-      Math.pow(canvasX - robotCanvasPos.x, 2) +
-        Math.pow(canvasY - robotCanvasPos.y, 2)
-    );
-
-    return distance <= robotSize;
-  };
-
   // Helper function to check if a click is on a spline path point
   const findClickedSplinePoint = (canvasX: number, canvasY: number): string | null => {
     if (!currentSplinePath || !currentSplinePath.points.length) return null;
@@ -773,17 +740,6 @@ export function EnhancedCompetitionMat({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
-    // Check for robot click to enter/exit mouse movement planning mode
-    if (checkRobotClick(canvasX, canvasY)) {
-      if (isMouseMovementPlanningMode) {
-        exitMouseMovementPlanningMode();
-      } else {
-        enterMouseMovementPlanningMode();
-      }
-      return;
-    }
-
-    // If in mouse movement planning mode, handle mat clicks for movement
     // Handle spline path mode clicks
     if (isSplinePathMode) {
       const matPos = canvasToMm(canvasX, canvasY);
@@ -835,36 +791,6 @@ export function EnhancedCompetitionMat({
       return;
     }
 
-    if (isMouseMovementPlanningMode) {
-      const matPos = canvasToMm(canvasX, canvasY);
-      const commands = calculateMovementCommands(matPos.x, matPos.y);
-
-      console.log("Performing movement commands", {
-        commands,
-      });
-
-      // Execute movement commands using new compound command system
-      if (robotIsConnected) {
-        try {
-          if (Math.abs(commands.turnAngle) > 5 && commands.driveDistance > 5) {
-            // Use compound turn and drive command for smooth execution
-            await turnAndDrive(commands.turnAngle, commands.driveDistance, 150); // 150 mm/s speed
-          } else if (Math.abs(commands.turnAngle) > 5) {
-            // Just turn if no meaningful drive distance
-            await sendTurnCommand(commands.turnAngle, 100); // 100 deg/s speed
-          } else if (commands.driveDistance > 5) {
-            // Just drive if no meaningful turn needed
-            await sendDriveCommand(commands.driveDistance, 200); // 200 mm/s speed
-          }
-        } catch (error) {
-          console.error("Failed to execute movement commands:", error);
-        }
-      }
-
-      // Exit planning mode after executing command
-      exitMouseMovementPlanningMode();
-      return;
-    }
 
     // Check for mission clicks (if scoring is enabled)
     if (showScoring) {
@@ -894,11 +820,6 @@ export function EnhancedCompetitionMat({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
-    // Update ghost robot position when in mouse movement planning mode
-    if (isMouseMovementPlanningMode) {
-      const matPos = canvasToMm(canvasX, canvasY);
-      updateMouseMovementGhost(matPos.x, matPos.y);
-    }
     
     // Handle spline point dragging
     if (isSplinePathMode && isDraggingPoint && draggedPointId) {
@@ -1206,15 +1127,6 @@ export function EnhancedCompetitionMat({
           </div>
 
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-            {/* Mouse Movement Planning Mode Indicator */}
-            {isMouseMovementPlanningMode && (
-              <div className="bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg border-2 border-white dark:border-gray-300 animate-pulse">
-                <div className="text-center">
-                  <div className="text-sm font-bold">🎯 Planning Mode</div>
-                  <div className="text-xs">Click mat to move robot</div>
-                </div>
-              </div>
-            )}
 
             {/* Spline Path Planning Mode Indicator */}
             {isSplinePathMode && (
@@ -1300,17 +1212,11 @@ export function EnhancedCompetitionMat({
             // Stop dragging when mouse leaves
             setIsDraggingPoint(false);
             setDraggedPointId(null);
-            // Exit planning mode when mouse leaves canvas
-            if (isMouseMovementPlanningMode) {
-              exitMouseMovementPlanningMode();
-            }
           }}
           className={`block w-full rounded shadow-2xl ${
-            isMouseMovementPlanningMode
-              ? "cursor-crosshair"
-              : hoveredObject
-                ? "cursor-pointer"
-                : "cursor-default"
+            hoveredObject
+              ? "cursor-pointer"
+              : "cursor-default"
           }`}
           style={{ height: "auto" }}
         />

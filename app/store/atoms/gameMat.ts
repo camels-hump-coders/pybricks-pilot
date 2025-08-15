@@ -645,10 +645,6 @@ export const addCurvatureHandlesToIntermediatePointsAtom = atom(
   }
 );
 
-// Mouse movement planning mode atoms
-export const isMouseMovementPlanningModeAtom = atom<boolean>(false);
-export const movementPlanningGhostPositionAtom = atom<RobotPosition | null>(null);
-export const movementPlanningTargetAtom = atom<RobotPosition | null>(null);
 
 // Spline path planning atoms
 export interface SplinePathPoint {
