@@ -277,7 +277,7 @@ export function EnhancedCompetitionMat({
 
     // PRIORITIZE USING FULL CONTAINER WIDTH
     // Always use the full available container width for the canvas
-    const newScale = Math.min(containerWidth / totalWidth, 1); // Don't scale up beyond 1:1
+    const newScale = containerWidth / totalWidth; // Scale to fill container width
     const calculatedHeight = totalHeight * newScale;
 
     // Only update if scale actually changed to avoid infinite loops
@@ -1191,7 +1191,7 @@ export function EnhancedCompetitionMat({
         </div>
       </div>
 
-      <div className="relative bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-900 p-2 sm:p-4 rounded-lg">
+      <div className="relative bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-900 rounded-lg">
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
@@ -1207,14 +1207,14 @@ export function EnhancedCompetitionMat({
               exitMouseMovementPlanningMode();
             }
           }}
-          className={`block mx-auto rounded shadow-2xl ${
+          className={`block w-full rounded shadow-2xl ${
             isMouseMovementPlanningMode
               ? "cursor-crosshair"
               : hoveredObject
                 ? "cursor-pointer"
                 : "cursor-default"
           }`}
-          style={{ maxWidth: "100%", maxHeight: "600px" }}
+          style={{ height: "auto" }}
         />
 
         {!isConnected && (
