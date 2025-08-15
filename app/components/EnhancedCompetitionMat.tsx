@@ -169,6 +169,7 @@ export function EnhancedCompetitionMat({
   // Spline path dragging state
   const [isDraggingPoint, setIsDraggingPoint] = useState(false);
   const [draggedPointId, setDraggedPointId] = useState<string | null>(null);
+  const [justFinishedDragging, setJustFinishedDragging] = useState(false);
   
   // Control point dragging state
   const [isDraggingControlPoint, setIsDraggingControlPoint] = useState(false);
@@ -742,6 +743,12 @@ export function EnhancedCompetitionMat({
 
     // Handle spline path mode clicks
     if (isSplinePathMode) {
+      // Ignore clicks immediately after finishing a drag operation
+      if (justFinishedDragging) {
+        console.log("Ignoring click immediately after drag ended");
+        return;
+      }
+      
       const matPos = canvasToMm(canvasX, canvasY);
       
       // Check if clicking on an existing point for selection/editing or dragging
@@ -1128,43 +1135,6 @@ export function EnhancedCompetitionMat({
 
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
 
-            {/* Spline Path Planning Mode Indicator */}
-            {isSplinePathMode && (
-              <div className="bg-purple-500 text-white px-3 py-2 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
-                <div className="flex items-center gap-2">
-                  <div className="text-center">
-                    <div className="text-sm font-bold">📐 Path Planning</div>
-                    <div className="text-xs">
-                      {currentSplinePath ? 
-                        `${currentSplinePath.points.length} points` : 
-                        "Click to start"
-                      }
-                    </div>
-                  </div>
-                  {currentSplinePath && currentSplinePath.points.length >= 2 && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => completeSplinePath()}
-                        className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
-                        title="Complete path (Enter)"
-                      >
-                        ✓ Complete
-                      </button>
-                      <button
-                        onClick={() => exitSplinePathMode()}
-                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
-                        title="Cancel path (Escape)"
-                      >
-                        ✗ Cancel
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="text-xs mt-1 opacity-80">
-                  Click to add • Drag to move • Delete/Backspace to remove
-                </div>
-              </div>
-            )}
 
             {/* Prominent Score Display */}
             {customMatConfig && showScoring && (
@@ -1196,12 +1166,20 @@ export function EnhancedCompetitionMat({
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={() => {
             // Stop dragging when mouse is released
+            const wasDragging = isDraggingPoint || isDraggingControlPoint || isDraggingCurvatureHandle;
             setIsDraggingPoint(false);
             setDraggedPointId(null);
             setIsDraggingControlPoint(false);
             setDraggedControlPoint(null);
             setIsDraggingCurvatureHandle(false);
             setDraggedCurvatureHandle(null);
+            
+            // Set flag to prevent immediate click handler from triggering
+            if (wasDragging) {
+              setJustFinishedDragging(true);
+              // Clear the flag after a short delay to allow future clicks
+              setTimeout(() => setJustFinishedDragging(false), 100);
+            }
           }}
           onMouseLeave={() => {
             setMousePosition(null);
