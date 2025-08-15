@@ -178,7 +178,7 @@ export const pathOpacityAtom = atom<number>(0.7);
 export const maxPathPointsAtom = atom<number>(1000);
 
 // Control mode atom
-export const controlModeAtom = atom<"incremental" | "continuous">(
+export const controlModeAtom = atom<"incremental" | "continuous" | "spline">(
   "incremental"
 );
 

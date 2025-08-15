@@ -354,8 +354,9 @@ export function useJotaiGameMat() {
   }, [addCurvatureHandlesToIntermediatePointsAction]);
 
   const enterSplinePathMode = useCallback((pathName: string = "New Path") => {
+    setControlMode("spline");
     createSplinePath(pathName);
-  }, [createSplinePath]);
+  }, [setControlMode, createSplinePath]);
 
   const exitSplinePathMode = useCallback(() => {
     if (currentSplinePath && !currentSplinePath.isComplete) {
@@ -365,7 +366,9 @@ export function useJotaiGameMat() {
       setCurrentSplinePath(null);
       setSelectedSplinePointId(null);
     }
-  }, [currentSplinePath, cancelSplinePath, setIsSplinePathMode, setCurrentSplinePath, setSelectedSplinePointId]);
+    // Return to incremental mode when exiting spline mode
+    setControlMode("incremental");
+  }, [currentSplinePath, cancelSplinePath, setIsSplinePathMode, setCurrentSplinePath, setSelectedSplinePointId, setControlMode]);
 
   const addSplinePointAtMousePosition = useCallback((mouseX: number, mouseY: number) => {
     if (!isSplinePathMode) return null;

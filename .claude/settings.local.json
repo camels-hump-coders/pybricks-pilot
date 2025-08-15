@@ -27,7 +27,9 @@
       "Bash(npx tsc:*)",
       "mcp__playwright__browser_press_key",
       "mcp__playwright__browser_type",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
