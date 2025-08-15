@@ -10,9 +10,9 @@ import {
   type TelemetryPoint,
 } from "../services/telemetryHistory";
 import { showGridOverlayAtom } from "../store/atoms/gameMat";
-import { telemetryDataAtom } from "../store/atoms/robotConnection";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import { telemetryDataAtom } from "../store/atoms/robotConnection";
 import {
   allTelemetryPointsAtom,
   pathVisualizationOptionsAtom,
@@ -220,10 +220,10 @@ export function EnhancedCompetitionMat({
 
   // Grid overlay state from Jotai atom
   const showGridOverlay = useAtomValue(showGridOverlayAtom);
-  
+
   // Fresh telemetry data from atom (not stale closure data)
   const currentTelemetryData = useAtomValue(telemetryDataAtom);
-  
+
   // Use a ref to always have access to the latest telemetry data
   const telemetryDataRef = useRef(currentTelemetryData);
   telemetryDataRef.current = currentTelemetryData;
@@ -447,12 +447,6 @@ export function EnhancedCompetitionMat({
         if (headingDiff > 180) {
           headingDiff = 360 - headingDiff;
         }
-
-        console.log({
-          normalizedTarget,
-          normalizedCurrent,
-          headingDiff,
-        });
 
         // Check if robot is within heading tolerance
         if (headingDiff <= headingTolerance) {
