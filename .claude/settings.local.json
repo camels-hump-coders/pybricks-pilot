@@ -29,6 +29,7 @@
       "mcp__playwright__browser_type",
       "Bash(cp:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

@@ -53,6 +53,9 @@ const MAT_HEIGHT_MM = 1137; // Official FLL mat height
 // Grid overlay state
 export const showGridOverlayAtom = atom<boolean>(false);
 
+// Trajectory overlay toggle state
+export const showTrajectoryOverlayAtom = atom<boolean>(false);
+
 // Helper functions for robot positioning
 export const calculateRobotPositionWithDimensions = (
   robotConfig: RobotConfig,

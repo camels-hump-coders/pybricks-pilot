@@ -10,6 +10,7 @@ import {
   robotPositionAtom,
   setRobotPositionAtom,
   showGridOverlayAtom,
+  showTrajectoryOverlayAtom,
 } from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
@@ -282,6 +283,35 @@ export function CompactRobotController({
 
   // Grid overlay state from Jotai atom
   const [showGridOverlay, setShowGridOverlay] = useAtom(showGridOverlayAtom);
+  // Trajectory overlay state from Jotai atom
+  const [showTrajectoryOverlay, setShowTrajectoryOverlay] = useAtom(
+    showTrajectoryOverlayAtom
+  );
+
+  // Effect to automatically show/hide trajectory overlay based on toggle state
+  useEffect(() => {
+    if (showTrajectoryOverlay) {
+      // Always show perpendicular previews when toggle is enabled
+      setPerpendicularPreview({
+        show: true,
+        activeMovementType: null,
+        hoveredButtonType: "drive", // Show both drive and turn options
+        hoveredDirection: "forward",
+        distance,
+        angle,
+      });
+    } else {
+      // Hide perpendicular previews when toggle is disabled
+      setPerpendicularPreview({
+        show: false,
+        activeMovementType: null,
+        hoveredButtonType: null,
+        hoveredDirection: null,
+        distance,
+        angle,
+      });
+    }
+  }, [showTrajectoryOverlay, distance, angle, setPerpendicularPreview]);
 
   // Position setting state
   const setRobotPosition = useSetAtom(setRobotPositionAtom);
@@ -406,10 +436,7 @@ export function CompactRobotController({
 
   // Effect to handle preview state when executingCommand changes
   useEffect(() => {
-    if (executingCommand && hoveredControl) {
-      // Command started: show perpendicular preview for stop button
-      updateStopButtonPreview(true);
-    } else if (!executingCommand && hoveredControl) {
+    if (!executingCommand && hoveredControl) {
       // Command completed: update preview to show next step from current robot position
       // Use the last known hovered control state
       const { type, direction } = hoveredControl;
@@ -443,19 +470,7 @@ export function CompactRobotController({
           },
           trajectoryProjection,
         });
-
-        setPerpendicularPreview({
-          show: false,
-          activeMovementType: null,
-          hoveredButtonType: null,
-          hoveredDirection: null,
-          distance,
-          angle,
-        });
       }
-    } else if (!executingCommand) {
-      // Command completed and no hover: clear all previews
-      updateStopButtonPreview(false);
     }
   }, [executingCommand]); // Only depend on executingCommand to avoid infinite loop
 
@@ -975,6 +990,38 @@ export function CompactRobotController({
                 </svg>
               </button>
 
+              {/* Trajectory Overlay Toggle */}
+              <button
+                onClick={() => setShowTrajectoryOverlay(!showTrajectoryOverlay)}
+                className={`ml-1 px-3 py-2 text-sm rounded transition-colors ${
+                  showTrajectoryOverlay
+                    ? "bg-purple-500 text-white shadow-sm"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+                }`}
+                title="Toggle trajectory projection overlay"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="m9 12l2 2 4-4"
+                  />
+                </svg>
+              </button>
+
               {/* CMD Key Status */}
               {isCmdKeyPressed && (
                 <div className="px-2 py-1 text-xs bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 rounded border border-orange-300 dark:border-orange-700">
@@ -1131,16 +1178,6 @@ export function CompactRobotController({
                           trajectoryProjection: forwardTrajectory,
                           secondaryTrajectoryProjection: backwardTrajectory,
                         });
-
-                        // Don't show perpendicular previews for slider hovers
-                        setPerpendicularPreview({
-                          show: false,
-                          activeMovementType: null,
-                          hoveredButtonType: null,
-                          hoveredDirection: null,
-                          distance,
-                          angle,
-                        });
                       }
                     }}
                     onMouseLeave={() => {
@@ -1155,15 +1192,6 @@ export function CompactRobotController({
                           secondaryTrajectoryProjection: undefined,
                         });
                       }
-                      // Clear perpendicular preview
-                      setPerpendicularPreview({
-                        show: false,
-                        activeMovementType: null,
-                        hoveredButtonType: null,
-                        hoveredDirection: null,
-                        distance,
-                        angle,
-                      });
                     }}
                     className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                   />
@@ -1295,16 +1323,6 @@ export function CompactRobotController({
                           trajectoryProjection: leftTrajectory,
                           secondaryTrajectoryProjection: rightTrajectory,
                         });
-
-                        // Don't show perpendicular previews for slider hovers
-                        setPerpendicularPreview({
-                          show: false,
-                          activeMovementType: null,
-                          hoveredButtonType: null,
-                          hoveredDirection: null,
-                          distance,
-                          angle,
-                        });
                       }
                     }}
                     onMouseLeave={() => {
@@ -1319,15 +1337,6 @@ export function CompactRobotController({
                           secondaryTrajectoryProjection: undefined,
                         });
                       }
-                      // Clear perpendicular preview
-                      setPerpendicularPreview({
-                        show: false,
-                        activeMovementType: null,
-                        hoveredButtonType: null,
-                        hoveredDirection: null,
-                        distance,
-                        angle,
-                      });
                     }}
                     className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                   />
@@ -1343,8 +1352,6 @@ export function CompactRobotController({
                 executingCommand?.direction === "forward" ? (
                   <button
                     onClick={stopExecutingCommand}
-                    onMouseEnter={() => updateStopButtonPreview(true)}
-                    onMouseLeave={() => updateStopButtonPreview(false)}
                     className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
                     title={`Stop forward movement (${executingCommand.originalParams?.distance}mm)`}
                   >
@@ -1366,9 +1373,7 @@ export function CompactRobotController({
                 <button
                   onMouseDown={() => startContinuousDrive("forward")}
                   onMouseUp={stopContinuousDrive}
-                  onMouseEnter={() => updateContinuousButtonPreview(true)}
                   onMouseLeave={() => {
-                    updateContinuousButtonPreview(false);
                     stopContinuousDrive();
                   }}
                   onTouchStart={() => startContinuousDrive("forward")}
@@ -1386,8 +1391,6 @@ export function CompactRobotController({
                 executingCommand?.direction === "left" ? (
                   <button
                     onClick={stopExecutingCommand}
-                    onMouseEnter={() => updateStopButtonPreview(true)}
-                    onMouseLeave={() => updateStopButtonPreview(false)}
                     className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
                     title={`Stop left turn (${executingCommand.originalParams?.angle}°)`}
                   >
@@ -1409,9 +1412,7 @@ export function CompactRobotController({
                 <button
                   onMouseDown={() => startContinuousTurn("left")}
                   onMouseUp={stopContinuousTurn}
-                  onMouseEnter={() => updateContinuousButtonPreview(true)}
                   onMouseLeave={() => {
-                    updateContinuousButtonPreview(false);
                     stopContinuousTurn();
                   }}
                   onTouchStart={() => startContinuousTurn("left")}
@@ -1424,28 +1425,6 @@ export function CompactRobotController({
               )}
               <button
                 onClick={() => sendStop()}
-                onMouseEnter={() => {
-                  // Show perpendicular previews when hovering over stop button
-                  setPerpendicularPreview({
-                    show: true,
-                    activeMovementType: null,
-                    hoveredButtonType: "drive", // Show both drive and turn options
-                    hoveredDirection: "forward",
-                    distance,
-                    angle,
-                  });
-                }}
-                onMouseLeave={() => {
-                  // Clear perpendicular previews when leaving stop button
-                  setPerpendicularPreview({
-                    show: false,
-                    activeMovementType: null,
-                    hoveredButtonType: null,
-                    hoveredDirection: null,
-                    distance,
-                    angle,
-                  });
-                }}
                 className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center"
                 title="Stop"
               >
@@ -1456,8 +1435,6 @@ export function CompactRobotController({
                 executingCommand?.direction === "right" ? (
                   <button
                     onClick={stopExecutingCommand}
-                    onMouseEnter={() => updateStopButtonPreview(true)}
-                    onMouseLeave={() => updateStopButtonPreview(false)}
                     className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
                     title={`Stop right turn (${executingCommand.originalParams?.angle}°)`}
                   >
@@ -1479,9 +1456,7 @@ export function CompactRobotController({
                 <button
                   onMouseDown={() => startContinuousTurn("right")}
                   onMouseUp={stopContinuousTurn}
-                  onMouseEnter={() => updateContinuousButtonPreview(true)}
                   onMouseLeave={() => {
-                    updateContinuousButtonPreview(false);
                     stopContinuousTurn();
                   }}
                   onTouchStart={() => startContinuousTurn("right")}
@@ -1499,8 +1474,6 @@ export function CompactRobotController({
                 executingCommand?.direction === "backward" ? (
                   <button
                     onClick={stopExecutingCommand}
-                    onMouseEnter={() => updateStopButtonPreview(true)}
-                    onMouseLeave={() => updateStopButtonPreview(false)}
                     className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
                     title={`Stop backward movement (${executingCommand.originalParams?.distance}mm)`}
                   >
@@ -1522,9 +1495,7 @@ export function CompactRobotController({
                 <button
                   onMouseDown={() => startContinuousDrive("backward")}
                   onMouseUp={stopContinuousDrive}
-                  onMouseEnter={() => updateContinuousButtonPreview(true)}
                   onMouseLeave={() => {
-                    updateContinuousButtonPreview(false);
                     stopContinuousDrive();
                   }}
                   onTouchStart={() => startContinuousDrive("backward")}
@@ -1818,60 +1789,6 @@ export function CompactRobotController({
     }
   }
 
-  // Stop button preview function that behaves like the central stop button
-  function updateStopButtonPreview(show: boolean) {
-    if (show && executingCommand?.originalParams) {
-      const originalDistance =
-        executingCommand.originalParams.distance || distance;
-      const originalAngle = executingCommand.originalParams.angle || angle;
-
-      // Show perpendicular previews just like the central stop button
-      setPerpendicularPreview({
-        show: true,
-        activeMovementType: null,
-        hoveredButtonType: "drive", // Show both drive and turn options
-        hoveredDirection: "forward",
-        distance: originalDistance,
-        angle: originalAngle,
-      });
-    } else {
-      // Clear perpendicular previews when leaving stop button
-      setPerpendicularPreview({
-        show: false,
-        activeMovementType: null,
-        hoveredButtonType: null,
-        hoveredDirection: null,
-        distance,
-        angle,
-      });
-    }
-  }
-
-  // Continuous mode preview function that shows perpendicular preview
-  function updateContinuousButtonPreview(show: boolean) {
-    if (show) {
-      // Show perpendicular previews for continuous mode buttons
-      setPerpendicularPreview({
-        show: true,
-        activeMovementType: null,
-        hoveredButtonType: "drive", // Show both drive and turn options
-        hoveredDirection: "forward",
-        distance,
-        angle,
-      });
-    } else {
-      // Clear perpendicular previews when leaving button
-      setPerpendicularPreview({
-        show: false,
-        activeMovementType: null,
-        hoveredButtonType: null,
-        hoveredDirection: null,
-        distance,
-        angle,
-      });
-    }
-  }
-
   // Preview update function
   function updatePreview(
     type: "drive" | "turn" | null,
@@ -1912,16 +1829,6 @@ export function CompactRobotController({
         },
         trajectoryProjection,
       });
-
-      // Don't show perpendicular previews for regular movement button hovers
-      setPerpendicularPreview({
-        show: false,
-        activeMovementType: null,
-        hoveredButtonType: null,
-        hoveredDirection: null,
-        distance,
-        angle,
-      });
     } else if (onPreviewUpdate) {
       onPreviewUpdate({
         type: null,
@@ -1929,16 +1836,6 @@ export function CompactRobotController({
         positions: { primary: null, secondary: null },
         trajectoryProjection: undefined,
         secondaryTrajectoryProjection: undefined,
-      });
-
-      // Clear perpendicular preview
-      setPerpendicularPreview({
-        show: false,
-        activeMovementType: null,
-        hoveredButtonType: null,
-        hoveredDirection: null,
-        distance,
-        angle,
       });
     }
   }
