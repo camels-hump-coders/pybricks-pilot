@@ -199,6 +199,9 @@ export function EnhancedCompetitionMat({
 
   // Pseudo code panel state
   const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useState(true);
+  // Telemetry playback panel state
+  const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] =
+    useState(true);
 
   // Ghost robot state for telemetry playback
   const ghostRobot = useAtomValue(ghostRobotAtom);
@@ -2234,26 +2237,66 @@ export function EnhancedCompetitionMat({
         </div>
       )}
 
-      {/* Missions List */}
-      {customMatConfig && showScoring && (
-        <div className="p-2 sm:p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-200">
-              Missions
-            </h4>
-            <button
-              onClick={() => setMissionsExpanded(!missionsExpanded)}
-              className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-            >
+      {/* Telemetry Playback Controls */}
+      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+        {/* Accordion Header */}
+        <button
+          onClick={() =>
+            setIsTelemetryPlaybackExpanded(!isTelemetryPlaybackExpanded)
+          }
+          className="w-full p-3 text-left border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+                Telemetry Playback
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
               <span
-                className={`transition-transform ${missionsExpanded ? "rotate-90" : "rotate-0"}`}
+                className={`transform transition-transform ${
+                  isTelemetryPlaybackExpanded ? "rotate-90" : "rotate-0"
+                }`}
               >
                 ▶
               </span>
-              {missionsExpanded ? "Collapse" : "Expand"} (
-              {customMatConfig?.missions.length || 0})
-            </button>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {isTelemetryPlaybackExpanded ? "Hide" : "Show"}
+              </span>
+            </div>
           </div>
+        </button>
+        {/* Accordion Content */}
+        {isTelemetryPlaybackExpanded && <TelemetryPlayback />}
+      </div>
+
+      {/* Missions List */}
+      {customMatConfig && showScoring && (
+        <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          {/* Accordion Header */}
+          <button
+            onClick={() => setMissionsExpanded(!missionsExpanded)}
+            className="w-full p-3 text-left border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+                  Missions
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`transition-transform ${missionsExpanded ? "rotate-90" : "rotate-0"}`}
+                >
+                  ▶
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {missionsExpanded ? "Hide" : "Show"} (
+                  {customMatConfig?.missions.length || 0})
+                </span>
+              </div>
+            </div>
+          </button>
           {missionsExpanded && (
             <div className="space-y-4">
               {customMatConfig?.missions.map((obj) => (
@@ -2510,13 +2553,13 @@ export function EnhancedCompetitionMat({
               </h3>
             </div>
             <div className="flex items-center gap-2">
+              <span
+                className={`transform transition-transform ${isPseudoCodeExpanded ? "rotate-90" : "rotate-0"}`}
+              >
+                ▶
+              </span>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {isPseudoCodeExpanded ? "Hide" : "Show"}
-              </span>
-              <span
-                className={`transform transition-transform ${isPseudoCodeExpanded ? "rotate-180" : ""}`}
-              >
-                ▼
               </span>
             </div>
           </div>
@@ -2530,11 +2573,6 @@ export function EnhancedCompetitionMat({
             onToggle={() => setIsPseudoCodeExpanded(false)}
           />
         )}
-      </div>
-
-      {/* Telemetry Playback Controls */}
-      <div className="mt-4">
-        <TelemetryPlayback />
       </div>
     </div>
   );

@@ -11,6 +11,10 @@ import {
 import {
   allTelemetryPointsAtom,
   clearTelemetryHistoryAtom,
+  currentTelemetryPathAtom,
+  selectedPathPointsAtom,
+  selectedTelemetryPathAtom,
+  telemetryPathsAtom,
   telemetryTotalDurationAtom,
 } from "../store/atoms/telemetryPoints";
 import { TelemetryTooltip } from "./TelemetryTooltip";
@@ -38,6 +42,11 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
 
   // Telemetry data from atoms
   const allPoints = useAtomValue(allTelemetryPointsAtom);
+  const selectedPoints = useAtomValue(selectedPathPointsAtom);
+  const selectedPathId = useAtomValue(selectedTelemetryPathAtom);
+  const setSelectedPathId = useSetAtom(selectedTelemetryPathAtom);
+  const allPaths = useAtomValue(telemetryPathsAtom);
+  const currentPath = useAtomValue(currentTelemetryPathAtom);
   const totalDuration = useAtomValue(telemetryTotalDurationAtom);
   const clearTelemetryHistory = useSetAtom(clearTelemetryHistoryAtom);
 
@@ -77,13 +86,14 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
 
   // Update windowed points when time window changes
   useEffect(() => {
-    if (allPoints.length === 0) return;
+    const pointsToUse = selectedPoints.length > 0 ? selectedPoints : allPoints;
+    if (pointsToUse.length === 0) return;
 
-    const firstTime = allPoints[0].timestamp;
+    const firstTime = pointsToUse[0].timestamp;
     const windowStartTime = firstTime + timeWindow.start;
     const windowEndTime = firstTime + timeWindow.end;
 
-    const windowed = allPoints.filter(
+    const windowed = pointsToUse.filter(
       (point) =>
         point.timestamp >= windowStartTime && point.timestamp <= windowEndTime
     );
@@ -94,7 +104,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
     if (currentTime < 0 || currentTime > timeWindow.end - timeWindow.start) {
       setCurrentTime(0);
     }
-  }, [timeWindow, allPoints]);
+  }, [timeWindow, selectedPoints, allPoints]);
 
   // Find the current point based on playback time - stabilized with useMemo
   const getCurrentPoint = useMemo(
@@ -102,7 +112,9 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
       (time: number): TelemetryPoint | null => {
         if (windowedPoints.length === 0) return null;
 
-        const windowStartTime = allPoints[0]?.timestamp + timeWindow.start;
+        const pointsToUse =
+          selectedPoints.length > 0 ? selectedPoints : allPoints;
+        const windowStartTime = pointsToUse[0]?.timestamp + timeWindow.start;
         const targetTime = windowStartTime + time;
 
         // Find the point closest to the target time
@@ -119,16 +131,13 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
 
         return closestPoint;
       },
-    [windowedPoints, timeWindow, allPoints]
+    [windowedPoints, timeWindow, selectedPoints, allPoints]
   );
 
   // Update ghost position based on current time (only if playback has started)
   useEffect(() => {
-    if (currentTime === 0) {
-      return;
-    }
-
-    if (!hasStartedPlayback) {
+    // Always hide ghost when at start position (time 0) or playback hasn't started
+    if (currentTime === 0 || !hasStartedPlayback) {
       hideGhostRobot();
       return;
     }
@@ -303,7 +312,44 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
   const windowEndPercentage = (timeWindow.end / totalDuration) * 100;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 space-y-4">
+    <div className="p-4 space-y-4">
+      {/* Path Selection */}
+      <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
+        <label className="text-sm text-gray-600 dark:text-gray-400">
+          Path:
+        </label>
+        <select
+          value={selectedPathId || ""}
+          onChange={(e) => {
+            const pathId = e.target.value || null;
+            setSelectedPathId(pathId);
+            // Reset playback when switching paths
+            setCurrentTime(0);
+            setIsPlaying(false);
+            setHasStartedPlayback(false);
+          }}
+          className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+        >
+          <option value="">All Paths Combined</option>
+          {allPaths.map((path) => {
+            const pathDate = new Date(path.startTime).toLocaleTimeString();
+            const duration = ((path.endTime - path.startTime) / 1000).toFixed(
+              1
+            );
+            return (
+              <option key={path.id} value={path.id}>
+                Path {pathDate} ({duration}s, {path.points.length} pts)
+              </option>
+            );
+          })}
+          {currentPath && (
+            <option value={currentPath.id}>
+              Current Path ({currentPath.points.length} pts) ⚡
+            </option>
+          )}
+        </select>
+      </div>
+
       {/* Playback Controls */}
       <div className="flex items-center gap-4">
         <button
@@ -322,6 +368,8 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
           onClick={() => {
             lastFrameTimeRef.current = 0;
             setCurrentTime(0);
+            setIsPlaying(false);
+            setHasStartedPlayback(false); // Clear ghost when resetting
           }}
           className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
           title="Reset to start"
@@ -364,13 +412,14 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
           onClick={() => {
             lastFrameTimeRef.current = 0;
             setCurrentTime(0);
-            telemetryHistory.clearHistory(); // Clear the service
-            clearTelemetryHistory(); // Clear the atoms
+            setIsPlaying(false);
+            setHasStartedPlayback(false); // Clear ghost when starting new path
+            telemetryHistory.startNewPath(); // Start new path without clearing history
           }}
-          className="p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/70 transition-colors"
-          title="Clear telemetry history"
+          className="p-2 rounded-lg bg-green-100 dark:bg-green-500 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-500/70 transition-colors"
+          title="Start new telemetry path"
         >
-          🗑️
+          ➕
         </button>
       </div>
 
@@ -473,8 +522,10 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
 
           {/* Telemetry points visualization */}
           {windowedPoints.map((point, index) => {
+            const pointsToUse =
+              selectedPoints.length > 0 ? selectedPoints : allPoints;
             const pointTime =
-              point.timestamp - allPoints[0].timestamp - timeWindow.start;
+              point.timestamp - pointsToUse[0].timestamp - timeWindow.start;
             const pointPercentage = (pointTime / windowDuration) * 100;
 
             return (
@@ -505,17 +556,29 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
         </div>
 
         <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span>{formatTime(timeWindow.start)}</span>
+          <span>{formatTime(0)}</span>
           <span className="font-mono">{formatTime(currentTime)}</span>
-          <span>{formatTime(timeWindow.end)}</span>
+          <span>{formatTime(windowDuration)}</span>
         </div>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-3 gap-4 text-xs">
+      <div className="grid grid-cols-4 gap-4 text-xs">
         <div className="bg-gray-50 dark:bg-gray-900 rounded p-2">
-          <div className="text-gray-500 dark:text-gray-400">Total Points</div>
-          <div className="font-mono text-lg">{allPoints.length}</div>
+          <div className="text-gray-500 dark:text-gray-400">Total Paths</div>
+          <div className="font-mono text-lg">
+            {allPaths.length + (currentPath ? 1 : 0)}
+          </div>
+        </div>
+        <div className="bg-gray-50 dark:bg-gray-900 rounded p-2">
+          <div className="text-gray-500 dark:text-gray-400">
+            Selected Points
+          </div>
+          <div className="font-mono text-lg">
+            {selectedPoints.length > 0
+              ? selectedPoints.length
+              : allPoints.length}
+          </div>
         </div>
         <div className="bg-gray-50 dark:bg-gray-900 rounded p-2">
           <div className="text-gray-500 dark:text-gray-400">Window Points</div>

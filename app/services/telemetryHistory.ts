@@ -247,6 +247,12 @@ class TelemetryHistoryService {
     this.startRecording(); // Start fresh recording
   }
 
+  // Start a new telemetry path without clearing existing paths
+  startNewPath(): void {
+    this.stopRecording(); // Stop current recording and save to allPaths
+    this.startRecording(); // Start new recording
+  }
+
   // Ensure recording is active when telemetry data is available
   ensureRecordingActive(): void {
     if (!this.isRecording) {

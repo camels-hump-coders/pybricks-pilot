@@ -10,9 +10,31 @@ export const telemetryPathsAtom = atom<TelemetryPath[]>([]);
 // Atom for current recording path
 export const currentTelemetryPathAtom = atom<TelemetryPath | null>(null);
 
-// Derived atom for total duration
+// Atom for selected path for playback (null means use combined data)
+export const selectedTelemetryPathAtom = atom<string | null>(null);
+
+// Derived atom for selected path points
+export const selectedPathPointsAtom = atom((get) => {
+  const selectedPathId = get(selectedTelemetryPathAtom);
+  const allPaths = get(telemetryPathsAtom);
+  const currentPath = get(currentTelemetryPathAtom);
+  const allPoints = get(allTelemetryPointsAtom);
+  
+  if (!selectedPathId) {
+    // No specific path selected, return all points
+    return allPoints;
+  }
+  
+  // Find the selected path
+  const selectedPath = allPaths.find(path => path.id === selectedPathId) || 
+    (currentPath?.id === selectedPathId ? currentPath : null);
+  
+  return selectedPath ? selectedPath.points : [];
+});
+
+// Derived atom for total duration (based on selected path)
 export const telemetryTotalDurationAtom = atom((get) => {
-  const points = get(allTelemetryPointsAtom);
+  const points = get(selectedPathPointsAtom);
   if (points.length === 0) return 0;
   
   const firstTime = points[0].timestamp;
@@ -79,5 +101,15 @@ export const clearTelemetryHistoryAtom = atom(
     set(allTelemetryPointsAtom, []);
     set(telemetryPathsAtom, []);
     set(currentTelemetryPathAtom, null);
+    set(selectedTelemetryPathAtom, null);
+  }
+);
+
+// Atom for starting a new telemetry path (keeps old paths)
+export const startNewTelemetryPathAtom = atom(
+  null,
+  (get, set) => {
+    // This will be handled by the telemetryHistory service
+    // The atoms will be updated via useTelemetryDataSync
   }
 );
