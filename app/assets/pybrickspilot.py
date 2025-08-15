@@ -28,7 +28,7 @@ import ujson as json
 from pybricks.tools import StopWatch
 from pybricks.tools import read_input_byte
 from pybricks.tools import run_task, multitask, wait
-from pybricks.parameters import Color, Button
+from pybricks.parameters import Color, Button, Stop
 
 _stopwatch = None
 
@@ -375,10 +375,62 @@ async def send_telemetry():
         print("[PILOT] Telemetry error:", e)
 
 
+async def _execute_command_sequence(commands):
+    """Execute a sequence of commands with appropriate stop behavior.
+    
+    All commands except the last use Stop.COAST_SMART for smooth transitions.
+    The last command uses Stop.HOLD for precise final positioning.
+    """
+    try:
+        print(f"[PILOT] Executing command sequence of {len(commands)} commands")
+        
+        for i, cmd in enumerate(commands):
+            is_last_command = (i == len(commands) - 1)
+            
+            # Add stop behavior to command based on position in sequence
+            if "action" in cmd and cmd["action"] in ["drive", "turn"]:
+                # Clone the command to avoid modifying the original
+                cmd_with_stop = cmd.copy()
+                if is_last_command:
+                    cmd_with_stop["stop_behavior"] = "hold"
+                    print(f"[PILOT] Executing final command {i+1}/{len(commands)} with HOLD")
+                else:
+                    cmd_with_stop["stop_behavior"] = "coast_smart"
+                    print(f"[PILOT] Executing command {i+1}/{len(commands)} with COAST_SMART")
+                
+                # Execute the individual command with stop behavior
+                await _execute_single_command(cmd_with_stop)
+            else:
+                # For non-movement commands, execute normally
+                print(f"[PILOT] Executing non-movement command {i+1}/{len(commands)}")
+                await _execute_single_command(cmd)
+        
+        print("[PILOT] Command sequence completed")
+        
+    except Exception as e:
+        print("[PILOT] Command sequence error:", e)
+
+
 async def _execute_command(command):
-    """Execute a received command."""
+    """Execute a received command or command sequence."""
+    try:
+        # Check if this is a command sequence (array of commands)
+        if isinstance(command, list):
+            await _execute_command_sequence(command)
+            return
+        
+        # Single command - execute directly
+        await _execute_single_command(command)
+        
+    except Exception as e:
+        print("[PILOT] Command execution error:", e)
+
+
+async def _execute_single_command(command):
+    """Execute a single command with optional stop behavior."""
     try:
         action = command.get("action")
+        stop_behavior = command.get("stop_behavior", "hold")  # Default to hold for single commands
 
         # Debug: Print drivebase status for troubleshooting
         if action in ["drive", "turn", "stop"]:
@@ -387,31 +439,54 @@ async def _execute_command(command):
                 action,
                 "- Drivebase registered:",
                 _drivebase is not None,
+                "- Stop behavior:",
+                stop_behavior,
             )
 
         if action == "drive" and _drivebase:
-            # Drive command: {"action": "drive", "distance": 100, "speed": 200}
+            # Drive command: {"action": "drive", "distance": 100, "speed": 200, "stop_behavior": "hold"}
             distance = command.get("distance", 0)
             speed = command.get("speed", 100)
-            # Use straight() method with wait=False for non-blocking execution
+            
+            # Convert stop behavior string to Pybricks Stop parameter
+            stop_param = Stop.HOLD  # Default
+            if stop_behavior == "coast_smart":
+                stop_param = Stop.COAST_SMART
+            elif stop_behavior == "coast":
+                stop_param = Stop.COAST
+            elif stop_behavior == "brake":
+                stop_param = Stop.BRAKE
+            
+            # Use straight() method with appropriate stop behavior
             _drivebase.settings(straight_speed=speed)
-            _drivebase.straight(distance, wait=False)
+            await _drivebase.straight(distance, then=stop_param, wait=True)
             print(
                 "[PILOT] Executed drive:",
                 distance,
                 "mm at",
                 speed,
-                "mm/s (non-blocking)",
+                "mm/s with",
+                stop_behavior,
             )
 
         elif action == "turn" and _drivebase:
-            # Turn command: {"action": "turn", "angle": 90, "speed": 100}
+            # Turn command: {"action": "turn", "angle": 90, "speed": 100, "stop_behavior": "hold"}
             angle = command.get("angle", 0)
             speed = command.get("speed", 100)
-            # Use turn() method with wait=False for non-blocking execution
+            
+            # Convert stop behavior string to Pybricks Stop parameter
+            stop_param = Stop.HOLD  # Default
+            if stop_behavior == "coast_smart":
+                stop_param = Stop.COAST_SMART
+            elif stop_behavior == "coast":
+                stop_param = Stop.COAST
+            elif stop_behavior == "brake":
+                stop_param = Stop.BRAKE
+            
+            # Use turn() method with appropriate stop behavior
             _drivebase.settings(turn_rate=speed)
-            await _drivebase.turn(angle, wait=False)
-            print("[PILOT] Executed turn:", angle, "° at", speed, "°/s (non-blocking)")
+            await _drivebase.turn(angle, then=stop_param, wait=True)
+            print("[PILOT] Executed turn:", angle, "° at", speed, "°/s with", stop_behavior)
 
         elif action == "stop":
             # Stop command: {"action": "stop"} or {"action": "stop", "motor": "motor_name"}

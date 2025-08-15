@@ -860,38 +860,64 @@ class PybricksHubService extends EventTarget {
 
   // Robot control methods for RobotInterface compatibility
   // These methods send JSON commands to the PyBricks pilot via stdin
+  // Legacy single command methods (now updated to use arrays)
   async drive(distance: number, speed: number): Promise<void> {
-    const command = JSON.stringify({
+    await this.executeCommandSequence([{
       action: "drive",
       distance: distance,
       speed: speed,
-    });
-    await this.sendControlCommand(command);
+    }]);
   }
 
   async turn(angle: number, speed: number): Promise<void> {
-    const command = JSON.stringify({
+    await this.executeCommandSequence([{
       action: "turn",
       angle: angle,
       speed: speed,
-    });
-    await this.sendControlCommand(command);
+    }]);
   }
 
   async stop(): Promise<void> {
-    const command = JSON.stringify({
+    await this.executeCommandSequence([{
       action: "stop",
-    });
-    await this.sendControlCommand(command);
+    }]);
+  }
+
+  // New command sequence method
+  async executeCommandSequence(commands: Array<{
+    action: string;
+    distance?: number;
+    angle?: number;
+    speed?: number;
+    motor?: string;
+    [key: string]: any;
+  }>): Promise<void> {
+    const commandSequence = JSON.stringify(commands);
+    await this.sendControlCommand(commandSequence);
+  }
+
+  // Compound movement commands
+  async turnAndDrive(turnAngle: number, driveDistance: number, speed: number = 100): Promise<void> {
+    await this.executeCommandSequence([
+      {
+        action: "turn",
+        angle: turnAngle,
+        speed: speed,
+      },
+      {
+        action: "drive", 
+        distance: driveDistance,
+        speed: speed,
+      }
+    ]);
   }
 
   async setMotorSpeed(motorName: string, speed: number): Promise<void> {
-    const command = JSON.stringify({
+    await this.executeCommandSequence([{
       action: "motor",
       motor: motorName,
       speed: speed,
-    });
-    await this.sendControlCommand(command);
+    }]);
   }
 
   async setMotorAngle(
@@ -899,23 +925,28 @@ class PybricksHubService extends EventTarget {
     angle: number,
     speed: number
   ): Promise<void> {
-    const command = JSON.stringify({
+    await this.executeCommandSequence([{
       action: "motor",
       motor: motorName,
       angle: angle,
       speed: speed,
-    });
-    await this.sendControlCommand(command);
+    }]);
+  }
+
+  async stopMotor(motorName: string): Promise<void> {
+    await this.executeCommandSequence([{
+      action: "stop",
+      motor: motorName,
+    }]);
   }
 
   // Additional method for continuous drive (not in RobotInterface but useful)
   async driveContinuous(speed: number, turnRate: number): Promise<void> {
-    const command = JSON.stringify({
+    await this.executeCommandSequence([{
       action: "drive_continuous",
       speed: speed,
       turn_rate: turnRate,
-    });
-    await this.sendControlCommand(command);
+    }]);
   }
 
   // RobotInterface compatibility methods

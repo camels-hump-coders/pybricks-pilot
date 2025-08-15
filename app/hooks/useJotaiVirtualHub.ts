@@ -323,6 +323,10 @@ export function useJotaiVirtualHub() {
     sendControlCommand,
     isSendingCommand,
 
+    // Command sequences and compound movements
+    executeCommandSequence: virtualRobotService.executeCommandSequence.bind(virtualRobotService),
+    turnAndDrive: virtualRobotService.turnAndDrive.bind(virtualRobotService),
+
     // Virtual robot specific
     virtualPosition,
     virtualState,

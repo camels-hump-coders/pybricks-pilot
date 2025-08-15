@@ -727,6 +727,82 @@ class VirtualRobotService extends EventTarget {
     };
   }
 
+  async stopMotor(motorName: string): Promise<void> {
+    if (this.state.motors[motorName]) {
+      this.state.motors[motorName].speed = 0;
+      console.log(`[VirtualRobot] Stopped motor: ${motorName}`);
+    }
+  }
+
+  async executeCommandSequence(commands: Array<{
+    action: string;
+    distance?: number;
+    angle?: number;
+    speed?: number;
+    motor?: string;
+    [key: string]: any;
+  }>): Promise<void> {
+    console.log(`[VirtualRobot] Executing command sequence of ${commands.length} commands`);
+    
+    for (let i = 0; i < commands.length; i++) {
+      const cmd = commands[i];
+      console.log(`[VirtualRobot] Executing command ${i + 1}/${commands.length}:`, cmd.action);
+      
+      // Execute each command in sequence
+      switch (cmd.action) {
+        case "drive":
+          if (cmd.distance !== undefined && cmd.speed !== undefined) {
+            await this.drive(cmd.distance, cmd.speed);
+          }
+          break;
+        case "turn":
+          if (cmd.angle !== undefined && cmd.speed !== undefined) {
+            await this.turn(cmd.angle, cmd.speed);
+          }
+          break;
+        case "stop":
+          if (cmd.motor) {
+            await this.stopMotor(cmd.motor);
+          } else {
+            await this.stop();
+          }
+          break;
+        case "motor":
+          if (cmd.motor && cmd.speed !== undefined) {
+            if (cmd.angle !== undefined) {
+              await this.setMotorAngle(cmd.motor, cmd.angle, cmd.speed);
+            } else {
+              await this.setMotorSpeed(cmd.motor, cmd.speed);
+            }
+          }
+          break;
+        case "drive_continuous":
+          if (cmd.speed !== undefined && cmd.turn_rate !== undefined) {
+            await this.driveContinuous(cmd.speed, cmd.turn_rate);
+          }
+          break;
+      }
+    }
+    
+    console.log(`[VirtualRobot] Command sequence completed`);
+  }
+
+  async turnAndDrive(turnAngle: number, driveDistance: number, speed: number = 100): Promise<void> {
+    console.log(`[VirtualRobot] Turn and drive: ${turnAngle}° then ${driveDistance}mm at ${speed}mm/s`);
+    await this.executeCommandSequence([
+      {
+        action: "turn",
+        angle: turnAngle,
+        speed: speed,
+      },
+      {
+        action: "drive",
+        distance: driveDistance,
+        speed: speed,
+      }
+    ]);
+  }
+
   getRobotType(): "real" | "virtual" {
     return "virtual";
   }

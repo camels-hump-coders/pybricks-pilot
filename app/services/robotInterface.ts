@@ -17,7 +17,21 @@ interface RobotInterface {
   driveContinuous(speed: number, turnRate: number): Promise<void>;
   setMotorSpeed(motorName: string, speed: number): Promise<void>;
   setMotorAngle(motorName: string, angle: number, speed: number): Promise<void>;
+  stopMotor(motorName: string): Promise<void>;
   sendControlCommand(command: string): Promise<void>;
+  
+  // Command sequence control
+  executeCommandSequence(commands: Array<{
+    action: string;
+    distance?: number;
+    angle?: number;
+    speed?: number;
+    motor?: string;
+    [key: string]: any;
+  }>): Promise<void>;
+  
+  // Compound movements
+  turnAndDrive(turnAngle: number, driveDistance: number, speed?: number): Promise<void>;
 
   // Event handling
   addEventListener(type: string, listener: EventListener): void;

@@ -82,6 +82,7 @@ export function EnhancedCompetitionMat({
   const {
     sendDriveCommand,
     sendTurnCommand,
+    turnAndDrive,
     isConnected: robotIsConnected,
   } = robotConnection;
 
@@ -357,48 +358,7 @@ export function EnhancedCompetitionMat({
   // Event handlers use extracted coordinate utilities (keeping local implementation for now)
 
   // normalizeHeading is now imported from utils/headingUtils
-
-  // Function to wait for robot to reach desired heading and maintain it
-  const waitForDesiredHeading = (targetHeading: number): Promise<void> => {
-    return new Promise((resolve) => {
-      let stableStartTime: number | null = null;
-      const headingTolerance = 10; // Degrees tolerance for heading accuracy
-      const stabilityDuration = 500; // Half a second in milliseconds
-
-      const interval = setInterval(() => {
-        // Get current fresh telemetry data from the ref (always latest)
-        const currentHeading = telemetryDataRef.current?.hub?.imu?.heading;
-
-        if (currentHeading === undefined) {
-          return;
-        }
-
-        // Normalize both headings to -180 to 180 range
-        const normalizedTarget = normalizeHeading(targetHeading);
-        const normalizedCurrent = normalizeHeading(currentHeading);
-
-        // Calculate heading difference with normalized values (handle wraparound)
-        let headingDiff = Math.abs(normalizedTarget - normalizedCurrent);
-        if (headingDiff > 180) {
-          headingDiff = 360 - headingDiff;
-        }
-
-        // Check if robot is within heading tolerance
-        if (headingDiff <= headingTolerance) {
-          if (stableStartTime === null) {
-            stableStartTime = Date.now();
-          } else if (Date.now() - stableStartTime >= stabilityDuration) {
-            // Robot has been at target heading for required duration
-            clearInterval(interval);
-            resolve();
-          }
-        } else {
-          // Reset stability timer if heading moved outside tolerance
-          stableStartTime = null;
-        }
-      }, 100);
-    });
-  };
+  // waitForDesiredHeading function removed - now using compound turnAndDrive commands
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -753,25 +713,22 @@ export function EnhancedCompetitionMat({
         commands,
       });
 
-      // Execute movement commands (turn then drive)
-      if (robotIsConnected && commands.turnAngle !== 0) {
+      // Execute movement commands using new compound command system
+      if (robotIsConnected) {
         try {
-          // Send turn command first
-          await sendTurnCommand(commands.turnAngle, 100); // 100 deg/s speed
-
-          // Wait for robot to reach desired heading and maintain it
-          await waitForDesiredHeading(commands.targetHeading);
-
-          if (commands.driveDistance > 5) {
-            // Only drive if distance is meaningful
+          if (Math.abs(commands.turnAngle) > 5 && commands.driveDistance > 5) {
+            // Use compound turn and drive command for smooth execution
+            await turnAndDrive(commands.turnAngle, commands.driveDistance, 150); // 150 mm/s speed
+          } else if (Math.abs(commands.turnAngle) > 5) {
+            // Just turn if no meaningful drive distance
+            await sendTurnCommand(commands.turnAngle, 100); // 100 deg/s speed
+          } else if (commands.driveDistance > 5) {
+            // Just drive if no meaningful turn needed
             await sendDriveCommand(commands.driveDistance, 200); // 200 mm/s speed
           }
         } catch (error) {
           console.error("Failed to execute movement commands:", error);
         }
-      } else if (robotIsConnected && commands.driveDistance > 5) {
-        // Just drive if no turn needed
-        await sendDriveCommand(commands.driveDistance, 200);
       }
 
       // Exit planning mode after executing command
