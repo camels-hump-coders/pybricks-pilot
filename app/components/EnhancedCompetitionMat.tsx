@@ -12,11 +12,12 @@ import {
   type TelemetryPoint,
 } from "../services/telemetryHistory";
 import { showGridOverlayAtom } from "../store/atoms/gameMat";
+import { ghostRobotAtom } from "../store/atoms/ghostPosition";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import { allTelemetryPointsAtom } from "../store/atoms/telemetryPoints";
 import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { TelemetryPlayback } from "./TelemetryPlayback";
-import type { TelemetryData } from "../services/pybricksHub";
 
 interface RobotPosition {
   x: number; // mm from left edge of mat
@@ -135,6 +136,7 @@ export function EnhancedCompetitionMat({
 
   // Get robot configuration
   const robotConfig = useAtomValue(robotConfigAtom);
+  const allTelemetryPoints = useAtomValue(allTelemetryPointsAtom);
 
   // Use Jotai for game mat state management
   const gameMat = useJotaiGameMat();
@@ -197,13 +199,10 @@ export function EnhancedCompetitionMat({
 
   // Pseudo code panel state
   const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useState(true);
-  
-  // Ghost robot state for telemetry playback
-  const [ghostPosition, setGhostPosition] = useState<RobotPosition | null>(null);
-  const [playbackTelemetry, setPlaybackTelemetry] = useState<TelemetryData | null>(null);
 
-  // Target heading state for position setting
-  const [targetHeading, setTargetHeading] = useState<number>(0);
+  // Ghost robot state for telemetry playback
+  const ghostRobot = useAtomValue(ghostRobotAtom);
+  const ghostPosition = ghostRobot.isVisible ? ghostRobot.position : null;
 
   // Grid overlay state from Jotai atom
   const showGridOverlay = useAtomValue(showGridOverlayAtom);
@@ -453,7 +452,7 @@ export function EnhancedCompetitionMat({
     if (currentPosition) {
       drawRobot(ctx, currentPosition, false);
     }
-    
+
     // Draw ghost robot from telemetry playback
     if (ghostPosition) {
       drawRobot(ctx, ghostPosition, true, "playback");
@@ -1589,88 +1588,85 @@ export function EnhancedCompetitionMat({
         currentDistance - telemetryReferenceRef.current.distance;
       const deltaAngle = currentAngle - telemetryReferenceRef.current.angle;
 
-      // Only process if there's significant change
-      if (Math.abs(deltaDistance) >= 0.01 || Math.abs(deltaAngle) >= 0.01) {
-        // Calculate heading using delta from reference + manual adjustment
-        const currentHeading =
-          (telemetryReferenceRef.current.position.heading +
-            deltaAngle +
-            manualHeadingAdjustmentRef.current) %
-          360;
+      // Calculate heading using delta from reference + manual adjustment
+      const currentHeading =
+        (telemetryReferenceRef.current.position.heading +
+          deltaAngle +
+          manualHeadingAdjustmentRef.current) %
+        360;
 
-        // Calculate movement using the current heading (matches working version)
-        const headingRad = (currentHeading * Math.PI) / 180;
+      // Calculate movement using the current heading (matches working version)
+      const headingRad = (currentHeading * Math.PI) / 180;
 
-        const newX =
-          telemetryReferenceRef.current.position.x +
-          deltaDistance * Math.sin(headingRad);
-        // SIMPLIFIED MODEL: Move center of rotation in heading direction
-        // heading=0° = move UP (decrease Y), heading=180° = move DOWN (increase Y)
-        const newY =
-          telemetryReferenceRef.current.position.y -
-          deltaDistance * Math.cos(headingRad);
+      const newX =
+        telemetryReferenceRef.current.position.x +
+        deltaDistance * Math.sin(headingRad);
+      // SIMPLIFIED MODEL: Move center of rotation in heading direction
+      // heading=0° = move UP (decrease Y), heading=180° = move DOWN (increase Y)
+      const newY =
+        telemetryReferenceRef.current.position.y -
+        deltaDistance * Math.cos(headingRad);
 
-        const newPosition: RobotPosition = {
-          x: newX,
-          y: newY,
-          heading: currentHeading,
-        };
+      const newPosition: RobotPosition = {
+        x: newX,
+        y: newY,
+        heading: currentHeading,
+      };
 
-        // Remove verbose logging to save context
+      // Remove verbose logging to save context
 
-        // Add telemetry point to history if recording
-        if (telemetryHistory.isRecordingActive() && receivedTelemetryData) {
-          telemetryHistory.addTelemetryPoint(
-            receivedTelemetryData,
-            newPosition.x,
-            newPosition.y,
-            newPosition.heading,
-            isCmdKeyPressedRef.current
-          );
-        }
-
-        // Instead of directly setting robot position, update it through telemetry
-        // This ensures all position updates go through the same path
-        const newTelemetryData = {
-          timestamp: Date.now(),
-          type: "telemetry",
-          hub: {
-            imu: {
-              heading: newPosition.heading,
-              acceleration: [0, 0, 0],
-              angular_velocity: [0, 0, 0],
-            },
-          },
-          drivebase: {
-            distance: currentDistance,
-            angle: currentAngle,
-            state: {
-              distance: currentDistance,
-              drive_speed: 0,
-              angle: currentAngle,
-              turn_rate: 0,
-            },
-          },
-        };
-
-        // Temporarily bypass telemetry flow to debug rendering issue
-        updateRobotPositionFromTelemetry(newTelemetryData);
-
-        // Update telemetry reference to new position so next movement calculates from here
-        setTelemetryReference({
-          distance: currentDistance,
-          angle: currentAngle,
-          position: newPosition,
-        });
-
-        // Update accumulated telemetry state for external consumption
-        setAccumulatedTelemetry({
-          distance: currentDistance,
-          angle: currentAngle,
-        });
-
-        // Robot position is now managed by Jotai atoms automatically
+      // Add telemetry point to history if recording
+      if (telemetryHistory.isRecordingActive() && receivedTelemetryData) {
+        telemetryHistory.addTelemetryPoint(
+          receivedTelemetryData,
+          newPosition.x,
+          newPosition.y,
+          newPosition.heading,
+          isCmdKeyPressedRef.current
+        );
       }
+
+      // Instead of directly setting robot position, update it through telemetry
+      // This ensures all position updates go through the same path
+      const newTelemetryData = {
+        timestamp: Date.now(),
+        type: "telemetry",
+        hub: {
+          imu: {
+            heading: newPosition.heading,
+            acceleration: [0, 0, 0],
+            angular_velocity: [0, 0, 0],
+          },
+        },
+        drivebase: {
+          distance: currentDistance,
+          angle: currentAngle,
+          state: {
+            distance: currentDistance,
+            drive_speed: 0,
+            angle: currentAngle,
+            turn_rate: 0,
+          },
+        },
+      };
+
+      // Temporarily bypass telemetry flow to debug rendering issue
+      updateRobotPositionFromTelemetry(newTelemetryData);
+
+      // Update telemetry reference to new position so next movement calculates from here
+      setTelemetryReference({
+        distance: currentDistance,
+        angle: currentAngle,
+        position: newPosition,
+      });
+
+      // Update accumulated telemetry state for external consumption
+      setAccumulatedTelemetry({
+        distance: currentDistance,
+        angle: currentAngle,
+      });
+
+      // Robot position is now managed by Jotai atoms automatically
     };
 
     // Subscribe to telemetry events from the global document
@@ -1894,9 +1890,8 @@ export function EnhancedCompetitionMat({
 
   // Single useEffect that triggers canvas updates for all changes
   useEffect(() => {
-    requestAnimationFrame(() => {
-      updateCanvas();
-    });
+    const rafId = requestAnimationFrame(updateCanvas);
+    return () => cancelAnimationFrame(rafId);
   }, [
     canvasSize,
     scale,
@@ -1908,7 +1903,7 @@ export function EnhancedCompetitionMat({
     customMatConfig?.name,
     scoringState,
     showScoring,
-    ghostPosition,  // Added to trigger redraw when ghost moves
+    ghostPosition, // Added to trigger redraw when ghost moves
     updateCanvas,
   ]);
 
@@ -2530,22 +2525,16 @@ export function EnhancedCompetitionMat({
         {/* Accordion Content */}
         {isPseudoCodeExpanded && (
           <PseudoCodePanel
-            telemetryPoints={[
-              ...telemetryHistory.getAllPaths().flatMap((path) => path.points),
-              ...(telemetryHistory.getCurrentPath()?.points || []),
-            ]}
+            telemetryPoints={allTelemetryPoints}
             isVisible={true}
             onToggle={() => setIsPseudoCodeExpanded(false)}
           />
         )}
       </div>
-      
+
       {/* Telemetry Playback Controls */}
       <div className="mt-4">
-        <TelemetryPlayback
-          onGhostPositionUpdate={setGhostPosition}
-          onTelemetryDataUpdate={setPlaybackTelemetry}
-        />
+        <TelemetryPlayback />
       </div>
     </div>
   );

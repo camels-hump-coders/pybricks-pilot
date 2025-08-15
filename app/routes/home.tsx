@@ -9,6 +9,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useNotifications } from "../hooks/useNotifications";
+import { useTelemetryDataSync } from "../hooks/useTelemetryDataSync";
 // Robot config initialization now handled by filesystem discovery
 import { discoverRobotConfigsAtom } from "../store/atoms/configFileSystem";
 import type { Route } from "./+types/home";
@@ -88,6 +89,9 @@ export default function Home() {
 
   const robotConnection = useJotaiRobotConnection();
   const fileSystem = useJotaiFileSystem();
+  
+  // Sync telemetry data from service to atoms
+  useTelemetryDataSync();
 
   // Destructure robot connection properties for backward compatibility
   const {
