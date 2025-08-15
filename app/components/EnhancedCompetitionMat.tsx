@@ -37,6 +37,7 @@ import { type RobotPosition } from "../utils/canvas/robotDrawing";
 import { drawRobot } from "../utils/canvas/robotDrawing.js";
 import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing.js";
+import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
 import {
   drawNextMoveEndIndicator,
   drawPerpendicularTrajectoryProjection,
@@ -546,108 +547,14 @@ export function EnhancedCompetitionMat({
     }
 
     // Draw movement preview robots (dual previews)
-    if (
-      movementPreview?.positions &&
-      controlMode === "incremental" &&
-      currentPosition &&
-      currentPosition.x > 0 &&
-      currentPosition.y > 0
-    ) {
-      // Draw primary preview robot
-      if (movementPreview.positions.primary) {
-        drawRobot(
-          ctx,
-          movementPreview.positions.primary,
-          robotConfig,
-          { mmToCanvas, scale },
-          true,
-          "primary",
-          movementPreview.direction || undefined
-        );
-      }
-
-      // Draw secondary preview robot
-      if (movementPreview.positions.secondary && movementPreview.direction) {
-        // Determine the opposite direction for secondary preview
-        let oppositeDirection: "forward" | "backward" | "left" | "right";
-        if (movementPreview.type === "drive") {
-          oppositeDirection =
-            movementPreview.direction === "forward" ? "backward" : "forward";
-        } else {
-          oppositeDirection =
-            movementPreview.direction === "left" ? "right" : "left";
-        }
-        drawRobot(
-          ctx,
-          movementPreview.positions.secondary,
-          robotConfig,
-          { mmToCanvas, scale },
-          true,
-          "secondary",
-          oppositeDirection
-        );
-      }
-
-      // Draw trajectory projection path
-      if (
-        movementPreview.trajectoryProjection?.trajectoryPath &&
-        movementPreview.direction
-      ) {
-        // Draw very subtle next move end indicator first
-        if (movementPreview.trajectoryProjection.nextMoveEnd) {
-          drawNextMoveEndIndicator(
-            ctx,
-            movementPreview.trajectoryProjection.nextMoveEnd,
-            movementPreview.direction,
-            robotConfig,
-            { mmToCanvas, scale }
-          );
-        }
-
-        // Then draw the trajectory path
-        drawTrajectoryProjection(
-          ctx,
-          movementPreview.trajectoryProjection.trajectoryPath,
-          movementPreview.direction,
-          { mmToCanvas, scale }
-        );
-      }
-
-      // Draw secondary trajectory projection if available (for dual previews when hovering over sliders)
-      if (
-        movementPreview.secondaryTrajectoryProjection?.trajectoryPath &&
-        movementPreview.positions.secondary
-      ) {
-        // Determine the opposite direction for secondary trajectory
-        let oppositeDirection: "forward" | "backward" | "left" | "right";
-        if (movementPreview.type === "drive") {
-          oppositeDirection =
-            movementPreview.direction === "forward" ? "backward" : "forward";
-        } else {
-          oppositeDirection =
-            movementPreview.direction === "left" ? "right" : "left";
-        }
-
-        // Draw very subtle next move end indicator for secondary trajectory
-        if (movementPreview.secondaryTrajectoryProjection.nextMoveEnd) {
-          drawNextMoveEndIndicator(
-            ctx,
-            movementPreview.secondaryTrajectoryProjection.nextMoveEnd,
-            oppositeDirection,
-            robotConfig,
-            { mmToCanvas, scale }
-          );
-        }
-
-        // Draw the secondary trajectory path
-        drawTrajectoryProjection(
-          ctx,
-          movementPreview.secondaryTrajectoryProjection.trajectoryPath,
-          oppositeDirection,
-          { mmToCanvas, scale }
-        );
-      }
-    }
+    drawMovementPreview(
+      ctx,
+      movementPreview,
+      currentPosition,
+      controlMode,
+      robotConfig,
+      { mmToCanvas, scale }
+    );
 
     // Draw perpendicular preview trajectories - show ALL movement options when hovering over stop button
     if (

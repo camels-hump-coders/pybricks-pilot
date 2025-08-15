@@ -1,21 +1,7 @@
 import { drawRobot, type RobotPosition, type MovementDirection, type RobotPreviewType, type RobotDrawingUtils } from "./robotDrawing";
-import { drawTrajectoryProjection } from "./trajectoryDrawing";
+import { drawTrajectoryProjection, drawNextMoveEndIndicator } from "./trajectoryDrawing";
 import type { RobotConfig } from "../../schemas/RobotConfig";
-
-interface MovementPreview {
-  type: "drive" | "turn";
-  direction?: MovementDirection;
-  positions: {
-    primary?: RobotPosition;
-    secondary?: RobotPosition;
-  };
-  trajectoryProjection?: {
-    trajectoryPath: RobotPosition[];
-  };
-  secondaryTrajectoryProjection?: {
-    trajectoryPath: RobotPosition[];
-  };
-}
+import type { MovementPreview } from "../../store/atoms/gameMat";
 
 interface PerpendicularPreview {
   show: boolean;
@@ -46,6 +32,8 @@ export function drawMovementPreview(
 ) {
   if (
     !movementPreview?.positions ||
+    !movementPreview.type ||
+    !movementPreview.direction ||
     controlMode !== "incremental" ||
     !currentPosition ||
     currentPosition.x <= 0 ||
@@ -63,12 +51,12 @@ export function drawMovementPreview(
       utils,
       true,
       "primary",
-      movementPreview.direction || undefined
+      movementPreview.direction
     );
   }
 
   // Draw secondary preview robot
-  if (movementPreview.positions.secondary && movementPreview.direction) {
+  if (movementPreview.positions.secondary) {
     // Determine the opposite direction for secondary preview
     let oppositeDirection: MovementDirection;
     if (movementPreview.type === "drive") {
@@ -90,10 +78,19 @@ export function drawMovementPreview(
   }
 
   // Draw trajectory projection path
-  if (
-    movementPreview.trajectoryProjection?.trajectoryPath &&
-    movementPreview.direction
-  ) {
+  if (movementPreview.trajectoryProjection?.trajectoryPath) {
+    // Draw very subtle next move end indicator first
+    if (movementPreview.trajectoryProjection.nextMoveEnd) {
+      drawNextMoveEndIndicator(
+        ctx,
+        movementPreview.trajectoryProjection.nextMoveEnd,
+        movementPreview.direction,
+        robotConfig,
+        utils
+      );
+    }
+
+    // Then draw the trajectory path
     drawTrajectoryProjection(
       ctx,
       movementPreview.trajectoryProjection.trajectoryPath,
@@ -116,6 +113,19 @@ export function drawMovementPreview(
       oppositeDirection =
         movementPreview.direction === "left" ? "right" : "left";
     }
+
+    // Draw very subtle next move end indicator for secondary trajectory
+    if (movementPreview.secondaryTrajectoryProjection.nextMoveEnd) {
+      drawNextMoveEndIndicator(
+        ctx,
+        movementPreview.secondaryTrajectoryProjection.nextMoveEnd,
+        oppositeDirection,
+        robotConfig,
+        utils
+      );
+    }
+
+    // Draw the secondary trajectory path
     drawTrajectoryProjection(
       ctx,
       movementPreview.secondaryTrajectoryProjection.trajectoryPath,
