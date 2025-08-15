@@ -35,6 +35,7 @@ import {
 import { drawMissions } from "../utils/canvas/missionDrawing";
 import { type RobotPosition } from "../utils/canvas/robotDrawing";
 import { drawRobot } from "../utils/canvas/robotDrawing.js";
+import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing.js";
 import {
   drawNextMoveEndIndicator,
@@ -417,19 +418,19 @@ export function EnhancedCompetitionMat({
     ctx.fillStyle = tableGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Add subtle glossy highlight overlay
+    // Add subtle glossy highlight overlay across entire surface
     const glossGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-    glossGradient.addColorStop(0, "rgba(255, 255, 255, 0.03)");
-    glossGradient.addColorStop(0.5, "rgba(255, 255, 255, 0.08)");
-    glossGradient.addColorStop(1, "rgba(255, 255, 255, 0.03)");
+    glossGradient.addColorStop(0, "rgba(255, 255, 255, 0.02)");
+    glossGradient.addColorStop(0.5, "rgba(255, 255, 255, 0.04)");
+    glossGradient.addColorStop(1, "rgba(255, 255, 255, 0.02)");
     ctx.fillStyle = glossGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height / 3);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw border walls (3D effect)
     drawBorderWalls(
       ctx,
       { scale },
-      coordinateUtils.matDimensions.borderWallThickness,
+      BORDER_WALL_HEIGHT_MM,
       coordinateUtils.matDimensions.borderWallThickness,
       coordinateUtils.matDimensions.tableWidth,
       coordinateUtils.matDimensions.tableHeight
@@ -728,25 +729,9 @@ export function EnhancedCompetitionMat({
       );
     }
 
-    // Draw grid overlay oriented to robot heading
+    // Draw robot-oriented grid overlay
     if (showGridOverlay && currentPosition) {
-      // Use the basic grid overlay for now - may need robot-specific version later
-      const matWidthMm = customMatConfig?.dimensions?.widthMm || coordinateUtils.matDimensions.matWidthMm;
-      const matHeightMm =
-        customMatConfig?.dimensions?.heightMm || coordinateUtils.matDimensions.matHeightMm;
-      const borderOffset = coordinateUtils.matDimensions.borderWallThickness * scale;
-      const matX =
-        borderOffset + (coordinateUtils.matDimensions.tableWidth * scale - matWidthMm * scale) / 2;
-      const matY =
-        borderOffset + (coordinateUtils.matDimensions.tableHeight * scale - matHeightMm * scale);
-      drawGridOverlay(
-        ctx,
-        { scale },
-        matX,
-        matY,
-        matWidthMm * scale,
-        matHeightMm * scale
-      );
+      drawRobotOrientedGrid(ctx, currentPosition, { mmToCanvas, scale });
     }
   }, [
     scale,

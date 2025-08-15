@@ -21,26 +21,31 @@ export function drawBorderWalls(
   
   ctx.fillStyle = "#888"; // Gray color for walls
   
+  // Calculate scaled dimensions
+  const scaledThickness = borderWallThickness * scale;
+  const scaledTableWidth = tableWidth * scale;
+  const scaledTableHeight = tableHeight * scale;
+  
   // Top wall
-  ctx.fillRect(0, 0, tableWidth * scale, borderWallThickness * scale);
+  ctx.fillRect(scaledThickness, 0, scaledTableWidth, scaledThickness);
   
   // Bottom wall
   ctx.fillRect(
-    0,
-    (tableHeight - borderWallThickness) * scale,
-    tableWidth * scale,
-    borderWallThickness * scale
+    scaledThickness,
+    scaledThickness + scaledTableHeight,
+    scaledTableWidth,
+    scaledThickness
   );
   
   // Left wall
-  ctx.fillRect(0, 0, borderWallThickness * scale, tableHeight * scale);
+  ctx.fillRect(0, 0, scaledThickness, scaledThickness + scaledTableHeight + scaledThickness);
   
   // Right wall
   ctx.fillRect(
-    (tableWidth - borderWallThickness) * scale,
+    scaledThickness + scaledTableWidth,
     0,
-    borderWallThickness * scale,
-    tableHeight * scale
+    scaledThickness,
+    scaledThickness + scaledTableHeight + scaledThickness
   );
 }
 
