@@ -1,4 +1,4 @@
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
@@ -21,12 +21,36 @@ import {
 import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { TelemetryPlayback } from "./TelemetryPlayback";
+import {
+  canvasSizeAtom,
+  canvasScaleAtom,
+  hoveredObjectAtom,
+  hoveredPointAtom,
+  missionBoundsAtom,
+  setCanvasSizeAtom,
+  setCanvasScaleAtom,
+  setHoveredObjectAtom,
+  setHoveredPointAtom,
+  setMissionBoundsAtom,
+} from "../store/atoms/canvasState";
+import {
+  clearCanvas,
+  drawBorderWalls,
+  drawGrid,
+  drawGridOverlay,
+  drawRobot,
+  drawTrajectoryProjection,
+  drawPerpendicularTrajectoryProjection,
+  drawNextMoveEndIndicator,
+  drawMissions,
+  drawTelemetryPath,
+  type MovementDirection,
+  type RobotPreviewType,
+  type RobotPosition,
+} from "../utils/canvas";
+import { useMatEventHandlers } from "../hooks/useMatEventHandlers";
 
-interface RobotPosition {
-  x: number; // mm from left edge of mat
-  y: number; // mm from top edge of mat (0 = top edge, positive = downward)
-  heading: number; // degrees clockwise from north (0 = north, 90 = east)
-}
+// RobotPosition interface now imported from utils/canvas
 
 interface EnhancedCompetitionMatProps {
   isConnected: boolean;
@@ -189,19 +213,21 @@ export function EnhancedCompetitionMat({
     x: number;
     y: number;
   } | null>(null);
-  const [hoveredObject, setHoveredObject] = useState<string | null>(null);
+  // Canvas state from atoms
+  const [hoveredObject, setHoveredObject] = useAtom(hoveredObjectAtom);
+  const [scale, setScale] = useAtom(canvasScaleAtom);
+  const [canvasSize, setCanvasSize] = useAtom(canvasSizeAtom);
+  const [missionBounds, setMissionBounds] = useAtom(missionBoundsAtom);
+  
+  // Local state that doesn't need to be in atoms
   const [missionsExpanded, setMissionsExpanded] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
-  const [missionBounds, setMissionBounds] = useState<
-    Map<string, { x: number; y: number; width: number; height: number }>
-  >(new Map());
 
   // Path visualization state from atom
   const pathOptions = useAtomValue(pathVisualizationOptionsAtom);
   const selectedPathPoints = useAtomValue(selectedPathPointsAtom);
   const [hoveredPoint, setHoveredPoint] = useState<TelemetryPoint | null>(null);
-  const [hoveredPointIndex, setHoveredPointIndex] = useState<number>(-1);
+  const [hoveredPointIndex, setHoveredPointIndex] = useAtom(hoveredPointAtom);
+  const hoveredPointIndexValue = hoveredPointIndex ?? -1; // Convert null to -1 for backwards compatibility
   const [tooltipPosition, setTooltipPosition] = useState<{
     x: number;
     y: number;
@@ -374,20 +400,21 @@ export function EnhancedCompetitionMat({
 
   // Convert mm to canvas pixels (accounts for mat position within table)
   // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down (no flipping needed)
+  // Coordinate transformation functions need to account for custom mat dimensions
+  // Can't use the atom version as it doesn't have access to customMatConfig
   const mmToCanvas = (mmX: number, mmY: number): { x: number; y: number } => {
     // Use configured mat dimensions instead of hardcoded constants
     const matWidthMm = customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
     const matHeightMm = customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
 
-    // Use exact same calculation as drawMissions function
+    // Calculate mat position within table
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
     const matX = matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
     const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
 
-    // Convert mm coordinates to mat canvas coordinates
-    // No Y-coordinate flip - keep consistent with world coordinates (Y=0 at top)
+    // Convert mm coordinates to canvas coordinates
     const canvasX = matX + mmX * scale;
-    const canvasY = matY + mmY * scale; // Y=0 at top, Y+ down
+    const canvasY = matY + mmY * scale;
 
     return { x: canvasX, y: canvasY };
   };
@@ -400,7 +427,7 @@ export function EnhancedCompetitionMat({
     const matWidthMm = customMatConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
     const matHeightMm = customMatConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
 
-    // Use exact same calculation as mmToCanvas but inverted
+    // Calculate mat position within table
     const matOffset = BORDER_WALL_THICKNESS_MM * scale;
     const matX = matOffset + (TABLE_WIDTH_MM * scale - matWidthMm * scale) / 2;
     const matY = matOffset + (TABLE_HEIGHT_MM * scale - matHeightMm * scale);
@@ -411,6 +438,8 @@ export function EnhancedCompetitionMat({
 
     return { x: mmX, y: mmY };
   };
+  
+  // Event handlers use extracted coordinate utilities (keeping local implementation for now)
 
   // Helper function to normalize heading to -180 to 180 range
   const normalizeHeading = (heading: number): number => {
