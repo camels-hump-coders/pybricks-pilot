@@ -26,6 +26,24 @@ import {
   updateScoringAtom,
   type ObjectiveState,
   type RobotPosition,
+  // Spline path atoms
+  isSplinePathModeAtom,
+  currentSplinePathAtom,
+  splinePathsAtom,
+  selectedSplinePointIdAtom,
+  hoveredSplinePointIdAtom,
+  splinePathCommandsAtom,
+  isExecutingSplinePathAtom,
+  executingCommandIndexAtom,
+  createSplinePathAtom,
+  addSplinePointAtom,
+  updateSplinePointAtom,
+  deleteSplinePointAtom,
+  completeSplinePathAtom,
+  cancelSplinePathAtom,
+  type SplinePath,
+  type SplinePathPoint,
+  type SplinePathCommand,
 } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 
@@ -71,12 +89,30 @@ export function useJotaiGameMat() {
   const [movementPlanningGhostPosition, setMovementPlanningGhostPosition] = useAtom(movementPlanningGhostPositionAtom);
   const [movementPlanningTarget, setMovementPlanningTarget] = useAtom(movementPlanningTargetAtom);
 
+  // Spline path planning mode
+  const [isSplinePathMode, setIsSplinePathMode] = useAtom(isSplinePathModeAtom);
+  const [currentSplinePath, setCurrentSplinePath] = useAtom(currentSplinePathAtom);
+  const [splinePaths, setSplinePaths] = useAtom(splinePathsAtom);
+  const [selectedSplinePointId, setSelectedSplinePointId] = useAtom(selectedSplinePointIdAtom);
+  const [hoveredSplinePointId, setHoveredSplinePointId] = useAtom(hoveredSplinePointIdAtom);
+  const [splinePathCommands, setSplinePathCommands] = useAtom(splinePathCommandsAtom);
+  const [isExecutingSplinePath, setIsExecutingSplinePath] = useAtom(isExecutingSplinePathAtom);
+  const [executingCommandIndex, setExecutingCommandIndex] = useAtom(executingCommandIndexAtom);
+
   // Derived values
   const currentScore = useAtomValue(currentScoreAtom);
 
   // Actions
   const updateScoringAction = useSetAtom(updateScoringAtom);
   const resetScoringAction = useSetAtom(resetScoringAtom);
+
+  // Spline path actions
+  const createSplinePathAction = useSetAtom(createSplinePathAtom);
+  const addSplinePointAction = useSetAtom(addSplinePointAtom);
+  const updateSplinePointAction = useSetAtom(updateSplinePointAtom);
+  const deleteSplinePointAction = useSetAtom(deleteSplinePointAtom);
+  const completeSplinePathAction = useSetAtom(completeSplinePathAtom);
+  const cancelSplinePathAction = useSetAtom(cancelSplinePathAtom);
 
   // Helper functions - stabilize with refs to avoid recreating on every render
   const telemetryReferenceRef = useRef(telemetryReference);
@@ -322,6 +358,75 @@ export function useJotaiGameMat() {
     };
   }, [robotPosition]);
 
+  // Spline path helper functions
+  const createSplinePath = useCallback((name: string) => {
+    return createSplinePathAction(name);
+  }, [createSplinePathAction]);
+
+  const addSplinePoint = useCallback((position: RobotPosition) => {
+    return addSplinePointAction(position);
+  }, [addSplinePointAction]);
+
+  const updateSplinePoint = useCallback((pointId: string, updates: Partial<SplinePathPoint>) => {
+    updateSplinePointAction(pointId, updates);
+  }, [updateSplinePointAction]);
+
+  const deleteSplinePoint = useCallback((pointId: string) => {
+    deleteSplinePointAction(pointId);
+  }, [deleteSplinePointAction]);
+
+  const completeSplinePath = useCallback(() => {
+    completeSplinePathAction();
+  }, [completeSplinePathAction]);
+
+  const cancelSplinePath = useCallback(() => {
+    cancelSplinePathAction();
+  }, [cancelSplinePathAction]);
+
+  const enterSplinePathMode = useCallback((pathName: string = "New Path") => {
+    // Exit any other planning modes first
+    if (isMouseMovementPlanningMode) {
+      setIsMouseMovementPlanningMode(false);
+      setMovementPlanningGhostPosition(null);
+      setMovementPlanningTarget(null);
+    }
+    
+    createSplinePath(pathName);
+  }, [isMouseMovementPlanningMode, setIsMouseMovementPlanningMode, setMovementPlanningGhostPosition, setMovementPlanningTarget, createSplinePath]);
+
+  const exitSplinePathMode = useCallback(() => {
+    if (currentSplinePath && !currentSplinePath.isComplete) {
+      cancelSplinePath();
+    } else {
+      setIsSplinePathMode(false);
+      setCurrentSplinePath(null);
+      setSelectedSplinePointId(null);
+    }
+  }, [currentSplinePath, cancelSplinePath, setIsSplinePathMode, setCurrentSplinePath, setSelectedSplinePointId]);
+
+  const addSplinePointAtMousePosition = useCallback((mouseX: number, mouseY: number) => {
+    if (!isSplinePathMode) return null;
+    
+    // Calculate heading for the new point based on direction from previous point
+    let heading = robotPosition.heading; // Default to current robot heading
+    
+    if (currentSplinePath && currentSplinePath.points.length > 0) {
+      const lastPoint = currentSplinePath.points[currentSplinePath.points.length - 1];
+      const dx = mouseX - lastPoint.position.x;
+      const dy = mouseY - lastPoint.position.y;
+      heading = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+      if (heading > 180) heading -= 360; // Normalize to -180 to 180
+    }
+    
+    const newPosition: RobotPosition = {
+      x: mouseX,
+      y: mouseY,
+      heading: heading
+    };
+    
+    return addSplinePoint(newPosition);
+  }, [isSplinePathMode, robotPosition, currentSplinePath, addSplinePoint]);
+
   return {
     // Robot position
     robotPosition,
@@ -382,5 +487,31 @@ export function useJotaiGameMat() {
     exitMouseMovementPlanningMode,
     updateMouseMovementGhost,
     calculateMovementCommands,
+
+    // Spline path planning mode
+    isSplinePathMode,
+    currentSplinePath,
+    splinePaths,
+    selectedSplinePointId,
+    setSelectedSplinePointId,
+    hoveredSplinePointId,
+    setHoveredSplinePointId,
+    splinePathCommands,
+    setSplinePathCommands,
+    isExecutingSplinePath,
+    setIsExecutingSplinePath,
+    executingCommandIndex,
+    setExecutingCommandIndex,
+    
+    // Spline path actions
+    createSplinePath,
+    addSplinePoint,
+    updateSplinePoint,
+    deleteSplinePoint,
+    completeSplinePath,
+    cancelSplinePath,
+    enterSplinePathMode,
+    exitSplinePathMode,
+    addSplinePointAtMousePosition,
   };
 }

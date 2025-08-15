@@ -242,7 +242,208 @@ export const resetScoringAtom = atom(null, (get, set) => {
   set(totalScoreAtom, 0);
 });
 
+// Spline path action atoms
+export const createSplinePathAtom = atom(
+  null,
+  (get, set, name: string) => {
+    const newPath: SplinePath = {
+      id: `path_${Date.now()}`,
+      name,
+      points: [],
+      isComplete: false,
+      createdAt: Date.now(),
+      modifiedAt: Date.now(),
+    };
+    
+    set(currentSplinePathAtom, newPath);
+    set(isSplinePathModeAtom, true);
+    set(selectedSplinePointIdAtom, null);
+    
+    const paths = get(splinePathsAtom);
+    set(splinePathsAtom, [...paths, newPath]);
+    
+    return newPath.id;
+  }
+);
+
+export const addSplinePointAtom = atom(
+  null,
+  (get, set, position: RobotPosition) => {
+    const currentPath = get(currentSplinePathAtom);
+    if (!currentPath) return null;
+    
+    const newPoint: SplinePathPoint = {
+      id: `point_${Date.now()}`,
+      position,
+      timestamp: Date.now(),
+    };
+    
+    const updatedPath = {
+      ...currentPath,
+      points: [...currentPath.points, newPoint],
+      modifiedAt: Date.now(),
+    };
+    
+    set(currentSplinePathAtom, updatedPath);
+    
+    // Update the path in the paths array
+    const paths = get(splinePathsAtom);
+    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    if (pathIndex >= 0) {
+      paths[pathIndex] = updatedPath;
+      set(splinePathsAtom, [...paths]);
+    }
+    
+    return newPoint.id;
+  }
+);
+
+export const updateSplinePointAtom = atom(
+  null,
+  (get, set, pointId: string, updates: Partial<SplinePathPoint>) => {
+    const currentPath = get(currentSplinePathAtom);
+    if (!currentPath) return;
+    
+    const pointIndex = currentPath.points.findIndex(p => p.id === pointId);
+    if (pointIndex === -1) return;
+    
+    const updatedPoints = [...currentPath.points];
+    updatedPoints[pointIndex] = { ...updatedPoints[pointIndex], ...updates };
+    
+    const updatedPath = {
+      ...currentPath,
+      points: updatedPoints,
+      modifiedAt: Date.now(),
+    };
+    
+    set(currentSplinePathAtom, updatedPath);
+    
+    // Update the path in the paths array
+    const paths = get(splinePathsAtom);
+    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    if (pathIndex >= 0) {
+      paths[pathIndex] = updatedPath;
+      set(splinePathsAtom, [...paths]);
+    }
+  }
+);
+
+export const deleteSplinePointAtom = atom(
+  null,
+  (get, set, pointId: string) => {
+    const currentPath = get(currentSplinePathAtom);
+    if (!currentPath) return;
+    
+    const updatedPath = {
+      ...currentPath,
+      points: currentPath.points.filter(p => p.id !== pointId),
+      modifiedAt: Date.now(),
+    };
+    
+    set(currentSplinePathAtom, updatedPath);
+    
+    // Update the path in the paths array
+    const paths = get(splinePathsAtom);
+    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    if (pathIndex >= 0) {
+      paths[pathIndex] = updatedPath;
+      set(splinePathsAtom, [...paths]);
+    }
+    
+    // Clear selection if this point was selected
+    if (get(selectedSplinePointIdAtom) === pointId) {
+      set(selectedSplinePointIdAtom, null);
+    }
+  }
+);
+
+export const completeSplinePathAtom = atom(
+  null,
+  (get, set) => {
+    const currentPath = get(currentSplinePathAtom);
+    if (!currentPath) return;
+    
+    const updatedPath = {
+      ...currentPath,
+      isComplete: true,
+      modifiedAt: Date.now(),
+    };
+    
+    set(currentSplinePathAtom, updatedPath);
+    
+    // Update the path in the paths array
+    const paths = get(splinePathsAtom);
+    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    if (pathIndex >= 0) {
+      paths[pathIndex] = updatedPath;
+      set(splinePathsAtom, [...paths]);
+    }
+    
+    set(isSplinePathModeAtom, false);
+    set(selectedSplinePointIdAtom, null);
+  }
+);
+
+export const cancelSplinePathAtom = atom(
+  null,
+  (get, set) => {
+    const currentPath = get(currentSplinePathAtom);
+    if (!currentPath) return;
+    
+    // Remove the current path from paths array if it's incomplete
+    if (!currentPath.isComplete) {
+      const paths = get(splinePathsAtom);
+      set(splinePathsAtom, paths.filter(p => p.id !== currentPath.id));
+    }
+    
+    set(currentSplinePathAtom, null);
+    set(isSplinePathModeAtom, false);
+    set(selectedSplinePointIdAtom, null);
+  }
+);
+
 // Mouse movement planning mode atoms
 export const isMouseMovementPlanningModeAtom = atom<boolean>(false);
 export const movementPlanningGhostPositionAtom = atom<RobotPosition | null>(null);
 export const movementPlanningTargetAtom = atom<RobotPosition | null>(null);
+
+// Spline path planning atoms
+export interface SplinePathPoint {
+  id: string;
+  position: RobotPosition;
+  controlPoints?: {
+    before?: { x: number; y: number }; // Control point before this point
+    after?: { x: number; y: number };  // Control point after this point
+  };
+  timestamp: number;
+}
+
+export interface SplinePath {
+  id: string;
+  name: string;
+  points: SplinePathPoint[];
+  isComplete: boolean;
+  createdAt: number;
+  modifiedAt: number;
+}
+
+export interface SplinePathCommand {
+  type: "drive" | "turn" | "arc";
+  distance?: number;
+  angle?: number;
+  radius?: number;
+  speed: number;
+  fromPoint: string; // Point ID
+  toPoint: string;   // Point ID
+}
+
+export const isSplinePathModeAtom = atom<boolean>(false);
+export const currentSplinePathAtom = atom<SplinePath | null>(null);
+export const splinePathsAtom = atom<SplinePath[]>([]);
+export const selectedSplinePointIdAtom = atom<string | null>(null);
+export const hoveredSplinePointIdAtom = atom<string | null>(null);
+export const splinePathCommandsAtom = atom<SplinePathCommand[]>([]);
+
+// Spline path execution state
+export const isExecutingSplinePathAtom = atom<boolean>(false);
+export const executingCommandIndexAtom = atom<number>(-1);

@@ -43,6 +43,7 @@ import {
   drawPerpendicularTrajectoryProjection,
   drawTrajectoryProjection,
 } from "../utils/canvas/trajectoryDrawing.js";
+import { drawSplinePath } from "../utils/canvas/splinePathDrawing";
 import { normalizeHeading } from "../utils/headingUtils";
 import {
   getMaxPointsForMission,
@@ -112,6 +113,20 @@ export function EnhancedCompetitionMat({
     exitMouseMovementPlanningMode,
     updateMouseMovementGhost,
     calculateMovementCommands,
+    // Spline path planning
+    isSplinePathMode,
+    currentSplinePath,
+    splinePaths,
+    selectedSplinePointId,
+    setSelectedSplinePointId,
+    hoveredSplinePointId,
+    setHoveredSplinePointId,
+    enterSplinePathMode,
+    exitSplinePathMode,
+    addSplinePointAtMousePosition,
+    updateSplinePoint,
+    deleteSplinePoint,
+    completeSplinePath,
   } = gameMat;
 
   // Local state that doesn't need to be in Jotai
@@ -149,6 +164,10 @@ export function EnhancedCompetitionMat({
   // Telemetry playback panel state
   const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] =
     useState(true);
+  
+  // Spline path dragging state
+  const [isDraggingPoint, setIsDraggingPoint] = useState(false);
+  const [draggedPointId, setDraggedPointId] = useState<string | null>(null);
 
   // Ghost robot state for telemetry playback
   const ghostRobot = useAtomValue(ghostRobotAtom);
@@ -360,6 +379,7 @@ export function EnhancedCompetitionMat({
   // normalizeHeading is now imported from utils/headingUtils
   // waitForDesiredHeading function removed - now using compound turnAndDrive commands
 
+
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -567,6 +587,18 @@ export function EnhancedCompetitionMat({
       });
     }
 
+    // Draw spline paths
+    if (isSplinePathMode && currentSplinePath && currentSplinePath.points.length > 0) {
+      drawSplinePath(ctx, currentSplinePath, selectedSplinePointId, { mmToCanvas, scale });
+    }
+
+    // Draw completed spline paths
+    for (const splinePath of splinePaths) {
+      if (splinePath.isComplete && splinePath.id !== currentSplinePath?.id) {
+        drawSplinePath(ctx, splinePath, null, { mmToCanvas, scale });
+      }
+    }
+
     // Draw robot-oriented grid overlay
     if (showGridOverlay && currentPosition) {
       drawRobotOrientedGrid(ctx, currentPosition, { mmToCanvas, scale });
@@ -587,6 +619,11 @@ export function EnhancedCompetitionMat({
     robotConfig,
     loadedImage,
     showGridOverlay,
+    // Spline path state
+    isSplinePathMode,
+    currentSplinePath,
+    splinePaths,
+    selectedSplinePointId,
   ]); // canvasSize removed as it's handled separately
 
   // Use CMD key detection hook
@@ -681,6 +718,27 @@ export function EnhancedCompetitionMat({
     return distance <= robotSize;
   };
 
+  // Helper function to check if a click is on a spline path point
+  const findClickedSplinePoint = (canvasX: number, canvasY: number): string | null => {
+    if (!currentSplinePath || !currentSplinePath.points.length) return null;
+
+    const clickRadius = 15; // Click detection radius in pixels
+
+    for (const point of currentSplinePath.points) {
+      const pointCanvasPos = mmToCanvas(point.position.x, point.position.y);
+      const distance = Math.sqrt(
+        Math.pow(canvasX - pointCanvasPos.x, 2) +
+          Math.pow(canvasY - pointCanvasPos.y, 2)
+      );
+
+      if (distance <= clickRadius) {
+        return point.id;
+      }
+    }
+
+    return null;
+  };
+
   const handleCanvasClick = async (
     event: React.MouseEvent<HTMLCanvasElement>
   ) => {
@@ -705,6 +763,30 @@ export function EnhancedCompetitionMat({
     }
 
     // If in mouse movement planning mode, handle mat clicks for movement
+    // Handle spline path mode clicks
+    if (isSplinePathMode) {
+      const matPos = canvasToMm(canvasX, canvasY);
+      
+      // Check if clicking on an existing point for selection/editing or dragging
+      if (currentSplinePath) {
+        const clickedPointId = findClickedSplinePoint(canvasX, canvasY);
+        if (clickedPointId) {
+          setSelectedSplinePointId(clickedPointId);
+          setDraggedPointId(clickedPointId);
+          setIsDraggingPoint(true);
+          return;
+        }
+      }
+      
+      // Add new point to the path
+      const pointId = addSplinePointAtMousePosition(matPos.x, matPos.y);
+      if (pointId) {
+        setSelectedSplinePointId(pointId);
+        console.log("Added spline point at", matPos);
+      }
+      return;
+    }
+
     if (isMouseMovementPlanningMode) {
       const matPos = canvasToMm(canvasX, canvasY);
       const commands = calculateMovementCommands(matPos.x, matPos.y);
@@ -768,6 +850,22 @@ export function EnhancedCompetitionMat({
     if (isMouseMovementPlanningMode) {
       const matPos = canvasToMm(canvasX, canvasY);
       updateMouseMovementGhost(matPos.x, matPos.y);
+    }
+    
+    // Handle spline point dragging
+    if (isSplinePathMode && isDraggingPoint && draggedPointId) {
+      const matPos = canvasToMm(canvasX, canvasY);
+      // Find the point and update its position
+      const point = currentSplinePath?.points.find(p => p.id === draggedPointId);
+      if (point) {
+        updateSplinePoint(draggedPointId, {
+          position: {
+            x: matPos.x,
+            y: matPos.y,
+            heading: point.position.heading // Keep existing heading
+          }
+        });
+      }
     }
 
     // Check for telemetry point hover (if path visualization is enabled)
@@ -971,6 +1069,32 @@ export function EnhancedCompetitionMat({
     return () =>
       document.removeEventListener("visibilitychange", checkVisibility);
   }, []);
+  
+  // Keyboard event handler for delete key
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Delete selected point when Delete or Backspace is pressed
+      if (isSplinePathMode && selectedSplinePointId && (event.key === "Delete" || event.key === "Backspace")) {
+        deleteSplinePoint(selectedSplinePointId);
+        setSelectedSplinePointId(null);
+      }
+      
+      // Complete path when Enter is pressed
+      if (isSplinePathMode && currentSplinePath && event.key === "Enter") {
+        if (currentSplinePath.points.length >= 2) {
+          completeSplinePath();
+        }
+      }
+      
+      // Cancel path when Escape is pressed
+      if (isSplinePathMode && event.key === "Escape") {
+        exitSplinePathMode();
+      }
+    };
+    
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isSplinePathMode, selectedSplinePointId, currentSplinePath, deleteSplinePoint, setSelectedSplinePointId, completeSplinePath, exitSplinePathMode]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -1003,6 +1127,44 @@ export function EnhancedCompetitionMat({
               </div>
             )}
 
+            {/* Spline Path Planning Mode Indicator */}
+            {isSplinePathMode && (
+              <div className="bg-purple-500 text-white px-3 py-2 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
+                <div className="flex items-center gap-2">
+                  <div className="text-center">
+                    <div className="text-sm font-bold">📐 Path Planning</div>
+                    <div className="text-xs">
+                      {currentSplinePath ? 
+                        `${currentSplinePath.points.length} points` : 
+                        "Click to start"
+                      }
+                    </div>
+                  </div>
+                  {currentSplinePath && currentSplinePath.points.length >= 2 && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => completeSplinePath()}
+                        className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                        title="Complete path (Enter)"
+                      >
+                        ✓ Complete
+                      </button>
+                      <button
+                        onClick={() => exitSplinePathMode()}
+                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                        title="Cancel path (Escape)"
+                      >
+                        ✗ Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs mt-1 opacity-80">
+                  Click to add • Drag to move • Delete/Backspace to remove
+                </div>
+              </div>
+            )}
+
             {/* Prominent Score Display */}
             {customMatConfig && showScoring && (
               <div className="bg-gradient-to-r from-green-400 to-blue-500 dark:from-green-500 dark:to-blue-600 text-white px-3 py-3 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
@@ -1031,12 +1193,20 @@ export function EnhancedCompetitionMat({
           ref={canvasRef}
           onClick={handleCanvasClick}
           onMouseMove={handleCanvasMouseMove}
+          onMouseUp={() => {
+            // Stop dragging when mouse is released
+            setIsDraggingPoint(false);
+            setDraggedPointId(null);
+          }}
           onMouseLeave={() => {
             setMousePosition(null);
             setHoveredObject(null);
             setHoveredPoint(null);
             setHoveredPointIndex(-1);
             setTooltipPosition(null);
+            // Stop dragging when mouse leaves
+            setIsDraggingPoint(false);
+            setDraggedPointId(null);
             // Exit planning mode when mouse leaves canvas
             if (isMouseMovementPlanningMode) {
               exitMouseMovementPlanningMode();

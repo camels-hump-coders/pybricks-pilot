@@ -271,8 +271,15 @@ export function CompactRobotController({
   // Upload progress from centralized hook
   const { uploadProgress } = useUploadProgress(debugEvents);
 
-  // Get perpendicular preview from Jotai
-  const { setPerpendicularPreview } = useJotaiGameMat();
+  // Get game mat functions from Jotai
+  const { 
+    setPerpendicularPreview,
+    isSplinePathMode,
+    currentSplinePath,
+    splinePaths,
+    enterSplinePathMode,
+    exitSplinePathMode
+  } = useJotaiGameMat();
   const [controlMode, setControlMode] = useState<ControlMode>("incremental");
   const [driveSpeed, setDriveSpeed] = useState(50);
   const [distance, setDistance] = useState(100);
@@ -1107,6 +1114,38 @@ export function CompactRobotController({
                 </svg>
               </button>
 
+              {/* Spline Path Planning Toggle */}
+              <button
+                onClick={() => {
+                  if (isSplinePathMode) {
+                    exitSplinePathMode();
+                  } else {
+                    enterSplinePathMode("New Spline Path");
+                  }
+                }}
+                className={`ml-1 px-3 py-2 text-sm rounded transition-colors ${
+                  isSplinePathMode
+                    ? "bg-indigo-500 text-white shadow-sm"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+                }`}
+                title="Toggle spline path planning mode"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+                  />
+                </svg>
+              </button>
+
               {/* CMD Key Status */}
               {isCmdKeyPressed && (
                 <div className="px-2 py-1 text-xs bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 rounded border border-orange-300 dark:border-orange-700">
@@ -1722,6 +1761,58 @@ export function CompactRobotController({
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Spline Path Execution */}
+          {splinePaths.filter(p => p.isComplete).length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 uppercase tracking-wide border-t border-gray-200 dark:border-gray-700 pt-2 sm:pt-3">
+                Saved Paths ({splinePaths.filter(p => p.isComplete).length})
+              </div>
+              
+              <div className="space-y-2">
+                {splinePaths.filter(p => p.isComplete).map((path) => (
+                  <div 
+                    key={path.id} 
+                    className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                  >
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {path.name}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {path.points.length} points
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        // Import the execution function
+                        const { executeSplinePath } = await import("../utils/splinePathCommands");
+                        
+                        // Get the executeCommandSequence function from the parent component
+                        // For now, we'll use individual commands
+                        const executeCommands = async (commands: any[]) => {
+                          for (const cmd of commands) {
+                            if (cmd.action === "turn" && onTurnCommand) {
+                              await onTurnCommand(cmd.angle, cmd.speed);
+                            } else if (cmd.action === "drive" && onDriveCommand) {
+                              await onDriveCommand(cmd.distance, cmd.speed);
+                            }
+                            // Add small delay between commands
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                          }
+                        };
+                        
+                        await executeSplinePath(path, executeCommands);
+                      }}
+                      className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                    >
+                      ▶ Execute
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
