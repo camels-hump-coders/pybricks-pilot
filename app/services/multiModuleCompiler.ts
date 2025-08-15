@@ -181,7 +181,7 @@ class MultiModuleCompiler extends EventTarget {
   private async createMultiFileBlob(
     modules: Array<{ name: string; blob: Blob }>
   ): Promise<Blob> {
-    const blobParts: ArrayBuffer[] = [];
+    const blobParts: BlobPart[] = [];
 
     // Helper functions matching Pybricks exactly
     const encodeUInt32LE = (value: number): ArrayBuffer => {
@@ -203,8 +203,8 @@ class MultiModuleCompiler extends EventTarget {
       const nameBytes = cString(module.name);
 
       blobParts.push(lengthBytes);
-      blobParts.push(nameBytes.buffer);
-      blobParts.push(mpyBytes.buffer);
+      blobParts.push(new Uint8Array(nameBytes));
+      blobParts.push(new Uint8Array(mpyBytes));
     }
 
     // Create the final blob

@@ -21,7 +21,7 @@ export const isCreatingFileAtom = atom<boolean>(false);
 export const fileContentCacheAtom = atom<Map<string, string>>(new Map());
 
 // Programs manifest atom - stores the config/programs.json data
-export const programsManifestAtom = atom<{ relativePath: string; programSide?: "left" | "right" }[]>([]);
+export const programsManifestAtom = atom<{ relativePath: string; programSide?: "left" | "right"; programStartPosition?: import("../../types/fileSystem").RobotStartPosition }[]>([]);
 
 // Helper function to find a file by relative path recursively
 const findFileByPath = (files: PythonFile[], relativePath: string): PythonFile | null => {

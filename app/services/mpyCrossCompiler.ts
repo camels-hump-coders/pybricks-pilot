@@ -97,7 +97,9 @@ class MpyCrossCompiler extends EventTarget {
 
       // Return just the compiled .mpy bytecode as a Blob
       // Multi-file format will be handled by multiModuleCompiler
-      const file = new Blob([result.mpy]);
+      // Ensure we have a proper ArrayBuffer by creating a new Uint8Array
+      const mpyData = new Uint8Array(result.mpy);
+      const file = new Blob([mpyData]);
 
       return {
         file,
