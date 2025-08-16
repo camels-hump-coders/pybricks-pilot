@@ -821,7 +821,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           customMatConfig={customMatConfig}
           showScoring={showScoring}
           isConnected={isConnected}
-          controlMode="incremental"
         />
       </div>
 
@@ -872,7 +871,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             customMatConfig={customMatConfig}
             showScoring={showScoring}
             isConnected={isConnected}
-            controlMode="incremental"
           />
         </div>
 

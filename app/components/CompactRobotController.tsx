@@ -322,6 +322,28 @@ export function CompactRobotController({
     null
   );
 
+
+  // Track last applied position for reset functionality
+  const [lastPositionSettings, setLastPositionSettings] = useState({
+    side: "right" as "left" | "right", // Default to bottom-right
+    fromBottom: 0, // Default to 0 edge offset
+    fromSide: 0,
+    heading: 0, // Default to forward facing
+  });
+
+  // Game mat state
+  const {
+    controlMode,
+    setControlMode,
+    currentSplinePath,
+    splinePaths,
+    enterSplinePathMode,
+    exitSplinePathMode,
+  } = useJotaiGameMat();
+
+  // Upload progress (for UI display)
+  const { uploadProgress } = useUploadProgress();
+
   // Effect to initialize trajectory overlay when enabled
   useEffect(() => {
     if (showTrajectoryOverlay) {
@@ -331,7 +353,8 @@ export function CompactRobotController({
 
   // Effect to update trajectory overlay ghosts when distance/angle changes
   useEffect(() => {
-    if (showTrajectoryOverlay && currentRobotPosition && robotConfig) {
+    // Only apply trajectory overlay when in Step mode (incremental) AND the toggle is enabled
+    if (showTrajectoryOverlay && controlMode === "incremental" && currentRobotPosition && robotConfig) {
       // Only update if there are no hover ghosts currently
       setPerpendicularPreview((prev) => {
         const hasHoverGhosts = prev.ghosts.some((g: any) => g.isHover);
@@ -451,13 +474,14 @@ export function CompactRobotController({
     distance,
     angle,
     showTrajectoryOverlay,
+    controlMode,
     currentRobotPosition,
     robotConfig,
   ]);
 
-  // Separate effect to clear trajectory overlay when disabled
+  // Separate effect to clear trajectory overlay when disabled OR when not in Step mode
   useEffect(() => {
-    if (!showTrajectoryOverlay) {
+    if (!showTrajectoryOverlay || controlMode !== "incremental") {
       // Only clear if the current ghosts are trajectory overlay ghosts
       setPerpendicularPreview((prev) => {
         // If all current ghosts are trajectory overlay ghosts, clear them
@@ -475,28 +499,7 @@ export function CompactRobotController({
         return prev; // Don't change if there are hover ghosts
       });
     }
-  }, [showTrajectoryOverlay, distance, angle]);
-
-  // Track last applied position for reset functionality
-  const [lastPositionSettings, setLastPositionSettings] = useState({
-    side: "right" as "left" | "right", // Default to bottom-right
-    fromBottom: 0, // Default to 0 edge offset
-    fromSide: 0,
-    heading: 0, // Default to forward facing
-  });
-
-  // Game mat state
-  const {
-    controlMode,
-    setControlMode,
-    currentSplinePath,
-    splinePaths,
-    enterSplinePathMode,
-    exitSplinePathMode,
-  } = useJotaiGameMat();
-
-  // Upload progress (for UI display)
-  const { uploadProgress } = useUploadProgress();
+  }, [showTrajectoryOverlay, controlMode, distance, angle]);
 
   // Get shared program state
   const { programCount, allPrograms } = useJotaiFileSystem();
@@ -872,9 +875,9 @@ export function CompactRobotController({
         isHover: true, // Mark this as a hover ghost for bolder rendering
       };
 
-      // If trajectory overlay is on, add the hover ghost to existing ghosts
+      // If trajectory overlay is on AND in Step mode, add the hover ghost to existing ghosts
       // Otherwise, just show the hover ghost
-      if (showTrajectoryOverlay) {
+      if (showTrajectoryOverlay && controlMode === "incremental") {
         // Keep existing ghosts and add hover ghost with higher opacity
         const newPreview = {
           show: true,

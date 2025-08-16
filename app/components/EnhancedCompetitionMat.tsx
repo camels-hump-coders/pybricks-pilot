@@ -18,7 +18,7 @@ import {
   hoveredPointAtom,
   missionBoundsAtom,
 } from "../store/atoms/canvasState";
-import { showGridOverlayAtom } from "../store/atoms/gameMat";
+import { controlModeAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { telemetryDataAtom } from "../store/atoms/robotConnection";
@@ -27,24 +27,19 @@ import {
   pathVisualizationOptionsAtom,
   selectedPathPointsAtom,
 } from "../store/atoms/telemetryPoints";
-import {
-  drawBorderWalls,
-  drawGrid,
-  drawGridOverlay,
-} from "../utils/canvas/basicDrawing";
+import { drawBorderWalls, drawGrid } from "../utils/canvas/basicDrawing";
 import { drawMissions } from "../utils/canvas/missionDrawing";
+import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
 import { type RobotPosition } from "../utils/canvas/robotDrawing";
 import { drawRobot } from "../utils/canvas/robotDrawing.js";
 import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
-import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing.js";
-import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
 import {
-  drawNextMoveEndIndicator,
-  drawPerpendicularTrajectoryProjection,
-  drawTrajectoryProjection,
-} from "../utils/canvas/trajectoryDrawing.js";
-import { drawSplinePath } from "../utils/canvas/splinePathDrawing";
-import { normalizeHeading } from "../utils/headingUtils";
+  drawSplinePath,
+  findClickedControlPoint,
+  findClickedCurvatureHandle,
+} from "../utils/canvas/splinePathDrawing";
+import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing.js";
+import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing.js";
 import {
   getMaxPointsForMission,
   getTotalPointsForMission,
@@ -53,7 +48,6 @@ import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
-import { findClickedControlPoint, findClickedCurvatureHandle } from "../utils/canvas/splinePathDrawing";
 
 // RobotPosition interface now imported from utils/canvas
 
@@ -61,7 +55,6 @@ interface EnhancedCompetitionMatProps {
   isConnected: boolean;
   customMatConfig?: GameMatConfig | null;
   showScoring?: boolean;
-  controlMode?: "incremental" | "continuous";
 }
 
 // Constants are now imported from coordinateUtilsAtom
@@ -73,12 +66,14 @@ export function EnhancedCompetitionMat({
   isConnected,
   customMatConfig,
   showScoring = false,
-  controlMode = "incremental",
 }: EnhancedCompetitionMatProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   // Get coordinate utilities and constants from atom
   const coordinateUtils = useAtomValue(coordinateUtilsAtom);
+  
+  // Get control mode from global atom
+  const controlMode = useAtomValue(controlModeAtom);
 
   const robotConnection = useJotaiRobotConnection();
   const {
@@ -167,21 +162,22 @@ export function EnhancedCompetitionMat({
   // Telemetry playback panel state
   const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] =
     useState(true);
-  
+
   // Spline path dragging state
   const [isDraggingPoint, setIsDraggingPoint] = useState(false);
   const [draggedPointId, setDraggedPointId] = useState<string | null>(null);
   const [justFinishedDragging, setJustFinishedDragging] = useState(false);
-  
+
   // Control point dragging state
   const [isDraggingControlPoint, setIsDraggingControlPoint] = useState(false);
   const [draggedControlPoint, setDraggedControlPoint] = useState<{
     pointId: string;
     controlType: "before" | "after";
   } | null>(null);
-  
+
   // Curvature handle dragging state
-  const [isDraggingCurvatureHandle, setIsDraggingCurvatureHandle] = useState(false);
+  const [isDraggingCurvatureHandle, setIsDraggingCurvatureHandle] =
+    useState(false);
   const [draggedCurvatureHandle, setDraggedCurvatureHandle] = useState<{
     pointId: string;
   } | null>(null);
@@ -312,8 +308,12 @@ export function EnhancedCompetitionMat({
     }
 
     // Include border walls in total dimensions
-    const totalWidth = coordinateUtils.matDimensions.tableWidth + 2 * coordinateUtils.matDimensions.borderWallThickness;
-    const totalHeight = coordinateUtils.matDimensions.tableHeight + 2 * coordinateUtils.matDimensions.borderWallThickness;
+    const totalWidth =
+      coordinateUtils.matDimensions.tableWidth +
+      2 * coordinateUtils.matDimensions.borderWallThickness;
+    const totalHeight =
+      coordinateUtils.matDimensions.tableHeight +
+      2 * coordinateUtils.matDimensions.borderWallThickness;
 
     // PRIORITIZE USING FULL CONTAINER WIDTH
     // Always use the full available container width for the canvas
@@ -358,13 +358,22 @@ export function EnhancedCompetitionMat({
   // Can't use the atom version as it doesn't have access to customMatConfig
   const mmToCanvas = (mmX: number, mmY: number): { x: number; y: number } => {
     // Use configured mat dimensions instead of hardcoded constants
-    const matWidthMm = customMatConfig?.dimensions?.widthMm || coordinateUtils.matDimensions.matWidthMm;
-    const matHeightMm = customMatConfig?.dimensions?.heightMm || coordinateUtils.matDimensions.matHeightMm;
+    const matWidthMm =
+      customMatConfig?.dimensions?.widthMm ||
+      coordinateUtils.matDimensions.matWidthMm;
+    const matHeightMm =
+      customMatConfig?.dimensions?.heightMm ||
+      coordinateUtils.matDimensions.matHeightMm;
 
     // Calculate mat position within table
     const matOffset = coordinateUtils.matDimensions.borderWallThickness * scale;
-    const matX = matOffset + (coordinateUtils.matDimensions.tableWidth * scale - matWidthMm * scale) / 2;
-    const matY = matOffset + (coordinateUtils.matDimensions.tableHeight * scale - matHeightMm * scale);
+    const matX =
+      matOffset +
+      (coordinateUtils.matDimensions.tableWidth * scale - matWidthMm * scale) /
+        2;
+    const matY =
+      matOffset +
+      (coordinateUtils.matDimensions.tableHeight * scale - matHeightMm * scale);
 
     // Convert mm coordinates to canvas coordinates
     const canvasX = matX + mmX * scale;
@@ -378,13 +387,22 @@ export function EnhancedCompetitionMat({
     canvasY: number
   ): { x: number; y: number } => {
     // Use configured mat dimensions instead of hardcoded constants
-    const matWidthMm = customMatConfig?.dimensions?.widthMm || coordinateUtils.matDimensions.matWidthMm;
-    const matHeightMm = customMatConfig?.dimensions?.heightMm || coordinateUtils.matDimensions.matHeightMm;
+    const matWidthMm =
+      customMatConfig?.dimensions?.widthMm ||
+      coordinateUtils.matDimensions.matWidthMm;
+    const matHeightMm =
+      customMatConfig?.dimensions?.heightMm ||
+      coordinateUtils.matDimensions.matHeightMm;
 
     // Calculate mat position within table
     const matOffset = coordinateUtils.matDimensions.borderWallThickness * scale;
-    const matX = matOffset + (coordinateUtils.matDimensions.tableWidth * scale - matWidthMm * scale) / 2;
-    const matY = matOffset + (coordinateUtils.matDimensions.tableHeight * scale - matHeightMm * scale);
+    const matX =
+      matOffset +
+      (coordinateUtils.matDimensions.tableWidth * scale - matWidthMm * scale) /
+        2;
+    const matY =
+      matOffset +
+      (coordinateUtils.matDimensions.tableHeight * scale - matHeightMm * scale);
 
     // Convert canvas coordinates back to mm coordinates
     const mmX = (canvasX - matX) / scale;
@@ -397,7 +415,6 @@ export function EnhancedCompetitionMat({
 
   // normalizeHeading is now imported from utils/headingUtils
   // waitForDesiredHeading function removed - now using compound turnAndDrive commands
-
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -437,11 +454,14 @@ export function EnhancedCompetitionMat({
     );
 
     // Calculate mat position - centered horizontally, flush with bottom edge of table surface
-    const borderOffset = coordinateUtils.matDimensions.borderWallThickness * scale;
+    const borderOffset =
+      coordinateUtils.matDimensions.borderWallThickness * scale;
     const matWidth =
-      (customMatConfig?.dimensions?.widthMm || coordinateUtils.matDimensions.matWidthMm) * scale;
+      (customMatConfig?.dimensions?.widthMm ||
+        coordinateUtils.matDimensions.matWidthMm) * scale;
     const matHeight =
-      (customMatConfig?.dimensions?.heightMm || coordinateUtils.matDimensions.matHeightMm) * scale;
+      (customMatConfig?.dimensions?.heightMm ||
+        coordinateUtils.matDimensions.matHeightMm) * scale;
     const tableWidth = coordinateUtils.matDimensions.tableWidth * scale;
     const tableHeight = coordinateUtils.matDimensions.tableHeight * scale;
 
@@ -482,9 +502,14 @@ export function EnhancedCompetitionMat({
         hoveredObject,
         { mmToCanvas, scale },
         {
-          matWidthMm: customMatConfig?.dimensions?.widthMm || coordinateUtils.matDimensions.matWidthMm,
-          matHeightMm: customMatConfig?.dimensions?.heightMm || coordinateUtils.matDimensions.matHeightMm,
-          borderWallThickness: coordinateUtils.matDimensions.borderWallThickness,
+          matWidthMm:
+            customMatConfig?.dimensions?.widthMm ||
+            coordinateUtils.matDimensions.matWidthMm,
+          matHeightMm:
+            customMatConfig?.dimensions?.heightMm ||
+            coordinateUtils.matDimensions.matHeightMm,
+          borderWallThickness:
+            coordinateUtils.matDimensions.borderWallThickness,
           tableWidth: coordinateUtils.matDimensions.tableWidth,
           tableHeight: coordinateUtils.matDimensions.tableHeight,
         },
@@ -499,11 +524,14 @@ export function EnhancedCompetitionMat({
         selectedPathPoints,
         {
           ...pathOptions,
-          colorMode: pathOptions.colorMode === "none" ? "time" : pathOptions.colorMode as "time" | "speed" | "heading"
+          colorMode:
+            pathOptions.colorMode === "none"
+              ? "time"
+              : (pathOptions.colorMode as "time" | "speed" | "heading"),
         },
         {
-          getColorForPoint: (point: TelemetryPoint, colorMode: string) => 
-            telemetryHistory.getColorForPoint(point, colorMode as any)
+          getColorForPoint: (point: TelemetryPoint, colorMode: string) =>
+            telemetryHistory.getColorForPoint(point, colorMode as any),
         },
         { mmToCanvas },
         hoveredPointIndexValue
@@ -533,9 +561,9 @@ export function EnhancedCompetitionMat({
       );
     }
 
-
     // Draw robot-oriented grid overlay BEFORE ghosts so ghosts appear on top
-    if (showGridOverlay && currentPosition) {
+    // Only show grid overlay when in Step mode (incremental) AND the toggle is enabled
+    if (showGridOverlay && controlMode === "incremental" && currentPosition) {
       drawRobotOrientedGrid(ctx, currentPosition, { mmToCanvas, scale });
     }
 
@@ -544,7 +572,7 @@ export function EnhancedCompetitionMat({
       ctx,
       movementPreview,
       currentPosition,
-      controlMode,
+      controlMode === "spline" ? "incremental" : controlMode, // Fallback to incremental for spline mode
       robotConfig,
       { mmToCanvas, scale }
     );
@@ -558,7 +586,7 @@ export function EnhancedCompetitionMat({
       currentPosition.y > 0
     ) {
       // Draw each ghost robot with its appropriate color
-      perpendicularPreview.ghosts.forEach(ghost => {
+      perpendicularPreview.ghosts.forEach((ghost) => {
         // Set custom color for this ghost
         ctx.save();
         // Set opacity based on ghost type:
@@ -567,15 +595,15 @@ export function EnhancedCompetitionMat({
         // - Other ghosts: 0.5 (medium)
         const ghostAny = ghost as any;
         if (ghostAny.isHover) {
-          ctx.globalAlpha = 0.8;  // Hover ghosts are boldest
+          ctx.globalAlpha = 0.8; // Hover ghosts are boldest
         } else if (ghostAny.isTrajectoryOverlay) {
-          ctx.globalAlpha = 0.4;  // Trajectory overlay ghosts are lighter
+          ctx.globalAlpha = 0.4; // Trajectory overlay ghosts are lighter
         } else {
-          ctx.globalAlpha = 0.5;  // Default ghosts
+          ctx.globalAlpha = 0.5; // Default ghosts
         }
         ctx.strokeStyle = ghost.color;
         ctx.fillStyle = ghost.color;
-        
+
         // Draw ghost robot at the calculated position
         drawRobot(
           ctx,
@@ -586,9 +614,9 @@ export function EnhancedCompetitionMat({
           "perpendicular", // previewType
           ghost.direction // direction
         );
-        
+
         ctx.restore();
-        
+
         // Calculate trajectory for this ghost to show path
         const trajectory = calculateTrajectoryProjection(
           currentPosition,
@@ -600,8 +628,8 @@ export function EnhancedCompetitionMat({
           1137,
           robotConfig
         );
-        
-        // Draw trajectory path 
+
+        // Draw trajectory path
         drawPerpendicularTrajectoryProjection(
           ctx,
           trajectory.trajectoryPath,
@@ -612,8 +640,19 @@ export function EnhancedCompetitionMat({
     }
 
     // Draw spline paths
-    if (isSplinePathMode && currentSplinePath && currentSplinePath.points.length > 0) {
-      drawSplinePath(ctx, currentSplinePath, selectedSplinePointId, { mmToCanvas, scale }, hoveredSplinePointId, hoveredCurvatureHandlePointId);
+    if (
+      isSplinePathMode &&
+      currentSplinePath &&
+      currentSplinePath.points.length > 0
+    ) {
+      drawSplinePath(
+        ctx,
+        currentSplinePath,
+        selectedSplinePointId,
+        { mmToCanvas, scale },
+        hoveredSplinePointId,
+        hoveredCurvatureHandlePointId
+      );
     }
 
     // Draw completed spline paths
@@ -723,7 +762,10 @@ export function EnhancedCompetitionMat({
   };
 
   // Helper function to check if a click is on a spline path point
-  const findClickedSplinePoint = (canvasX: number, canvasY: number): string | null => {
+  const findClickedSplinePoint = (
+    canvasX: number,
+    canvasY: number
+  ): string | null => {
     if (!currentSplinePath || !currentSplinePath.points.length) return null;
 
     const clickRadius = 15; // Click detection radius in pixels
@@ -763,9 +805,9 @@ export function EnhancedCompetitionMat({
         console.log("Ignoring click immediately after drag ended");
         return;
       }
-      
+
       const matPos = canvasToMm(canvasX, canvasY);
-      
+
       // Check if clicking on an existing point for selection/editing or dragging
       if (currentSplinePath) {
         // First check for control point clicks
@@ -776,25 +818,35 @@ export function EnhancedCompetitionMat({
           },
           scale,
         };
-        
+
         // First check for curvature handle clicks (highest priority)
-        const clickedCurvatureHandle = findClickedCurvatureHandle(canvasX, canvasY, currentSplinePath, utils);
+        const clickedCurvatureHandle = findClickedCurvatureHandle(
+          canvasX,
+          canvasY,
+          currentSplinePath,
+          utils
+        );
         if (clickedCurvatureHandle) {
           setSelectedSplinePointId(clickedCurvatureHandle.pointId);
           setDraggedCurvatureHandle(clickedCurvatureHandle);
           setIsDraggingCurvatureHandle(true);
           return;
         }
-        
+
         // Then check for control point clicks
-        const clickedControlPoint = findClickedControlPoint(canvasX, canvasY, currentSplinePath, utils);
+        const clickedControlPoint = findClickedControlPoint(
+          canvasX,
+          canvasY,
+          currentSplinePath,
+          utils
+        );
         if (clickedControlPoint) {
           setSelectedSplinePointId(clickedControlPoint.pointId);
           setDraggedControlPoint(clickedControlPoint);
           setIsDraggingControlPoint(true);
           return;
         }
-        
+
         // Then check for regular point clicks
         const clickedPointId = findClickedSplinePoint(canvasX, canvasY);
         if (clickedPointId) {
@@ -804,7 +856,7 @@ export function EnhancedCompetitionMat({
           return;
         }
       }
-      
+
       // Add new point to the path
       const pointId = addSplinePointAtMousePosition(matPos.x, matPos.y);
       if (pointId) {
@@ -813,7 +865,6 @@ export function EnhancedCompetitionMat({
       }
       return;
     }
-
 
     // Check for mission clicks (if scoring is enabled)
     if (showScoring) {
@@ -843,65 +894,86 @@ export function EnhancedCompetitionMat({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
-    
     // Handle spline point dragging
     if (isSplinePathMode && isDraggingPoint && draggedPointId) {
       const matPos = canvasToMm(canvasX, canvasY);
       // Find the point and update its position
-      const point = currentSplinePath?.points.find(p => p.id === draggedPointId);
+      const point = currentSplinePath?.points.find(
+        (p) => p.id === draggedPointId
+      );
       if (point) {
         updateSplinePoint(draggedPointId, {
           position: {
             x: matPos.x,
             y: matPos.y,
-            heading: point.position.heading // Keep existing heading
-          }
+            heading: point.position.heading, // Keep existing heading
+          },
         });
       }
     }
-    
+
     // Handle control point dragging
     if (isSplinePathMode && isDraggingControlPoint && draggedControlPoint) {
       const matPos = canvasToMm(canvasX, canvasY);
       // Find the point and update the control point relative to the point position
-      const point = currentSplinePath?.points.find(p => p.id === draggedControlPoint.pointId);
+      const point = currentSplinePath?.points.find(
+        (p) => p.id === draggedControlPoint.pointId
+      );
       if (point) {
         const controlPoint = {
           x: matPos.x - point.position.x,
-          y: matPos.y - point.position.y
+          y: matPos.y - point.position.y,
         };
-        updateControlPoint(draggedControlPoint.pointId, draggedControlPoint.controlType, controlPoint);
+        updateControlPoint(
+          draggedControlPoint.pointId,
+          draggedControlPoint.controlType,
+          controlPoint
+        );
       }
     }
-    
+
     // Handle curvature handle dragging
-    if (isSplinePathMode && isDraggingCurvatureHandle && draggedCurvatureHandle) {
+    if (
+      isSplinePathMode &&
+      isDraggingCurvatureHandle &&
+      draggedCurvatureHandle
+    ) {
       const matPos = canvasToMm(canvasX, canvasY);
       // Find the point and update the curvature handle relative to the point position
-      const point = currentSplinePath?.points.find(p => p.id === draggedCurvatureHandle.pointId);
+      const point = currentSplinePath?.points.find(
+        (p) => p.id === draggedCurvatureHandle.pointId
+      );
       if (point && point.curvatureHandle) {
         const handleOffset = {
           x: matPos.x - point.position.x,
-          y: matPos.y - point.position.y
+          y: matPos.y - point.position.y,
         };
-        
+
         // Calculate strength based on distance from point (0-1 scale)
-        const distance = Math.sqrt(handleOffset.x * handleOffset.x + handleOffset.y * handleOffset.y);
+        const distance = Math.sqrt(
+          handleOffset.x * handleOffset.x + handleOffset.y * handleOffset.y
+        );
         const maxDistance = 100; // 100mm max distance for full strength
         const strength = Math.min(distance / maxDistance, 1);
-        
+
         const curvatureHandle = {
           x: handleOffset.x,
           y: handleOffset.y,
-          strength: strength
+          strength: strength,
         };
-        
+
         updateCurvatureHandle(draggedCurvatureHandle.pointId, curvatureHandle);
       }
     }
 
     // Check for spline element hover (only when not dragging)
-    if (isSplinePathMode && currentSplinePath && !isDraggingPoint && !isDraggingControlPoint && !isDraggingCurvatureHandle) {
+    if (
+      isSplinePathMode &&
+      currentSplinePath &&
+      !isDraggingPoint &&
+      !isDraggingControlPoint &&
+      !isDraggingCurvatureHandle
+    ) {
       const utils = {
         mmToCanvas: (x: number, y: number) => {
           const coords = coordinateUtils.mmToCanvas(x, y);
@@ -911,12 +983,17 @@ export function EnhancedCompetitionMat({
       };
 
       // Check for curvature handle hover (highest priority)
-      const hoveredCurvatureHandle = findClickedCurvatureHandle(canvasX, canvasY, currentSplinePath, utils);
+      const hoveredCurvatureHandle = findClickedCurvatureHandle(
+        canvasX,
+        canvasY,
+        currentSplinePath,
+        utils
+      );
       if (hoveredCurvatureHandle) {
         setHoveredCurvatureHandlePointId(hoveredCurvatureHandle.pointId);
         setHoveredSplinePointId(null);
         // Set cursor to pointer to indicate interactivity
-        if (canvas.style.cursor !== 'grab') canvas.style.cursor = 'grab';
+        if (canvas.style.cursor !== "grab") canvas.style.cursor = "grab";
       } else {
         setHoveredCurvatureHandlePointId(null);
 
@@ -925,11 +1002,12 @@ export function EnhancedCompetitionMat({
         if (hoveredPointId) {
           setHoveredSplinePointId(hoveredPointId);
           // Set cursor to pointer to indicate interactivity
-          if (canvas.style.cursor !== 'grab') canvas.style.cursor = 'grab';
+          if (canvas.style.cursor !== "grab") canvas.style.cursor = "grab";
         } else {
           setHoveredSplinePointId(null);
           // Reset cursor
-          if (canvas.style.cursor !== 'default') canvas.style.cursor = 'default';
+          if (canvas.style.cursor !== "default")
+            canvas.style.cursor = "default";
         }
       }
     } else if (!isSplinePathMode) {
@@ -937,7 +1015,7 @@ export function EnhancedCompetitionMat({
       setHoveredSplinePointId(null);
       setHoveredCurvatureHandlePointId(null);
       // Reset cursor
-      if (canvas.style.cursor !== 'default') canvas.style.cursor = 'default';
+      if (canvas.style.cursor !== "default") canvas.style.cursor = "default";
     }
 
     // Check for telemetry point hover (if path visualization is enabled)
@@ -1141,33 +1219,44 @@ export function EnhancedCompetitionMat({
     return () =>
       document.removeEventListener("visibilitychange", checkVisibility);
   }, []);
-  
+
   // Keyboard event handler for delete key
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Delete selected point when Delete or Backspace is pressed
-      if (isSplinePathMode && selectedSplinePointId && (event.key === "Delete" || event.key === "Backspace")) {
+      if (
+        isSplinePathMode &&
+        selectedSplinePointId &&
+        (event.key === "Delete" || event.key === "Backspace")
+      ) {
         deleteSplinePoint(selectedSplinePointId);
         setSelectedSplinePointId(null);
       }
-      
+
       // Complete path when Enter is pressed
       if (isSplinePathMode && currentSplinePath && event.key === "Enter") {
         if (currentSplinePath.points.length >= 2) {
           completeSplinePath();
         }
       }
-      
+
       // Cancel path when Escape is pressed
       if (isSplinePathMode && event.key === "Escape") {
         exitSplinePathMode();
       }
-      
     };
-    
+
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isSplinePathMode, selectedSplinePointId, currentSplinePath, deleteSplinePoint, setSelectedSplinePointId, completeSplinePath, exitSplinePathMode]);
+  }, [
+    isSplinePathMode,
+    selectedSplinePointId,
+    currentSplinePath,
+    deleteSplinePoint,
+    setSelectedSplinePointId,
+    completeSplinePath,
+    exitSplinePathMode,
+  ]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -1181,17 +1270,20 @@ export function EnhancedCompetitionMat({
               {customMatConfig ? customMatConfig.name : "Loading..."}
               <span className="hidden sm:inline">
                 {" "}
-                - Mat: {customMatConfig?.dimensions?.widthMm || coordinateUtils.matDimensions.matWidthMm}×
-                {customMatConfig?.dimensions?.heightMm || coordinateUtils.matDimensions.matHeightMm}mm,
-                Table: {coordinateUtils.matDimensions.tableWidth}×{coordinateUtils.matDimensions.tableHeight}mm with{" "}
+                - Mat:{" "}
+                {customMatConfig?.dimensions?.widthMm ||
+                  coordinateUtils.matDimensions.matWidthMm}
+                ×
+                {customMatConfig?.dimensions?.heightMm ||
+                  coordinateUtils.matDimensions.matHeightMm}
+                mm, Table: {coordinateUtils.matDimensions.tableWidth}×
+                {coordinateUtils.matDimensions.tableHeight}mm with{" "}
                 {BORDER_WALL_HEIGHT_MM}mm walls
               </span>
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-
-
             {/* Prominent Score Display */}
             {customMatConfig && showScoring && (
               <div className="bg-gradient-to-r from-green-400 to-blue-500 dark:from-green-500 dark:to-blue-600 text-white px-3 py-3 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
@@ -1223,14 +1315,17 @@ export function EnhancedCompetitionMat({
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={() => {
             // Stop dragging when mouse is released
-            const wasDragging = isDraggingPoint || isDraggingControlPoint || isDraggingCurvatureHandle;
+            const wasDragging =
+              isDraggingPoint ||
+              isDraggingControlPoint ||
+              isDraggingCurvatureHandle;
             setIsDraggingPoint(false);
             setDraggedPointId(null);
             setIsDraggingControlPoint(false);
             setDraggedControlPoint(null);
             setIsDraggingCurvatureHandle(false);
             setDraggedCurvatureHandle(null);
-            
+
             // Set flag to prevent immediate click handler from triggering
             if (wasDragging) {
               setJustFinishedDragging(true);
@@ -1251,21 +1346,19 @@ export function EnhancedCompetitionMat({
             setDraggedControlPoint(null);
             setIsDraggingCurvatureHandle(false);
             setDraggedCurvatureHandle(null);
-            
+
             // Clear spline hover states
             setHoveredSplinePointId(null);
             setHoveredCurvatureHandlePointId(null);
-            
+
             // Reset cursor
             const canvas = canvasRef.current;
-            if (canvas && canvas.style.cursor !== 'default') {
-              canvas.style.cursor = 'default';
+            if (canvas && canvas.style.cursor !== "default") {
+              canvas.style.cursor = "default";
             }
           }}
           className={`block w-full rounded shadow-2xl ${
-            hoveredObject
-              ? "cursor-pointer"
-              : "cursor-default"
+            hoveredObject ? "cursor-pointer" : "cursor-default"
           }`}
           style={{ height: "auto" }}
         />
