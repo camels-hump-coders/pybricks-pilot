@@ -534,6 +534,11 @@ export function EnhancedCompetitionMat({
     }
 
 
+    // Draw robot-oriented grid overlay BEFORE ghosts so ghosts appear on top
+    if (showGridOverlay && currentPosition) {
+      drawRobotOrientedGrid(ctx, currentPosition, { mmToCanvas, scale });
+    }
+
     // Draw movement preview robots (dual previews)
     drawMovementPreview(
       ctx,
@@ -556,7 +561,18 @@ export function EnhancedCompetitionMat({
       perpendicularPreview.ghosts.forEach(ghost => {
         // Set custom color for this ghost
         ctx.save();
-        ctx.globalAlpha = 0.5; // Make ghosts semi-transparent
+        // Set opacity based on ghost type:
+        // - Hover ghosts: 0.8 (boldest)
+        // - Trajectory overlay ghosts: 0.4 (lighter)
+        // - Other ghosts: 0.5 (medium)
+        const ghostAny = ghost as any;
+        if (ghostAny.isHover) {
+          ctx.globalAlpha = 0.8;  // Hover ghosts are boldest
+        } else if (ghostAny.isTrajectoryOverlay) {
+          ctx.globalAlpha = 0.4;  // Trajectory overlay ghosts are lighter
+        } else {
+          ctx.globalAlpha = 0.5;  // Default ghosts
+        }
         ctx.strokeStyle = ghost.color;
         ctx.fillStyle = ghost.color;
         
@@ -605,11 +621,6 @@ export function EnhancedCompetitionMat({
       if (splinePath.isComplete && splinePath.id !== currentSplinePath?.id) {
         drawSplinePath(ctx, splinePath, null, { mmToCanvas, scale });
       }
-    }
-
-    // Draw robot-oriented grid overlay
-    if (showGridOverlay && currentPosition) {
-      drawRobotOrientedGrid(ctx, currentPosition, { mmToCanvas, scale });
     }
   }, [
     scale,

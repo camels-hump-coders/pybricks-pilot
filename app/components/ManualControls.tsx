@@ -24,6 +24,10 @@ interface ManualControlsProps {
   onStopContinuousTurn: () => void;
   onSendStop: () => void;
   onStopExecutingCommand: () => void;
+  showGridOverlay?: boolean;
+  setShowGridOverlay?: (show: boolean) => void;
+  showTrajectoryOverlay?: boolean;
+  setShowTrajectoryOverlay?: (show: boolean) => void;
 }
 
 export function ManualControls({
@@ -46,6 +50,10 @@ export function ManualControls({
   onStopContinuousTurn,
   onSendStop,
   onStopExecutingCommand,
+  showGridOverlay,
+  setShowGridOverlay,
+  showTrajectoryOverlay,
+  setShowTrajectoryOverlay,
 }: ManualControlsProps) {
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -136,6 +144,69 @@ export function ManualControls({
           />
         </div>
       </div>
+
+      {/* Toggle Buttons for Grid and Trajectory Overlay */}
+      {controlMode === "incremental" && (
+        <div className="flex gap-2 mb-3">
+          {/* Grid Overlay Toggle */}
+          {setShowGridOverlay && (
+            <button
+              onClick={() => setShowGridOverlay(!showGridOverlay)}
+              className={`px-3 py-2 text-sm rounded transition-colors flex items-center gap-2 ${
+                showGridOverlay
+                  ? "bg-blue-500 text-white shadow-sm"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+              }`}
+              title="Toggle 100mm grid overlay"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                />
+              </svg>
+              <span className="text-xs">Grid</span>
+            </button>
+          )}
+
+          {/* Trajectory Overlay Toggle */}
+          {setShowTrajectoryOverlay && (
+            <button
+              onClick={() => setShowTrajectoryOverlay(!showTrajectoryOverlay)}
+              className={`px-3 py-2 text-sm rounded transition-colors flex items-center gap-2 ${
+                showTrajectoryOverlay
+                  ? "bg-purple-500 text-white shadow-sm"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+              }`}
+              title="Toggle trajectory projection overlay"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                />
+              </svg>
+              <span className="text-xs">Ghosts</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Movement Controls - Cross Layout */}
       <div className="grid grid-cols-3 gap-2 mb-2 sm:mb-3">

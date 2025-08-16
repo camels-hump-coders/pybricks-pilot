@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
@@ -8,6 +8,9 @@ import { telemetryHistory } from "../services/telemetryHistory";
 import {
   robotPositionAtom,
   setRobotPositionAtom,
+  showGridOverlayAtom,
+  showTrajectoryOverlayAtom,
+  perpendicularPreviewAtom,
 } from "../store/atoms/gameMat";
 import { isUploadingProgramAtom } from "../store/atoms/hubConnection";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
@@ -297,6 +300,9 @@ export function CompactRobotController({
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
   const isUploadingProgram = useAtomValue(isUploadingProgramAtom);
   const setRobotPosition = useSetAtom(setRobotPositionAtom);
+  const [showGridOverlay, setShowGridOverlay] = useAtom(showGridOverlayAtom);
+  const [showTrajectoryOverlay, setShowTrajectoryOverlay] = useAtom(showTrajectoryOverlayAtom);
+  const [perpendicularPreview, setPerpendicularPreview] = useAtom(perpendicularPreviewAtom);
 
   // Position setting state
   const [isSettingPosition, setIsSettingPosition] = useState(false);
@@ -309,6 +315,153 @@ export function CompactRobotController({
   const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(
     null
   );
+
+  // Effect to initialize trajectory overlay when enabled
+  useEffect(() => {
+    if (showTrajectoryOverlay) {
+      // Just enable the trajectory overlay - let the distance/angle effect handle the ghosts
+    }
+  }, [showTrajectoryOverlay]); // Only depend on the toggle, not position or config
+
+  // Effect to update trajectory overlay ghosts when distance/angle changes
+  useEffect(() => {
+    if (showTrajectoryOverlay && currentRobotPosition && robotConfig) {
+      // Only update if there are no hover ghosts currently
+      setPerpendicularPreview(prev => {
+        const hasHoverGhosts = prev.ghosts.some((g: any) => g.isHover);
+        if (hasHoverGhosts) {
+          // Don't update trajectory ghosts if there are hover ghosts
+          return prev;
+        }
+        
+        // Recalculate trajectory overlay ghosts with new distance/angle
+        const ghosts = [];
+
+        // Forward drive position (green)
+        const forwardPosition = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          angle,
+          "drive",
+          "forward",
+          robotConfig
+        );
+        if (forwardPosition) {
+          ghosts.push({
+            position: forwardPosition,
+            type: "drive" as const,
+            direction: "forward" as const,
+            color: "#10b981", // green-500
+            label: `↑ ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+        }
+
+        // Backward drive position (orange)
+        const backwardPosition = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          angle,
+          "drive",
+          "backward",
+          robotConfig
+        );
+        if (backwardPosition) {
+          ghosts.push({
+            position: backwardPosition,
+            type: "drive" as const,
+            direction: "backward" as const,
+            color: "#f97316", // orange-500
+            label: `↓ ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+        }
+
+        // Left turn position (purple) - show turn + distance for trajectory overlay
+        const leftTurnPosition = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          angle,
+          "turn",
+          "left",
+          robotConfig
+        );
+        const leftTurnThenForward = calculatePreviewPosition(
+          leftTurnPosition || currentRobotPosition,
+          distance,
+          angle,
+          "drive",
+          "forward",
+          robotConfig
+        );
+        if (leftTurnThenForward) {
+          ghosts.push({
+            position: leftTurnThenForward,
+            type: "turn" as const,
+            direction: "left" as const,
+            color: "#a855f7", // purple-500
+            label: `↶ ${angle}° + ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+        }
+
+        // Right turn position (cyan) - show turn + distance for trajectory overlay
+        const rightTurnPosition = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          angle,
+          "turn",
+          "right",
+          robotConfig
+        );
+        const rightTurnThenForward = calculatePreviewPosition(
+          rightTurnPosition || currentRobotPosition,
+          distance,
+          angle,
+          "drive",
+          "forward",
+          robotConfig
+        );
+        if (rightTurnThenForward) {
+          ghosts.push({
+            position: rightTurnThenForward,
+            type: "turn" as const,
+            direction: "right" as const,
+            color: "#06b6d4", // cyan-600
+            label: `↷ ${angle}° + ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+        }
+
+        return {
+          show: true,
+          ghosts: ghosts,
+          distance: distance,
+          angle: angle,
+        };
+      });
+    }
+  }, [distance, angle, showTrajectoryOverlay, currentRobotPosition, robotConfig]);
+
+  // Separate effect to clear trajectory overlay when disabled
+  useEffect(() => {
+    if (!showTrajectoryOverlay) {
+      // Only clear if the current ghosts are trajectory overlay ghosts
+      setPerpendicularPreview(prev => {
+        // If all current ghosts are trajectory overlay ghosts, clear them
+        const hasOnlyTrajectoryGhosts = prev.ghosts.every(ghost => (ghost as any).isTrajectoryOverlay);
+        if (hasOnlyTrajectoryGhosts && prev.ghosts.length > 0) {
+          return {
+            show: false,
+            ghosts: [],
+            distance: distance,
+            angle: angle,
+          };
+        }
+        return prev; // Don't change if there are hover ghosts
+      });
+    }
+  }, [showTrajectoryOverlay, distance, angle]);
 
   // Track last applied position for reset functionality
   const [lastPositionSettings, setLastPositionSettings] = useState({
@@ -374,11 +527,11 @@ export function CompactRobotController({
     };
   };
   // For virtual robots, manual controls should work when connected regardless of program status
-  // For real robots, manual controls work when connected but no user program is running
+  // For real robots, manual controls work when connected and hub menu program is running
   const isFullyConnected =
     isConnected &&
     !isUploadingProgram &&
-    (robotType === "virtual" || !isProgramRunning);
+    (robotType === "virtual" || isProgramRunning);
 
   // Position controls should work whenever connected (even during hub menu)
   const canSetPosition = isConnected && !isUploadingProgram;
@@ -680,6 +833,50 @@ export function CompactRobotController({
         },
         trajectoryProjection,
       });
+
+      // Also update perpendicular preview for hover effect - always show to draw attention
+      let ghostPosition = previewPosition;
+      
+      // For turn previews, just show the turn (no forward movement)
+      
+      const hoverGhost = {
+        position: ghostPosition,
+        type: type as "drive" | "turn",
+        direction: direction as "forward" | "backward" | "left" | "right",
+        color: type === "drive" 
+          ? (direction === "forward" ? "#10b981" : "#f97316")  // green for forward, orange for backward
+          : (direction === "left" ? "#a855f7" : "#06b6d4"),  // purple for left, cyan for right
+        label: type === "drive"
+          ? `${direction === "forward" ? "↑" : "↓"} ${distance}mm`
+          : `${direction === "left" ? "↶" : "↷"} ${angle}°`,
+        isHover: true,  // Mark this as a hover ghost for bolder rendering
+      };
+      
+      
+      // If trajectory overlay is on, add the hover ghost to existing ghosts
+      // Otherwise, just show the hover ghost
+      if (showTrajectoryOverlay) {
+        // Keep existing ghosts and add hover ghost with higher opacity
+        const newPreview = {
+          show: true,
+          ghosts: [...perpendicularPreview.ghosts.filter((g: any) => 
+            // Remove any previous hover ghost (identified by isHover flag)
+            // Don't remove trajectory overlay ghosts, we want both turn ghosts visible
+            !g.isHover
+          ), hoverGhost],
+          distance: distance,
+          angle: angle,
+        };
+        setPerpendicularPreview(newPreview);
+      } else {
+        const newPreview = {
+          show: true,
+          ghosts: [hoverGhost],
+          distance: distance,
+          angle: angle,
+        };
+        setPerpendicularPreview(newPreview);
+      }
     } else if (onPreviewUpdate) {
       onPreviewUpdate({
         type: null,
@@ -688,6 +885,23 @@ export function CompactRobotController({
         trajectoryProjection: undefined,
         secondaryTrajectoryProjection: undefined,
       });
+      
+      // Clear hover ghost on mouse leave
+      if (showTrajectoryOverlay) {
+        // Keep the trajectory overlay ghosts, just remove hover ghosts
+        setPerpendicularPreview(prev => ({
+          ...prev,
+          ghosts: prev.ghosts.filter((g: any) => !g.isHover),
+        }));
+      } else {
+        // Clear all ghosts when not hovering and trajectory overlay is off
+        setPerpendicularPreview({
+          show: false,
+          ghosts: [],
+          distance: distance,
+          angle: angle,
+        });
+      }
     }
   }
 
@@ -1229,6 +1443,10 @@ export function CompactRobotController({
                   onStopContinuousTurn={stopContinuousTurn}
                   onSendStop={sendStop}
                   onStopExecutingCommand={stopExecutingCommand}
+                  showGridOverlay={showGridOverlay}
+                  setShowGridOverlay={setShowGridOverlay}
+                  showTrajectoryOverlay={showTrajectoryOverlay}
+                  setShowTrajectoryOverlay={setShowTrajectoryOverlay}
                 />
 
                 {/* Motor Controls */}

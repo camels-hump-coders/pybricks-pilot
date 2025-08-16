@@ -128,23 +128,25 @@ export function useJotaiPybricksHub() {
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
     async (distance: number, speed: number) => {
-      const command = JSON.stringify({
+      // Send as command sequence for proper stop behavior handling
+      const commands = [{
         action: "drive",
         distance,
         speed,
-      });
-      await pybricksHubService.sendControlCommand(command);
+      }];
+      await pybricksHubService.sendControlCommand(JSON.stringify(commands));
     },
     []
   );
 
   const sendTurnCommand = useCallback(async (angle: number, speed: number) => {
-    const command = JSON.stringify({
+    // Send as command sequence for proper stop behavior handling
+    const commands = [{
       action: "turn",
       angle,
       speed,
-    });
-    await pybricksHubService.sendControlCommand(command);
+    }];
+    await pybricksHubService.sendControlCommand(JSON.stringify(commands));
   }, []);
 
   const sendStopCommand = useCallback(async () => {
@@ -166,25 +168,27 @@ export function useJotaiPybricksHub() {
 
   const sendMotorCommand = useCallback(
     async (motor: string, angle: number, speed: number) => {
-      const command = JSON.stringify({
+      // Send as command sequence for consistency
+      const commands = [{
         action: "motor",
         motor,
         angle,
         speed,
-      });
-      await pybricksHubService.sendControlCommand(command);
+      }];
+      await pybricksHubService.sendControlCommand(JSON.stringify(commands));
     },
     []
   );
 
   const sendContinuousMotorCommand = useCallback(
     async (motor: string, speed: number) => {
-      const command = JSON.stringify({
+      // Send as command sequence for consistency
+      const commands = [{
         action: "motor",
         motor,
         speed,
-      });
-      await pybricksHubService.sendControlCommand(command);
+      }];
+      await pybricksHubService.sendControlCommand(JSON.stringify(commands));
     },
     []
   );
