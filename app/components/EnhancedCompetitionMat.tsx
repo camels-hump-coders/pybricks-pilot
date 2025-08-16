@@ -161,7 +161,13 @@ export function EnhancedCompetitionMat({
   const [draggedTangencyHandle, setDraggedTangencyHandle] = useState<{
     pointId: string;
     gripType: "diamond" | "arrow" | "endpoint";
-    initialHandle: { x: number; y: number; strength: number; isEdited: boolean; isTangentDriving: boolean };
+    initialHandle: {
+      x: number;
+      y: number;
+      strength: number;
+      isEdited: boolean;
+      isTangentDriving: boolean;
+    };
     initialMousePos: { x: number; y: number };
   } | null>(null);
 
@@ -335,64 +341,11 @@ export function EnhancedCompetitionMat({
     updateCanvasSize
   );
 
-  // Convert mm to canvas pixels (accounts for mat position within table)
-  // STANDARDIZED COORDINATE SYSTEM: Y=0 at top, Y+ points down (no flipping needed)
-  // Coordinate transformation functions need to account for custom mat dimensions
-  // Can't use the atom version as it doesn't have access to customMatConfig
-  const mmToCanvas = (mmX: number, mmY: number): { x: number; y: number } => {
-    // Use configured mat dimensions instead of hardcoded constants
-    const matWidthMm =
-      customMatConfig?.dimensions?.widthMm ||
-      coordinateUtils.matDimensions.matWidthMm;
-    const matHeightMm =
-      customMatConfig?.dimensions?.heightMm ||
-      coordinateUtils.matDimensions.matHeightMm;
+  // Note: Using coordinate utils from atoms instead of local implementation
+  // This avoids duplication and ensures consistency
 
-    // Calculate mat position within table
-    const matOffset = coordinateUtils.matDimensions.borderWallThickness * scale;
-    const matX =
-      matOffset +
-      (coordinateUtils.matDimensions.tableWidth * scale - matWidthMm * scale) /
-        2;
-    const matY =
-      matOffset +
-      (coordinateUtils.matDimensions.tableHeight * scale - matHeightMm * scale);
-
-    // Convert mm coordinates to canvas coordinates
-    const canvasX = matX + mmX * scale;
-    const canvasY = matY + mmY * scale;
-
-    return { x: canvasX, y: canvasY };
-  };
-
-  const canvasToMm = (
-    canvasX: number,
-    canvasY: number
-  ): { x: number; y: number } => {
-    // Use configured mat dimensions instead of hardcoded constants
-    const matWidthMm =
-      customMatConfig?.dimensions?.widthMm ||
-      coordinateUtils.matDimensions.matWidthMm;
-    const matHeightMm =
-      customMatConfig?.dimensions?.heightMm ||
-      coordinateUtils.matDimensions.matHeightMm;
-
-    // Calculate mat position within table
-    const matOffset = coordinateUtils.matDimensions.borderWallThickness * scale;
-    const matX =
-      matOffset +
-      (coordinateUtils.matDimensions.tableWidth * scale - matWidthMm * scale) /
-        2;
-    const matY =
-      matOffset +
-      (coordinateUtils.matDimensions.tableHeight * scale - matHeightMm * scale);
-
-    // Convert canvas coordinates back to mm coordinates
-    const mmX = (canvasX - matX) / scale;
-    const mmY = (canvasY - matY) / scale;
-
-    return { x: mmX, y: mmY };
-  };
+  // Use the coordinate utils from atoms - no need for duplicate implementation
+  const { canvasToMm, mmToCanvas } = coordinateUtils;
 
   // Event handlers use extracted coordinate utilities (keeping local implementation for now)
 
@@ -667,6 +620,8 @@ export function EnhancedCompetitionMat({
     currentSplinePath,
     splinePaths,
     selectedSplinePointId,
+    mmToCanvas,
+    canvasToMm,
   ]); // canvasSize removed as it's handled separately
 
   // Use CMD key detection hook
@@ -797,16 +752,18 @@ export function EnhancedCompetitionMat({
         );
         if (clickedTangencyHandle) {
           setSelectedSplinePointId(clickedTangencyHandle.pointId);
-          
+
           // Get the current handle for initial state
-          const point = currentSplinePath.points.find(p => p.id === clickedTangencyHandle.pointId);
+          const point = currentSplinePath.points.find(
+            (p) => p.id === clickedTangencyHandle.pointId
+          );
           if (point?.tangencyHandle) {
             const matPos = canvasToMm(canvasX, canvasY);
             setDraggedTangencyHandle({
               pointId: clickedTangencyHandle.pointId,
               gripType: clickedTangencyHandle.gripType,
               initialHandle: { ...point.tangencyHandle },
-              initialMousePos: { x: matPos.x, y: matPos.y }
+              initialMousePos: { x: matPos.x, y: matPos.y },
             });
             setIsDraggingTangencyHandle(true);
           }
@@ -911,58 +868,60 @@ export function EnhancedCompetitionMat({
     }
 
     // Handle SolidWorks-style tangency handle dragging
-    if (
-      isSplinePathMode &&
-      isDraggingTangencyHandle &&
-      draggedTangencyHandle
-    ) {
+    if (isSplinePathMode && isDraggingTangencyHandle && draggedTangencyHandle) {
       const matPos = canvasToMm(canvasX, canvasY);
       const point = currentSplinePath?.points.find(
         (p) => p.id === draggedTangencyHandle.pointId
       );
-      
+
       if (point?.tangencyHandle) {
         const currentOffset = {
           x: matPos.x - point.position.x,
           y: matPos.y - point.position.y,
         };
-        
+
         const { gripType, initialHandle } = draggedTangencyHandle;
         let newHandle = { ...initialHandle, isEdited: true }; // Mark as edited (blue)
-        
+
         if (gripType === "diamond") {
           // Diamond grip: Controls angle only, maintains original magnitude
-          const originalLength = Math.sqrt(initialHandle.x * initialHandle.x + initialHandle.y * initialHandle.y);
+          const originalLength = Math.sqrt(
+            initialHandle.x * initialHandle.x +
+              initialHandle.y * initialHandle.y
+          );
           const newAngle = Math.atan2(currentOffset.y, currentOffset.x);
           newHandle.x = Math.cos(newAngle) * originalLength;
           newHandle.y = Math.sin(newAngle) * originalLength;
-          
         } else if (gripType === "arrow") {
           // Arrow grip: Controls magnitude only, maintains original angle
           const originalAngle = Math.atan2(initialHandle.y, initialHandle.x);
-          const newLength = Math.sqrt(currentOffset.x * currentOffset.x + currentOffset.y * currentOffset.y);
+          const newLength = Math.sqrt(
+            currentOffset.x * currentOffset.x +
+              currentOffset.y * currentOffset.y
+          );
           newHandle.x = Math.cos(originalAngle) * newLength;
           newHandle.y = Math.sin(originalAngle) * newLength;
-          
+
           // Update strength based on new length
           const maxDistance = 100; // 100mm max distance for full strength
           newHandle.strength = Math.min(newLength / maxDistance, 1);
-          
         } else if (gripType === "endpoint") {
           // End-point grip: Controls both angle and magnitude
           newHandle.x = currentOffset.x;
           newHandle.y = currentOffset.y;
-          
+
           // Update strength based on distance
-          const distance = Math.sqrt(currentOffset.x * currentOffset.x + currentOffset.y * currentOffset.y);
+          const distance = Math.sqrt(
+            currentOffset.x * currentOffset.x +
+              currentOffset.y * currentOffset.y
+          );
           const maxDistance = 100; // 100mm max distance for full strength
           newHandle.strength = Math.min(distance / maxDistance, 1);
         }
-        
+
         updateTangencyHandle(draggedTangencyHandle.pointId, newHandle);
       }
     }
-
 
     // Check for spline element hover (only when not dragging)
     if (
