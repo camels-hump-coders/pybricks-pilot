@@ -1,8 +1,23 @@
+import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
+import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
+import { telemetryHistory } from "../services/telemetryHistory";
+import { setRobotPositionAtom } from "../store/atoms/gameMat";
+import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import type { RobotPosition } from "../utils/robotPosition";
 import { calculateRobotPositionFromEdges } from "../utils/robotPosition.js";
+import { RadialHeadingSelector } from "./RadialHeadingSelector.js";
 
-export default function PositionControls() {
+interface PositionControlsProps {
+  onResetTelemetry?: (startNewPath?: boolean) => Promise<void>;
+}
+
+export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
+  const robotConfig = useAtomValue(robotConfigAtom);
+  const { customMatConfig } = useJotaiGameMat();
+  const setRobotPosition = useSetAtom(setRobotPositionAtom);
+
+  const [isSettingPosition, setIsSettingPosition] = useState(false);
   const [edgePositionSettings, setEdgePositionSettings] = useState({
     side: "right" as "left" | "right",
     fromBottom: 100, // mm from bottom edge
@@ -14,6 +29,14 @@ export default function PositionControls() {
     null
   );
 
+  // Track last applied position for reset functionality
+  const [lastPositionSettings, setLastPositionSettings] = useState({
+    side: "right" as "left" | "right", // Default to bottom-right
+    fromBottom: 0, // Default to 0 edge offset
+    fromSide: 0,
+    heading: 0, // Default to forward facing
+  });
+
   // Update position preview when edge settings change
   useEffect(() => {
     if (isSettingPosition) {
@@ -21,13 +44,15 @@ export default function PositionControls() {
         edgePositionSettings.side,
         edgePositionSettings.fromBottom,
         edgePositionSettings.fromSide,
-        edgePositionSettings.heading
+        edgePositionSettings.heading,
+        robotConfig,
+        customMatConfig
       );
       setPositionPreview(preview);
     } else {
       setPositionPreview(null);
     }
-  }, [isSettingPosition, edgePositionSettings, robotConfig]);
+  }, [isSettingPosition, edgePositionSettings, robotConfig, customMatConfig]);
 
   return (
     <div className="space-y-2">
@@ -39,7 +64,6 @@ export default function PositionControls() {
               ? "bg-red-500 text-white hover:bg-red-600"
               : "bg-blue-500 text-white hover:bg-blue-600"
           }`}
-          disabled={!canSetPosition}
         >
           {isSettingPosition ? "✕ Cancel" : "📍 Set Pos"}
         </button>
@@ -55,7 +79,9 @@ export default function PositionControls() {
                 lastPositionSettings.side,
                 lastPositionSettings.fromBottom,
                 lastPositionSettings.fromSide,
-                lastPositionSettings.heading
+                lastPositionSettings.heading,
+                robotConfig,
+                customMatConfig
               );
               setRobotPosition(resetPosition);
               setIsSettingPosition(false);
@@ -74,7 +100,9 @@ export default function PositionControls() {
                 lastPositionSettings.side,
                 lastPositionSettings.fromBottom,
                 lastPositionSettings.fromSide,
-                lastPositionSettings.heading
+                lastPositionSettings.heading,
+                robotConfig,
+                customMatConfig
               );
               setRobotPosition(resetPosition);
               setIsSettingPosition(false);
@@ -84,7 +112,6 @@ export default function PositionControls() {
             telemetryHistory.startNewPath();
           }}
           className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!canSetPosition}
         >
           🔄 Reset
         </button>
@@ -242,7 +269,9 @@ export default function PositionControls() {
                     "left",
                     0,
                     0,
-                    0
+                    0,
+                    robotConfig,
+                    customMatConfig
                   );
                   setRobotPosition(bottomLeftPosition);
                   // Save the position settings for reset button
@@ -262,7 +291,9 @@ export default function PositionControls() {
                     "left",
                     0,
                     0,
-                    0
+                    0,
+                    robotConfig,
+                    customMatConfig
                   );
                   setRobotPosition(bottomLeftPosition);
                   setLastPositionSettings({
@@ -293,7 +324,9 @@ export default function PositionControls() {
                     "right",
                     0,
                     0,
-                    0
+                    0,
+                    robotConfig,
+                    customMatConfig
                   );
                   setRobotPosition(bottomRightPosition);
                   // Save the position settings for reset button
@@ -313,7 +346,9 @@ export default function PositionControls() {
                     "right",
                     0,
                     0,
-                    0
+                    0,
+                    robotConfig,
+                    customMatConfig
                   );
                   setRobotPosition(bottomRightPosition);
                   setLastPositionSettings({

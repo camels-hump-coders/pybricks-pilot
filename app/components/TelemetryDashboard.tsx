@@ -2,6 +2,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
+import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import {
   GameMatConfigSchema,
@@ -105,7 +106,6 @@ const getDefaultUnearthedMap = (): GameMatConfig | null => {
 
 // Sub-component for Mat Controls Panel
 interface MatControlsPanelProps {
-  customMatConfig: GameMatConfig | null;
   isLoadingConfig: boolean;
   showScoring: boolean;
   currentScore: number;
@@ -116,7 +116,6 @@ interface MatControlsPanelProps {
 }
 
 function MatControlsPanel({
-  customMatConfig,
   isLoadingConfig,
   showScoring,
   currentScore,
@@ -126,6 +125,7 @@ function MatControlsPanel({
   onClearMat,
 }: MatControlsPanelProps) {
   // Use Jotai atom directly instead of prop
+  const { customMatConfig } = useJotaiGameMat();
   const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
@@ -254,11 +254,7 @@ interface RobotControlsSectionProps {
     content: string,
     availableFiles: any[]
   ) => Promise<void>;
-  isUploading?: boolean;
-  debugEvents?: any[];
-  isCmdKeyPressed: boolean;
   onRobotBuilderOpen: () => void;
-  customMatConfig?: any | null; // Add mat config as prop
   onResetTelemetry?: () => Promise<void>; // Add reset telemetry function
 }
 
@@ -276,11 +272,7 @@ function RobotControlsSection({
   robotType,
   onStopProgram,
   onUploadAndRunFile,
-  isUploading,
-  debugEvents,
-  isCmdKeyPressed,
   onRobotBuilderOpen,
-  customMatConfig,
   onResetTelemetry,
 }: RobotControlsSectionProps) {
   // Use Jotai atoms directly instead of prop drilling
@@ -343,11 +335,8 @@ function RobotControlsSection({
         isConnected={isConnected}
         robotType={robotType}
         onResetTelemetry={onResetTelemetry}
-        customMatConfig={customMatConfig}
         onStopProgram={onStopProgram}
         onUploadAndRunFile={onUploadAndRunFile}
-        isUploading={isUploading}
-        debugEvents={debugEvents}
         onPreviewUpdate={(preview) => {
           // Update movement preview atom for EnhancedCompetitionMat to display
           setMovementPreview(preview);
@@ -567,9 +556,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const [showMatEditor, setShowMatEditor] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(false);
   const [matEditorMode, setMatEditorMode] = useState<"edit" | "new">("edit");
-  const [customMatConfig, setCustomMatConfig] = useState<GameMatConfig | null>(
-    null
-  );
+  // Use Jotai for custom mat config instead of local state
+  const { customMatConfig, setCustomMatConfig } = useJotaiGameMat();
   const [showScoring, setShowScoring] = useState(false);
   // Use Jotai for current score instead of local state
   const currentScore = useAtomValue(currentScoreAtom);
@@ -818,7 +806,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       {/* Competition Mat - Full width on mobile, positioned in grid on desktop */}
       <div className="xl:hidden w-full">
         <EnhancedCompetitionMat
-          customMatConfig={customMatConfig}
           showScoring={showScoring}
           isConnected={isConnected}
         />
@@ -840,16 +827,11 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           robotType={robotType}
           onStopProgram={stopProgram}
           onUploadAndRunFile={handleUploadAndRun}
-          isUploading={isUploadingProgram}
-          debugEvents={debugEvents}
-          isCmdKeyPressed={isCmdKeyPressed}
           onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
-          customMatConfig={customMatConfig}
           onResetTelemetry={resetTelemetry}
         />
 
         <MatControlsPanel
-          customMatConfig={customMatConfig}
           isLoadingConfig={isLoadingConfig}
           showScoring={showScoring}
           currentScore={currentScore}
@@ -868,7 +850,6 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         {/* Competition Mat - Takes up 3 columns */}
         <div className="col-span-3">
           <EnhancedCompetitionMat
-            customMatConfig={customMatConfig}
             showScoring={showScoring}
             isConnected={isConnected}
           />
@@ -890,16 +871,11 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             robotType={robotType}
             onStopProgram={stopProgram}
             onUploadAndRunFile={handleUploadAndRun}
-            isUploading={isUploadingProgram}
-            debugEvents={debugEvents}
-            isCmdKeyPressed={isCmdKeyPressed}
             onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
-            customMatConfig={customMatConfig}
             onResetTelemetry={resetTelemetry}
           />
 
           <MatControlsPanel
-            customMatConfig={customMatConfig}
             isLoadingConfig={isLoadingConfig}
             showScoring={showScoring}
             currentScore={currentScore}

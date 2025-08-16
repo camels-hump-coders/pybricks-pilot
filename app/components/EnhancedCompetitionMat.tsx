@@ -18,7 +18,7 @@ import {
   hoveredPointAtom,
   missionBoundsAtom,
 } from "../store/atoms/canvasState";
-import { controlModeAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
+import { controlModeAtom, customMatConfigAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { telemetryDataAtom } from "../store/atoms/robotConnection";
@@ -53,7 +53,6 @@ import { TelemetryPlayback } from "./TelemetryPlayback";
 
 interface EnhancedCompetitionMatProps {
   isConnected: boolean;
-  customMatConfig?: GameMatConfig | null;
   showScoring?: boolean;
 }
 
@@ -64,13 +63,13 @@ const BORDER_WALL_HEIGHT_MM = 36; // 36mm tall border walls
 
 export function EnhancedCompetitionMat({
   isConnected,
-  customMatConfig,
   showScoring = false,
 }: EnhancedCompetitionMatProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Get coordinate utilities and constants from atom
   const coordinateUtils = useAtomValue(coordinateUtilsAtom);
+  const customMatConfig = useAtomValue(customMatConfigAtom);
 
   // Get control mode from global atom
   const controlMode = useAtomValue(controlModeAtom);
