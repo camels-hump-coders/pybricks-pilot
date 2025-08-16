@@ -557,14 +557,14 @@ export const removeControlPointAtom = atom(
   }
 );
 
-// Curvature handle management atoms
-export const updateCurvatureHandleAtom = atom(
+// Tangency handle management atoms
+export const updateTangencyHandleAtom = atom(
   null,
   (
     get,
     set,
     pointId: string,
-    curvatureHandle: { x: number; y: number; strength: number }
+    tangencyHandle: { x: number; y: number; strength: number; isEdited: boolean; isTangentDriving: boolean }
   ) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
@@ -577,7 +577,7 @@ export const updateCurvatureHandleAtom = atom(
 
     updatedPoints[pointIndex] = {
       ...existingPoint,
-      curvatureHandle,
+      tangencyHandle,
     };
 
     const updatedPath = {
@@ -598,18 +598,18 @@ export const updateCurvatureHandleAtom = atom(
   }
 );
 
-// Automatically add curvature handles to intermediate points
-export const addCurvatureHandlesToIntermediatePointsAtom = atom(
+// Automatically add tangency handles to intermediate points
+export const addTangencyHandlesToIntermediatePointsAtom = atom(
   null,
   (get, set) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath || currentPath.points.length < 3) return;
 
     const updatedPoints = currentPath.points.map((point, index) => {
-      // Only add curvature handles to intermediate points (not first or last)
+      // Only add tangency handles to intermediate points (not first or last)
       const isIntermediate = index > 0 && index < currentPath.points.length - 1;
 
-      if (isIntermediate && !point.curvatureHandle) {
+      if (isIntermediate && !point.tangencyHandle) {
         // Calculate default curvature handle based on surrounding points
         const prevPoint = currentPath.points[index - 1];
         const nextPoint = currentPath.points[index + 1];
@@ -639,10 +639,12 @@ export const addCurvatureHandlesToIntermediatePointsAtom = atom(
         if (length > 0) {
           return {
             ...point,
-            curvatureHandle: {
+            tangencyHandle: {
               x: (avgDirection.x / length) * defaultHandleLength,
               y: (avgDirection.y / length) * defaultHandleLength,
               strength: 0.5, // Default medium curvature
+              isEdited: false, // Default unedited state (gray)
+              isTangentDriving: false, // Default not driving
             },
           };
         }
@@ -677,11 +679,21 @@ export interface SplinePathPoint {
     before?: { x: number; y: number }; // Control point before this point
     after?: { x: number; y: number }; // Control point after this point
   };
-  // Curvature handle for intermediate points (not start/end)
-  curvatureHandle?: {
-    x: number; // Offset from point position
-    y: number; // Offset from point position
+  // SolidWorks-style tangency handles for intermediate points (not start/end)
+  tangencyHandle?: {
+    // Handle direction and magnitude
+    x: number; // Offset from point position (end-point position)
+    y: number; // Offset from point position (end-point position)
     strength: number; // 0-1, how much curvature to apply
+    
+    // SolidWorks-style state
+    isEdited: boolean; // True if handle has been manually modified (blue vs gray)
+    isTangentDriving: boolean; // True if this handle is "tangent driving"
+    
+    // Computed grip positions (calculated from x, y, strength)
+    // Diamond grip: Controls angle only (at 50% of handle length)
+    // Arrow grip: Controls magnitude only (at 80% of handle length) 
+    // End-point grip: Controls both angle and magnitude (at 100% of handle length)
   };
   timestamp: number;
 }

@@ -41,17 +41,17 @@ export function drawSplinePath(
       const canvasCurrentPoint = mmToCanvas(currentPoint.position.x, currentPoint.position.y);
       const canvasPrevPoint = mmToCanvas(prevPoint.position.x, prevPoint.position.y);
 
-      // Priority 1: Use curvature handles for smooth curves
-      if (prevPoint.curvatureHandle || currentPoint.curvatureHandle) {
-        // Calculate control points based on curvature handles
+      // Priority 1: Use tangency handles for smooth curves
+      if (prevPoint.tangencyHandle || currentPoint.tangencyHandle) {
+        // Calculate control points based on tangency handles
         let cp1 = canvasPrevPoint;
         let cp2 = canvasCurrentPoint;
         
-        if (prevPoint.curvatureHandle) {
-          const strength = prevPoint.curvatureHandle.strength || 0.5;
+        if (prevPoint.tangencyHandle) {
+          const strength = prevPoint.tangencyHandle.strength || 0.5;
           const handlePos = mmToCanvas(
-            prevPoint.position.x + prevPoint.curvatureHandle.x,
-            prevPoint.position.y + prevPoint.curvatureHandle.y
+            prevPoint.position.x + prevPoint.tangencyHandle.x,
+            prevPoint.position.y + prevPoint.tangencyHandle.y
           );
           // Use handle direction and strength to create outgoing control point
           const dx = handlePos.x - canvasPrevPoint.x;
@@ -62,11 +62,11 @@ export function drawSplinePath(
           };
         }
         
-        if (currentPoint.curvatureHandle) {
-          const strength = currentPoint.curvatureHandle.strength || 0.5;
+        if (currentPoint.tangencyHandle) {
+          const strength = currentPoint.tangencyHandle.strength || 0.5;
           const handlePos = mmToCanvas(
-            currentPoint.position.x + currentPoint.curvatureHandle.x,
-            currentPoint.position.y + currentPoint.curvatureHandle.y
+            currentPoint.position.x + currentPoint.tangencyHandle.x,
+            currentPoint.position.y + currentPoint.tangencyHandle.y
           );
           // Use handle direction and strength to create incoming control point
           const dx = handlePos.x - canvasCurrentPoint.x;
@@ -77,7 +77,7 @@ export function drawSplinePath(
           };
         }
 
-        // Draw bezier curve with curvature-based control points
+        // Draw bezier curve with tangency-based control points
         ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, canvasCurrentPoint.x, canvasCurrentPoint.y);
       }
       // Priority 2: Use manual control points if available
@@ -118,46 +118,92 @@ export function drawSplinePath(
     const isFirst = index === 0;
     const isLast = index === splinePath.points.length - 1;
 
-    // Draw curvature handle for intermediate points
-    if (point.curvatureHandle) {
-      const handlePos = mmToCanvas(
-        point.position.x + point.curvatureHandle.x,
-        point.position.y + point.curvatureHandle.y
+    // Draw SolidWorks-style tangency handles for intermediate points
+    if (point.tangencyHandle) {
+      const handle = point.tangencyHandle;
+      const endPos = mmToCanvas(
+        point.position.x + handle.x,
+        point.position.y + handle.y
       );
       
-      const isHoveredCurvatureHandle = hoveredCurvatureHandlePointId === point.id;
+      const isHoveredTangencyHandle = hoveredCurvatureHandlePointId === point.id;
       
-      // Draw handle line
+      // Determine handle color based on edit state (blue = edited, gray = default)
+      const handleColor = handle.isEdited ? "#3b82f6" : "#6b7280"; // Blue or gray
+      const hoverColor = handle.isEdited ? "#2563eb" : "#4b5563"; // Darker versions
+      const currentColor = isHoveredTangencyHandle ? hoverColor : handleColor;
+      
+      // Draw main handle line (tangent line)
       ctx.beginPath();
       ctx.moveTo(canvasPos.x, canvasPos.y);
-      ctx.lineTo(handlePos.x, handlePos.y);
-      ctx.strokeStyle = isHoveredCurvatureHandle ? "#ea580c" : "#f97316"; // Darker orange on hover
-      ctx.lineWidth = isHoveredCurvatureHandle ? 3 : 2; // Thicker line on hover
-      ctx.setLineDash([5, 3]);
+      ctx.lineTo(endPos.x, endPos.y);
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = isHoveredTangencyHandle ? 3 : 2;
+      ctx.setLineDash(handle.isTangentDriving ? [] : [5, 3]); // Solid if driving, dashed if not
       ctx.stroke();
       ctx.setLineDash([]);
       
-      // Draw handle circle with hover effect
-      const handleRadius = isHoveredCurvatureHandle ? 8 : 6; // Larger on hover
+      // Calculate grip positions for SolidWorks-style controls
+      const handleLength = Math.sqrt(handle.x * handle.x + handle.y * handle.y);
+      const unitX = handle.x / handleLength;
+      const unitY = handle.y / handleLength;
+      
+      // Diamond grip (50% along handle) - Controls angle only
+      const diamondPos = mmToCanvas(
+        point.position.x + unitX * handleLength * 0.5,
+        point.position.y + unitY * handleLength * 0.5
+      );
+      
+      // Arrow grip (80% along handle) - Controls magnitude only  
+      const arrowPos = mmToCanvas(
+        point.position.x + unitX * handleLength * 0.8,
+        point.position.y + unitY * handleLength * 0.8
+      );
+      
+      // Draw diamond grip (angle control)
+      ctx.save();
+      ctx.translate(diamondPos.x, diamondPos.y);
+      ctx.rotate(Math.atan2(handle.y, handle.x));
       ctx.beginPath();
-      ctx.arc(handlePos.x, handlePos.y, handleRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = isHoveredCurvatureHandle ? "#ea580c" : "#f97316"; // Darker orange on hover
+      ctx.moveTo(-4, 0);
+      ctx.lineTo(0, -4);
+      ctx.lineTo(4, 0);
+      ctx.lineTo(0, 4);
+      ctx.closePath();
+      ctx.fillStyle = currentColor;
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+      
+      // Draw arrow grip (magnitude control)
+      ctx.save();
+      ctx.translate(arrowPos.x, arrowPos.y);
+      ctx.rotate(Math.atan2(handle.y, handle.x));
+      ctx.beginPath();
+      ctx.moveTo(-6, -3);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(-6, 3);
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+      
+      // Draw end-point grip (combined control) - Circle at end
+      const endRadius = isHoveredTangencyHandle ? 8 : 6;
+      ctx.beginPath();
+      ctx.arc(endPos.x, endPos.y, endRadius, 0, 2 * Math.PI);
+      ctx.fillStyle = currentColor;
       ctx.fill();
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.stroke();
       
-      // Add visual indicator for strength (inner circle)
-      const strengthRadius = 2 + (point.curvatureHandle.strength * 3);
-      ctx.beginPath();
-      ctx.arc(handlePos.x, handlePos.y, strengthRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = "#ffffff";
-      ctx.fill();
-      
       // Add glow effect when hovered
-      if (isHoveredCurvatureHandle) {
+      if (isHoveredTangencyHandle) {
         ctx.beginPath();
-        ctx.arc(handlePos.x, handlePos.y, handleRadius + 4, 0, 2 * Math.PI);
+        ctx.arc(endPos.x, endPos.y, endRadius + 4, 0, 2 * Math.PI);
         ctx.strokeStyle = "rgba(234, 88, 12, 0.3)"; // Semi-transparent orange glow
         ctx.lineWidth = 4;
         ctx.stroke();
@@ -394,35 +440,69 @@ export function findClickedControlPoint(
 }
 
 /**
- * Find clicked curvature handle given mouse coordinates
+ * Find clicked tangency handle grip given mouse coordinates
+ * Returns grip type: "diamond" (angle), "arrow" (magnitude), "endpoint" (both)
  */
-export function findClickedCurvatureHandle(
+export function findClickedTangencyHandle(
   mouseCanvasX: number,
   mouseCanvasY: number,
   splinePath: SplinePath,
   utils: RobotDrawingUtils,
   clickRadius: number = 10
-): { pointId: string } | null {
+): { pointId: string; gripType: "diamond" | "arrow" | "endpoint" } | null {
   if (!splinePath.points) return null;
 
   const { mmToCanvas } = utils;
 
   for (const point of splinePath.points) {
-    if (!point.curvatureHandle) continue;
+    if (!point.tangencyHandle) continue;
 
-    const handlePos = mmToCanvas(
-      point.position.x + point.curvatureHandle.x,
-      point.position.y + point.curvatureHandle.y
+    const handle = point.tangencyHandle;
+    const handleLength = Math.sqrt(handle.x * handle.x + handle.y * handle.y);
+    const unitX = handle.x / handleLength;
+    const unitY = handle.y / handleLength;
+
+    // Calculate grip positions (same as in drawing code)
+    const diamondPos = mmToCanvas(
+      point.position.x + unitX * handleLength * 0.5,
+      point.position.y + unitY * handleLength * 0.5
     );
     
-    const distance = Math.sqrt(
-      Math.pow(mouseCanvasX - handlePos.x, 2) + Math.pow(mouseCanvasY - handlePos.y, 2)
+    const arrowPos = mmToCanvas(
+      point.position.x + unitX * handleLength * 0.8,
+      point.position.y + unitY * handleLength * 0.8
     );
     
-    if (distance <= clickRadius) {
-      return { pointId: point.id };
+    const endPos = mmToCanvas(
+      point.position.x + handle.x,
+      point.position.y + handle.y
+    );
+
+    // Check diamond grip first (angle control)
+    const diamondDistance = Math.sqrt(
+      Math.pow(mouseCanvasX - diamondPos.x, 2) + Math.pow(mouseCanvasY - diamondPos.y, 2)
+    );
+    if (diamondDistance <= clickRadius) {
+      return { pointId: point.id, gripType: "diamond" };
+    }
+
+    // Check arrow grip (magnitude control)
+    const arrowDistance = Math.sqrt(
+      Math.pow(mouseCanvasX - arrowPos.x, 2) + Math.pow(mouseCanvasY - arrowPos.y, 2)
+    );
+    if (arrowDistance <= clickRadius) {
+      return { pointId: point.id, gripType: "arrow" };
+    }
+
+    // Check endpoint grip (combined control)
+    const endDistance = Math.sqrt(
+      Math.pow(mouseCanvasX - endPos.x, 2) + Math.pow(mouseCanvasY - endPos.y, 2)
+    );
+    if (endDistance <= clickRadius) {
+      return { pointId: point.id, gripType: "endpoint" };
     }
   }
 
   return null;
 }
+

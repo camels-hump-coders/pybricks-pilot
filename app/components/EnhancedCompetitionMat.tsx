@@ -37,7 +37,7 @@ import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import {
   drawSplinePath,
   findClickedControlPoint,
-  findClickedCurvatureHandle,
+  findClickedTangencyHandle,
 } from "../utils/canvas/splinePathDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing.js";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing.js";
@@ -112,7 +112,7 @@ export function EnhancedCompetitionMat({
     completeSplinePath,
     updateControlPoint,
     // Curvature handle actions
-    updateCurvatureHandle,
+    updateTangencyHandle,
   } = gameMat;
 
   const [popoverObject, setPopoverObject] = useState<string | null>(null);
@@ -156,10 +156,13 @@ export function EnhancedCompetitionMat({
   } | null>(null);
 
   // Curvature handle dragging state
-  const [isDraggingCurvatureHandle, setIsDraggingCurvatureHandle] =
+  const [isDraggingTangencyHandle, setIsDraggingTangencyHandle] =
     useState(false);
-  const [draggedCurvatureHandle, setDraggedCurvatureHandle] = useState<{
+  const [draggedTangencyHandle, setDraggedTangencyHandle] = useState<{
     pointId: string;
+    gripType: "diamond" | "arrow" | "endpoint";
+    initialHandle: { x: number; y: number; strength: number; isEdited: boolean; isTangentDriving: boolean };
+    initialMousePos: { x: number; y: number };
   } | null>(null);
 
   // Hover states are now managed by Jotai atoms
@@ -785,17 +788,28 @@ export function EnhancedCompetitionMat({
           scale,
         };
 
-        // First check for curvature handle clicks (highest priority)
-        const clickedCurvatureHandle = findClickedCurvatureHandle(
+        // Check for tangency handle clicks (highest priority)
+        const clickedTangencyHandle = findClickedTangencyHandle(
           canvasX,
           canvasY,
           currentSplinePath,
           utils
         );
-        if (clickedCurvatureHandle) {
-          setSelectedSplinePointId(clickedCurvatureHandle.pointId);
-          setDraggedCurvatureHandle(clickedCurvatureHandle);
-          setIsDraggingCurvatureHandle(true);
+        if (clickedTangencyHandle) {
+          setSelectedSplinePointId(clickedTangencyHandle.pointId);
+          
+          // Get the current handle for initial state
+          const point = currentSplinePath.points.find(p => p.id === clickedTangencyHandle.pointId);
+          if (point?.tangencyHandle) {
+            const matPos = canvasToMm(canvasX, canvasY);
+            setDraggedTangencyHandle({
+              pointId: clickedTangencyHandle.pointId,
+              gripType: clickedTangencyHandle.gripType,
+              initialHandle: { ...point.tangencyHandle },
+              initialMousePos: { x: matPos.x, y: matPos.y }
+            });
+            setIsDraggingTangencyHandle(true);
+          }
           return;
         }
 
@@ -896,39 +910,59 @@ export function EnhancedCompetitionMat({
       }
     }
 
-    // Handle curvature handle dragging
+    // Handle SolidWorks-style tangency handle dragging
     if (
       isSplinePathMode &&
-      isDraggingCurvatureHandle &&
-      draggedCurvatureHandle
+      isDraggingTangencyHandle &&
+      draggedTangencyHandle
     ) {
       const matPos = canvasToMm(canvasX, canvasY);
-      // Find the point and update the curvature handle relative to the point position
       const point = currentSplinePath?.points.find(
-        (p) => p.id === draggedCurvatureHandle.pointId
+        (p) => p.id === draggedTangencyHandle.pointId
       );
-      if (point && point.curvatureHandle) {
-        const handleOffset = {
+      
+      if (point?.tangencyHandle) {
+        const currentOffset = {
           x: matPos.x - point.position.x,
           y: matPos.y - point.position.y,
         };
-
-        // Calculate strength based on distance from point (0-1 scale)
-        const distance = Math.sqrt(
-          handleOffset.x * handleOffset.x + handleOffset.y * handleOffset.y
-        );
-        const maxDistance = 100; // 100mm max distance for full strength
-        const strength = Math.min(distance / maxDistance, 1);
-
-        const curvatureHandle = {
-          x: handleOffset.x,
-          y: handleOffset.y,
-          strength: strength,
-        };
-
-        updateCurvatureHandle(draggedCurvatureHandle.pointId, curvatureHandle);
+        
+        const { gripType, initialHandle } = draggedTangencyHandle;
+        let newHandle = { ...initialHandle, isEdited: true }; // Mark as edited (blue)
+        
+        if (gripType === "diamond") {
+          // Diamond grip: Controls angle only, maintains original magnitude
+          const originalLength = Math.sqrt(initialHandle.x * initialHandle.x + initialHandle.y * initialHandle.y);
+          const newAngle = Math.atan2(currentOffset.y, currentOffset.x);
+          newHandle.x = Math.cos(newAngle) * originalLength;
+          newHandle.y = Math.sin(newAngle) * originalLength;
+          
+        } else if (gripType === "arrow") {
+          // Arrow grip: Controls magnitude only, maintains original angle
+          const originalAngle = Math.atan2(initialHandle.y, initialHandle.x);
+          const newLength = Math.sqrt(currentOffset.x * currentOffset.x + currentOffset.y * currentOffset.y);
+          newHandle.x = Math.cos(originalAngle) * newLength;
+          newHandle.y = Math.sin(originalAngle) * newLength;
+          
+          // Update strength based on new length
+          const maxDistance = 100; // 100mm max distance for full strength
+          newHandle.strength = Math.min(newLength / maxDistance, 1);
+          
+        } else if (gripType === "endpoint") {
+          // End-point grip: Controls both angle and magnitude
+          newHandle.x = currentOffset.x;
+          newHandle.y = currentOffset.y;
+          
+          // Update strength based on distance
+          const distance = Math.sqrt(currentOffset.x * currentOffset.x + currentOffset.y * currentOffset.y);
+          const maxDistance = 100; // 100mm max distance for full strength
+          newHandle.strength = Math.min(distance / maxDistance, 1);
+        }
+        
+        updateTangencyHandle(draggedTangencyHandle.pointId, newHandle);
       }
     }
+
 
     // Check for spline element hover (only when not dragging)
     if (
@@ -936,7 +970,7 @@ export function EnhancedCompetitionMat({
       currentSplinePath &&
       !isDraggingPoint &&
       !isDraggingControlPoint &&
-      !isDraggingCurvatureHandle
+      !isDraggingTangencyHandle
     ) {
       const utils = {
         mmToCanvas: (x: number, y: number) => {
@@ -946,15 +980,15 @@ export function EnhancedCompetitionMat({
         scale,
       };
 
-      // Check for curvature handle hover (highest priority)
-      const hoveredCurvatureHandle = findClickedCurvatureHandle(
+      // Check for tangency handle hover (highest priority)
+      const hoveredTangencyHandle = findClickedTangencyHandle(
         canvasX,
         canvasY,
         currentSplinePath,
         utils
       );
-      if (hoveredCurvatureHandle) {
-        setHoveredCurvatureHandlePointId(hoveredCurvatureHandle.pointId);
+      if (hoveredTangencyHandle) {
+        setHoveredCurvatureHandlePointId(hoveredTangencyHandle.pointId);
         setHoveredSplinePointId(null);
         // Set cursor to pointer to indicate interactivity
         if (canvas.style.cursor !== "grab") canvas.style.cursor = "grab";
@@ -1283,13 +1317,13 @@ export function EnhancedCompetitionMat({
             const wasDragging =
               isDraggingPoint ||
               isDraggingControlPoint ||
-              isDraggingCurvatureHandle;
+              isDraggingTangencyHandle;
             setIsDraggingPoint(false);
             setDraggedPointId(null);
             setIsDraggingControlPoint(false);
             setDraggedControlPoint(null);
-            setIsDraggingCurvatureHandle(false);
-            setDraggedCurvatureHandle(null);
+            setIsDraggingTangencyHandle(false);
+            setDraggedTangencyHandle(null);
 
             // Set flag to prevent immediate click handler from triggering
             if (wasDragging) {
@@ -1309,8 +1343,8 @@ export function EnhancedCompetitionMat({
             setDraggedPointId(null);
             setIsDraggingControlPoint(false);
             setDraggedControlPoint(null);
-            setIsDraggingCurvatureHandle(false);
-            setDraggedCurvatureHandle(null);
+            setIsDraggingTangencyHandle(false);
+            setDraggedTangencyHandle(null);
 
             // Clear spline hover states
             setHoveredSplinePointId(null);

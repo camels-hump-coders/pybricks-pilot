@@ -94,19 +94,19 @@ export function convertSplinePathToSmoothCommands(path: SplinePath): SplinePathC
     const dy = nextPoint.position.y - currentPoint.position.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // Priority 1: Use curvature handles for smooth arc commands
-    if (currentPoint.curvatureHandle || nextPoint.curvatureHandle) {
+    // Priority 1: Use tangency handles for smooth arc commands
+    if (currentPoint.tangencyHandle || nextPoint.tangencyHandle) {
       let arcRadius = distance / 2; // Default radius
       let arcAngle = 30; // Default arc angle
       let turnSpeed = 100; // Speed for turning
       
-      // Calculate arc parameters based on curvature handles
-      if (currentPoint.curvatureHandle) {
+      // Calculate arc parameters based on tangency handles
+      if (currentPoint.tangencyHandle) {
         const handleLength = Math.sqrt(
-          currentPoint.curvatureHandle.x * currentPoint.curvatureHandle.x + 
-          currentPoint.curvatureHandle.y * currentPoint.curvatureHandle.y
+          currentPoint.tangencyHandle.x * currentPoint.tangencyHandle.x + 
+          currentPoint.tangencyHandle.y * currentPoint.tangencyHandle.y
         );
-        const strength = currentPoint.curvatureHandle.strength;
+        const strength = currentPoint.tangencyHandle.strength;
         
         // Stronger curvature = tighter radius, larger angle
         arcRadius = Math.max(30, handleLength * (1 - strength * 0.5));
@@ -114,15 +114,15 @@ export function convertSplinePathToSmoothCommands(path: SplinePath): SplinePathC
         turnSpeed = Math.max(50, 150 - (strength * 100)); // Slower for tighter curves
       }
       
-      if (nextPoint.curvatureHandle) {
+      if (nextPoint.tangencyHandle) {
         const handleLength = Math.sqrt(
-          nextPoint.curvatureHandle.x * nextPoint.curvatureHandle.x + 
-          nextPoint.curvatureHandle.y * nextPoint.curvatureHandle.y
+          nextPoint.tangencyHandle.x * nextPoint.tangencyHandle.x + 
+          nextPoint.tangencyHandle.y * nextPoint.tangencyHandle.y
         );
-        const strength = nextPoint.curvatureHandle.strength;
+        const strength = nextPoint.tangencyHandle.strength;
         
         // Average with previous point's calculations if both exist
-        if (currentPoint.curvatureHandle) {
+        if (currentPoint.tangencyHandle) {
           arcRadius = (arcRadius + Math.max(30, handleLength * (1 - strength * 0.5))) / 2;
           arcAngle = (arcAngle + Math.min(90, 20 + (strength * 60))) / 2;
           turnSpeed = (turnSpeed + Math.max(50, 150 - (strength * 100))) / 2;

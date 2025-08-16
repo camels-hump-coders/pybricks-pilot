@@ -4,7 +4,7 @@ import { telemetryHistory } from "../services/telemetryHistory";
 import {
   // Control point atoms
   addControlPointAtom,
-  addCurvatureHandlesToIntermediatePointsAtom,
+  addTangencyHandlesToIntermediatePointsAtom,
   addSplinePointAtom,
   calculateRobotPosition,
   cancelSplinePathAtom,
@@ -41,7 +41,7 @@ import {
   totalScoreAtom,
   updateControlPointAtom,
   // Curvature handle atoms
-  updateCurvatureHandleAtom,
+  updateTangencyHandleAtom,
   updateScoringAtom,
   updateSplinePointAtom,
   type ObjectiveState,
@@ -131,10 +131,10 @@ export function useJotaiGameMat() {
   const updateControlPointAction = useSetAtom(updateControlPointAtom);
   const removeControlPointAction = useSetAtom(removeControlPointAtom);
 
-  // Curvature handle actions
-  const updateCurvatureHandleAction = useSetAtom(updateCurvatureHandleAtom);
-  const addCurvatureHandlesToIntermediatePointsAction = useSetAtom(
-    addCurvatureHandlesToIntermediatePointsAtom
+  // Tangency handle actions
+  const updateTangencyHandleAction = useSetAtom(updateTangencyHandleAtom);
+  const addTangencyHandlesToIntermediatePointsAction = useSetAtom(
+    addTangencyHandlesToIntermediatePointsAtom
   );
 
   // Helper functions - stabilize with refs to avoid recreating on every render
@@ -388,19 +388,19 @@ export function useJotaiGameMat() {
   );
 
   // Curvature handle helper functions
-  const updateCurvatureHandle = useCallback(
+  const updateTangencyHandle = useCallback(
     (
       pointId: string,
-      curvatureHandle: { x: number; y: number; strength: number }
+      tangencyHandle: { x: number; y: number; strength: number; isEdited: boolean; isTangentDriving: boolean }
     ) => {
-      updateCurvatureHandleAction(pointId, curvatureHandle);
+      updateTangencyHandleAction(pointId, tangencyHandle);
     },
-    [updateCurvatureHandleAction]
+    [updateTangencyHandleAction]
   );
 
-  const addCurvatureHandlesToIntermediatePoints = useCallback(() => {
-    addCurvatureHandlesToIntermediatePointsAction();
-  }, [addCurvatureHandlesToIntermediatePointsAction]);
+  const addTangencyHandlesToIntermediatePoints = useCallback(() => {
+    addTangencyHandlesToIntermediatePointsAction();
+  }, [addTangencyHandlesToIntermediatePointsAction]);
 
   const enterSplinePathMode = useCallback(
     (pathName: string = "New Path") => {
@@ -454,10 +454,10 @@ export function useJotaiGameMat() {
       const pointId = addSplinePoint(newPosition);
 
       // After adding a point, check if we need to add curvature handles
-      // This will be called asynchronously to allow the point to be added first
-      setTimeout(() => {
-        addCurvatureHandlesToIntermediatePoints();
-      }, 0);
+      // Use queueMicrotask for more reliable async execution
+      queueMicrotask(() => {
+        addTangencyHandlesToIntermediatePoints();
+      });
 
       return pointId;
     },
@@ -466,9 +466,25 @@ export function useJotaiGameMat() {
       robotPosition,
       currentSplinePath,
       addSplinePoint,
-      addCurvatureHandlesToIntermediatePoints,
+      addTangencyHandlesToIntermediatePoints,
     ]
   );
+
+  // Effect to automatically add curvature handles when spline path changes
+  useEffect(() => {
+    if (currentSplinePath && currentSplinePath.points.length >= 3) {
+      // Check if any intermediate points are missing curvature handles
+      const needsHandles = currentSplinePath.points.some((point, index) => {
+        const isIntermediate = index > 0 && index < currentSplinePath.points.length - 1;
+        return isIntermediate && !point.tangencyHandle;
+      });
+      
+      if (needsHandles) {
+        console.log('Adding curvature handles to intermediate points...');
+        addTangencyHandlesToIntermediatePoints();
+      }
+    }
+  }, [currentSplinePath, addTangencyHandlesToIntermediatePoints]);
 
   return {
     // Robot position
@@ -554,9 +570,9 @@ export function useJotaiGameMat() {
     updateControlPoint,
     removeControlPoint,
 
-    // Curvature handle actions
-    updateCurvatureHandle,
-    addCurvatureHandlesToIntermediatePoints,
+    // Tangency handle actions
+    updateTangencyHandle,
+    addTangencyHandlesToIntermediatePoints,
     addSplinePointAtMousePosition,
   };
 }
