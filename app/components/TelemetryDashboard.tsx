@@ -244,6 +244,7 @@ interface RobotControlsSectionProps {
   ) => Promise<void>;
   onContinuousMotorCommand: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand: (motor: string) => Promise<void>;
+  onExecuteCommandSequence: (commands: any[]) => Promise<void>;
   telemetryData?: any;
   isConnected: boolean;
   robotType?: "real" | "virtual" | null;
@@ -269,6 +270,7 @@ function RobotControlsSection({
   onMotorCommand,
   onContinuousMotorCommand,
   onMotorStopCommand,
+  onExecuteCommandSequence,
   telemetryData,
   isConnected,
   robotType,
@@ -336,6 +338,7 @@ function RobotControlsSection({
         onMotorCommand={onMotorCommand}
         onContinuousMotorCommand={onContinuousMotorCommand}
         onMotorStopCommand={onMotorStopCommand}
+        onExecuteCommandSequence={onExecuteCommandSequence}
         telemetryData={telemetryData}
         isConnected={isConnected}
         robotType={robotType}
@@ -829,6 +832,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           onMotorCommand={sendMotorCommand}
           onContinuousMotorCommand={sendContinuousMotorCommand}
           onMotorStopCommand={sendMotorStopCommand}
+          onExecuteCommandSequence={robotConnection.executeCommandSequence}
           telemetryData={telemetryData}
           isConnected={isConnected}
           robotType={robotType}
@@ -879,6 +883,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             onMotorCommand={sendMotorCommand}
             onContinuousMotorCommand={sendContinuousMotorCommand}
             onMotorStopCommand={sendMotorStopCommand}
+            onExecuteCommandSequence={robotConnection.executeCommandSequence}
             telemetryData={telemetryData}
             isConnected={isConnected}
             robotType={robotType}

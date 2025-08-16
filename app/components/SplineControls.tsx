@@ -50,6 +50,7 @@ export function SplineControls({
               <button
                 onClick={() => {
                   console.log("Execute spline path", currentSplinePath);
+                  onExecutePath(currentSplinePath);
                 }}
                 className="flex-1 px-3 py-2 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
               >

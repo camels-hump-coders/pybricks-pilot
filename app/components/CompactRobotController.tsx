@@ -43,6 +43,7 @@ interface CompactRobotControllerProps {
   ) => Promise<void>;
   onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand?: (motor: string) => Promise<void>;
+  onExecuteCommandSequence?: (commands: any[]) => Promise<void>;
   telemetryData?: any;
   isConnected: boolean;
   className?: string;
@@ -267,6 +268,7 @@ export function CompactRobotController({
   onMotorCommand,
   onContinuousMotorCommand,
   onMotorStopCommand,
+  onExecuteCommandSequence,
   telemetryData,
   isConnected,
   className = "",
@@ -907,20 +909,61 @@ export function CompactRobotController({
 
   // Spline path execution handler
   const handleExecutePath = async (path: any) => {
+    console.log("Execute spline path", path);
+    console.log("onExecuteCommandSequence available:", !!onExecuteCommandSequence);
+    console.log("isFullyConnected:", isFullyConnected);
+    console.log("robotType:", robotType);
+    
     const { executeSplinePath } = await import("../utils/splinePathCommands");
 
     const executeCommands = async (commands: any[]) => {
-      for (const cmd of commands) {
-        if (cmd.action === "turn" && onTurnCommand) {
-          await onTurnCommand(cmd.angle, cmd.speed);
-        } else if (cmd.action === "drive" && onDriveCommand) {
-          await onDriveCommand(cmd.distance, cmd.speed);
+      console.log("executeCommands called with:", commands);
+      console.log("Commands details:", JSON.stringify(commands, null, 2));
+      
+      if (onExecuteCommandSequence) {
+        // Use command sequence for proper stop behavior handling
+        console.log("Executing command sequence:", commands);
+        try {
+          await onExecuteCommandSequence(commands);
+        } catch (error) {
+          console.error("Command sequence failed:", error);
+          // Fallback to individual commands on GATT error
+          console.log("Falling back to individual commands due to error");
+          for (const cmd of commands) {
+            try {
+              if (cmd.action === "turn" && onTurnCommand) {
+                console.log("Executing individual turn:", cmd);
+                await onTurnCommand(cmd.angle, cmd.speed);
+              } else if (cmd.action === "drive" && onDriveCommand) {
+                console.log("Executing individual drive:", cmd);
+                await onDriveCommand(cmd.distance, cmd.speed);
+              }
+              await new Promise((resolve) => setTimeout(resolve, 500)); // Longer delay for individual commands
+            } catch (individualError) {
+              console.error("Individual command failed:", cmd, individualError);
+            }
+          }
         }
-        await new Promise((resolve) => setTimeout(resolve, 100));
+      } else {
+        // Fallback to individual commands
+        console.log("Fallback to individual commands:", commands);
+        for (const cmd of commands) {
+          if (cmd.action === "turn" && onTurnCommand) {
+            await onTurnCommand(cmd.angle, cmd.speed);
+          } else if (cmd.action === "drive" && onDriveCommand) {
+            await onDriveCommand(cmd.distance, cmd.speed);
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
       }
     };
 
-    await executeSplinePath(path, executeCommands);
+    try {
+      await executeSplinePath(path, executeCommands);
+      console.log("executeSplinePath completed");
+    } catch (error) {
+      console.error("executeSplinePath failed:", error);
+    }
   };
 
   // Update position preview when edge settings change
