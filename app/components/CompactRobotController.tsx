@@ -6,11 +6,11 @@ import { useUploadProgress } from "../hooks/useUploadProgress";
 import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
+  perpendicularPreviewAtom,
   robotPositionAtom,
   setRobotPositionAtom,
   showGridOverlayAtom,
   showTrajectoryOverlayAtom,
-  perpendicularPreviewAtom,
 } from "../store/atoms/gameMat";
 import { isUploadingProgramAtom } from "../store/atoms/hubConnection";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
@@ -303,8 +303,12 @@ export function CompactRobotController({
   const isUploadingProgram = useAtomValue(isUploadingProgramAtom);
   const setRobotPosition = useSetAtom(setRobotPositionAtom);
   const [showGridOverlay, setShowGridOverlay] = useAtom(showGridOverlayAtom);
-  const [showTrajectoryOverlay, setShowTrajectoryOverlay] = useAtom(showTrajectoryOverlayAtom);
-  const [perpendicularPreview, setPerpendicularPreview] = useAtom(perpendicularPreviewAtom);
+  const [showTrajectoryOverlay, setShowTrajectoryOverlay] = useAtom(
+    showTrajectoryOverlayAtom
+  );
+  const [perpendicularPreview, setPerpendicularPreview] = useAtom(
+    perpendicularPreviewAtom
+  );
 
   // Position setting state
   const [isSettingPosition, setIsSettingPosition] = useState(false);
@@ -329,13 +333,13 @@ export function CompactRobotController({
   useEffect(() => {
     if (showTrajectoryOverlay && currentRobotPosition && robotConfig) {
       // Only update if there are no hover ghosts currently
-      setPerpendicularPreview(prev => {
+      setPerpendicularPreview((prev) => {
         const hasHoverGhosts = prev.ghosts.some((g: any) => g.isHover);
         if (hasHoverGhosts) {
           // Don't update trajectory ghosts if there are hover ghosts
           return prev;
         }
-        
+
         // Recalculate trajectory overlay ghosts with new distance/angle
         const ghosts = [];
 
@@ -443,15 +447,23 @@ export function CompactRobotController({
         };
       });
     }
-  }, [distance, angle, showTrajectoryOverlay, currentRobotPosition, robotConfig]);
+  }, [
+    distance,
+    angle,
+    showTrajectoryOverlay,
+    currentRobotPosition,
+    robotConfig,
+  ]);
 
   // Separate effect to clear trajectory overlay when disabled
   useEffect(() => {
     if (!showTrajectoryOverlay) {
       // Only clear if the current ghosts are trajectory overlay ghosts
-      setPerpendicularPreview(prev => {
+      setPerpendicularPreview((prev) => {
         // If all current ghosts are trajectory overlay ghosts, clear them
-        const hasOnlyTrajectoryGhosts = prev.ghosts.every(ghost => (ghost as any).isTrajectoryOverlay);
+        const hasOnlyTrajectoryGhosts = prev.ghosts.every(
+          (ghost) => (ghost as any).isTrajectoryOverlay
+        );
         if (hasOnlyTrajectoryGhosts && prev.ghosts.length > 0) {
           return {
             show: false,
@@ -838,34 +850,43 @@ export function CompactRobotController({
 
       // Also update perpendicular preview for hover effect - always show to draw attention
       let ghostPosition = previewPosition;
-      
+
       // For turn previews, just show the turn (no forward movement)
-      
+
       const hoverGhost = {
         position: ghostPosition,
         type: type as "drive" | "turn",
         direction: direction as "forward" | "backward" | "left" | "right",
-        color: type === "drive" 
-          ? (direction === "forward" ? "#10b981" : "#f97316")  // green for forward, orange for backward
-          : (direction === "left" ? "#a855f7" : "#06b6d4"),  // purple for left, cyan for right
-        label: type === "drive"
-          ? `${direction === "forward" ? "↑" : "↓"} ${distance}mm`
-          : `${direction === "left" ? "↶" : "↷"} ${angle}°`,
-        isHover: true,  // Mark this as a hover ghost for bolder rendering
+        color:
+          type === "drive"
+            ? direction === "forward"
+              ? "#10b981"
+              : "#f97316" // green for forward, orange for backward
+            : direction === "left"
+              ? "#a855f7"
+              : "#06b6d4", // purple for left, cyan for right
+        label:
+          type === "drive"
+            ? `${direction === "forward" ? "↑" : "↓"} ${distance}mm`
+            : `${direction === "left" ? "↶" : "↷"} ${angle}°`,
+        isHover: true, // Mark this as a hover ghost for bolder rendering
       };
-      
-      
+
       // If trajectory overlay is on, add the hover ghost to existing ghosts
       // Otherwise, just show the hover ghost
       if (showTrajectoryOverlay) {
         // Keep existing ghosts and add hover ghost with higher opacity
         const newPreview = {
           show: true,
-          ghosts: [...perpendicularPreview.ghosts.filter((g: any) => 
-            // Remove any previous hover ghost (identified by isHover flag)
-            // Don't remove trajectory overlay ghosts, we want both turn ghosts visible
-            !g.isHover
-          ), hoverGhost],
+          ghosts: [
+            ...perpendicularPreview.ghosts.filter(
+              (g: any) =>
+                // Remove any previous hover ghost (identified by isHover flag)
+                // Don't remove trajectory overlay ghosts, we want both turn ghosts visible
+                !g.isHover
+            ),
+            hoverGhost,
+          ],
           distance: distance,
           angle: angle,
         };
@@ -887,11 +908,11 @@ export function CompactRobotController({
         trajectoryProjection: undefined,
         secondaryTrajectoryProjection: undefined,
       });
-      
+
       // Clear hover ghost on mouse leave
       if (showTrajectoryOverlay) {
         // Keep the trajectory overlay ghosts, just remove hover ghosts
-        setPerpendicularPreview(prev => ({
+        setPerpendicularPreview((prev) => ({
           ...prev,
           ghosts: prev.ghosts.filter((g: any) => !g.isHover),
         }));
@@ -910,16 +931,19 @@ export function CompactRobotController({
   // Spline path execution handler
   const handleExecutePath = async (path: any) => {
     console.log("Execute spline path", path);
-    console.log("onExecuteCommandSequence available:", !!onExecuteCommandSequence);
+    console.log(
+      "onExecuteCommandSequence available:",
+      !!onExecuteCommandSequence
+    );
     console.log("isFullyConnected:", isFullyConnected);
     console.log("robotType:", robotType);
-    
+
     const { executeSplinePath } = await import("../utils/splinePathCommands");
 
     const executeCommands = async (commands: any[]) => {
       console.log("executeCommands called with:", commands);
       console.log("Commands details:", JSON.stringify(commands, null, 2));
-      
+
       if (onExecuteCommandSequence) {
         // Use command sequence for proper stop behavior handling
         console.log("Executing command sequence:", commands);
@@ -991,17 +1015,6 @@ export function CompactRobotController({
           primary: positionPreview,
           secondary: null,
         },
-      });
-    } else if (
-      !positionPreview &&
-      onPreviewUpdate &&
-      isSettingPosition === false
-    ) {
-      // Clear preview when exiting position setting mode
-      onPreviewUpdate({
-        type: null,
-        direction: null,
-        positions: { primary: null, secondary: null },
       });
     }
   }, [positionPreview, onPreviewUpdate, isSettingPosition]);

@@ -348,7 +348,10 @@ function RobotControlsSection({
         onUploadAndRunFile={onUploadAndRunFile}
         isUploading={isUploading}
         debugEvents={debugEvents}
-        onPreviewUpdate={() => {}} // TODO: Add preview update functionality
+        onPreviewUpdate={(preview) => {
+          // Update movement preview atom for EnhancedCompetitionMat to display
+          setMovementPreview(preview);
+        }}
       />
     </div>
   );
