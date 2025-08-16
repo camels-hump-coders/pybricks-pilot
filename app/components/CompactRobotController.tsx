@@ -13,7 +13,6 @@ import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { type RobotPosition } from "../utils/robotPosition";
 import { ControlModeToggle } from "./ControlModeToggle";
-import { HubMenuInterface } from "./HubMenuInterface";
 import { ManualControls } from "./ManualControls";
 import { MotorControls } from "./MotorControls";
 import {
@@ -110,7 +109,6 @@ export function CompactRobotController({
   const [executingCommand, setExecutingCommand] =
     useState<ExecutingCommand | null>(null);
   const [activeMotor, setActiveMotor] = useState<string | null>(null);
-  const [hubMenuOpen, setHubMenuOpen] = useState(false);
 
   // Refs
   const commandChainRef = useRef<Promise<void>>(Promise.resolve());
@@ -784,14 +782,6 @@ export function CompactRobotController({
         </div>
       </div>
 
-      {/* Quick Program Controls - Only show for real robots */}
-      {robotType === "real" && (
-        <ProgramControls
-          onStopProgram={onStopProgram}
-          onUploadAndRunFile={onUploadAndRunFile}
-        />
-      )}
-
       {/* Main Controls */}
       <div className="p-3">
         <div className="space-y-3 sm:space-y-4">
@@ -799,18 +789,22 @@ export function CompactRobotController({
           <PositionControls onResetTelemetry={onResetTelemetry} />
 
           {/* Control Mode Toggle - Only visible for real robots when hub program is running */}
-          {(robotType === "virtual" ||
-            (robotType === "real" && isProgramRunning)) && (
-            <ControlModeToggle
-              controlMode={controlMode}
-              setControlMode={setControlMode}
-              onEnterSplineMode={() => enterSplinePathMode()}
-              onExitSplineMode={exitSplinePathMode}
+          <ControlModeToggle
+            controlMode={controlMode}
+            setControlMode={setControlMode}
+            onEnterSplineMode={() => enterSplinePathMode()}
+            onExitSplineMode={exitSplinePathMode}
+          />
+
+          {controlMode === "program" && (
+            <ProgramControls
+              onStopProgram={onStopProgram}
+              onUploadAndRunFile={onUploadAndRunFile}
             />
           )}
 
           {/* Manual Controls (Step/Hold modes) - Only visible for virtual robots or real robots when hub program is running */}
-          {controlMode !== "spline" &&
+          {(controlMode === "incremental" || controlMode === "continuous") &&
             (robotType === "virtual" ||
               (robotType === "real" && isProgramRunning)) && (
               <div>
@@ -869,24 +863,6 @@ export function CompactRobotController({
             )}
         </div>
       </div>
-
-      {/* Hub Menu Interface */}
-      {hubMenuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Hub Control</h3>
-              <button
-                onClick={() => setHubMenuOpen(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <HubMenuInterface />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

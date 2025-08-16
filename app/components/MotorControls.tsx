@@ -90,14 +90,10 @@ export function MotorControls({
                 </button>
               ) : (
                 <button
-                  onMouseDown={() =>
-                    onStartContinuousMotor(motorName, "ccw")
-                  }
+                  onMouseDown={() => onStartContinuousMotor(motorName, "ccw")}
                   onMouseUp={onStopContinuousMotor}
                   onMouseLeave={onStopContinuousMotor}
-                  onTouchStart={() =>
-                    onStartContinuousMotor(motorName, "ccw")
-                  }
+                  onTouchStart={() => onStartContinuousMotor(motorName, "ccw")}
                   onTouchEnd={onStopContinuousMotor}
                   className="px-2 py-2 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
                   title={`${motorName} CCW (Hold)`}
@@ -117,14 +113,10 @@ export function MotorControls({
                 </button>
               ) : (
                 <button
-                  onMouseDown={() =>
-                    onStartContinuousMotor(motorName, "cw")
-                  }
+                  onMouseDown={() => onStartContinuousMotor(motorName, "cw")}
                   onMouseUp={onStopContinuousMotor}
                   onMouseLeave={onStopContinuousMotor}
-                  onTouchStart={() =>
-                    onStartContinuousMotor(motorName, "cw")
-                  }
+                  onTouchStart={() => onStartContinuousMotor(motorName, "cw")}
                   onTouchEnd={onStopContinuousMotor}
                   className="px-2 py-2 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 active:bg-purple-700 transition-colors"
                   title={`${motorName} CW (Hold)`}

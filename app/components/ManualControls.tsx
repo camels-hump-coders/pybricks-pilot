@@ -1,3 +1,5 @@
+import type { ControlMode } from "../store/atoms/gameMat";
+
 interface ExecutingCommand {
   type: "drive" | "turn";
   direction: "forward" | "backward" | "left" | "right";
@@ -5,7 +7,7 @@ interface ExecutingCommand {
 }
 
 interface ManualControlsProps {
-  controlMode: "incremental" | "continuous";
+  controlMode: ControlMode;
   distance: number;
   setDistance: (distance: number) => void;
   angle: number;
@@ -14,8 +16,15 @@ interface ManualControlsProps {
   setDriveSpeed: (speed: number) => void;
   executingCommand: ExecutingCommand | null;
   isFullyConnected: boolean;
-  onUpdatePreview: (type: "drive" | "turn" | null, direction: "forward" | "backward" | "left" | "right" | null) => void;
-  onUpdateDualPreview?: (type: "drive" | "turn", distance?: number, angle?: number) => void;
+  onUpdatePreview: (
+    type: "drive" | "turn" | null,
+    direction: "forward" | "backward" | "left" | "right" | null
+  ) => void;
+  onUpdateDualPreview?: (
+    type: "drive" | "turn",
+    distance?: number,
+    angle?: number
+  ) => void;
   onSendStepDrive: (distance: number, speed: number) => void;
   onSendStepTurn: (angle: number, speed: number) => void;
   onStartContinuousDrive: (direction: "forward" | "backward") => void;
@@ -79,7 +88,9 @@ export function ManualControls({
                 onInput={(e) => {
                   // Update preview in real-time as slider is dragged
                   if (onUpdateDualPreview) {
-                    const currentValue = Number((e.target as HTMLInputElement).value);
+                    const currentValue = Number(
+                      (e.target as HTMLInputElement).value
+                    );
                     onUpdateDualPreview("drive", currentValue, angle);
                   }
                 }}
@@ -110,7 +121,9 @@ export function ManualControls({
                 onInput={(e) => {
                   // Update preview in real-time as slider is dragged
                   if (onUpdateDualPreview) {
-                    const currentValue = Number((e.target as HTMLInputElement).value);
+                    const currentValue = Number(
+                      (e.target as HTMLInputElement).value
+                    );
                     onUpdateDualPreview("turn", distance, currentValue);
                   }
                 }}
@@ -212,10 +225,11 @@ export function ManualControls({
       <div className="grid grid-cols-3 gap-2 mb-2 sm:mb-3">
         {/* Empty cell */}
         <div></div>
-        
+
         {/* Forward Button */}
         {controlMode === "incremental" ? (
-          executingCommand?.type === "drive" && executingCommand?.direction === "forward" ? (
+          executingCommand?.type === "drive" &&
+          executingCommand?.direction === "forward" ? (
             <button
               onClick={onStopExecutingCommand}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
@@ -248,13 +262,14 @@ export function ManualControls({
             ↑
           </button>
         )}
-        
+
         {/* Empty cell */}
         <div></div>
 
         {/* Left Turn Button */}
         {controlMode === "incremental" ? (
-          executingCommand?.type === "turn" && executingCommand?.direction === "left" ? (
+          executingCommand?.type === "turn" &&
+          executingCommand?.direction === "left" ? (
             <button
               onClick={onStopExecutingCommand}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
@@ -287,7 +302,7 @@ export function ManualControls({
             ↶
           </button>
         )}
-        
+
         {/* Stop Button - Center */}
         <button
           onClick={onSendStop}
@@ -296,10 +311,11 @@ export function ManualControls({
         >
           ⏹
         </button>
-        
+
         {/* Right Turn Button */}
         {controlMode === "incremental" ? (
-          executingCommand?.type === "turn" && executingCommand?.direction === "right" ? (
+          executingCommand?.type === "turn" &&
+          executingCommand?.direction === "right" ? (
             <button
               onClick={onStopExecutingCommand}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
@@ -335,10 +351,11 @@ export function ManualControls({
 
         {/* Empty cell */}
         <div></div>
-        
+
         {/* Backward Button */}
         {controlMode === "incremental" ? (
-          executingCommand?.type === "drive" && executingCommand?.direction === "backward" ? (
+          executingCommand?.type === "drive" &&
+          executingCommand?.direction === "backward" ? (
             <button
               onClick={onStopExecutingCommand}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
@@ -371,7 +388,7 @@ export function ManualControls({
             ↓
           </button>
         )}
-        
+
         {/* Empty cell */}
         <div></div>
       </div>

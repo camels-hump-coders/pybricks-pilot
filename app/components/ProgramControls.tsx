@@ -24,6 +24,11 @@ export function ProgramControls({
   const { isConnected } = useJotaiRobotConnection();
   // Upload progress (for UI display)
   const { uploadProgress } = useUploadProgress();
+  const { robotType } = useJotaiRobotConnection();
+
+  if (robotType === "virtual") {
+    return null;
+  }
 
   return (
     <div className="p-3 border-b border-gray-200 dark:border-gray-700">

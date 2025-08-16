@@ -186,10 +186,10 @@ export const pathColorModeAtom = atom<"time" | "speed" | "heading">("time");
 export const pathOpacityAtom = atom<number>(0.7);
 export const maxPathPointsAtom = atom<number>(1000);
 
+export type ControlMode = "incremental" | "continuous" | "spline" | "program";
+
 // Control mode atom
-export const controlModeAtom = atom<"incremental" | "continuous" | "spline">(
-  "incremental"
-);
+export const controlModeAtom = atom<ControlMode>("program");
 
 // Derived atoms
 export const currentScoreAtom = atom((get) => {

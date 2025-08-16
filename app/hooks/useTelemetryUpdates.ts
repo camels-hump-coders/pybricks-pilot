@@ -15,10 +15,6 @@ interface UseTelemetryUpdatesProps {
   manualHeadingAdjustment: number;
   isCmdKeyPressed: boolean;
   onTelemetryReferenceUpdate: (ref: TelemetryReference) => void;
-  onAccumulatedTelemetryUpdate: (data: {
-    distance: number;
-    angle: number;
-  }) => void;
   onRobotPositionUpdate: (telemetryData: any) => void;
 }
 
@@ -32,7 +28,6 @@ export function useTelemetryUpdates({
   manualHeadingAdjustment,
   isCmdKeyPressed,
   onTelemetryReferenceUpdate,
-  onAccumulatedTelemetryUpdate,
   onRobotPositionUpdate,
 }: UseTelemetryUpdatesProps) {
   // Use refs for values that need to be accessed in event handlers
@@ -167,12 +162,6 @@ export function useTelemetryUpdates({
       };
       telemetryReferenceRef.current = newReference;
       onTelemetryReferenceUpdate(newReference);
-
-      // Update accumulated telemetry state for external consumption
-      onAccumulatedTelemetryUpdate({
-        distance: currentDistance,
-        angle: currentAngle,
-      });
     };
 
     // Subscribe to telemetry events from the global document
@@ -181,10 +170,5 @@ export function useTelemetryUpdates({
     return () => {
       document.removeEventListener("telemetry", handleTelemetryEvent);
     };
-  }, [
-    isConnected,
-    onTelemetryReferenceUpdate,
-    onAccumulatedTelemetryUpdate,
-    onRobotPositionUpdate,
-  ]);
+  }, [isConnected, onTelemetryReferenceUpdate, onRobotPositionUpdate]);
 }

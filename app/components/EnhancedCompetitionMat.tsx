@@ -2,10 +2,8 @@ import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
-import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useMatImageLoader } from "../hooks/useMatImageLoader";
 import { useTelemetryUpdates } from "../hooks/useTelemetryUpdates";
-import type { GameMatConfig } from "../schemas/GameMatConfig";
 import {
   telemetryHistory,
   type TelemetryPoint,
@@ -18,7 +16,11 @@ import {
   hoveredPointAtom,
   missionBoundsAtom,
 } from "../store/atoms/canvasState";
-import { controlModeAtom, customMatConfigAtom, showGridOverlayAtom } from "../store/atoms/gameMat";
+import {
+  controlModeAtom,
+  customMatConfigAtom,
+  showGridOverlayAtom,
+} from "../store/atoms/gameMat";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { telemetryDataAtom } from "../store/atoms/robotConnection";
@@ -74,14 +76,6 @@ export function EnhancedCompetitionMat({
   // Get control mode from global atom
   const controlMode = useAtomValue(controlModeAtom);
 
-  const robotConnection = useJotaiRobotConnection();
-  const {
-    sendDriveCommand,
-    sendTurnCommand,
-    turnAndDrive,
-    isConnected: robotIsConnected,
-  } = robotConnection;
-
   // Get robot configuration
   const robotConfig = useAtomValue(robotConfigAtom);
   const allTelemetryPoints = useAtomValue(allTelemetryPointsAtom);
@@ -111,31 +105,18 @@ export function EnhancedCompetitionMat({
     setHoveredSplinePointId,
     hoveredCurvatureHandlePointId,
     setHoveredCurvatureHandlePointId,
-    enterSplinePathMode,
     exitSplinePathMode,
     addSplinePointAtMousePosition,
     updateSplinePoint,
     deleteSplinePoint,
     completeSplinePath,
-    // Control point actions
-    addControlPoint,
     updateControlPoint,
-    removeControlPoint,
     // Curvature handle actions
     updateCurvatureHandle,
-    addCurvatureHandlesToIntermediatePoints,
   } = gameMat;
 
-  // Local state that doesn't need to be in Jotai
-  const [accumulatedTelemetry, setAccumulatedTelemetry] = useState({
-    distance: 0,
-    angle: 0,
-  });
   const [popoverObject, setPopoverObject] = useState<string | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
+
   // Canvas state from atoms
   const [hoveredObject, setHoveredObject] = useAtom(hoveredObjectAtom);
   const [scale, setScale] = useAtom(canvasScaleAtom);
@@ -492,8 +473,8 @@ export function EnhancedCompetitionMat({
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
 
-    // Draw missions if custom mat
-    if (customMatConfig && showScoring) {
+    // Draw missions if custom mat and in program mode
+    if (customMatConfig && showScoring && controlMode === "program") {
       drawMissions(
         ctx,
         customMatConfig,
@@ -571,7 +552,9 @@ export function EnhancedCompetitionMat({
       ctx,
       movementPreview,
       currentPosition,
-      controlMode === "spline" ? "incremental" : controlMode, // Fallback to incremental for spline mode
+      controlMode === "spline" || controlMode === "program"
+        ? "incremental"
+        : controlMode, // Fallback to incremental for spline and program modes
       robotConfig,
       { mmToCanvas, scale }
     );
@@ -694,7 +677,6 @@ export function EnhancedCompetitionMat({
     manualHeadingAdjustment,
     isCmdKeyPressed,
     onTelemetryReferenceUpdate: setTelemetryReference,
-    onAccumulatedTelemetryUpdate: setAccumulatedTelemetry,
     onRobotPositionUpdate: updateRobotPositionFromTelemetry,
   });
 
@@ -705,28 +687,13 @@ export function EnhancedCompetitionMat({
   const customMatConfigRef = useRef(customMatConfig);
   const showScoringRef = useRef(showScoring);
   const isCmdKeyPressedRef = useRef(isCmdKeyPressed);
+
   isCmdKeyPressedRef.current = isCmdKeyPressed;
-
-  // Update refs when values change
-  useEffect(() => {
-    telemetryReferenceRef.current = telemetryReference;
-  }, [telemetryReference]);
-
-  useEffect(() => {
-    currentPositionRef.current = currentPosition;
-  }, [currentPosition]);
-
-  useEffect(() => {
-    manualHeadingAdjustmentRef.current = manualHeadingAdjustment;
-  }, [manualHeadingAdjustment]);
-
-  useEffect(() => {
-    customMatConfigRef.current = customMatConfig;
-  }, [customMatConfig]);
-
-  useEffect(() => {
-    showScoringRef.current = showScoring;
-  }, [showScoring]);
+  telemetryReferenceRef.current = telemetryReference;
+  currentPositionRef.current = currentPosition;
+  manualHeadingAdjustmentRef.current = manualHeadingAdjustment;
+  customMatConfigRef.current = customMatConfig;
+  showScoringRef.current = showScoring;
 
   // Initialize telemetry reference when robot position is available but reference is not set
   useEffect(() => {
@@ -865,17 +832,15 @@ export function EnhancedCompetitionMat({
       return;
     }
 
-    // Check for mission clicks (if scoring is enabled)
-    if (showScoring) {
+    // Check for mission clicks (if scoring is enabled and in program mode)
+    if (showScoring && controlMode === "program") {
       const clickedObjectId = checkMissionClick(canvasX, canvasY);
       if (clickedObjectId) {
         setPopoverObject(clickedObjectId);
-        setPopoverPosition({ x: event.clientX, y: event.clientY });
         return;
       } else {
         // Close popover if clicking elsewhere
         setPopoverObject(null);
-        setPopoverPosition(null);
       }
     }
   };
@@ -1026,8 +991,8 @@ export function EnhancedCompetitionMat({
       setTooltipPosition(null);
     }
 
-    // Check for mission hover
-    if (showScoring) {
+    // Check for mission hover (only in program mode)
+    if (showScoring && controlMode === "program") {
       const hoveredObjectId = checkMissionClick(canvasX, canvasY);
       setHoveredObject(hoveredObjectId);
     } else {
@@ -1171,6 +1136,7 @@ export function EnhancedCompetitionMat({
     customMatConfig?.name,
     scoringState,
     showScoring,
+    controlMode, // Added to trigger redraw when control mode changes
     ghostPosition, // Added to trigger redraw when ghost moves
     updateCanvas,
   ]);
@@ -1717,7 +1683,6 @@ export function EnhancedCompetitionMat({
               scoringState={scoringState}
               onClose={() => {
                 setPopoverObject(null);
-                setPopoverPosition(null);
               }}
               onToggleObjective={toggleObjective}
             />
