@@ -1,6 +1,7 @@
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { LEGO_STUD_SIZE_MM } from "../../schemas/RobotConfig";
-import type { RobotPosition, RobotDrawingUtils } from "./robotDrawing";
+import type { RobotPosition } from "../robotPosition";
+import type { RobotDrawingUtils } from "./robotDrawing";
 
 export interface RobotBounds {
   centerOfRotation: { x: number; y: number };
@@ -22,7 +23,7 @@ export function calculateRobotBounds(
   utils: RobotDrawingUtils
 ): RobotBounds {
   const { mmToCanvas, scale } = utils;
-  
+
   // EXACT SAME LOGIC as drawRobot function - position IS the center of rotation
   const centerOfRotationPos = mmToCanvas(position.x, position.y);
   const heading = (position.heading * Math.PI) / 180;
@@ -47,10 +48,16 @@ export function calculateRobotBounds(
   // Calculate actual robot body center position after applying rotation (matches drawRobot logic)
   // This follows the same transformation as drawRobot:
   // 1. Translate to center of rotation position
-  // 2. Rotate around center of rotation  
+  // 2. Rotate around center of rotation
   // 3. Translate to robot body center for drawing
-  const robotBodyCenterX = centerOfRotationPos.x + Math.cos(heading) * robotBodyOffsetX - Math.sin(heading) * robotBodyOffsetY;
-  const robotBodyCenterY = centerOfRotationPos.y + Math.sin(heading) * robotBodyOffsetX + Math.cos(heading) * robotBodyOffsetY;
+  const robotBodyCenterX =
+    centerOfRotationPos.x +
+    Math.cos(heading) * robotBodyOffsetX -
+    Math.sin(heading) * robotBodyOffsetY;
+  const robotBodyCenterY =
+    centerOfRotationPos.y +
+    Math.sin(heading) * robotBodyOffsetX +
+    Math.cos(heading) * robotBodyOffsetY;
 
   return {
     centerOfRotation: centerOfRotationPos,
@@ -59,7 +66,7 @@ export function calculateRobotBounds(
     robotBodyOffsetY,
     robotWidth,
     robotLength,
-    heading
+    heading,
   };
 }
 
@@ -74,13 +81,20 @@ export function isPointInRobotBounds(
   // Transform mouse coordinates to robot's local coordinate system
   const relativeX = canvasX - bounds.robotBodyCenter.x;
   const relativeY = canvasY - bounds.robotBodyCenter.y;
-  
+
   // Rotate the relative coordinates by the negative robot heading to align with robot's axes
-  const localX = Math.cos(-bounds.heading) * relativeX - Math.sin(-bounds.heading) * relativeY;
-  const localY = Math.sin(-bounds.heading) * relativeX + Math.cos(-bounds.heading) * relativeY;
-  
+  const localX =
+    Math.cos(-bounds.heading) * relativeX -
+    Math.sin(-bounds.heading) * relativeY;
+  const localY =
+    Math.sin(-bounds.heading) * relativeX +
+    Math.cos(-bounds.heading) * relativeY;
+
   // Check if the point is within the robot's rectangular bounds
-  return Math.abs(localX) <= bounds.robotWidth / 2 && Math.abs(localY) <= bounds.robotLength / 2;
+  return (
+    Math.abs(localX) <= bounds.robotWidth / 2 &&
+    Math.abs(localY) <= bounds.robotLength / 2
+  );
 }
 
 /**
@@ -94,7 +108,7 @@ export function calculateHeadingToTarget(
   const dx = targetX - robotPosition.x;
   const dy = targetY - robotPosition.y;
   // Use same formula as CompactRobotController: Math.atan2(dy, dx) + 90
-  let heading = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+  let heading = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
   // Normalize to -180 to 180 range to match our heading system
   if (heading > 180) heading -= 360;
   return heading;

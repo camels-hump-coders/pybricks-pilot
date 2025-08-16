@@ -1,8 +1,4 @@
-interface RobotPosition {
-  x: number; // mm from left edge of mat
-  y: number; // mm from top edge of mat (0 = top edge, positive = downward)
-  heading: number; // degrees clockwise from north (0 = north, 90 = east)
-}
+import type { RobotPosition } from "../utils/robotPosition";
 
 interface RobotConfig {
   dimensions: { width: number; length: number };
@@ -36,7 +32,7 @@ export function calculatePreviewPosition(
     // SIMPLIFIED MODEL: Only change heading, center of rotation stays in place
     const turnAngle = direction === "left" ? -angle : angle;
     newHeading = (currentPosition.heading + turnAngle + 360) % 360;
-    
+
     // Position stays the same - tank turning rotates around center of rotation
     newX = currentPosition.x;
     newY = currentPosition.y;

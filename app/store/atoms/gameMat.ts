@@ -2,13 +2,8 @@ import { atom } from "jotai";
 import type { GameMatConfig } from "../../schemas/GameMatConfig";
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { DEFAULT_ROBOT_CONFIG, studsToMm } from "../../schemas/RobotConfig";
+import type { RobotPosition } from "../../utils/robotPosition";
 import { robotConfigAtom } from "./robotConfigSimplified";
-
-export interface RobotPosition {
-  x: number; // mm from left edge of mat
-  y: number; // mm from top edge of mat (0 = top edge, positive = downward)
-  heading: number; // degrees clockwise from north (0 = north, 90 = east)
-}
 
 export interface MovementPreview {
   type: "drive" | "turn" | null;
@@ -65,8 +60,12 @@ export const calculateRobotPositionWithDimensions = (
 ): RobotPosition => {
   const robotWidthMm = studsToMm(robotConfig.dimensions.width);
   const robotLengthMm = studsToMm(robotConfig.dimensions.length);
-  const centerOfRotationFromLeftMm = studsToMm(robotConfig.centerOfRotation.distanceFromLeftEdge);
-  const centerOfRotationFromTopMm = studsToMm(robotConfig.centerOfRotation.distanceFromTop);
+  const centerOfRotationFromLeftMm = studsToMm(
+    robotConfig.centerOfRotation.distanceFromLeftEdge
+  );
+  const centerOfRotationFromTopMm = studsToMm(
+    robotConfig.centerOfRotation.distanceFromTop
+  );
 
   // SIMPLIFIED MODEL: Position represents the center of rotation, not robot body center
   // For edge positions, we want the robot's physical edge to be flush against the mat edge
@@ -110,7 +109,12 @@ export const calculateRobotPosition = (
   robotConfig: RobotConfig,
   position: "bottom-right" | "bottom-left" | "center"
 ): RobotPosition => {
-  return calculateRobotPositionWithDimensions(robotConfig, position, MAT_WIDTH_MM, MAT_HEIGHT_MM);
+  return calculateRobotPositionWithDimensions(
+    robotConfig,
+    position,
+    MAT_WIDTH_MM,
+    MAT_HEIGHT_MM
+  );
 };
 
 // Robot position atoms - derived atom that uses current mat and robot config
@@ -123,12 +127,17 @@ export const robotPositionAtom = atom<RobotPosition>(
 export const initialRobotPositionAtom = atom((get) => {
   const robotConfig = get(robotConfigAtom);
   const matConfig = get(customMatConfigAtom);
-  
+
   // Use mat dimensions from config if available, otherwise use defaults
   const matWidthMm = matConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
   const matHeightMm = matConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
-  
-  return calculateRobotPositionWithDimensions(robotConfig, "bottom-right", matWidthMm, matHeightMm);
+
+  return calculateRobotPositionWithDimensions(
+    robotConfig,
+    "bottom-right",
+    matWidthMm,
+    matHeightMm
+  );
 });
 
 export const isSettingPositionAtom = atom<boolean>(false);
@@ -243,65 +252,62 @@ export const resetScoringAtom = atom(null, (get, set) => {
 });
 
 // Spline path action atoms
-export const createSplinePathAtom = atom(
-  null,
-  (get, set, name: string) => {
-    // Always start with current robot position as first point
-    const currentRobotPosition = get(robotPositionAtom);
-    const firstPoint: SplinePathPoint = {
-      id: `point_${Date.now()}_start`,
-      position: currentRobotPosition,
-      timestamp: Date.now(),
-    };
-    
-    const newPath: SplinePath = {
-      id: `path_${Date.now()}`,
-      name,
-      points: [firstPoint],
-      isComplete: false,
-      createdAt: Date.now(),
-      modifiedAt: Date.now(),
-    };
-    
-    set(currentSplinePathAtom, newPath);
-    set(isSplinePathModeAtom, true);
-    set(selectedSplinePointIdAtom, null);
-    
-    const paths = get(splinePathsAtom);
-    set(splinePathsAtom, [...paths, newPath]);
-    
-    return newPath.id;
-  }
-);
+export const createSplinePathAtom = atom(null, (get, set, name: string) => {
+  // Always start with current robot position as first point
+  const currentRobotPosition = get(robotPositionAtom);
+  const firstPoint: SplinePathPoint = {
+    id: `point_${Date.now()}_start`,
+    position: currentRobotPosition,
+    timestamp: Date.now(),
+  };
+
+  const newPath: SplinePath = {
+    id: `path_${Date.now()}`,
+    name,
+    points: [firstPoint],
+    isComplete: false,
+    createdAt: Date.now(),
+    modifiedAt: Date.now(),
+  };
+
+  set(currentSplinePathAtom, newPath);
+  set(isSplinePathModeAtom, true);
+  set(selectedSplinePointIdAtom, null);
+
+  const paths = get(splinePathsAtom);
+  set(splinePathsAtom, [...paths, newPath]);
+
+  return newPath.id;
+});
 
 export const addSplinePointAtom = atom(
   null,
   (get, set, position: RobotPosition) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return null;
-    
+
     const newPoint: SplinePathPoint = {
       id: `point_${Date.now()}`,
       position,
       timestamp: Date.now(),
     };
-    
+
     const updatedPath = {
       ...currentPath,
       points: [...currentPath.points, newPoint],
       modifiedAt: Date.now(),
     };
-    
+
     set(currentSplinePathAtom, updatedPath);
-    
+
     // Update the path in the paths array
     const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
     if (pathIndex >= 0) {
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
     }
-    
+
     return newPoint.id;
   }
 );
@@ -311,24 +317,24 @@ export const updateSplinePointAtom = atom(
   (get, set, pointId: string, updates: Partial<SplinePathPoint>) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
-    
-    const pointIndex = currentPath.points.findIndex(p => p.id === pointId);
+
+    const pointIndex = currentPath.points.findIndex((p) => p.id === pointId);
     if (pointIndex === -1) return;
-    
+
     const updatedPoints = [...currentPath.points];
     updatedPoints[pointIndex] = { ...updatedPoints[pointIndex], ...updates };
-    
+
     const updatedPath = {
       ...currentPath,
       points: updatedPoints,
       modifiedAt: Date.now(),
     };
-    
+
     set(currentSplinePathAtom, updatedPath);
-    
+
     // Update the path in the paths array
     const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
     if (pathIndex >= 0) {
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
@@ -336,123 +342,125 @@ export const updateSplinePointAtom = atom(
   }
 );
 
-export const deleteSplinePointAtom = atom(
-  null,
-  (get, set, pointId: string) => {
-    const currentPath = get(currentSplinePathAtom);
-    if (!currentPath) return;
-    
-    // Prevent deletion of the first point (robot starting position)
-    const pointToDelete = currentPath.points.find(p => p.id === pointId);
-    if (!pointToDelete) return;
-    
-    const pointIndex = currentPath.points.findIndex(p => p.id === pointId);
-    if (pointIndex === 0) {
-      // Cannot delete the first point - it's the robot's starting position
-      console.warn("Cannot delete the first spline point (robot starting position)");
-      return;
-    }
-    
-    const updatedPath = {
-      ...currentPath,
-      points: currentPath.points.filter(p => p.id !== pointId),
-      modifiedAt: Date.now(),
-    };
-    
-    set(currentSplinePathAtom, updatedPath);
-    
-    // Update the path in the paths array
-    const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
-    if (pathIndex >= 0) {
-      paths[pathIndex] = updatedPath;
-      set(splinePathsAtom, [...paths]);
-    }
-    
-    // Clear selection if this point was selected
-    if (get(selectedSplinePointIdAtom) === pointId) {
-      set(selectedSplinePointIdAtom, null);
-    }
-  }
-);
+export const deleteSplinePointAtom = atom(null, (get, set, pointId: string) => {
+  const currentPath = get(currentSplinePathAtom);
+  if (!currentPath) return;
 
-export const completeSplinePathAtom = atom(
-  null,
-  (get, set) => {
-    const currentPath = get(currentSplinePathAtom);
-    if (!currentPath) return;
-    
-    const updatedPath = {
-      ...currentPath,
-      isComplete: true,
-      modifiedAt: Date.now(),
-    };
-    
-    set(currentSplinePathAtom, updatedPath);
-    
-    // Update the path in the paths array
-    const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
-    if (pathIndex >= 0) {
-      paths[pathIndex] = updatedPath;
-      set(splinePathsAtom, [...paths]);
-    }
-    
-    set(isSplinePathModeAtom, false);
+  // Prevent deletion of the first point (robot starting position)
+  const pointToDelete = currentPath.points.find((p) => p.id === pointId);
+  if (!pointToDelete) return;
+
+  const pointIndex = currentPath.points.findIndex((p) => p.id === pointId);
+  if (pointIndex === 0) {
+    // Cannot delete the first point - it's the robot's starting position
+    console.warn(
+      "Cannot delete the first spline point (robot starting position)"
+    );
+    return;
+  }
+
+  const updatedPath = {
+    ...currentPath,
+    points: currentPath.points.filter((p) => p.id !== pointId),
+    modifiedAt: Date.now(),
+  };
+
+  set(currentSplinePathAtom, updatedPath);
+
+  // Update the path in the paths array
+  const paths = get(splinePathsAtom);
+  const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
+  if (pathIndex >= 0) {
+    paths[pathIndex] = updatedPath;
+    set(splinePathsAtom, [...paths]);
+  }
+
+  // Clear selection if this point was selected
+  if (get(selectedSplinePointIdAtom) === pointId) {
     set(selectedSplinePointIdAtom, null);
   }
-);
+});
 
-export const cancelSplinePathAtom = atom(
-  null,
-  (get, set) => {
-    const currentPath = get(currentSplinePathAtom);
-    if (!currentPath) return;
-    
-    // Remove the current path from paths array if it's incomplete
-    if (!currentPath.isComplete) {
-      const paths = get(splinePathsAtom);
-      set(splinePathsAtom, paths.filter(p => p.id !== currentPath.id));
-    }
-    
-    set(currentSplinePathAtom, null);
-    set(isSplinePathModeAtom, false);
-    set(selectedSplinePointIdAtom, null);
+export const completeSplinePathAtom = atom(null, (get, set) => {
+  const currentPath = get(currentSplinePathAtom);
+  if (!currentPath) return;
+
+  const updatedPath = {
+    ...currentPath,
+    isComplete: true,
+    modifiedAt: Date.now(),
+  };
+
+  set(currentSplinePathAtom, updatedPath);
+
+  // Update the path in the paths array
+  const paths = get(splinePathsAtom);
+  const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
+  if (pathIndex >= 0) {
+    paths[pathIndex] = updatedPath;
+    set(splinePathsAtom, [...paths]);
   }
-);
+
+  set(isSplinePathModeAtom, false);
+  set(selectedSplinePointIdAtom, null);
+});
+
+export const cancelSplinePathAtom = atom(null, (get, set) => {
+  const currentPath = get(currentSplinePathAtom);
+  if (!currentPath) return;
+
+  // Remove the current path from paths array if it's incomplete
+  if (!currentPath.isComplete) {
+    const paths = get(splinePathsAtom);
+    set(
+      splinePathsAtom,
+      paths.filter((p) => p.id !== currentPath.id)
+    );
+  }
+
+  set(currentSplinePathAtom, null);
+  set(isSplinePathModeAtom, false);
+  set(selectedSplinePointIdAtom, null);
+});
 
 // Control point management atoms
 export const addControlPointAtom = atom(
   null,
-  (get, set, pointId: string, controlType: "before" | "after", controlPoint: { x: number; y: number }) => {
+  (
+    get,
+    set,
+    pointId: string,
+    controlType: "before" | "after",
+    controlPoint: { x: number; y: number }
+  ) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
-    
-    const pointIndex = currentPath.points.findIndex(p => p.id === pointId);
+
+    const pointIndex = currentPath.points.findIndex((p) => p.id === pointId);
     if (pointIndex === -1) return;
-    
+
     const updatedPoints = [...currentPath.points];
     const existingPoint = updatedPoints[pointIndex];
-    
+
     updatedPoints[pointIndex] = {
       ...existingPoint,
       controlPoints: {
         ...existingPoint.controlPoints,
-        [controlType]: controlPoint
-      }
+        [controlType]: controlPoint,
+      },
     };
-    
+
     const updatedPath = {
       ...currentPath,
       points: updatedPoints,
       modifiedAt: Date.now(),
     };
-    
+
     set(currentSplinePathAtom, updatedPath);
-    
+
     // Update the path in the paths array
     const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
     if (pathIndex >= 0) {
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
@@ -462,37 +470,43 @@ export const addControlPointAtom = atom(
 
 export const updateControlPointAtom = atom(
   null,
-  (get, set, pointId: string, controlType: "before" | "after", controlPoint: { x: number; y: number }) => {
+  (
+    get,
+    set,
+    pointId: string,
+    controlType: "before" | "after",
+    controlPoint: { x: number; y: number }
+  ) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
-    
-    const pointIndex = currentPath.points.findIndex(p => p.id === pointId);
+
+    const pointIndex = currentPath.points.findIndex((p) => p.id === pointId);
     if (pointIndex === -1) return;
-    
+
     const updatedPoints = [...currentPath.points];
     const existingPoint = updatedPoints[pointIndex];
-    
+
     if (!existingPoint.controlPoints) return;
-    
+
     updatedPoints[pointIndex] = {
       ...existingPoint,
       controlPoints: {
         ...existingPoint.controlPoints,
-        [controlType]: controlPoint
-      }
+        [controlType]: controlPoint,
+      },
     };
-    
+
     const updatedPath = {
       ...currentPath,
       points: updatedPoints,
       modifiedAt: Date.now(),
     };
-    
+
     set(currentSplinePathAtom, updatedPath);
-    
+
     // Update the path in the paths array
     const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
     if (pathIndex >= 0) {
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
@@ -505,34 +519,37 @@ export const removeControlPointAtom = atom(
   (get, set, pointId: string, controlType: "before" | "after") => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
-    
-    const pointIndex = currentPath.points.findIndex(p => p.id === pointId);
+
+    const pointIndex = currentPath.points.findIndex((p) => p.id === pointId);
     if (pointIndex === -1) return;
-    
+
     const updatedPoints = [...currentPath.points];
     const existingPoint = updatedPoints[pointIndex];
-    
+
     if (!existingPoint.controlPoints) return;
-    
+
     const updatedControlPoints = { ...existingPoint.controlPoints };
     delete updatedControlPoints[controlType];
-    
+
     updatedPoints[pointIndex] = {
       ...existingPoint,
-      controlPoints: Object.keys(updatedControlPoints).length > 0 ? updatedControlPoints : undefined
+      controlPoints:
+        Object.keys(updatedControlPoints).length > 0
+          ? updatedControlPoints
+          : undefined,
     };
-    
+
     const updatedPath = {
       ...currentPath,
       points: updatedPoints,
       modifiedAt: Date.now(),
     };
-    
+
     set(currentSplinePathAtom, updatedPath);
-    
+
     // Update the path in the paths array
     const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
     if (pathIndex >= 0) {
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
@@ -543,32 +560,37 @@ export const removeControlPointAtom = atom(
 // Curvature handle management atoms
 export const updateCurvatureHandleAtom = atom(
   null,
-  (get, set, pointId: string, curvatureHandle: { x: number; y: number; strength: number }) => {
+  (
+    get,
+    set,
+    pointId: string,
+    curvatureHandle: { x: number; y: number; strength: number }
+  ) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
-    
-    const pointIndex = currentPath.points.findIndex(p => p.id === pointId);
+
+    const pointIndex = currentPath.points.findIndex((p) => p.id === pointId);
     if (pointIndex === -1) return;
-    
+
     const updatedPoints = [...currentPath.points];
     const existingPoint = updatedPoints[pointIndex];
-    
+
     updatedPoints[pointIndex] = {
       ...existingPoint,
-      curvatureHandle
+      curvatureHandle,
     };
-    
+
     const updatedPath = {
       ...currentPath,
       points: updatedPoints,
       modifiedAt: Date.now(),
     };
-    
+
     set(currentSplinePathAtom, updatedPath);
-    
+
     // Update the path in the paths array
     const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
     if (pathIndex >= 0) {
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
@@ -582,62 +604,64 @@ export const addCurvatureHandlesToIntermediatePointsAtom = atom(
   (get, set) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath || currentPath.points.length < 3) return;
-    
+
     const updatedPoints = currentPath.points.map((point, index) => {
       // Only add curvature handles to intermediate points (not first or last)
       const isIntermediate = index > 0 && index < currentPath.points.length - 1;
-      
+
       if (isIntermediate && !point.curvatureHandle) {
         // Calculate default curvature handle based on surrounding points
         const prevPoint = currentPath.points[index - 1];
         const nextPoint = currentPath.points[index + 1];
-        
+
         // Calculate direction vectors
         const incomingVec = {
           x: point.position.x - prevPoint.position.x,
-          y: point.position.y - prevPoint.position.y
+          y: point.position.y - prevPoint.position.y,
         };
         const outgoingVec = {
           x: nextPoint.position.x - point.position.x,
-          y: nextPoint.position.y - point.position.y
+          y: nextPoint.position.y - point.position.y,
         };
-        
+
         // Calculate average direction (bisector)
         const avgDirection = {
           x: (incomingVec.x + outgoingVec.x) / 2,
-          y: (incomingVec.y + outgoingVec.y) / 2
+          y: (incomingVec.y + outgoingVec.y) / 2,
         };
-        
+
         // Normalize and scale to create default handle
-        const length = Math.sqrt(avgDirection.x * avgDirection.x + avgDirection.y * avgDirection.y);
+        const length = Math.sqrt(
+          avgDirection.x * avgDirection.x + avgDirection.y * avgDirection.y
+        );
         const defaultHandleLength = 30; // 30mm default
-        
+
         if (length > 0) {
           return {
             ...point,
             curvatureHandle: {
               x: (avgDirection.x / length) * defaultHandleLength,
               y: (avgDirection.y / length) * defaultHandleLength,
-              strength: 0.5 // Default medium curvature
-            }
+              strength: 0.5, // Default medium curvature
+            },
           };
         }
       }
-      
+
       return point;
     });
-    
+
     const updatedPath = {
       ...currentPath,
       points: updatedPoints,
       modifiedAt: Date.now(),
     };
-    
+
     set(currentSplinePathAtom, updatedPath);
-    
+
     // Update the path in the paths array
     const paths = get(splinePathsAtom);
-    const pathIndex = paths.findIndex(p => p.id === currentPath.id);
+    const pathIndex = paths.findIndex((p) => p.id === currentPath.id);
     if (pathIndex >= 0) {
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
@@ -645,14 +669,13 @@ export const addCurvatureHandlesToIntermediatePointsAtom = atom(
   }
 );
 
-
 // Spline path planning atoms
 export interface SplinePathPoint {
   id: string;
   position: RobotPosition;
   controlPoints?: {
     before?: { x: number; y: number }; // Control point before this point
-    after?: { x: number; y: number };  // Control point after this point
+    after?: { x: number; y: number }; // Control point after this point
   };
   // Curvature handle for intermediate points (not start/end)
   curvatureHandle?: {
@@ -679,7 +702,7 @@ export interface SplinePathCommand {
   radius?: number;
   speed: number;
   fromPoint: string; // Point ID
-  toPoint: string;   // Point ID
+  toPoint: string; // Point ID
 }
 
 export const isSplinePathModeAtom = atom<boolean>(false);

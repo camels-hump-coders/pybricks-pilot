@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useUploadProgress } from "../hooks/useUploadProgress";
-import { LEGO_STUD_SIZE_MM } from "../schemas/RobotConfig";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
   perpendicularPreviewAtom,
@@ -15,6 +14,10 @@ import {
 import { isUploadingProgramAtom } from "../store/atoms/hubConnection";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import {
+  calculateRobotPositionFromEdges,
+  type RobotPosition,
+} from "../utils/robotPosition";
 import { ControlModeToggle } from "./ControlModeToggle";
 import { HubMenuInterface } from "./HubMenuInterface";
 import { ManualControls } from "./ManualControls";
@@ -24,12 +27,6 @@ import {
   calculateTrajectoryProjection,
 } from "./MovementPreview";
 import { SplineControls } from "./SplineControls";
-
-interface RobotPosition {
-  x: number; // mm from left edge of mat
-  y: number; // mm from top edge of mat (0 = top edge, positive = downward)
-  heading: number; // degrees clockwise from north (0 = north, 90 = east)
-}
 
 interface CompactRobotControllerProps {
   onDriveCommand?: (direction: number, speed: number) => Promise<void>;
@@ -322,7 +319,6 @@ export function CompactRobotController({
     null
   );
 
-
   // Track last applied position for reset functionality
   const [lastPositionSettings, setLastPositionSettings] = useState({
     side: "right" as "left" | "right", // Default to bottom-right
@@ -354,7 +350,12 @@ export function CompactRobotController({
   // Effect to update trajectory overlay ghosts when distance/angle changes
   useEffect(() => {
     // Only apply trajectory overlay when in Step mode (incremental) AND the toggle is enabled
-    if (showTrajectoryOverlay && controlMode === "incremental" && currentRobotPosition && robotConfig) {
+    if (
+      showTrajectoryOverlay &&
+      controlMode === "incremental" &&
+      currentRobotPosition &&
+      robotConfig
+    ) {
       // Only update if there are no hover ghosts currently
       setPerpendicularPreview((prev) => {
         const hasHoverGhosts = prev.ghosts.some((g: any) => g.isHover);
@@ -504,45 +505,6 @@ export function CompactRobotController({
   // Get shared program state
   const { programCount, allPrograms } = useJotaiFileSystem();
 
-  // Calculate robot position from edge-based measurements
-  const calculateRobotPositionFromEdges = (
-    side: "left" | "right",
-    fromBottomMm: number,
-    fromSideMm: number,
-    heading: number = 0
-  ): RobotPosition => {
-    const robotWidthMm = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM;
-    const robotLengthMm = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM;
-    const centerOfRotationFromLeftMm =
-      robotConfig.centerOfRotation.distanceFromLeftEdge * LEGO_STUD_SIZE_MM;
-    const centerOfRotationFromTopMm =
-      robotConfig.centerOfRotation.distanceFromTop * LEGO_STUD_SIZE_MM;
-
-    // Mat dimensions from current mat config (fallback to FLL default)
-    const matWidthMm = customMatConfig?.dimensions?.widthMm || 2356;
-    const matHeightMm = customMatConfig?.dimensions?.heightMm || 1137;
-
-    let x: number;
-    let y: number;
-
-    if (side === "left") {
-      // fromSideMm is distance from left edge to the left edge of robot
-      x = fromSideMm + centerOfRotationFromLeftMm;
-    } else {
-      // fromSideMm is distance from right edge to the right edge of robot
-      x = matWidthMm - fromSideMm - (robotWidthMm - centerOfRotationFromLeftMm);
-    }
-
-    // fromBottomMm is distance from bottom edge to the bottom edge of robot
-    y =
-      matHeightMm - fromBottomMm - (robotLengthMm - centerOfRotationFromTopMm);
-
-    return {
-      x,
-      y,
-      heading,
-    };
-  };
   // For virtual robots, manual controls should work when connected regardless of program status
   // For real robots, manual controls work when connected and hub menu program is running
   const isFullyConnected =
@@ -1000,7 +962,9 @@ export function CompactRobotController({
         edgePositionSettings.side,
         edgePositionSettings.fromBottom,
         edgePositionSettings.fromSide,
-        edgePositionSettings.heading
+        edgePositionSettings.heading,
+        robotConfig,
+        customMatConfig
       );
       setPositionPreview(preview);
     } else {
@@ -1190,7 +1154,9 @@ export function CompactRobotController({
                       lastPositionSettings.side,
                       lastPositionSettings.fromBottom,
                       lastPositionSettings.fromSide,
-                      lastPositionSettings.heading
+                      lastPositionSettings.heading,
+                      robotConfig,
+                      customMatConfig
                     );
                     setRobotPosition(resetPosition);
                     setIsSettingPosition(false);
@@ -1209,7 +1175,9 @@ export function CompactRobotController({
                       lastPositionSettings.side,
                       lastPositionSettings.fromBottom,
                       lastPositionSettings.fromSide,
-                      lastPositionSettings.heading
+                      lastPositionSettings.heading,
+                      robotConfig,
+                      customMatConfig
                     );
                     setRobotPosition(resetPosition);
                     setIsSettingPosition(false);
@@ -1378,7 +1346,14 @@ export function CompactRobotController({
                         }
 
                         const bottomLeftPosition =
-                          calculateRobotPositionFromEdges("left", 0, 0, 0);
+                          calculateRobotPositionFromEdges(
+                            "left",
+                            0,
+                            0,
+                            0,
+                            robotConfig,
+                            customMatConfig
+                          );
                         setRobotPosition(bottomLeftPosition);
                         // Save the position settings for reset button
                         setLastPositionSettings({
@@ -1397,7 +1372,14 @@ export function CompactRobotController({
                         );
                         // Continue with position setting even if telemetry path start fails
                         const bottomLeftPosition =
-                          calculateRobotPositionFromEdges("left", 0, 0, 0);
+                          calculateRobotPositionFromEdges(
+                            "left",
+                            0,
+                            0,
+                            0,
+                            robotConfig,
+                            customMatConfig
+                          );
                         setRobotPosition(bottomLeftPosition);
                         setLastPositionSettings({
                           side: "left",
@@ -1424,7 +1406,14 @@ export function CompactRobotController({
                         }
 
                         const bottomRightPosition =
-                          calculateRobotPositionFromEdges("right", 0, 0, 0);
+                          calculateRobotPositionFromEdges(
+                            "right",
+                            0,
+                            0,
+                            0,
+                            robotConfig,
+                            customMatConfig
+                          );
                         setRobotPosition(bottomRightPosition);
                         // Save the position settings for reset button
                         setLastPositionSettings({
@@ -1443,7 +1432,14 @@ export function CompactRobotController({
                         );
                         // Continue with position setting even if telemetry path start fails
                         const bottomRightPosition =
-                          calculateRobotPositionFromEdges("right", 0, 0, 0);
+                          calculateRobotPositionFromEdges(
+                            "right",
+                            0,
+                            0,
+                            0,
+                            robotConfig,
+                            customMatConfig
+                          );
                         setRobotPosition(bottomRightPosition);
                         setLastPositionSettings({
                           side: "right",

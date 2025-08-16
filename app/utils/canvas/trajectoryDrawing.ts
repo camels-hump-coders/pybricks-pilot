@@ -1,10 +1,5 @@
 import type { RobotConfig } from "../../schemas/RobotConfig";
-
-export interface RobotPosition {
-  x: number;
-  y: number;
-  heading: number;
-}
+import type { RobotPosition } from "../robotPosition";
 
 export type MovementDirection = "forward" | "backward" | "left" | "right";
 
@@ -25,7 +20,7 @@ export function drawTrajectoryProjection(
   if (trajectoryPath.length < 2) return;
 
   const { mmToCanvas } = utils;
-  
+
   ctx.save();
 
   // Set line style based on direction
@@ -98,7 +93,7 @@ export function drawPerpendicularTrajectoryProjection(
   if (trajectoryPath.length < 2) return;
 
   const { mmToCanvas } = utils;
-  
+
   ctx.save();
 
   // Subtle but visible line style for perpendicular previews

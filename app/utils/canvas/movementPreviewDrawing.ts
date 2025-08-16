@@ -1,7 +1,15 @@
-import { drawRobot, type RobotPosition, type MovementDirection, type RobotPreviewType, type RobotDrawingUtils } from "./robotDrawing";
-import { drawTrajectoryProjection, drawNextMoveEndIndicator } from "./trajectoryDrawing";
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import type { MovementPreview } from "../../store/atoms/gameMat";
+import type { RobotPosition } from "../robotPosition";
+import {
+  drawRobot,
+  type MovementDirection,
+  type RobotDrawingUtils,
+} from "./robotDrawing";
+import {
+  drawNextMoveEndIndicator,
+  drawTrajectoryProjection,
+} from "./trajectoryDrawing";
 
 interface PerpendicularPreview {
   show: boolean;
@@ -184,12 +192,6 @@ export function drawPerpendicularPreview(
       direction = index === 0 ? "left" : "right";
     }
 
-    drawTrajectoryProjection(
-      ctx,
-      trajectory,
-      direction,
-      utils
-    );
+    drawTrajectoryProjection(ctx, trajectory, direction, utils);
   });
 }
-

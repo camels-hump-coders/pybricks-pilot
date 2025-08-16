@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
-import type { RobotPosition } from "../utils/canvas";
+import type { RobotPosition } from "../utils/robotPosition";
 
 interface TelemetryReference {
   distance: number;
@@ -15,7 +15,10 @@ interface UseTelemetryUpdatesProps {
   manualHeadingAdjustment: number;
   isCmdKeyPressed: boolean;
   onTelemetryReferenceUpdate: (ref: TelemetryReference) => void;
-  onAccumulatedTelemetryUpdate: (data: { distance: number; angle: number }) => void;
+  onAccumulatedTelemetryUpdate: (data: {
+    distance: number;
+    angle: number;
+  }) => void;
   onRobotPositionUpdate: (telemetryData: any) => void;
 }
 

@@ -1,11 +1,11 @@
 // Export all canvas drawing utilities
 export * from "./basicDrawing";
-export * from "./robotDrawing";
-export * from "./trajectoryDrawing";
 export * from "./missionDrawing";
+export * from "./robotDrawing";
 export * from "./telemetryDrawing";
+export * from "./trajectoryDrawing";
 
 // Re-export common types
-export type { RobotPosition, MovementDirection, RobotPreviewType } from "./robotDrawing";
+export type { GameMatConfig, Mission } from "../../schemas/GameMatConfig";
 export type { TelemetryPoint } from "../../services/telemetryHistory";
-export type { Mission, GameMatConfig } from "../../schemas/GameMatConfig";
+export type { MovementDirection, RobotPreviewType } from "./robotDrawing";

@@ -30,7 +30,6 @@ import {
 import { drawBorderWalls, drawGrid } from "../utils/canvas/basicDrawing";
 import { drawMissions } from "../utils/canvas/missionDrawing";
 import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
-import { type RobotPosition } from "../utils/canvas/robotDrawing";
 import { drawRobot } from "../utils/canvas/robotDrawing.js";
 import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import {
@@ -40,6 +39,7 @@ import {
 } from "../utils/canvas/splinePathDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing.js";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing.js";
+import { type RobotPosition } from "../utils/robotPosition";
 import {
   getMaxPointsForMission,
   getTotalPointsForMission,
@@ -71,7 +71,7 @@ export function EnhancedCompetitionMat({
 
   // Get coordinate utilities and constants from atom
   const coordinateUtils = useAtomValue(coordinateUtilsAtom);
-  
+
   // Get control mode from global atom
   const controlMode = useAtomValue(controlModeAtom);
 

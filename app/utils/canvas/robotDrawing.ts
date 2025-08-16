@@ -1,14 +1,14 @@
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { LEGO_STUD_SIZE_MM } from "../../schemas/RobotConfig";
+import type { RobotPosition } from "../robotPosition";
 import { calculateRobotBounds } from "./robotBounds";
 
-export interface RobotPosition {
-  x: number; // mm from left edge of mat
-  y: number; // mm from top edge of mat (0 = top edge, positive = downward)  
-  heading: number; // degrees clockwise from north (0 = north, 90 = east)
-}
-
-export type RobotPreviewType = "primary" | "secondary" | "perpendicular" | "playback" | "planning";
+export type RobotPreviewType =
+  | "primary"
+  | "secondary"
+  | "perpendicular"
+  | "playback"
+  | "planning";
 export type MovementDirection = "forward" | "backward" | "left" | "right";
 
 export interface RobotDrawingUtils {
@@ -29,7 +29,7 @@ export function drawRobot(
   direction?: MovementDirection
 ) {
   const { mmToCanvas, scale } = utils;
-  
+
   // Use the shared robot bounds utility
   const bounds = calculateRobotBounds(position, robotConfig, utils);
 
@@ -45,9 +45,27 @@ export function drawRobot(
   // NOTE: Now drawing robot body at (0,0) which is the robot's geometric center
 
   if (isGhost) {
-    drawGhostRobot(ctx, robotConfig, scale, bounds.robotWidth, bounds.robotLength, bounds.robotBodyOffsetX, bounds.robotBodyOffsetY, previewType, direction);
+    drawGhostRobot(
+      ctx,
+      robotConfig,
+      scale,
+      bounds.robotWidth,
+      bounds.robotLength,
+      bounds.robotBodyOffsetX,
+      bounds.robotBodyOffsetY,
+      previewType,
+      direction
+    );
   } else {
-    drawRegularRobot(ctx, robotConfig, scale, bounds.robotWidth, bounds.robotLength, bounds.robotBodyOffsetX, bounds.robotBodyOffsetY);
+    drawRegularRobot(
+      ctx,
+      robotConfig,
+      scale,
+      bounds.robotWidth,
+      bounds.robotLength,
+      bounds.robotBodyOffsetX,
+      bounds.robotBodyOffsetY
+    );
   }
 
   ctx.restore();
@@ -135,7 +153,14 @@ function drawGhostRobot(
   ctx.strokeRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
 
   // Draw wheels
-  drawWheels(ctx, robotConfig, scale, robotWidth, robotLength, "rgba(255, 255, 255, 0.9)");
+  drawWheels(
+    ctx,
+    robotConfig,
+    scale,
+    robotWidth,
+    robotLength,
+    "rgba(255, 255, 255, 0.9)"
+  );
 
   // Direction indicator for preview - different colors for different directions
   let indicatorColor;
@@ -197,7 +222,14 @@ function drawRegularRobot(
   ctx.strokeRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
 
   // Draw wheels
-  drawWheels(ctx, robotConfig, scale, robotWidth, robotLength, robotConfig.appearance.wheelColor);
+  drawWheels(
+    ctx,
+    robotConfig,
+    scale,
+    robotWidth,
+    robotLength,
+    robotConfig.appearance.wheelColor
+  );
 
   // Direction indicator for regular robot
   ctx.strokeStyle = "#fff";

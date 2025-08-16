@@ -2,11 +2,26 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
+  // Control point atoms
+  addControlPointAtom,
+  addCurvatureHandlesToIntermediatePointsAtom,
+  addSplinePointAtom,
   calculateRobotPosition,
+  cancelSplinePathAtom,
+  completeSplinePathAtom,
   controlModeAtom,
+  createSplinePathAtom,
   currentScoreAtom,
+  currentSplinePathAtom,
   customMatConfigAtom,
+  deleteSplinePointAtom,
+  executingCommandIndexAtom,
+  hoveredCurvatureHandlePointIdAtom,
+  hoveredSplinePointIdAtom,
+  isExecutingSplinePathAtom,
   isSettingPositionAtom,
+  // Spline path atoms
+  isSplinePathModeAtom,
   manualHeadingAdjustmentAtom,
   maxPathPointsAtom,
   mousePositionAtom,
@@ -14,43 +29,26 @@ import {
   pathColorModeAtom,
   pathOpacityAtom,
   perpendicularPreviewAtom,
+  removeControlPointAtom,
   resetScoringAtom,
   robotPositionAtom,
   scoringStateAtom,
+  selectedSplinePointIdAtom,
   showPathAtom,
+  splinePathCommandsAtom,
+  splinePathsAtom,
   telemetryReferenceAtom,
   totalScoreAtom,
-  updateScoringAtom,
-  type ObjectiveState,
-  type RobotPosition,
-  // Spline path atoms
-  isSplinePathModeAtom,
-  currentSplinePathAtom,
-  splinePathsAtom,
-  selectedSplinePointIdAtom,
-  hoveredSplinePointIdAtom,
-  hoveredCurvatureHandlePointIdAtom,
-  splinePathCommandsAtom,
-  isExecutingSplinePathAtom,
-  executingCommandIndexAtom,
-  createSplinePathAtom,
-  addSplinePointAtom,
-  updateSplinePointAtom,
-  deleteSplinePointAtom,
-  completeSplinePathAtom,
-  cancelSplinePathAtom,
-  // Control point atoms
-  addControlPointAtom,
   updateControlPointAtom,
-  removeControlPointAtom,
   // Curvature handle atoms
   updateCurvatureHandleAtom,
-  addCurvatureHandlesToIntermediatePointsAtom,
-  type SplinePath,
+  updateScoringAtom,
+  updateSplinePointAtom,
+  type ObjectiveState,
   type SplinePathPoint,
-  type SplinePathCommand,
 } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import type { RobotPosition } from "../utils/robotPosition";
 
 export function useJotaiGameMat() {
   // Robot position state
@@ -91,14 +89,27 @@ export function useJotaiGameMat() {
 
   // Spline path planning mode
   const [isSplinePathMode, setIsSplinePathMode] = useAtom(isSplinePathModeAtom);
-  const [currentSplinePath, setCurrentSplinePath] = useAtom(currentSplinePathAtom);
+  const [currentSplinePath, setCurrentSplinePath] = useAtom(
+    currentSplinePathAtom
+  );
   const [splinePaths, setSplinePaths] = useAtom(splinePathsAtom);
-  const [selectedSplinePointId, setSelectedSplinePointId] = useAtom(selectedSplinePointIdAtom);
-  const [hoveredSplinePointId, setHoveredSplinePointId] = useAtom(hoveredSplinePointIdAtom);
-  const [hoveredCurvatureHandlePointId, setHoveredCurvatureHandlePointId] = useAtom(hoveredCurvatureHandlePointIdAtom);
-  const [splinePathCommands, setSplinePathCommands] = useAtom(splinePathCommandsAtom);
-  const [isExecutingSplinePath, setIsExecutingSplinePath] = useAtom(isExecutingSplinePathAtom);
-  const [executingCommandIndex, setExecutingCommandIndex] = useAtom(executingCommandIndexAtom);
+  const [selectedSplinePointId, setSelectedSplinePointId] = useAtom(
+    selectedSplinePointIdAtom
+  );
+  const [hoveredSplinePointId, setHoveredSplinePointId] = useAtom(
+    hoveredSplinePointIdAtom
+  );
+  const [hoveredCurvatureHandlePointId, setHoveredCurvatureHandlePointId] =
+    useAtom(hoveredCurvatureHandlePointIdAtom);
+  const [splinePathCommands, setSplinePathCommands] = useAtom(
+    splinePathCommandsAtom
+  );
+  const [isExecutingSplinePath, setIsExecutingSplinePath] = useAtom(
+    isExecutingSplinePathAtom
+  );
+  const [executingCommandIndex, setExecutingCommandIndex] = useAtom(
+    executingCommandIndexAtom
+  );
 
   // Derived values
   const currentScore = useAtomValue(currentScoreAtom);
@@ -114,15 +125,17 @@ export function useJotaiGameMat() {
   const deleteSplinePointAction = useSetAtom(deleteSplinePointAtom);
   const completeSplinePathAction = useSetAtom(completeSplinePathAtom);
   const cancelSplinePathAction = useSetAtom(cancelSplinePathAtom);
-  
+
   // Control point actions
   const addControlPointAction = useSetAtom(addControlPointAtom);
   const updateControlPointAction = useSetAtom(updateControlPointAtom);
   const removeControlPointAction = useSetAtom(removeControlPointAtom);
-  
+
   // Curvature handle actions
   const updateCurvatureHandleAction = useSetAtom(updateCurvatureHandleAtom);
-  const addCurvatureHandlesToIntermediatePointsAction = useSetAtom(addCurvatureHandlesToIntermediatePointsAtom);
+  const addCurvatureHandlesToIntermediatePointsAction = useSetAtom(
+    addCurvatureHandlesToIntermediatePointsAtom
+  );
 
   // Helper functions - stabilize with refs to avoid recreating on every render
   const telemetryReferenceRef = useRef(telemetryReference);
@@ -307,23 +320,34 @@ export function useJotaiGameMat() {
     });
   }, [setPathColorMode]);
 
-
   // Spline path helper functions
-  const createSplinePath = useCallback((name: string) => {
-    return createSplinePathAction(name);
-  }, [createSplinePathAction]);
+  const createSplinePath = useCallback(
+    (name: string) => {
+      return createSplinePathAction(name);
+    },
+    [createSplinePathAction]
+  );
 
-  const addSplinePoint = useCallback((position: RobotPosition) => {
-    return addSplinePointAction(position);
-  }, [addSplinePointAction]);
+  const addSplinePoint = useCallback(
+    (position: RobotPosition) => {
+      return addSplinePointAction(position);
+    },
+    [addSplinePointAction]
+  );
 
-  const updateSplinePoint = useCallback((pointId: string, updates: Partial<SplinePathPoint>) => {
-    updateSplinePointAction(pointId, updates);
-  }, [updateSplinePointAction]);
+  const updateSplinePoint = useCallback(
+    (pointId: string, updates: Partial<SplinePathPoint>) => {
+      updateSplinePointAction(pointId, updates);
+    },
+    [updateSplinePointAction]
+  );
 
-  const deleteSplinePoint = useCallback((pointId: string) => {
-    deleteSplinePointAction(pointId);
-  }, [deleteSplinePointAction]);
+  const deleteSplinePoint = useCallback(
+    (pointId: string) => {
+      deleteSplinePointAction(pointId);
+    },
+    [deleteSplinePointAction]
+  );
 
   const completeSplinePath = useCallback(() => {
     completeSplinePathAction();
@@ -334,31 +358,57 @@ export function useJotaiGameMat() {
   }, [cancelSplinePathAction]);
 
   // Control point helper functions
-  const addControlPoint = useCallback((pointId: string, controlType: "before" | "after", controlPoint: { x: number; y: number }) => {
-    addControlPointAction(pointId, controlType, controlPoint);
-  }, [addControlPointAction]);
+  const addControlPoint = useCallback(
+    (
+      pointId: string,
+      controlType: "before" | "after",
+      controlPoint: { x: number; y: number }
+    ) => {
+      addControlPointAction(pointId, controlType, controlPoint);
+    },
+    [addControlPointAction]
+  );
 
-  const updateControlPoint = useCallback((pointId: string, controlType: "before" | "after", controlPoint: { x: number; y: number }) => {
-    updateControlPointAction(pointId, controlType, controlPoint);
-  }, [updateControlPointAction]);
+  const updateControlPoint = useCallback(
+    (
+      pointId: string,
+      controlType: "before" | "after",
+      controlPoint: { x: number; y: number }
+    ) => {
+      updateControlPointAction(pointId, controlType, controlPoint);
+    },
+    [updateControlPointAction]
+  );
 
-  const removeControlPoint = useCallback((pointId: string, controlType: "before" | "after") => {
-    removeControlPointAction(pointId, controlType);
-  }, [removeControlPointAction]);
+  const removeControlPoint = useCallback(
+    (pointId: string, controlType: "before" | "after") => {
+      removeControlPointAction(pointId, controlType);
+    },
+    [removeControlPointAction]
+  );
 
   // Curvature handle helper functions
-  const updateCurvatureHandle = useCallback((pointId: string, curvatureHandle: { x: number; y: number; strength: number }) => {
-    updateCurvatureHandleAction(pointId, curvatureHandle);
-  }, [updateCurvatureHandleAction]);
+  const updateCurvatureHandle = useCallback(
+    (
+      pointId: string,
+      curvatureHandle: { x: number; y: number; strength: number }
+    ) => {
+      updateCurvatureHandleAction(pointId, curvatureHandle);
+    },
+    [updateCurvatureHandleAction]
+  );
 
   const addCurvatureHandlesToIntermediatePoints = useCallback(() => {
     addCurvatureHandlesToIntermediatePointsAction();
   }, [addCurvatureHandlesToIntermediatePointsAction]);
 
-  const enterSplinePathMode = useCallback((pathName: string = "New Path") => {
-    setControlMode("spline");
-    createSplinePath(pathName);
-  }, [setControlMode, createSplinePath]);
+  const enterSplinePathMode = useCallback(
+    (pathName: string = "New Path") => {
+      setControlMode("spline");
+      createSplinePath(pathName);
+    },
+    [setControlMode, createSplinePath]
+  );
 
   const exitSplinePathMode = useCallback(() => {
     if (currentSplinePath && !currentSplinePath.isComplete) {
@@ -370,38 +420,55 @@ export function useJotaiGameMat() {
     }
     // Return to incremental mode when exiting spline mode
     setControlMode("incremental");
-  }, [currentSplinePath, cancelSplinePath, setIsSplinePathMode, setCurrentSplinePath, setSelectedSplinePointId, setControlMode]);
+  }, [
+    currentSplinePath,
+    cancelSplinePath,
+    setIsSplinePathMode,
+    setCurrentSplinePath,
+    setSelectedSplinePointId,
+    setControlMode,
+  ]);
 
-  const addSplinePointAtMousePosition = useCallback((mouseX: number, mouseY: number) => {
-    if (!isSplinePathMode) return null;
-    
-    // Calculate heading for the new point based on direction from previous point
-    let heading = robotPosition.heading; // Default to current robot heading
-    
-    if (currentSplinePath && currentSplinePath.points.length > 0) {
-      const lastPoint = currentSplinePath.points[currentSplinePath.points.length - 1];
-      const dx = mouseX - lastPoint.position.x;
-      const dy = mouseY - lastPoint.position.y;
-      heading = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
-      if (heading > 180) heading -= 360; // Normalize to -180 to 180
-    }
-    
-    const newPosition: RobotPosition = {
-      x: mouseX,
-      y: mouseY,
-      heading: heading
-    };
-    
-    const pointId = addSplinePoint(newPosition);
-    
-    // After adding a point, check if we need to add curvature handles
-    // This will be called asynchronously to allow the point to be added first
-    setTimeout(() => {
-      addCurvatureHandlesToIntermediatePoints();
-    }, 0);
-    
-    return pointId;
-  }, [isSplinePathMode, robotPosition, currentSplinePath, addSplinePoint, addCurvatureHandlesToIntermediatePoints]);
+  const addSplinePointAtMousePosition = useCallback(
+    (mouseX: number, mouseY: number) => {
+      if (!isSplinePathMode) return null;
+
+      // Calculate heading for the new point based on direction from previous point
+      let heading = robotPosition.heading; // Default to current robot heading
+
+      if (currentSplinePath && currentSplinePath.points.length > 0) {
+        const lastPoint =
+          currentSplinePath.points[currentSplinePath.points.length - 1];
+        const dx = mouseX - lastPoint.position.x;
+        const dy = mouseY - lastPoint.position.y;
+        heading = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
+        if (heading > 180) heading -= 360; // Normalize to -180 to 180
+      }
+
+      const newPosition: RobotPosition = {
+        x: mouseX,
+        y: mouseY,
+        heading: heading,
+      };
+
+      const pointId = addSplinePoint(newPosition);
+
+      // After adding a point, check if we need to add curvature handles
+      // This will be called asynchronously to allow the point to be added first
+      setTimeout(() => {
+        addCurvatureHandlesToIntermediatePoints();
+      }, 0);
+
+      return pointId;
+    },
+    [
+      isSplinePathMode,
+      robotPosition,
+      currentSplinePath,
+      addSplinePoint,
+      addCurvatureHandlesToIntermediatePoints,
+    ]
+  );
 
   return {
     // Robot position
@@ -471,7 +538,7 @@ export function useJotaiGameMat() {
     setIsExecutingSplinePath,
     executingCommandIndex,
     setExecutingCommandIndex,
-    
+
     // Spline path actions
     createSplinePath,
     addSplinePoint,
@@ -481,12 +548,12 @@ export function useJotaiGameMat() {
     cancelSplinePath,
     enterSplinePathMode,
     exitSplinePathMode,
-    
+
     // Control point actions
     addControlPoint,
     updateControlPoint,
     removeControlPoint,
-    
+
     // Curvature handle actions
     updateCurvatureHandle,
     addCurvatureHandlesToIntermediatePoints,
