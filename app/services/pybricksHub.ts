@@ -511,7 +511,8 @@ class PybricksHubService extends EventTarget {
 
   private async writeStdin(data: Uint8Array): Promise<void> {
     // BLE has a 512-byte limit, leaving room for command byte
-    const MAX_CHUNK_SIZE = 511;
+    // 512 as well as 200, but 100 worked, so stuck with that.
+    const MAX_CHUNK_SIZE = 100;
     let offset = 0;
 
     while (offset < data.length) {
@@ -523,9 +524,10 @@ class PybricksHubService extends EventTarget {
       await this.sendRawData(payload);
       offset += chunkSize;
 
-      // Small delay between chunks if needed
+      // Small delay between chunks to prevent GATT operation failures
+      // Reduced delay since robot buffers complete payload until newline
       if (offset < data.length) {
-        // await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 20));
       }
     }
   }
@@ -862,42 +864,54 @@ class PybricksHubService extends EventTarget {
   // These methods send JSON commands to the PyBricks pilot via stdin
   // Legacy single command methods (now updated to use arrays)
   async drive(distance: number, speed: number): Promise<void> {
-    await this.executeCommandSequence([{
-      action: "drive",
-      distance: distance,
-      speed: speed,
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "drive",
+        distance: distance,
+        speed: speed,
+      },
+    ]);
   }
 
   async turn(angle: number, speed: number): Promise<void> {
-    await this.executeCommandSequence([{
-      action: "turn",
-      angle: angle,
-      speed: speed,
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "turn",
+        angle: angle,
+        speed: speed,
+      },
+    ]);
   }
 
   async stop(): Promise<void> {
-    await this.executeCommandSequence([{
-      action: "stop",
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "stop",
+      },
+    ]);
   }
 
   // New command sequence method
-  async executeCommandSequence(commands: Array<{
-    action: string;
-    distance?: number;
-    angle?: number;
-    speed?: number;
-    motor?: string;
-    [key: string]: any;
-  }>): Promise<void> {
+  async executeCommandSequence(
+    commands: Array<{
+      action: string;
+      distance?: number;
+      angle?: number;
+      speed?: number;
+      motor?: string;
+      [key: string]: any;
+    }>
+  ): Promise<void> {
     const commandSequence = JSON.stringify(commands);
     await this.sendControlCommand(commandSequence);
   }
 
   // Compound movement commands
-  async turnAndDrive(turnAngle: number, driveDistance: number, speed: number = 100): Promise<void> {
+  async turnAndDrive(
+    turnAngle: number,
+    driveDistance: number,
+    speed: number = 100
+  ): Promise<void> {
     await this.executeCommandSequence([
       {
         action: "turn",
@@ -905,19 +919,21 @@ class PybricksHubService extends EventTarget {
         speed: speed,
       },
       {
-        action: "drive", 
+        action: "drive",
         distance: driveDistance,
         speed: speed,
-      }
+      },
     ]);
   }
 
   async setMotorSpeed(motorName: string, speed: number): Promise<void> {
-    await this.executeCommandSequence([{
-      action: "motor",
-      motor: motorName,
-      speed: speed,
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "motor",
+        motor: motorName,
+        speed: speed,
+      },
+    ]);
   }
 
   async setMotorAngle(
@@ -925,28 +941,34 @@ class PybricksHubService extends EventTarget {
     angle: number,
     speed: number
   ): Promise<void> {
-    await this.executeCommandSequence([{
-      action: "motor",
-      motor: motorName,
-      angle: angle,
-      speed: speed,
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "motor",
+        motor: motorName,
+        angle: angle,
+        speed: speed,
+      },
+    ]);
   }
 
   async stopMotor(motorName: string): Promise<void> {
-    await this.executeCommandSequence([{
-      action: "stop",
-      motor: motorName,
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "stop",
+        motor: motorName,
+      },
+    ]);
   }
 
   // Additional method for continuous drive (not in RobotInterface but useful)
   async driveContinuous(speed: number, turnRate: number): Promise<void> {
-    await this.executeCommandSequence([{
-      action: "drive_continuous",
-      speed: speed,
-      turn_rate: turnRate,
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "drive_continuous",
+        speed: speed,
+        turn_rate: turnRate,
+      },
+    ]);
   }
 
   // RobotInterface compatibility methods

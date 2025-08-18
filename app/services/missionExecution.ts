@@ -471,6 +471,11 @@ export class MissionExecutionService {
           default:
             break;
         }
+        
+        // Small delay between commands to prevent overwhelming the BLE connection
+        if (i < commands.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
     }
   }

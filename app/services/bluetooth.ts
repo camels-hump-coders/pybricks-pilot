@@ -217,7 +217,7 @@ class WebBluetoothService implements BluetoothService {
 
   private onDeviceDisconnected = (event: Event) => {
     const target = event.target;
-    if (target && typeof target === 'object' && 'device' in target) {
+    if (target && typeof target === "object" && "device" in target) {
       const device = (target as any).device;
       if (device && device.id) {
         this.connectedDevices.delete(device);
