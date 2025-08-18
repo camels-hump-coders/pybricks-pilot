@@ -509,6 +509,7 @@ export function drawMissionArcPaths(
   
   // Compute arc path segments
   const segments = computeArcPath(mission);
+  console.log(`Drawing mission arc paths: ${segments.length} segments`, segments);
   
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -521,6 +522,16 @@ export function drawMissionArcPaths(
   segments.forEach((segment, index) => {
     const pathPoints = generateArcPathPoints(segment, 15); // Higher resolution for smooth curves
     
+    console.log(`Segment ${index} (${segment.pathType}):`, {
+      pathPoints: pathPoints.length,
+      segment: segment.pathType === 'arc' ? {
+        center: segment.arcCenter,
+        radius: segment.arcRadius,
+        startAngle: segment.arcStartAngle,
+        endAngle: segment.arcEndAngle
+      } : 'straight'
+    });
+    
     if (pathPoints.length < 2) return;
     
     // Convert points to canvas coordinates
@@ -529,9 +540,9 @@ export function drawMissionArcPaths(
     // Set different styles based on segment type
     switch (segment.pathType) {
       case "arc":
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = strokeWidth * scale;
-        ctx.setLineDash([8 * scale, 2 * scale]); // Dashed for arcs
+        ctx.strokeStyle = "#ff0000"; // RED for debugging - make arcs very visible
+        ctx.lineWidth = (strokeWidth + 2) * scale; // Thicker line for arcs
+        ctx.setLineDash([]); // SOLID line for now to ensure visibility
         break;
       case "straight":
       default:
@@ -550,6 +561,17 @@ export function drawMissionArcPaths(
     }
     
     ctx.stroke();
+    
+    // Debug: Log that we drew this segment
+    if (segment.pathType === "arc") {
+      console.log(`DREW ARC segment ${index}:`, {
+        canvasPoints: canvasPoints.length,
+        firstPoint: canvasPoints[0],
+        lastPoint: canvasPoints[canvasPoints.length - 1],
+        color: ctx.strokeStyle,
+        lineWidth: ctx.lineWidth
+      });
+    }
     
     // Draw direction arrow at the midpoint
     if (showArrows && canvasPoints.length >= 2) {

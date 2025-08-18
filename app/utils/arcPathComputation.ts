@@ -108,14 +108,13 @@ function findCircleThroughThreePoints(
 }
 
 /**
- * Calculate tangent-based arc that smoothly connects incoming and outgoing paths
- * The arc is tangent to both the incoming and outgoing path directions
+ * Calculate optimal tangent-based arc that smoothly connects incoming and outgoing paths
+ * This creates an arc that the robot can follow smoothly through the waypoint
  */
-function calculateTangentBasedArc(
+function calculateOptimalTangentArc(
   prevPoint: { x: number; y: number },
   waypoint: { x: number; y: number },
-  nextPoint: { x: number; y: number },
-  desiredRadius: number
+  nextPoint: { x: number; y: number }
 ): {
   entryPoint: { x: number; y: number };
   exitPoint: { x: number; y: number };
@@ -124,103 +123,74 @@ function calculateTangentBasedArc(
   arcEndAngle: number;
   actualRadius: number;
 } | null {
-  // Calculate incoming and outgoing direction vectors
-  const incomingAngle = calculateAngle(prevPoint.x, prevPoint.y, waypoint.x, waypoint.y);
-  const outgoingAngle = calculateAngle(waypoint.x, waypoint.y, nextPoint.x, nextPoint.y);
+  // Calculate vectors from waypoint to neighbors
+  const toPrevX = prevPoint.x - waypoint.x;
+  const toPrevY = prevPoint.y - waypoint.y;
+  const toNextX = nextPoint.x - waypoint.x;
+  const toNextY = nextPoint.y - waypoint.y;
   
-  // Calculate the turn angle
-  const turnAngleDiff = normalizeAngle(outgoingAngle - incomingAngle);
-  const turnAngle = Math.abs(turnAngleDiff);
+  // Calculate distances
+  const distToPrev = Math.sqrt(toPrevX * toPrevX + toPrevY * toPrevY);
+  const distToNext = Math.sqrt(toNextX * toNextX + toNextY * toNextY);
   
-  // If the turn is very small, don't create an arc
-  if (turnAngle < 5) {
-    return null;
-  }
+  if (distToPrev < 1 || distToNext < 1) return null;
   
-  // Calculate available distances to prevent arc from extending beyond points
-  const distToPrev = calculateDistance(prevPoint.x, prevPoint.y, waypoint.x, waypoint.y);
-  const distToNext = calculateDistance(waypoint.x, waypoint.y, nextPoint.x, nextPoint.y);
+  // Normalize vectors
+  const prevDirX = toPrevX / distToPrev;
+  const prevDirY = toPrevY / distToPrev;
+  const nextDirX = toNextX / distToNext;
+  const nextDirY = toNextY / distToNext;
   
-  // Calculate the bisector angle (average of incoming and outgoing angles)
-  let bisectorAngle = (incomingAngle + outgoingAngle) / 2;
+  // Calculate the angle between the two vectors using dot product
+  const dotProduct = prevDirX * nextDirX + prevDirY * nextDirY;
+  const angleRad = Math.acos(Math.max(-1, Math.min(1, dotProduct)));
+  const angleDeg = angleRad * 180 / Math.PI;
   
-  // Handle angle wrapping - ensure we take the interior bisector
-  if (Math.abs(turnAngleDiff) > 180) {
-    bisectorAngle = normalizeAngle(bisectorAngle + 180);
-  }
+  // If angle is too small, no arc needed
+  if (angleDeg < 5 || angleDeg > 175) return null;
   
-  // Calculate the distance from waypoint to arc center along the bisector
-  const halfTurnRad = (turnAngle * Math.PI) / (2 * 180);
-  const centerDistance = desiredRadius / Math.sin(halfTurnRad);
+  // Calculate bisector direction (points towards arc center)
+  let bisectorX = prevDirX + nextDirX;
+  let bisectorY = prevDirY + nextDirY;
+  const bisectorLength = Math.sqrt(bisectorX * bisectorX + bisectorY * bisectorY);
   
-  // Calculate tangent distance (distance from waypoint to tangent points)
-  const tangentDistance = desiredRadius / Math.tan(halfTurnRad);
+  if (bisectorLength < 0.01) return null;
   
-  // Check if we have enough space for the tangent distances
-  const maxTangentDistance = Math.min(distToPrev * 0.4, distToNext * 0.4);
-  if (tangentDistance > maxTangentDistance) {
-    // Scale down the radius to fit available space
-    const scaledTangentDistance = maxTangentDistance;
-    const scaledRadius = scaledTangentDistance * Math.tan(halfTurnRad);
-    const scaledCenterDistance = scaledRadius / Math.sin(halfTurnRad);
-    
-    return calculateArcWithParameters(
-      waypoint, incomingAngle, outgoingAngle, bisectorAngle,
-      scaledTangentDistance, scaledRadius, scaledCenterDistance
-    );
-  }
+  bisectorX /= bisectorLength;
+  bisectorY /= bisectorLength;
   
-  return calculateArcWithParameters(
-    waypoint, incomingAngle, outgoingAngle, bisectorAngle,
-    tangentDistance, desiredRadius, centerDistance
-  );
-}
-
-/**
- * Helper function to calculate arc with given parameters
- */
-function calculateArcWithParameters(
-  waypoint: { x: number; y: number },
-  incomingAngle: number,
-  outgoingAngle: number,
-  bisectorAngle: number,
-  tangentDistance: number,
-  radius: number,
-  centerDistance: number
-): {
-  entryPoint: { x: number; y: number };
-  exitPoint: { x: number; y: number };
-  arcCenter: { x: number; y: number };
-  arcStartAngle: number;
-  arcEndAngle: number;
-  actualRadius: number;
-} {
-  // Calculate tangent points where the arc touches the incoming/outgoing paths
-  const incomingUnitX = Math.cos(incomingAngle * Math.PI / 180);
-  const incomingUnitY = Math.sin(incomingAngle * Math.PI / 180);
-  const outgoingUnitX = Math.cos(outgoingAngle * Math.PI / 180);
-  const outgoingUnitY = Math.sin(outgoingAngle * Math.PI / 180);
+  // Determine arc placement distance (how far to pull back from waypoint)
+  const maxPullback = Math.min(distToPrev * 0.3, distToNext * 0.3, 100);
+  const pullbackDistance = Math.min(maxPullback, 50); // Use a reasonable pullback
   
+  // Calculate entry and exit points
   const entryPoint = {
-    x: waypoint.x - incomingUnitX * tangentDistance,
-    y: waypoint.y - incomingUnitY * tangentDistance
+    x: waypoint.x + prevDirX * pullbackDistance,
+    y: waypoint.y + prevDirY * pullbackDistance
   };
   
   const exitPoint = {
-    x: waypoint.x + outgoingUnitX * tangentDistance,
-    y: waypoint.y + outgoingUnitY * tangentDistance
+    x: waypoint.x + nextDirX * pullbackDistance,
+    y: waypoint.y + nextDirY * pullbackDistance
   };
   
-  // Calculate arc center position along the bisector
-  const bisectorUnitX = Math.cos(bisectorAngle * Math.PI / 180);
-  const bisectorUnitY = Math.sin(bisectorAngle * Math.PI / 180);
+  // Calculate arc radius using the inscribed circle formula
+  // For a triangle with waypoint at vertex and entry/exit as other vertices
+  const halfAngleRad = angleRad / 2;
+  const radius = pullbackDistance * Math.tan(halfAngleRad);
   
+  if (radius < 5 || radius > 500) return null;
+  
+  // Calculate center distance from waypoint
+  const centerDistance = pullbackDistance / Math.cos(halfAngleRad);
+  
+  // Arc center is along the bisector
   const arcCenter = {
-    x: waypoint.x + bisectorUnitX * centerDistance,
-    y: waypoint.y + bisectorUnitY * centerDistance
+    x: waypoint.x + bisectorX * centerDistance,
+    y: waypoint.y + bisectorY * centerDistance
   };
   
-  // Calculate arc start and end angles
+  // Calculate start and end angles for the arc
   const arcStartAngle = Math.atan2(entryPoint.y - arcCenter.y, entryPoint.x - arcCenter.x) * 180 / Math.PI;
   const arcEndAngle = Math.atan2(exitPoint.y - arcCenter.y, exitPoint.x - arcCenter.x) * 180 / Math.PI;
   
@@ -233,6 +203,7 @@ function calculateArcWithParameters(
     actualRadius: radius
   };
 }
+
 
 /**
  * Path segment types for optimal robot movement
@@ -277,17 +248,16 @@ function calculateSmoothPathSegments(
       const prevPoint = points[i - 1];
       const nextPoint = points[i + 1];
       
-      const arcResult = calculateWaypointArcPoints(
+      const arcResult = calculateOptimalTangentArc(
         prevPoint,
         currentPoint,
-        nextPoint,
-        defaultRadius
+        nextPoint
       );
       
       if (arcResult) {
         arcPoints.set(i, {
           ...arcResult,
-          radius: calculateDistance(arcResult.arcCenter.x, arcResult.arcCenter.y, arcResult.entryPoint.x, arcResult.entryPoint.y)
+          radius: arcResult.actualRadius
         });
       }
     }
@@ -320,6 +290,16 @@ function calculateSmoothPathSegments(
     
     // Create straight line segment between connection points
     const segmentDistance = calculateDistance(segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y);
+    
+    console.log(`Creating segment from point ${i} to ${i + 1}:`, {
+      currentPoint: currentPoint.type,
+      nextPoint: nextPoint.type,
+      segmentStart,
+      segmentEnd,
+      segmentDistance,
+      hasCurrentArc: !!currentArc,
+      hasNextArc: !!nextArc
+    });
     
     if (segmentDistance > 1) { // Only create segment if there's meaningful distance
       const segmentAngle = calculateAngle(segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y);
@@ -367,15 +347,57 @@ function calculateSmoothPathSegments(
 
 
 /**
+ * Create simple straight line segments between all mission points as fallback
+ */
+function createFallbackStraightSegments(points: MissionPointType[]): ArcPathSegment[] {
+  const segments: ArcPathSegment[] = [];
+  
+  for (let i = 0; i < points.length - 1; i++) {
+    const fromPoint = points[i];
+    const toPoint = points[i + 1];
+    const distance = calculateDistance(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+    const angle = calculateAngle(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+    
+    segments.push({
+      fromPoint,
+      toPoint,
+      startX: fromPoint.x,
+      startY: fromPoint.y,
+      endX: toPoint.x,
+      endY: toPoint.y,
+      startHeading: angle,
+      endHeading: angle,
+      pathType: "straight",
+      pathLength: distance
+    });
+  }
+  
+  console.log(`Created ${segments.length} fallback straight segments`);
+  return segments;
+}
+
+/**
  * Compute arc-based path segments that pass through waypoints for smooth motion
+ * Falls back to straight line connections if arc calculation fails
  */
 export function computeArcPath(mission: Mission): ArcPathSegment[] {
   if (!mission || mission.points.length < 2) {
+    console.log('computeArcPath: No mission or insufficient points', { mission: !!mission, pointsLength: mission?.points?.length || 0 });
     return [];
   }
   
   const defaultRadius = mission.defaultArcRadius || 100; // mm
-  return calculateSmoothPathSegments(mission.points, defaultRadius);
+  const segments = calculateSmoothPathSegments(mission.points, defaultRadius);
+  
+  console.log(`Generated ${segments.length} path segments for mission with ${mission.points.length} points`);
+  
+  // If no segments were generated, create fallback straight line segments
+  if (segments.length === 0) {
+    console.log('No arc segments generated, creating fallback straight line segments');
+    return createFallbackStraightSegments(mission.points);
+  }
+  
+  return segments;
 }
 
 /**
@@ -406,17 +428,25 @@ export function generateArcPathPoints(
   const startAngle = segment.arcStartAngle * Math.PI / 180;
   const endAngle = segment.arcEndAngle * Math.PI / 180;
   
-  // Calculate the angle difference and normalize it
-  let angleDiff = normalizeAngle((segment.arcEndAngle - segment.arcStartAngle));
+  console.log(`Generating arc points:`, {
+    numPoints,
+    startAngleDeg: segment.arcStartAngle,
+    endAngleDeg: segment.arcEndAngle,
+    center: segment.arcCenter,
+    radius: segment.arcRadius,
+    pathLength: segment.pathLength
+  });
   
-  // Determine if we should go clockwise or counterclockwise
-  // We want to take the shorter arc that passes through the waypoint
-  if (Math.abs(angleDiff) > 180) {
-    // Take the shorter path in the opposite direction
-    angleDiff = angleDiff > 0 ? angleDiff - 360 : angleDiff + 360;
-  }
+  // Calculate the angle difference
+  let angleDiff = segment.arcEndAngle - segment.arcStartAngle;
   
-  const angleStep = (angleDiff * Math.PI / 180) / (numPoints - 1);
+  // Normalize to [-180, 180] range
+  while (angleDiff > 180) angleDiff -= 360;
+  while (angleDiff < -180) angleDiff += 360;
+  
+  // Convert to radians for interpolation
+  const angleDiffRad = angleDiff * Math.PI / 180;
+  const angleStep = angleDiffRad / (numPoints - 1);
   
   for (let i = 0; i < numPoints; i++) {
     const angle = startAngle + angleStep * i;
@@ -424,6 +454,8 @@ export function generateArcPathPoints(
     const y = segment.arcCenter.y + segment.arcRadius * Math.sin(angle);
     points.push({ x, y });
   }
+  
+  console.log(`Generated ${points.length} arc points:`, points.slice(0, 3), '...', points.slice(-3));
   
   return points;
 }
