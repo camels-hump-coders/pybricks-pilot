@@ -185,6 +185,7 @@ export class MissionExecutionService {
     return commands;
   }
 
+
   /**
    * Convert a single path segment to robot commands
    */
@@ -416,8 +417,6 @@ export class MissionExecutionService {
 
           case "arc":
             if (
-              command.centerX !== undefined &&
-              command.centerY !== undefined &&
               command.radius !== undefined &&
               command.startAngle !== undefined &&
               command.endAngle !== undefined &&
@@ -425,15 +424,14 @@ export class MissionExecutionService {
             ) {
               if (robotInterface.arc) {
                 await robotInterface.arc(
-                  command.centerX,
-                  command.centerY,
+                  command.centerX || 0,
+                  command.centerY || 0,
                   command.radius,
                   command.startAngle,
                   command.endAngle,
                   command.speed
                 );
               } else {
-                // Fallback: robot doesn't support arcs - this shouldn't happen for virtual robot now
                 console.warn("Robot does not support arc commands");
               }
             }

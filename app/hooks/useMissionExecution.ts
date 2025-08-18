@@ -128,8 +128,8 @@ export function useMissionExecution() {
                 sendTurnCommand: pybricksHub.sendTurnCommand,
                 sendStopCommand: pybricksHub.sendStopCommand,
                 sendMotorCommand: pybricksHub.sendMotorCommand,
-                turnAndDrive: pybricksHub.turnAndDrive.bind(pybricksHub),
-                arc: pybricksHub.arc.bind(pybricksHub),
+                turnAndDrive: pybricksHub.turnAndDrive,
+                arc: pybricksHub.arc,
               }
             : {
                 executeCommandSequence:

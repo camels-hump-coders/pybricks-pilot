@@ -971,8 +971,7 @@ class PybricksHubService extends EventTarget {
     ]);
   }
 
-  // Arc command implementation - since firmware doesn't support native arcs,
-  // we'll implement it as a series of small turn+drive segments
+  // Arc command implementation using Pybricks native arc support
   async arc(
     centerX: number,
     centerY: number,
@@ -988,45 +987,17 @@ class PybricksHubService extends EventTarget {
     while (sweepAngle > 180) sweepAngle -= 360;
     while (sweepAngle < -180) sweepAngle += 360;
     
-    const absSweepAngle = Math.abs(sweepAngle);
+    console.log(`[Pybricks Hub] Executing arc: radius ${radius.toFixed(1)}mm, angle ${sweepAngle.toFixed(1)}°, speed ${speed}mm/s`);
     
-    // For very small arcs, just do a simple turn
-    if (absSweepAngle < 5) {
-      await this.turn(sweepAngle, speed);
-      return;
-    }
-    
-    // Break arc into segments - more segments for larger arcs
-    const numSegments = Math.max(3, Math.min(12, Math.ceil(absSweepAngle / 15)));
-    const segmentAngle = sweepAngle / numSegments;
-    const segmentArcLength = (radius * Math.abs(segmentAngle) * Math.PI) / 180;
-    
-    console.log(`[Pybricks Hub] Implementing arc as ${numSegments} segments (${segmentAngle.toFixed(1)}° each, ${segmentArcLength.toFixed(1)}mm arc length)`);
-    
-    // Create command sequence for arc segments
-    const commands = [];
-    
-    for (let i = 0; i < numSegments; i++) {
-      // Add turn command for this segment
-      commands.push({
-        action: "turn",
-        angle: segmentAngle,
-        speed: Math.min(speed, 90), // Slower turns for better precision
-      });
-      
-      // Add drive command for the chord length (straight line approximation)
-      // For small angles, chord length ≈ arc length
-      const chordLength = segmentArcLength; // Good approximation for small angles
-      
-      commands.push({
-        action: "drive",
-        distance: chordLength,
-        speed: speed,
-      });
-    }
-    
-    console.log(`[Pybricks Hub] Executing arc as ${commands.length} commands`);
-    await this.executeCommandSequence(commands);
+    // Send arc command to firmware using Pybricks native arc method
+    await this.executeCommandSequence([{
+      action: "arc",
+      radius: radius,
+      startAngle: startAngle,
+      endAngle: endAngle,
+      angle: sweepAngle, // Also send computed angle for firmware convenience
+      speed: speed,
+    }]);
   }
 
   // RobotInterface compatibility methods
