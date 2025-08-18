@@ -58,6 +58,7 @@ export const GameMatConfigSchema = z.object({
 });
 
 export type Point = z.infer<typeof PointSchema>;
+export type MissionObjectiveChoice = z.infer<typeof MissionObjectiveChoiceSchema>;
 export type MissionObjective = z.infer<typeof MissionObjectiveSchema>;
 export type Mission = z.infer<typeof MissionSchema>;
 export type GameMatConfig = z.infer<typeof GameMatConfigSchema>;

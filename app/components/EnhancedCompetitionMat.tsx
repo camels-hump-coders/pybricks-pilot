@@ -66,6 +66,8 @@ import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
+import { TelemetryTooltip } from "./EnhancedCompetitionMat/TelemetryTooltip";
+import { MissionsList } from "./EnhancedCompetitionMat/MissionsList";
 
 // RobotPosition interface now imported from utils/canvas
 
@@ -139,8 +141,7 @@ export function EnhancedCompetitionMat({
   const [canvasSize, setCanvasSize] = useAtom(canvasSizeAtom);
   const [missionBounds, setMissionBounds] = useAtom(missionBoundsAtom);
 
-  // UI state from atoms
-  const [missionsExpanded, setMissionsExpanded] = useAtom(missionsExpandedAtom);
+  // Note: missionsExpanded is now handled inside MissionsList component
 
   // Path visualization state from atom
   const pathOptions = useAtomValue(pathVisualizationOptionsAtom);
@@ -157,7 +158,7 @@ export function EnhancedCompetitionMat({
   // Spline path dragging state from atoms
   const [isDraggingPoint, setIsDraggingPoint] = useAtom(isDraggingPointAtom);
   const [draggedPointId, setDraggedPointId] = useAtom(draggedPointIdAtom);
-  const [justFinishedDragging, setJustFinishedDragging] = useAtom(justFinishedDraggingAtom);
+  const justFinishedDragging = useAtomValue(justFinishedDraggingAtom);
 
   // Control point dragging state from atoms
   const [isDraggingControlPoint, setIsDraggingControlPoint] = useAtom(isDraggingControlPointAtom);
@@ -204,7 +205,7 @@ export function EnhancedCompetitionMat({
 
   // Handle position reset events only - telemetry is handled in the combined handler below
   useEffect(() => {
-    const handlePositionResetEvent = (event: CustomEvent) => {
+    const handlePositionResetEvent = () => {
       console.log(
         "[EnhancedCompetitionMat] Position reset received, resetting robot to start position"
       );
@@ -221,7 +222,6 @@ export function EnhancedCompetitionMat({
 
       try {
         // Calculate robot position from edge measurements (similar to CompactRobotController logic)
-        const robotConfig = robotConfigAtom;
         const matWidth = coordinateUtils.matDimensions.matWidthMm;
         const matHeight = coordinateUtils.matDimensions.matHeightMm;
 
@@ -1043,7 +1043,7 @@ export function EnhancedCompetitionMat({
   const toggleObjective = (
     objectId: string,
     objectiveId: string,
-    points: number,
+    _points: number,
     choiceId: string
   ) => {
     setScoringState((prev) => {
@@ -1084,11 +1084,6 @@ export function EnhancedCompetitionMat({
         },
       };
 
-      const newTotal =
-        customMatConfig?.missions.reduce(
-          (sum, object) => sum + getTotalPointsForMission(object, newState),
-          0
-        ) || 0;
       // Score is automatically tracked via Jotai currentScore atom
 
       return newState;
@@ -1313,167 +1308,11 @@ export function EnhancedCompetitionMat({
 
       {/* Telemetry Tooltip */}
       {hoveredPoint && tooltipPosition && (
-        <div
-          className="fixed z-50 bg-black bg-opacity-90 text-white text-xs rounded-lg p-3 pointer-events-none max-w-xs"
-          style={{
-            left: `${tooltipPosition.x + 10}px`,
-            top: `${tooltipPosition.y - 10}px`,
-            transform: "translateY(-100%)",
-          }}
-        >
-          <div className="space-y-1">
-            <div className="font-semibold text-yellow-300 border-b border-gray-600 pb-1 mb-2">
-              Telemetry Point
-            </div>
-            <div>
-              <span className="text-gray-300">Time:</span>
-              <span className="ml-2">
-                {(() => {
-                  // Calculate relative time from first point in selected path
-                  if (selectedPathPoints.length > 0) {
-                    const firstPointTime = selectedPathPoints[0].timestamp;
-                    const relativeTime =
-                      (hoveredPoint.timestamp - firstPointTime) / 1000;
-                    return `${relativeTime.toFixed(1)}s`;
-                  }
-                  return "0.0s";
-                })()}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-300">Position:</span>
-              <span className="ml-2">
-                {Math.round(hoveredPoint.x)}, {Math.round(hoveredPoint.y)}mm
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-300">Heading:</span>
-              <span className="ml-2">{Math.round(hoveredPoint.heading)}°</span>
-            </div>
-            {hoveredPoint.data.drivebase && (
-              <div>
-                <span className="text-gray-300">Speed:</span>
-                <span className="ml-2">
-                  {Math.round(
-                    hoveredPoint.data.drivebase.state?.drive_speed || 0
-                  )}
-                  mm/s
-                </span>
-              </div>
-            )}
-            {hoveredPoint.data.motors &&
-              Object.keys(hoveredPoint.data.motors).length > 0 && (
-                <>
-                  <div className="border-t border-gray-600 pt-2 mt-2">
-                    <div className="text-gray-300 font-medium mb-1">
-                      Motors:
-                    </div>
-                    {Object.entries(hoveredPoint.data.motors)
-                      .filter(
-                        ([name]) =>
-                          !["left", "right"].includes(name.toLowerCase())
-                      )
-                      .map(([name, motor]) => (
-                        <div key={name} className="ml-2 mb-1">
-                          <span className="text-green-300 font-medium">
-                            {name}:
-                          </span>
-                          <div className="ml-2 text-xs">
-                            <div className="flex justify-between">
-                              <span>Angle:</span>
-                              <span>{Math.round(motor.angle)}°</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Speed:</span>
-                              <span>{Math.round(motor.speed)}°/s</span>
-                            </div>
-                            {motor.load !== undefined && (
-                              <div className="flex justify-between">
-                                <span>Load:</span>
-                                <span
-                                  className={
-                                    motor.load > 80
-                                      ? "text-red-300"
-                                      : motor.load > 50
-                                        ? "text-yellow-300"
-                                        : "text-green-300"
-                                  }
-                                >
-                                  {Math.round(motor.load)}%
-                                </span>
-                              </div>
-                            )}
-                            {motor.error && (
-                              <div className="text-red-300 text-xs">
-                                Error: {motor.error}
-                              </div>
-                            )}
-                            {Math.abs(motor.speed) < 1 &&
-                              Math.abs(motor.load || 0) > 20 && (
-                                <div className="text-orange-300 text-xs">
-                                  ⚠ Stalled
-                                </div>
-                              )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </>
-              )}
-            {hoveredPoint.data.sensors &&
-              Object.keys(hoveredPoint.data.sensors).length > 0 && (
-                <>
-                  <div className="border-t border-gray-600 pt-2 mt-2">
-                    <div className="text-gray-300 font-medium mb-1">
-                      Sensors:
-                    </div>
-                    {Object.entries(hoveredPoint.data.sensors).map(
-                      ([name, data]) => (
-                        <div key={name} className="ml-2">
-                          <span className="text-blue-300 font-medium">
-                            {name}:
-                          </span>
-                          {data.color && (
-                            <div className="ml-2 flex items-center gap-2">
-                              <span>Color:</span>
-                              <div
-                                className="w-4 h-4 rounded border border-white/30 inline-block"
-                                style={{
-                                  backgroundColor:
-                                    telemetryHistory.getColorForPoint(
-                                      hoveredPoint,
-                                      "colorSensor"
-                                    ),
-                                }}
-                              ></div>
-                              <span>
-                                {data.color.toString().replace("Color.", "")}
-                              </span>
-                            </div>
-                          )}
-                          {data.distance !== undefined && (
-                            <div className="ml-2">
-                              Distance: {Math.round(data.distance)}mm
-                            </div>
-                          )}
-                          {data.reflection !== undefined && (
-                            <div className="ml-2">
-                              Reflection: {Math.round(data.reflection)}%
-                            </div>
-                          )}
-                          {data.force !== undefined && (
-                            <div className="ml-2">
-                              Force: {data.force.toFixed(1)}N
-                            </div>
-                          )}
-                        </div>
-                      )
-                    )}
-                  </div>
-                </>
-              )}
-          </div>
-        </div>
+        <TelemetryTooltip
+          hoveredPoint={hoveredPoint}
+          tooltipPosition={tooltipPosition}
+          selectedPathPoints={selectedPathPoints}
+        />
       )}
 
       {/* Telemetry Playback Controls */}
@@ -1510,134 +1349,14 @@ export function EnhancedCompetitionMat({
       </div>
 
       {/* Missions List */}
-      {customMatConfig && showScoring && (
-        <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-          {/* Accordion Header */}
-          <button
-            onClick={() => setMissionsExpanded(!missionsExpanded)}
-            className="w-full p-3 text-left border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
-                  Missions
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`transition-transform ${missionsExpanded ? "rotate-90" : "rotate-0"}`}
-                >
-                  ▶
-                </span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {missionsExpanded ? "Hide" : "Show"} (
-                  {customMatConfig?.missions.length || 0})
-                </span>
-              </div>
-            </div>
-          </button>
-          {missionsExpanded && (
-            <div className="space-y-4">
-              {customMatConfig?.missions.map((obj) => (
-                <div
-                  key={obj.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 sm:p-3"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm sm:text-base font-medium text-gray-800 dark:text-gray-200">
-                      {obj.name}
-                    </h5>
-                    <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                      {getTotalPointsForMission(obj, scoringState)}/
-                      {getMaxPointsForMission(obj)}pts
-                    </span>
-                  </div>
-                  {obj.description && (
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                      {obj.description}
-                    </p>
-                  )}
-                  <div className="space-y-3">
-                    {obj.objectives.map((objective, index) => {
-                      const objectiveState =
-                        scoringState[obj.id]?.objectives?.[objective.id];
-                      const isCompleted = objectiveState?.completed || false;
-
-                      // All objectives now have choices
-                      return (
-                        <div key={objective.id} className="space-y-1">
-                          {objective.description && (
-                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                              {objective.description}
-                            </div>
-                          )}
-                          {objective.choices.map((choice) => {
-                            const isChoiceSelected =
-                              isCompleted &&
-                              objectiveState?.selectedChoiceId === choice.id;
-
-                            return (
-                              <button
-                                key={choice.id}
-                                onClick={() =>
-                                  toggleObjective(
-                                    obj.id,
-                                    objective.id,
-                                    choice.points,
-                                    choice.id
-                                  )
-                                }
-                                className={`w-full text-left p-2 rounded text-sm transition-colors ${
-                                  isChoiceSelected
-                                    ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-                                    : "bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                                }`}
-                              >
-                                <span className="flex items-center justify-between">
-                                  <span className="flex items-center gap-2">
-                                    <span className="flex-shrink-0">
-                                      <span
-                                        className={`w-3 h-3 rounded-full border-2 inline-block ${
-                                          isChoiceSelected
-                                            ? "bg-green-600 border-green-600"
-                                            : "border-gray-400 dark:border-gray-500"
-                                        }`}
-                                      >
-                                        {isChoiceSelected && (
-                                          <span className="block w-1 h-1 bg-white rounded-full mx-auto mt-0.5"></span>
-                                        )}
-                                      </span>
-                                    </span>
-                                    <span>{choice.description}</span>
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="text-xs">
-                                      {choice.points}pts
-                                    </span>
-                                    {choice.type === "bonus" && (
-                                      <span className="text-orange-500 text-xs">
-                                        bonus
-                                      </span>
-                                    )}
-                                  </span>
-                                </span>
-                              </button>
-                            );
-                          })}
-                          {/* Add dividing line between objectives (except after the last one) */}
-                          {index < obj.objectives.length - 1 && (
-                            <div className="border-t border-gray-200 dark:border-gray-600 my-2"></div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <MissionsList
+        customMatConfig={customMatConfig}
+        showScoring={showScoring}
+        scoringState={scoringState}
+        onToggleObjective={toggleObjective}
+        getTotalPointsForMission={getTotalPointsForMission}
+        getMaxPointsForMission={getMaxPointsForMission}
+      />
 
       {/* Mission Scoring Side Panel */}
       {popoverObject &&
