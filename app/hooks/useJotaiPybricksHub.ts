@@ -287,6 +287,7 @@ export function useJotaiPybricksHub() {
     // Command sequences and compound movements
     executeCommandSequence: pybricksHubService.executeCommandSequence.bind(pybricksHubService),
     turnAndDrive: pybricksHubService.turnAndDrive.bind(pybricksHubService),
+    arc: pybricksHubService.arc.bind(pybricksHubService),
 
     // Pybricks-specific features
     setInstrumentationEnabled,

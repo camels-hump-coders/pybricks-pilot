@@ -128,6 +128,8 @@ export function useMissionExecution() {
                 sendTurnCommand: pybricksHub.sendTurnCommand,
                 sendStopCommand: pybricksHub.sendStopCommand,
                 sendMotorCommand: pybricksHub.sendMotorCommand,
+                turnAndDrive: pybricksHub.turnAndDrive.bind(pybricksHub),
+                arc: pybricksHub.arc.bind(pybricksHub),
               }
             : {
                 executeCommandSequence:
@@ -149,6 +151,10 @@ export function useMissionExecution() {
                   speed: number
                 ) => {
                   await virtualRobotService.setMotorAngle(motor, angle, speed);
+                },
+                turnAndDrive: async (angle: number, distance: number, speed: number) => {
+                  await virtualRobotService.turn(angle, speed);
+                  await virtualRobotService.drive(distance, speed);
                 },
                 arc: virtualRobotService.arc.bind(virtualRobotService),
               };
