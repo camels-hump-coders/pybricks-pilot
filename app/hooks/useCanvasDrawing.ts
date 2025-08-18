@@ -249,9 +249,9 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       ctx,
       movementPreview,
       currentPosition,
-      controlMode === "spline" || controlMode === "program"
+      controlMode === "mission" || controlMode === "program"
         ? "incremental"
-        : controlMode, // Fallback to incremental for spline and program modes
+        : controlMode, // Fallback to incremental for mission and program modes
       robotConfig,
       { mmToCanvas, scale }
     );

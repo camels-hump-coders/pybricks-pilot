@@ -6,15 +6,15 @@ import { isProgramRunningAtom } from "../store/atoms/programRunning";
 interface ControlModeToggleProps {
   controlMode: ControlMode;
   setControlMode: (mode: ControlMode) => void;
-  onEnterSplineMode: () => void;
-  onExitSplineMode: () => void;
+  onEnterMissionMode: () => void;
+  onExitMissionMode: () => void;
 }
 
 export function ControlModeToggle({
   controlMode,
   setControlMode,
-  onEnterSplineMode,
-  onExitSplineMode,
+  onEnterMissionMode,
+  onExitMissionMode,
 }: ControlModeToggleProps) {
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
   const { robotType } = useJotaiRobotConnection();
@@ -22,10 +22,10 @@ export function ControlModeToggle({
     robotType === "virtual" || (robotType === "real" && isProgramRunning);
 
   const handleModeChange = (newMode: ControlMode) => {
-    if (newMode === "spline" && controlMode !== "spline") {
-      onEnterSplineMode();
-    } else if (controlMode === "spline" && newMode !== "spline") {
-      onExitSplineMode();
+    if (newMode === "mission" && controlMode !== "mission") {
+      onEnterMissionMode();
+    } else if (controlMode === "mission" && newMode !== "mission") {
+      onExitMissionMode();
     }
     setControlMode(newMode);
   };
@@ -68,14 +68,14 @@ export function ControlModeToggle({
         </button>
         <button
           disabled={!robotControlsEnabled}
-          onClick={() => handleModeChange("spline")}
+          onClick={() => handleModeChange("mission")}
           className={`px-1 py-2 text-xs rounded transition-colors ${
-            controlMode === "spline"
+            controlMode === "mission"
               ? "bg-purple-500 text-white"
               : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
           }`}
         >
-          Spline
+          Mission
         </button>
       </div>
     </div>

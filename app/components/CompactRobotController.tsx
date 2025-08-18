@@ -21,7 +21,7 @@ import {
 } from "./MovementPreview";
 import { PositionControls } from "./PositionControls";
 import { ProgramControls } from "./ProgramControls";
-import { SplineControls } from "./SplineControls";
+import { MissionControls } from "./MissionControls";
 
 interface CompactRobotControllerProps {
   onDriveCommand?: (direction: number, speed: number) => Promise<void>;
@@ -792,8 +792,8 @@ export function CompactRobotController({
           <ControlModeToggle
             controlMode={controlMode}
             setControlMode={setControlMode}
-            onEnterSplineMode={() => enterSplinePathMode()}
-            onExitSplineMode={exitSplinePathMode}
+            onEnterMissionMode={() => {/* TODO: Enter mission mode */}}
+            onExitMissionMode={() => {/* TODO: Exit mission mode */}}
           />
 
           {controlMode === "program" && (
@@ -850,16 +850,11 @@ export function CompactRobotController({
               </div>
             )}
 
-          {/* Spline Controls - Only visible for virtual robots or real robots when hub program is running */}
-          {controlMode === "spline" &&
+          {/* Mission Controls - Only visible for virtual robots or real robots when hub program is running */}
+          {controlMode === "mission" &&
             (robotType === "virtual" ||
               (robotType === "real" && isProgramRunning)) && (
-              <SplineControls
-                currentSplinePath={currentSplinePath}
-                splinePaths={splinePaths}
-                onExecutePath={handleExecutePath}
-                onExitSplineMode={exitSplinePathMode}
-              />
+              <MissionControls />
             )}
         </div>
       </div>

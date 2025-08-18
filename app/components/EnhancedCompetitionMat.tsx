@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useMatImageLoader } from "../hooks/useMatImageLoader";
@@ -11,6 +11,7 @@ import { usePositionResetEvents } from "../hooks/usePositionResetEvents";
 import { useSplineKeyboardEvents } from "../hooks/useSplineKeyboardEvents";
 import { useTelemetryReferenceInit } from "../hooks/useTelemetryReferenceInit";
 import { useCanvasEventHandlers } from "../hooks/useCanvasEventHandlers";
+import { useMissionEditing } from "../hooks/useMissionEditing";
 import {
   telemetryHistory,
   type TelemetryPoint,
@@ -71,6 +72,7 @@ import {
 } from "../utils/scoringUtils";
 import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
+import { MissionEditingOverlay } from "./MissionEditingOverlay";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
 import { TelemetryTooltip } from "./EnhancedCompetitionMat/TelemetryTooltip";
@@ -100,6 +102,15 @@ export function EnhancedCompetitionMat({
 
   // Get control mode from global atom
   const controlMode = useAtomValue(controlModeAtom);
+  
+  // Mission editing functionality
+  const missionEditing = useMissionEditing();
+  const {
+    isEditingMission,
+    pointPlacementMode,
+    handlePointPlacement,
+    getPreviewData,
+  } = missionEditing;
 
   // Get robot configuration
   const robotConfig = useAtomValue(robotConfigAtom);
@@ -267,7 +278,7 @@ export function EnhancedCompetitionMat({
   );
 
   // Canvas event handlers hook
-  const { handleCanvasClick, handleCanvasMouseMove, handleCanvasMouseUp, handleCanvasMouseLeave, toggleObjective } = useCanvasEventHandlers({
+  const { handleCanvasClick: originalHandleCanvasClick, handleCanvasMouseMove, handleCanvasMouseUp, handleCanvasMouseLeave, toggleObjective } = useCanvasEventHandlers({
     canvasRef,
     showScoring,
     scoringState,
@@ -299,6 +310,40 @@ export function EnhancedCompetitionMat({
     exitSplinePathMode,
   });
 
+  // Custom canvas click handler that includes mission editing
+  const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    // If we're in mission editing mode and have a point placement mode active
+    if (controlMode === "mission" && isEditingMission && pointPlacementMode) {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = event.clientX - rect.left;
+      const canvasY = event.clientY - rect.top;
+      
+      // Convert canvas coordinates to mat coordinates
+      const { canvasToMm } = coordinateUtils;
+      const matPos = canvasToMm(canvasX, canvasY);
+      
+      // Handle mission point placement
+      const newPoint = handlePointPlacement(matPos.x, matPos.y);
+      if (newPoint) {
+        // Point was placed, we're done
+        return;
+      }
+    }
+    
+    // Fall back to original canvas click handler
+    originalHandleCanvasClick(event);
+  }, [
+    controlMode,
+    isEditingMission,
+    pointPlacementMode,
+    coordinateUtils,
+    handlePointPlacement,
+    originalHandleCanvasClick,
+    canvasRef,
+  ]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -362,6 +407,9 @@ export function EnhancedCompetitionMat({
           }`}
           style={{ height: "auto" }}
         />
+
+        {/* Mission Editing Overlay */}
+        {controlMode === "mission" && <MissionEditingOverlay />}
 
         {!isConnected && (
           <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 bg-opacity-75 flex items-center justify-center">

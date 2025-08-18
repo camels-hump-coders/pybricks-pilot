@@ -404,7 +404,7 @@ export function useJotaiGameMat() {
 
   const enterSplinePathMode = useCallback(
     (pathName: string = "New Path") => {
-      setControlMode("spline");
+      setControlMode("mission");
       createSplinePath(pathName);
     },
     [setControlMode, createSplinePath]
