@@ -624,6 +624,167 @@ function drawPathArrow(
 }
 
 /**
+ * Find the best insertion point for a new point based on mouse position
+ * Determines which segment the mouse is closest to
+ */
+function findBestInsertionPoint(
+  points: MissionPointType[],
+  mousePos: { x: number; y: number }
+): number {
+  if (points.length <= 1) return points.length;
+  
+  let bestInsertIndex = points.length;
+  let minDistance = Infinity;
+  
+  // Check each segment between consecutive points
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    
+    // Calculate distance from mouse to this segment
+    const distance = distanceToSegment(mousePos, p1, p2);
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      bestInsertIndex = i + 1; // Insert after point i
+    }
+  }
+  
+  return bestInsertIndex;
+}
+
+/**
+ * Calculate distance from a point to a line segment
+ */
+function distanceToSegment(
+  point: { x: number; y: number },
+  segStart: { x: number; y: number },
+  segEnd: { x: number; y: number }
+): number {
+  const A = point.x - segStart.x;
+  const B = point.y - segStart.y;
+  const C = segEnd.x - segStart.x;
+  const D = segEnd.y - segStart.y;
+
+  const dot = A * C + B * D;
+  const lenSq = C * C + D * D;
+  
+  if (lenSq === 0) {
+    // Segment is a point
+    return Math.sqrt(A * A + B * B);
+  }
+  
+  let param = dot / lenSq;
+  
+  let xx, yy;
+  
+  if (param < 0) {
+    xx = segStart.x;
+    yy = segStart.y;
+  } else if (param > 1) {
+    xx = segEnd.x;
+    yy = segEnd.y;
+  } else {
+    xx = segStart.x + param * C;
+    yy = segStart.y + param * D;
+  }
+  
+  const dx = point.x - xx;
+  const dy = point.y - yy;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Draw only the affected path segments for preview
+ */
+function drawMissionPathPreviewSegments(
+  ctx: CanvasRenderingContext2D,
+  originalMission: MissionPlannerMission,
+  previewMission: MissionPlannerMission,
+  insertIndex: number,
+  utils: MissionDrawingUtils,
+  options: {
+    strokeColor: string;
+    opacity: number;
+  }
+) {
+  const { strokeColor, opacity } = options;
+  const { scale } = utils;
+  
+  // Calculate which segments are affected by the insertion
+  const affectedSegmentIndices = new Set<number>();
+  
+  // The new point affects segments around it
+  if (insertIndex > 0) {
+    affectedSegmentIndices.add(insertIndex - 1); // Segment coming into the new point
+  }
+  if (insertIndex < originalMission.points.length) {
+    affectedSegmentIndices.add(insertIndex); // Segment going out from the new point
+  }
+  
+  // Also need to consider segments that might be affected by rolling triarc optimization
+  const expandedRange = 2; // How many additional segments to check in each direction
+  for (let offset = -expandedRange; offset <= expandedRange; offset++) {
+    const segmentIndex = insertIndex + offset;
+    if (segmentIndex >= 0 && segmentIndex < previewMission.points.length - 1) {
+      affectedSegmentIndices.add(segmentIndex);
+    }
+  }
+  
+  console.log(`Preview: affected segments for insertion at ${insertIndex}:`, Array.from(affectedSegmentIndices));
+  
+  // Generate the optimized path segments for the preview mission
+  const previewSegments = computeArcPath(previewMission);
+  
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = 3 * scale; // Slightly thicker for preview visibility
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  
+  // Draw only the affected segments
+  previewSegments.forEach((segment, index) => {
+    if (affectedSegmentIndices.has(index)) {
+      const pathPoints = generateArcPathPoints(segment, 15);
+      
+      if (pathPoints.length >= 2) {
+        const canvasPoints = pathPoints.map(point => utils.mmToCanvas(point.x, point.y));
+        
+        // Different styles for different segment types
+        if (segment.pathType === "arc") {
+          ctx.strokeStyle = "#ff6b35"; // Orange-red for arcs
+          ctx.setLineDash([]);
+        } else {
+          ctx.strokeStyle = strokeColor;
+          ctx.setLineDash([5, 5]); // Dashed for straight segments
+        }
+        
+        ctx.beginPath();
+        ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
+        
+        for (let i = 1; i < canvasPoints.length; i++) {
+          ctx.lineTo(canvasPoints[i].x, canvasPoints[i].y);
+        }
+        
+        ctx.stroke();
+        
+        // Draw direction arrow at midpoint
+        if (canvasPoints.length >= 2) {
+          const midIndex = Math.floor(canvasPoints.length / 2);
+          const midPoint = canvasPoints[midIndex];
+          const nextPoint = canvasPoints[Math.min(midIndex + 1, canvasPoints.length - 1)];
+          
+          drawPathArrow(ctx, midPoint, nextPoint, scale);
+        }
+      }
+    }
+  });
+  
+  ctx.restore();
+}
+
+/**
  * Draw smooth path preview for mission editing
  */
 export function drawMissionPathPreview(
@@ -659,14 +820,8 @@ export function drawMissionPathPreview(
     ...(pointType === "action" ? { heading: actionHeading, actionName: "Preview", pauseDuration: 1 } : {})
   } as MissionPointType;
   
-  // Find insertion point (last non-end point)
-  let insertIndex = mission.points.length;
-  for (let i = mission.points.length - 1; i >= 0; i--) {
-    if (mission.points[i].type !== "end") {
-      insertIndex = i + 1;
-      break;
-    }
-  }
+  // Find insertion point based on mouse position relative to path segments
+  const insertIndex = findBestInsertionPoint(mission.points, matPos);
   
   // Create preview mission
   const previewMission: MissionPlannerMission = {
@@ -678,11 +833,9 @@ export function drawMissionPathPreview(
     ]
   };
   
-  // Draw the preview path
-  drawMissionArcPaths(ctx, previewMission, utils, {
+  // Draw the preview path - but only the affected segments
+  drawMissionPathPreviewSegments(ctx, mission, previewMission, insertIndex, utils, {
     strokeColor,
-    strokeWidth: 2,
-    showArrows: false,
     opacity
   });
 }
