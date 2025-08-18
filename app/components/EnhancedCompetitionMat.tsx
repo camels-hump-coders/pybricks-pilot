@@ -1,5 +1,5 @@
-import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useCallback, useEffect, useRef } from "react";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useMatImageLoader } from "../hooks/useMatImageLoader";
@@ -29,6 +29,22 @@ import {
   pathVisualizationOptionsAtom,
   selectedPathPointsAtom,
 } from "../store/atoms/telemetryPoints";
+import {
+  popoverObjectAtom,
+  missionsExpandedAtom,
+  isPseudoCodeExpandedAtom,
+  isTelemetryPlaybackExpandedAtom,
+  hoveredTelemetryPointAtom,
+  tooltipPositionAtom,
+  isDraggingPointAtom,
+  draggedPointIdAtom,
+  justFinishedDraggingAtom,
+  isDraggingControlPointAtom,
+  draggedControlPointAtom,
+  isDraggingTangencyHandleAtom,
+  draggedTangencyHandleAtom,
+  stopAllDraggingAtom,
+} from "../store/atoms/matUIState";
 import { drawBorderWalls, drawGrid } from "../utils/canvas/basicDrawing";
 import { drawMissions } from "../utils/canvas/missionDrawing";
 import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
@@ -115,7 +131,7 @@ export function EnhancedCompetitionMat({
     updateTangencyHandle,
   } = gameMat;
 
-  const [popoverObject, setPopoverObject] = useState<string | null>(null);
+  const [popoverObject, setPopoverObject] = useAtom(popoverObjectAtom);
 
   // Canvas state from atoms
   const [hoveredObject, setHoveredObject] = useAtom(hoveredObjectAtom);
@@ -123,53 +139,36 @@ export function EnhancedCompetitionMat({
   const [canvasSize, setCanvasSize] = useAtom(canvasSizeAtom);
   const [missionBounds, setMissionBounds] = useAtom(missionBoundsAtom);
 
-  // Local state that doesn't need to be in atoms
-  const [missionsExpanded, setMissionsExpanded] = useState(false);
+  // UI state from atoms
+  const [missionsExpanded, setMissionsExpanded] = useAtom(missionsExpandedAtom);
 
   // Path visualization state from atom
   const pathOptions = useAtomValue(pathVisualizationOptionsAtom);
   const selectedPathPoints = useAtomValue(selectedPathPointsAtom);
-  const [hoveredPoint, setHoveredPoint] = useState<TelemetryPoint | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useAtom(hoveredTelemetryPointAtom);
   const [hoveredPointIndex, setHoveredPointIndex] = useAtom(hoveredPointAtom);
   const hoveredPointIndexValue = hoveredPointIndex ?? -1; // Convert null to -1 for backwards compatibility
-  const [tooltipPosition, setTooltipPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useAtom(tooltipPositionAtom);
 
-  // Pseudo code panel state
-  const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useState(true);
-  // Telemetry playback panel state
-  const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] =
-    useState(true);
+  // Accordion panel states from atoms
+  const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useAtom(isPseudoCodeExpandedAtom);
+  const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] = useAtom(isTelemetryPlaybackExpandedAtom);
 
-  // Spline path dragging state
-  const [isDraggingPoint, setIsDraggingPoint] = useState(false);
-  const [draggedPointId, setDraggedPointId] = useState<string | null>(null);
-  const [justFinishedDragging, setJustFinishedDragging] = useState(false);
+  // Spline path dragging state from atoms
+  const [isDraggingPoint, setIsDraggingPoint] = useAtom(isDraggingPointAtom);
+  const [draggedPointId, setDraggedPointId] = useAtom(draggedPointIdAtom);
+  const [justFinishedDragging, setJustFinishedDragging] = useAtom(justFinishedDraggingAtom);
 
-  // Control point dragging state
-  const [isDraggingControlPoint, setIsDraggingControlPoint] = useState(false);
-  const [draggedControlPoint, setDraggedControlPoint] = useState<{
-    pointId: string;
-    controlType: "before" | "after";
-  } | null>(null);
+  // Control point dragging state from atoms
+  const [isDraggingControlPoint, setIsDraggingControlPoint] = useAtom(isDraggingControlPointAtom);
+  const [draggedControlPoint, setDraggedControlPoint] = useAtom(draggedControlPointAtom);
 
-  // Curvature handle dragging state
-  const [isDraggingTangencyHandle, setIsDraggingTangencyHandle] =
-    useState(false);
-  const [draggedTangencyHandle, setDraggedTangencyHandle] = useState<{
-    pointId: string;
-    gripType: "diamond" | "arrow" | "endpoint";
-    initialHandle: {
-      x: number;
-      y: number;
-      strength: number;
-      isEdited: boolean;
-      isTangentDriving: boolean;
-    };
-    initialMousePos: { x: number; y: number };
-  } | null>(null);
+  // Curvature handle dragging state from atoms
+  const [isDraggingTangencyHandle, setIsDraggingTangencyHandle] = useAtom(isDraggingTangencyHandleAtom);
+  const [draggedTangencyHandle, setDraggedTangencyHandle] = useAtom(draggedTangencyHandleAtom);
+  
+  // Stop all dragging action
+  const stopAllDragging = useSetAtom(stopAllDraggingAtom);
 
   // Hover states are now managed by Jotai atoms
 
@@ -1272,24 +1271,8 @@ export function EnhancedCompetitionMat({
           onMouseDown={handleCanvasClick}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={() => {
-            // Stop dragging when mouse is released
-            const wasDragging =
-              isDraggingPoint ||
-              isDraggingControlPoint ||
-              isDraggingTangencyHandle;
-            setIsDraggingPoint(false);
-            setDraggedPointId(null);
-            setIsDraggingControlPoint(false);
-            setDraggedControlPoint(null);
-            setIsDraggingTangencyHandle(false);
-            setDraggedTangencyHandle(null);
-
-            // Set flag to prevent immediate click handler from triggering
-            if (wasDragging) {
-              setJustFinishedDragging(true);
-              // Clear the flag after a short delay to allow future clicks
-              setTimeout(() => setJustFinishedDragging(false), 100);
-            }
+            // Stop all dragging when mouse is released
+            stopAllDragging();
           }}
           onMouseLeave={() => {
             setMousePosition(null);
@@ -1297,13 +1280,8 @@ export function EnhancedCompetitionMat({
             setHoveredPoint(null);
             setHoveredPointIndex(-1);
             setTooltipPosition(null);
-            // Stop dragging when mouse leaves
-            setIsDraggingPoint(false);
-            setDraggedPointId(null);
-            setIsDraggingControlPoint(false);
-            setDraggedControlPoint(null);
-            setIsDraggingTangencyHandle(false);
-            setDraggedTangencyHandle(null);
+            // Stop all dragging when mouse leaves
+            stopAllDragging();
 
             // Clear spline hover states
             setHoveredSplinePointId(null);

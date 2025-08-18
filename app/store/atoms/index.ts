@@ -1,6 +1,7 @@
 // Re-export all atoms for convenient access
 export * from "./fileSystem";
 export * from "./gameMat";
+export * from "./matUIState";
 export * from "./pybricksHub";
 export * from "./robotConfig";
 export * from "./robotConnection";
