@@ -1,24 +1,18 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useRef, useCallback } from "react";
+import { useCallback, useRef } from "react";
+import { useCanvasDrawing } from "../hooks/useCanvasDrawing";
+import { useCanvasEventHandlers } from "../hooks/useCanvasEventHandlers";
+import { useCanvasSize } from "../hooks/useCanvasSize";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useMatImageLoader } from "../hooks/useMatImageLoader";
-import { useTelemetryUpdates } from "../hooks/useTelemetryUpdates";
-import { useCanvasSize } from "../hooks/useCanvasSize";
-import { useCanvasDrawing } from "../hooks/useCanvasDrawing";
-import { useTelemetryRecording } from "../hooks/useTelemetryRecording";
+import { useMissionEditing } from "../hooks/useMissionEditing";
 import { usePositionResetEvents } from "../hooks/usePositionResetEvents";
 import { useSplineKeyboardEvents } from "../hooks/useSplineKeyboardEvents";
+import { useTelemetryRecording } from "../hooks/useTelemetryRecording";
 import { useTelemetryReferenceInit } from "../hooks/useTelemetryReferenceInit";
-import { useCanvasEventHandlers } from "../hooks/useCanvasEventHandlers";
-import { useMissionEditing } from "../hooks/useMissionEditing";
+import { useTelemetryUpdates } from "../hooks/useTelemetryUpdates";
 import {
-  telemetryHistory,
-  type TelemetryPoint,
-} from "../services/telemetryHistory";
-import {
-  canvasScaleAtom,
-  canvasSizeAtom,
   coordinateUtilsAtom,
   hoveredObjectAtom,
   hoveredPointAtom,
@@ -30,6 +24,21 @@ import {
   showGridOverlayAtom,
 } from "../store/atoms/gameMat";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
+import {
+  draggedControlPointAtom,
+  draggedPointIdAtom,
+  draggedTangencyHandleAtom,
+  hoveredTelemetryPointAtom,
+  isDraggingControlPointAtom,
+  isDraggingPointAtom,
+  isDraggingTangencyHandleAtom,
+  isPseudoCodeExpandedAtom,
+  isTelemetryPlaybackExpandedAtom,
+  justFinishedDraggingAtom,
+  popoverObjectAtom,
+  stopAllDraggingAtom,
+  tooltipPositionAtom,
+} from "../store/atoms/matUIState";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { telemetryDataAtom } from "../store/atoms/robotConnection";
 import {
@@ -38,44 +47,14 @@ import {
   selectedPathPointsAtom,
 } from "../store/atoms/telemetryPoints";
 import {
-  popoverObjectAtom,
-  missionsExpandedAtom,
-  isPseudoCodeExpandedAtom,
-  isTelemetryPlaybackExpandedAtom,
-  hoveredTelemetryPointAtom,
-  tooltipPositionAtom,
-  isDraggingPointAtom,
-  draggedPointIdAtom,
-  justFinishedDraggingAtom,
-  isDraggingControlPointAtom,
-  draggedControlPointAtom,
-  isDraggingTangencyHandleAtom,
-  draggedTangencyHandleAtom,
-  stopAllDraggingAtom,
-} from "../store/atoms/matUIState";
-import { drawBorderWalls, drawGrid } from "../utils/canvas/basicDrawing";
-import { drawMissions } from "../utils/canvas/missionDrawing";
-import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
-import { drawRobot } from "../utils/canvas/robotDrawing.js";
-import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
-import {
-  drawSplinePath,
-  findClickedControlPoint,
-  findClickedTangencyHandle,
-} from "../utils/canvas/splinePathDrawing";
-import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing.js";
-import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing.js";
-import { type RobotPosition } from "../utils/robotPosition";
-import {
   getMaxPointsForMission,
   getTotalPointsForMission,
 } from "../utils/scoringUtils";
-import { calculateTrajectoryProjection } from "./MovementPreview";
+import { MissionsList } from "./EnhancedCompetitionMat/MissionsList";
+import { TelemetryTooltip } from "./EnhancedCompetitionMat/TelemetryTooltip";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
-import { TelemetryTooltip } from "./EnhancedCompetitionMat/TelemetryTooltip";
-import { MissionsList } from "./EnhancedCompetitionMat/MissionsList";
 
 // RobotPosition interface now imported from utils/canvas
 
@@ -83,9 +62,6 @@ interface EnhancedCompetitionMatProps {
   isConnected: boolean;
   showScoring?: boolean;
 }
-
-// Constants are now imported from coordinateUtilsAtom
-const BORDER_WALL_HEIGHT_MM = 36; // 36mm tall border walls
 
 // Scoring types and utilities now imported from utils/scoringUtils
 
@@ -101,7 +77,7 @@ export function EnhancedCompetitionMat({
 
   // Get control mode from global atom
   const controlMode = useAtomValue(controlModeAtom);
-  
+
   // Mission editing functionality
   const missionEditing = useMissionEditing();
   const {
@@ -167,8 +143,12 @@ export function EnhancedCompetitionMat({
   const [tooltipPosition, setTooltipPosition] = useAtom(tooltipPositionAtom);
 
   // Accordion panel states from atoms
-  const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useAtom(isPseudoCodeExpandedAtom);
-  const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] = useAtom(isTelemetryPlaybackExpandedAtom);
+  const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useAtom(
+    isPseudoCodeExpandedAtom
+  );
+  const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] = useAtom(
+    isTelemetryPlaybackExpandedAtom
+  );
 
   // Spline path dragging state from atoms
   const [isDraggingPoint, setIsDraggingPoint] = useAtom(isDraggingPointAtom);
@@ -176,13 +156,21 @@ export function EnhancedCompetitionMat({
   const justFinishedDragging = useAtomValue(justFinishedDraggingAtom);
 
   // Control point dragging state from atoms
-  const [isDraggingControlPoint, setIsDraggingControlPoint] = useAtom(isDraggingControlPointAtom);
-  const [draggedControlPoint, setDraggedControlPoint] = useAtom(draggedControlPointAtom);
+  const [isDraggingControlPoint, setIsDraggingControlPoint] = useAtom(
+    isDraggingControlPointAtom
+  );
+  const [draggedControlPoint, setDraggedControlPoint] = useAtom(
+    draggedControlPointAtom
+  );
 
   // Curvature handle dragging state from atoms
-  const [isDraggingTangencyHandle, setIsDraggingTangencyHandle] = useAtom(isDraggingTangencyHandleAtom);
-  const [draggedTangencyHandle, setDraggedTangencyHandle] = useAtom(draggedTangencyHandleAtom);
-  
+  const [isDraggingTangencyHandle, setIsDraggingTangencyHandle] = useAtom(
+    isDraggingTangencyHandleAtom
+  );
+  const [draggedTangencyHandle, setDraggedTangencyHandle] = useAtom(
+    draggedTangencyHandleAtom
+  );
+
   // Stop all dragging action
   const stopAllDragging = useSetAtom(stopAllDraggingAtom);
 
@@ -279,7 +267,13 @@ export function EnhancedCompetitionMat({
   );
 
   // Canvas event handlers hook
-  const { handleCanvasClick: originalHandleCanvasClick, handleCanvasMouseMove, handleCanvasMouseUp, handleCanvasMouseLeave, toggleObjective } = useCanvasEventHandlers({
+  const {
+    handleCanvasClick: originalHandleCanvasClick,
+    handleCanvasMouseMove,
+    handleCanvasMouseUp,
+    handleCanvasMouseLeave,
+    toggleObjective,
+  } = useCanvasEventHandlers({
     canvasRef,
     showScoring,
     scoringState,
@@ -313,50 +307,53 @@ export function EnhancedCompetitionMat({
   });
 
   // Custom canvas click handler that includes mission editing
-  const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    console.log("Canvas clicked - mission editing check:", {
+  const handleCanvasClick = useCallback(
+    (event: React.MouseEvent<HTMLCanvasElement>) => {
+      console.log("Canvas clicked - mission editing check:", {
+        controlMode,
+        isEditingMission,
+        pointPlacementMode,
+      });
+
+      // If we're in mission editing mode and have a point placement mode active
+      if (controlMode === "mission" && isEditingMission && pointPlacementMode) {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = event.clientX - rect.left;
+        const canvasY = event.clientY - rect.top;
+
+        console.log("Canvas coordinates:", { canvasX, canvasY });
+
+        // Convert canvas coordinates to mat coordinates
+        const { canvasToMm } = coordinateUtils;
+        const matPos = canvasToMm(canvasX, canvasY);
+
+        console.log("Mat coordinates:", matPos);
+
+        // Handle mission point placement
+        const newPoint = handlePointPlacement(matPos.x, matPos.y);
+        console.log("Point placement result:", newPoint);
+        if (newPoint) {
+          // Point was placed, we're done
+          return;
+        }
+      }
+
+      // Fall back to original canvas click handler
+      originalHandleCanvasClick(event);
+    },
+    [
       controlMode,
       isEditingMission,
-      pointPlacementMode
-    });
-    
-    // If we're in mission editing mode and have a point placement mode active
-    if (controlMode === "mission" && isEditingMission && pointPlacementMode) {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const canvasX = event.clientX - rect.left;
-      const canvasY = event.clientY - rect.top;
-      
-      console.log("Canvas coordinates:", { canvasX, canvasY });
-      
-      // Convert canvas coordinates to mat coordinates
-      const { canvasToMm } = coordinateUtils;
-      const matPos = canvasToMm(canvasX, canvasY);
-      
-      console.log("Mat coordinates:", matPos);
-      
-      // Handle mission point placement
-      const newPoint = handlePointPlacement(matPos.x, matPos.y);
-      console.log("Point placement result:", newPoint);
-      if (newPoint) {
-        // Point was placed, we're done
-        return;
-      }
-    }
-    
-    // Fall back to original canvas click handler
-    originalHandleCanvasClick(event);
-  }, [
-    controlMode,
-    isEditingMission,
-    pointPlacementMode,
-    coordinateUtils,
-    handlePointPlacement,
-    originalHandleCanvasClick,
-    canvasRef,
-  ]);
+      pointPlacementMode,
+      coordinateUtils,
+      handlePointPlacement,
+      originalHandleCanvasClick,
+      canvasRef,
+    ]
+  );
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -377,8 +374,7 @@ export function EnhancedCompetitionMat({
                 {customMatConfig?.dimensions?.heightMm ||
                   coordinateUtils.matDimensions.matHeightMm}
                 mm, Table: {coordinateUtils.matDimensions.tableWidth}×
-                {coordinateUtils.matDimensions.tableHeight}mm with{" "}
-                {BORDER_WALL_HEIGHT_MM}mm walls
+                {coordinateUtils.matDimensions.tableHeight}mm
               </span>
             </p>
           </div>
@@ -420,7 +416,6 @@ export function EnhancedCompetitionMat({
           }`}
           style={{ height: "auto" }}
         />
-
 
         {!isConnected && (
           <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 bg-opacity-75 flex items-center justify-center">

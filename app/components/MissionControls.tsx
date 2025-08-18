@@ -1,12 +1,17 @@
-import React, { useState, useCallback } from "react";
-import { useMissionManager } from "../hooks/useMissionManager";
-import { useMissionEditing } from "../hooks/useMissionEditing";
-import { usePositionManager } from "../hooks/usePositionManager";
 import { useAtomValue } from "jotai";
+import React, { useCallback, useState } from "react";
+import { useMissionEditing } from "../hooks/useMissionEditing";
+import { useMissionManager } from "../hooks/useMissionManager";
+import { usePositionManager } from "../hooks/usePositionManager";
 import { coordinateUtilsAtom } from "../store/atoms/canvasState";
+import type {
+  ActionPoint,
+  EndPoint,
+  MissionPointType,
+  StartPoint,
+} from "../types/missionPlanner";
 import { AddMissionDialog } from "./AddMissionDialog";
 import { MissionManagementDialog } from "./MissionManagementDialog";
-import type { MissionPointType, ActionPoint, StartPoint, EndPoint, Waypoint } from "../types/missionPlanner";
 
 interface MissionControlsProps {
   className?: string;
@@ -32,6 +37,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
     cancelEditingMission,
     insertPointAfter,
     removePoint,
+    updatePoint,
   } = useMissionManager();
 
   const {
@@ -63,57 +69,112 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
 
   // Initialize default start/end points when editing starts
   React.useEffect(() => {
-    if (isEditingMission && editingMission && editingMission.points.length === 0) {
-      const bottomRightX = coordinateUtils.matDimensions.matWidthMm;
-      const bottomRightY = coordinateUtils.matDimensions.matHeightMm;
+    if (
+      isEditingMission &&
+      editingMission &&
+      editingMission.points.length === 0 &&
+      positions.length > 0
+    ) {
+      // Find the bottom-right position to get properly resolved coordinates
+      const bottomRightPosition = positions.find(
+        (pos) => pos.id === "bottom-right"
+      );
 
-      // Add default start point
-      const startPoint: StartPoint = {
-        id: `start-${Date.now()}-1`,
-        x: bottomRightX,
-        y: bottomRightY,
-        type: "start",
-        heading: 0,
-        referenceType: "position",
-        referenceId: "bottom-right",
-      };
+      if (!bottomRightPosition) {
+        console.warn(
+          "Bottom Right position not found, cannot create default start/end points. Available positions:",
+          positions.map((p) => p.id)
+        );
+        return;
+      }
 
-      // Add default end point  
-      const endPoint: EndPoint = {
-        id: `end-${Date.now()}-2`,
-        x: bottomRightX,
-        y: bottomRightY,
-        type: "end",
-        heading: 0,
-        referenceType: "position",
-        referenceId: "bottom-right",
-      };
+      // Check if we already have start/end points to avoid duplicates
+      const hasStart = editingMission.points.some((p) => p.type === "start");
+      const hasEnd = editingMission.points.some((p) => p.type === "end");
 
-      // Insert points with a small delay to ensure atoms are ready
-      setTimeout(() => {
-        insertPointAfter(null, startPoint); // Insert at beginning
+      if (hasStart && hasEnd) {
+        console.log(
+          "Start and end points already exist, skipping default creation"
+        );
+        return;
+      }
+
+      const pointsToAdd: MissionPointType[] = [];
+
+      // Add default start point if missing
+      if (!hasStart) {
+        const startPoint: StartPoint = {
+          id: `start-${Date.now()}-1`,
+          x: bottomRightPosition.x,
+          y: bottomRightPosition.y,
+          type: "start",
+          heading: bottomRightPosition.heading,
+          referenceType: "position",
+          referenceId: "bottom-right",
+        };
+        pointsToAdd.push(startPoint);
+      }
+
+      // Add default end point if missing
+      if (!hasEnd) {
+        const endPoint: EndPoint = {
+          id: `end-${Date.now()}-2`,
+          x: bottomRightPosition.x,
+          y: bottomRightPosition.y,
+          type: "end",
+          heading: bottomRightPosition.heading,
+          referenceType: "position",
+          referenceId: "bottom-right",
+        };
+        pointsToAdd.push(endPoint);
+      }
+
+      // Insert points sequentially
+      if (pointsToAdd.length > 0) {
+        console.log(
+          "Creating default start/end points:",
+          pointsToAdd.map((p) => p.type)
+        );
         setTimeout(() => {
-          insertPointAfter(startPoint.id, endPoint); // Insert after start
+          let prevPointId: string | null = null;
+          pointsToAdd.forEach((point, index) => {
+            setTimeout(() => {
+              insertPointAfter(prevPointId, point);
+              prevPointId = point.id;
+            }, index * 20); // Stagger insertions
+          });
         }, 10);
-      }, 10);
+      }
     }
-  }, [isEditingMission, editingMission, coordinateUtils, insertPointAfter]);
+  }, [isEditingMission, editingMission, positions, insertPointAfter]);
 
   // Handle adding waypoint after a specific point
-  const handleAddWaypoint = useCallback((afterPointId: string | null) => {
-    console.log("handleAddWaypoint called:", { afterPointId, isEditingMission });
-    if (!isEditingMission) return;
-    console.log("Setting waypoint placement mode");
-    setPointPlacementMode("waypoint", afterPointId);
-  }, [isEditingMission, setPointPlacementMode]);
+  const handleAddWaypoint = useCallback(
+    (afterPointId: string | null) => {
+      console.log("handleAddWaypoint called:", {
+        afterPointId,
+        isEditingMission,
+      });
+      if (!isEditingMission) return;
+      console.log("Setting waypoint placement mode");
+      setPointPlacementMode("waypoint", afterPointId);
+    },
+    [isEditingMission, setPointPlacementMode]
+  );
 
   // Handle adding action point after a specific point
-  const handleAddAction = useCallback((afterPointId: string | null) => {
-    console.log("handleAddAction called:", { afterPointId, isEditingMission });
-    if (!isEditingMission) return;
-    console.log("Setting action placement mode");
-    setPointPlacementMode("action", afterPointId);
-  }, [isEditingMission, setPointPlacementMode]);
+  const handleAddAction = useCallback(
+    (afterPointId: string | null) => {
+      console.log("handleAddAction called:", {
+        afterPointId,
+        isEditingMission,
+      });
+      if (!isEditingMission) return;
+      console.log("Setting action placement mode");
+      setPointPlacementMode("action", afterPointId);
+    },
+    [isEditingMission, setPointPlacementMode]
+  );
 
   // Cancel point placement
   const handleCancelPlacement = useCallback(() => {
@@ -157,33 +218,12 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
               {missions.map((mission) => (
                 <option key={mission.id} value={mission.id}>
                   {mission.name}
-                  {mission.points.length > 0 && ` (${mission.points.length} points)`}
+                  {mission.points.length > 0 &&
+                    ` (${mission.points.length} points)`}
                 </option>
               ))}
             </select>
           </div>
-
-          {/* Mission Info */}
-          {selectedMission && (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
-                {selectedMission.name}
-              </div>
-              {selectedMission.description && (
-                <div className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-                  {selectedMission.description}
-                </div>
-              )}
-              <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
-                <div>Points: {selectedMission.points.length}</div>
-                <div>Segments: {selectedMission.segments.length}</div>
-                <div>Arc Radius: {selectedMission.defaultArcRadius}mm</div>
-                <div className="text-blue-500 dark:text-blue-300 mt-2">
-                  Modified: {new Date(selectedMission.modified).toLocaleDateString()}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="space-y-2">
@@ -248,20 +288,27 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                 <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-center">
                   <div className="text-xs text-blue-700 dark:text-blue-300 mb-1">
                     Click on the mat to place {pointPlacementMode}
-                    {pointPlacementMode === "action" && ` (heading: ${actionPointHeading}°)`}
+                    {pointPlacementMode === "action" &&
+                      ` (heading: ${actionPointHeading}°)`}
                   </div>
                   {pointPlacementMode === "action" && (
                     <div className="flex items-center gap-2 mt-2">
-                      <label className="text-xs text-blue-600 dark:text-blue-400">Heading:</label>
+                      <label className="text-xs text-blue-600 dark:text-blue-400">
+                        Heading:
+                      </label>
                       <input
                         type="range"
-                        min="0"
-                        max="359"
+                        min="-180"
+                        max="180"
                         value={actionPointHeading}
-                        onChange={(e) => setActionPointHeading(parseInt(e.target.value))}
+                        onChange={(e) =>
+                          setActionPointHeading(parseInt(e.target.value))
+                        }
                         className="flex-1 h-1 bg-blue-200 rounded-lg appearance-none cursor-pointer dark:bg-blue-700"
                       />
-                      <span className="text-xs text-blue-600 dark:text-blue-400 w-8">{actionPointHeading}°</span>
+                      <span className="text-xs text-blue-600 dark:text-blue-400 w-12 text-right">
+                        {actionPointHeading}°
+                      </span>
                     </div>
                   )}
                   <button
@@ -287,41 +334,83 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                     editingMission.points.map((point, index) => (
                       <div key={point.id} className="space-y-1">
                         {/* Point Display */}
-                        <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs font-mono text-gray-500 dark:text-gray-400 w-6">
-                              {String(index + 1).padStart(2, '0')}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs font-medium">
-                                  {point.type === "start" && "🏁"}
-                                  {point.type === "end" && "🏁"}
-                                  {point.type === "waypoint" && "📍"}
-                                  {point.type === "action" && "🎯"}
-                                  {point.type.charAt(0).toUpperCase() + point.type.slice(1)}
-                                </span>
-                                {point.type === "action" && (
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    {(point as ActionPoint).heading}°
+                        <div className="space-y-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <span className="text-xs font-mono text-gray-500 dark:text-gray-400 w-6">
+                                {String(index + 1).padStart(2, "0")}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs font-medium">
+                                    {point.type === "start" && "🏁"}
+                                    {point.type === "end" && "🏁"}
+                                    {point.type === "waypoint" && "📍"}
+                                    {point.type === "action" && "🎯"}
+                                    {point.type.charAt(0).toUpperCase() +
+                                      point.type.slice(1)}
                                   </span>
+                                  {point.type === "action" && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {(point as ActionPoint).heading}°
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  ({Math.round(point.x)}, {Math.round(point.y)})
+                                </div>
+                              </div>
+                              {/* Delete button (not for start/end points) */}
+                              {point.type !== "start" &&
+                                point.type !== "end" && (
+                                  <button
+                                    onClick={() => removePoint(point.id)}
+                                    className="text-red-500 hover:text-red-700 p-1 text-xs"
+                                    title="Delete point"
+                                  >
+                                    ✕
+                                  </button>
                                 )}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                ({Math.round(point.x)}, {Math.round(point.y)})
-                              </div>
                             </div>
-                            {/* Delete button (not for start/end points) */}
-                            {point.type !== "start" && point.type !== "end" && (
-                              <button
-                                onClick={() => removePoint(point.id)}
-                                className="text-red-500 hover:text-red-700 p-1 text-xs"
-                                title="Delete point"
-                              >
-                                ✕
-                              </button>
-                            )}
                           </div>
+
+                          {/* Position Reference Selector for Start/End Points */}
+                          {(point.type === "start" || point.type === "end") && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <label className="text-gray-600 dark:text-gray-400">
+                                Position:
+                              </label>
+                              <select
+                                value={
+                                  (point as StartPoint | EndPoint).referenceId
+                                }
+                                onChange={(e) => {
+                                  const newReferenceId = e.target.value;
+                                  const referencedPosition = positions.find(
+                                    (pos) => pos.id === newReferenceId
+                                  );
+                                  if (referencedPosition) {
+                                    // Update the existing point with new coordinates
+                                    const pointUpdates = {
+                                      x: referencedPosition.x,
+                                      y: referencedPosition.y,
+                                      heading: referencedPosition.heading,
+                                      referenceId: newReferenceId,
+                                      referenceType: "position" as const,
+                                    };
+                                    updatePoint(point.id, pointUpdates);
+                                  }
+                                }}
+                                className="flex-1 px-2 py-1 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              >
+                                {positions.map((pos) => (
+                                  <option key={pos.id} value={pos.id}>
+                                    {pos.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
 
                         {/* Add After Buttons (not after end point) */}

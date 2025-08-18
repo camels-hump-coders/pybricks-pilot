@@ -111,12 +111,11 @@ export function useMissionManager() {
     }
   }, [hasDirectoryAccess, directoryHandle, missions]);
 
-  // Save whenever missions change (temporarily disabled to debug point placement)
+  // Save whenever missions change
   useEffect(() => {
     if (hasDirectoryAccess && missions.length >= 0) {
-      // Temporarily disable auto-save to debug point placement issues
-      // saveMissions();
-      console.log("Auto-save disabled - missions changed:", missions.length);
+      saveMissions();
+      console.log("Auto-save enabled - missions saved:", missions.length);
     }
   }, [missions, hasDirectoryAccess, saveMissions]);
 

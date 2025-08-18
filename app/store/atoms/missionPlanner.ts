@@ -292,6 +292,14 @@ export const updatePointInMissionAtom = atom(
     };
     
     set(editingMissionAtom, updatedMission);
+    
+    // Also update the mission in the main missions array for auto-save
+    const missions = get(missionsAtom);
+    const updatedMissions = missions.map(mission => 
+      mission.id === editingMission.id ? updatedMission : mission
+    );
+    set(missionsAtom, updatedMissions);
+    
     return true;
   }
 );

@@ -1,36 +1,44 @@
-import { useCallback, useEffect } from "react";
 import { useAtomValue } from "jotai";
-import { 
-  canvasSizeAtom, 
-  canvasScaleAtom, 
-  coordinateUtilsAtom, 
-  hoveredObjectAtom, 
-  missionBoundsAtom 
+import { useCallback, useEffect } from "react";
+import { calculateTrajectoryProjection } from "../components/MovementPreview";
+import { telemetryHistory } from "../services/telemetryHistory";
+import {
+  canvasScaleAtom,
+  canvasSizeAtom,
+  coordinateUtilsAtom,
+  hoveredObjectAtom,
+  missionBoundsAtom,
 } from "../store/atoms/canvasState";
-import { 
-  controlModeAtom, 
-  customMatConfigAtom, 
+import {
+  controlModeAtom,
+  customMatConfigAtom,
+  mousePositionAtom,
   showGridOverlayAtom,
-  mousePositionAtom
 } from "../store/atoms/gameMat";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
+import {
+  editingMissionAtom,
+  selectedMissionAtom,
+  selectedPointIdAtom,
+} from "../store/atoms/missionPlanner";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import { 
-  allTelemetryPointsAtom, 
-  pathVisualizationOptionsAtom, 
-  selectedPathPointsAtom 
+import {
+  pathVisualizationOptionsAtom,
+  selectedPathPointsAtom,
 } from "../store/atoms/telemetryPoints";
-import { editingMissionAtom, selectedPointIdAtom, selectedMissionAtom } from "../store/atoms/missionPlanner";
 import { drawBorderWalls, drawGrid } from "../utils/canvas/basicDrawing";
-import { drawMissions, drawMissionPlanner, drawMissionPointPreview, drawMissionPathPreview } from "../utils/canvas/missionDrawing";
+import {
+  drawMissionPathPreview,
+  drawMissionPlanner,
+  drawMissionPointPreview,
+  drawMissions,
+} from "../utils/canvas/missionDrawing";
 import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
 import { drawRobot } from "../utils/canvas/robotDrawing";
 import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import { drawSplinePath } from "../utils/canvas/splinePathDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing";
-import { telemetryHistory } from "../services/telemetryHistory";
-import { calculateTrajectoryProjection } from "../components/MovementPreview";
 import { type RobotPosition } from "../utils/robotPosition";
 
 interface UseCanvasDrawingProps {
@@ -50,13 +58,13 @@ interface UseCanvasDrawingProps {
   hoveredCurvatureHandlePointId: string | null;
   hoveredPoint: any; // TODO: Add proper typing
   hoveredPointIndexValue: number;
-  setMissionBounds: (bounds: Map<string, { x: number; y: number; width: number; height: number }>) => void;
+  setMissionBounds: (
+    bounds: Map<string, { x: number; y: number; width: number; height: number }>
+  ) => void;
   // Mission editing props
   pointPlacementMode?: "waypoint" | "action" | "start" | "end" | null;
   actionPointHeading?: number;
 }
-
-const BORDER_WALL_HEIGHT_MM = 36; // 36mm tall border walls
 
 /**
  * Custom hook for managing canvas drawing operations
@@ -100,7 +108,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   const editingMission = useAtomValue(editingMissionAtom);
   const selectedMission = useAtomValue(selectedMissionAtom);
   const selectedPointId = useAtomValue(selectedPointIdAtom);
-  
+
   // Get mouse position directly from atom instead of prop
   const atomMousePosition = useAtomValue(mousePositionAtom);
 
@@ -137,7 +145,6 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     drawBorderWalls(
       ctx,
       { scale },
-      BORDER_WALL_HEIGHT_MM,
       coordinateUtils.matDimensions.borderWallThickness,
       coordinateUtils.matDimensions.tableWidth,
       coordinateUtils.matDimensions.tableHeight
@@ -375,19 +382,29 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
 
     // Draw mission point placement preview with arc path preview
     // Use atom mouse position instead of prop, and convert from mat coordinates to canvas coordinates
-    const mousePositionForPreview = atomMousePosition ? mmToCanvas(atomMousePosition.x, atomMousePosition.y) : null;
-    
-    if (controlMode === "mission" && pointPlacementMode && mousePositionForPreview && editingMission) {
-      console.log("Drawing mission point preview:", { 
-        controlMode, 
-        pointPlacementMode, 
+    const mousePositionForPreview = atomMousePosition
+      ? mmToCanvas(atomMousePosition.x, atomMousePosition.y)
+      : null;
+
+    if (
+      controlMode === "mission" &&
+      pointPlacementMode &&
+      mousePositionForPreview &&
+      editingMission
+    ) {
+      console.log("Drawing mission point preview:", {
+        controlMode,
+        pointPlacementMode,
         atomMousePosition,
-        mousePositionForPreview, 
-        actionPointHeading 
+        mousePositionForPreview,
+        actionPointHeading,
       });
-      
+
       // Draw the smooth path preview showing how the new point will connect
-      if (pointPlacementMode === "waypoint" || pointPlacementMode === "action") {
+      if (
+        pointPlacementMode === "waypoint" ||
+        pointPlacementMode === "action"
+      ) {
         drawMissionPathPreview(
           ctx,
           editingMission,
@@ -397,14 +414,14 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
           { mmToCanvas, canvasToMm, scale }
         );
       }
-      
+
       // Draw the point preview on top of the path preview
       drawMissionPointPreview(
         ctx,
         mousePositionForPreview,
         pointPlacementMode,
         actionPointHeading,
-        { mmToCanvas, scale },
+        { mmToCanvas, canvasToMm, scale },
         robotConfig
       );
     } else if (controlMode === "mission" && pointPlacementMode) {
@@ -413,7 +430,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         pointPlacementMode,
         hasAtomMousePosition: !!atomMousePosition,
         hasMousePositionForPreview: !!mousePositionForPreview,
-        hasEditingMission: !!editingMission
+        hasEditingMission: !!editingMission,
       });
     }
   }, [

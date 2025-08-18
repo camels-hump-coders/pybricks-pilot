@@ -62,9 +62,10 @@ export function calculateRobotPositionFromEdges(
   // fromBottomMm is distance from bottom edge to the bottom edge of robot
   y = matHeightMm - fromBottomMm - (robotLengthMm - centerOfRotationFromTopMm);
 
-  return {
+  const result = {
     x,
     y,
     heading,
   };
+  return result;
 }

@@ -527,17 +527,11 @@ export function drawMissionArcPaths(
     const canvasPoints = pathPoints.map(point => mmToCanvas(point.x, point.y));
     
     // Set different styles based on segment type
-    const segmentType = (segment as any).segmentType || "straight";
-    switch (segmentType) {
-      case "turn":
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = (strokeWidth * 0.7) * scale; // Thinner for turns
-        ctx.setLineDash([5 * scale, 3 * scale]); // Dashed for turns
-        break;
+    switch (segment.pathType) {
       case "arc":
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = strokeWidth * scale;
-        ctx.setLineDash([8 * scale, 2 * scale]); // Longer dashes for arcs
+        ctx.setLineDash([8 * scale, 2 * scale]); // Dashed for arcs
         break;
       case "straight":
       default:
@@ -557,8 +551,8 @@ export function drawMissionArcPaths(
     
     ctx.stroke();
     
-    // Draw direction arrow at the midpoint (only for straight and arc segments)
-    if (showArrows && canvasPoints.length >= 2 && segmentType !== "turn") {
+    // Draw direction arrow at the midpoint
+    if (showArrows && canvasPoints.length >= 2) {
       const midIndex = Math.floor(canvasPoints.length / 2);
       const midPoint = canvasPoints[midIndex];
       const nextPoint = canvasPoints[Math.min(midIndex + 1, canvasPoints.length - 1)];

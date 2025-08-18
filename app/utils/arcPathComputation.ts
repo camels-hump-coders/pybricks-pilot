@@ -50,81 +50,109 @@ function calculateDistance(x1: number, y1: number, x2: number, y2: number): numb
 }
 
 /**
- * Calculate arc parameters for smooth transition between two points
+ * Calculate arc that passes through a waypoint, connecting incoming and outgoing line segments
+ * The arc smoothly connects the path from prevPoint -> waypoint -> nextPoint
  */
-function calculateArcParameters(
-  fromX: number,
-  fromY: number,
-  fromHeading: number,
-  toX: number,
-  toY: number,
-  toHeading: number,
+function calculatePassThroughArc(
+  prevPoint: { x: number; y: number },
+  waypoint: { x: number; y: number },
+  nextPoint: { x: number; y: number },
   maxRadius: number
 ): {
-  center: { x: number; y: number };
+  arcStart: { x: number; y: number };
+  arcEnd: { x: number; y: number };
+  arcCenter: { x: number; y: number };
   radius: number;
   startAngle: number;
   endAngle: number;
   pathLength: number;
 } | null {
-  // Convert headings to radians
-  const startAngleRad = (fromHeading * Math.PI) / 180;
-  const endAngleRad = (toHeading * Math.PI) / 180;
+  // Calculate the incoming and outgoing direction vectors
+  const incomingAngle = calculateAngle(prevPoint.x, prevPoint.y, waypoint.x, waypoint.y);
+  const outgoingAngle = calculateAngle(waypoint.x, waypoint.y, nextPoint.x, nextPoint.y);
   
-  // Calculate perpendicular directions for arc center calculation
-  const perpStart = {
-    x: Math.cos(startAngleRad + Math.PI / 2),
-    y: Math.sin(startAngleRad + Math.PI / 2)
-  };
+  // Calculate the angle bisector at the waypoint
+  let bisectorAngle = (incomingAngle + outgoingAngle) / 2;
   
-  const perpEnd = {
-    x: Math.cos(endAngleRad + Math.PI / 2),
-    y: Math.sin(endAngleRad + Math.PI / 2)
-  };
+  // Handle angle wrap-around (ensure we take the interior bisector)
+  const angleDiff = normalizeAngle(outgoingAngle - incomingAngle);
+  if (Math.abs(angleDiff) > 90) {
+    bisectorAngle = normalizeAngle(bisectorAngle + 180);
+  }
   
-  // Find intersection of perpendicular lines to determine arc center
-  const det = perpStart.x * perpEnd.y - perpStart.y * perpEnd.x;
+  // Calculate the turn angle at the waypoint
+  const turnAngle = Math.abs(angleDiff);
   
-  if (Math.abs(det) < 0.001) {
-    // Lines are parallel, can't create arc
+  // If the turn is too small, don't create an arc
+  if (turnAngle < 10) {
     return null;
   }
   
-  const dx = toX - fromX;
-  const dy = toY - fromY;
+  // Calculate optimal arc radius based on available space and turn angle
+  const distToPrev = calculateDistance(prevPoint.x, prevPoint.y, waypoint.x, waypoint.y);
+  const distToNext = calculateDistance(waypoint.x, waypoint.y, nextPoint.x, nextPoint.y);
+  const minDistance = Math.min(distToPrev, distToNext);
   
-  const t = (dx * perpEnd.y - dy * perpEnd.x) / det;
+  // Limit radius to available space and max radius
+  const maxAllowedRadius = Math.min(maxRadius, minDistance * 0.4);
   
-  const centerX = fromX + t * perpStart.x;
-  const centerY = fromY + t * perpStart.y;
+  // Calculate radius based on turn angle for smooth motion
+  // Sharper turns need smaller radius, gentler turns can use larger radius
+  const radiusFactor = Math.max(0.3, 1 - (turnAngle / 180));
+  const radius = Math.min(maxAllowedRadius, maxRadius * radiusFactor);
   
-  // Calculate radius
-  const radius = Math.sqrt((centerX - fromX) ** 2 + (centerY - fromY) ** 2);
+  // Calculate how far back from the waypoint to start/end the arc
+  const halfTurnRad = (turnAngle * Math.PI) / (2 * 180);
+  const chordDistance = radius * Math.tan(halfTurnRad);
   
-  // Check if radius is within acceptable limits
-  if (radius > maxRadius) {
-    // Scale down to max radius
-    const scale = maxRadius / radius;
-    const adjustedCenterX = fromX + (centerX - fromX) * scale;
-    const adjustedCenterY = fromY + (centerY - fromY) * scale;
-    
-    return {
-      center: { x: adjustedCenterX, y: adjustedCenterY },
-      radius: maxRadius,
-      startAngle: Math.atan2(fromY - adjustedCenterY, fromX - adjustedCenterX) * 180 / Math.PI,
-      endAngle: Math.atan2(toY - adjustedCenterY, toX - adjustedCenterX) * 180 / Math.PI,
-      pathLength: maxRadius * Math.abs(normalizeAngle(Math.atan2(toY - adjustedCenterY, toX - adjustedCenterX) * 180 / Math.PI - Math.atan2(fromY - adjustedCenterY, fromX - adjustedCenterX) * 180 / Math.PI)) * Math.PI / 180
-    };
-  }
+  // Ensure chord distance doesn't exceed available space
+  const maxChordDistance = Math.min(distToPrev * 0.8, distToNext * 0.8);
+  const actualChordDistance = Math.min(chordDistance, maxChordDistance);
   
-  const startAngle = Math.atan2(fromY - centerY, fromX - centerX) * 180 / Math.PI;
-  const endAngle = Math.atan2(toY - centerY, toX - centerX) * 180 / Math.PI;
+  // Calculate arc start and end points along the line segments
+  const incomingUnitX = Math.cos(incomingAngle * Math.PI / 180);
+  const incomingUnitY = Math.sin(incomingAngle * Math.PI / 180);
+  const outgoingUnitX = Math.cos(outgoingAngle * Math.PI / 180);
+  const outgoingUnitY = Math.sin(outgoingAngle * Math.PI / 180);
+  
+  const arcStart = {
+    x: waypoint.x - incomingUnitX * actualChordDistance,
+    y: waypoint.y - incomingUnitY * actualChordDistance
+  };
+  
+  const arcEnd = {
+    x: waypoint.x + outgoingUnitX * actualChordDistance,
+    y: waypoint.y + outgoingUnitY * actualChordDistance
+  };
+  
+  // Calculate arc center position
+  const bisectorUnitX = Math.cos(bisectorAngle * Math.PI / 180);
+  const bisectorUnitY = Math.sin(bisectorAngle * Math.PI / 180);
+  
+  // Distance from waypoint to arc center along bisector
+  const centerDistance = actualChordDistance / Math.tan(halfTurnRad);
+  
+  const arcCenter = {
+    x: waypoint.x + bisectorUnitX * centerDistance,
+    y: waypoint.y + bisectorUnitY * centerDistance
+  };
+  
+  // Calculate arc angles
+  const startAngle = Math.atan2(arcStart.y - arcCenter.y, arcStart.x - arcCenter.x) * 180 / Math.PI;
+  const endAngle = Math.atan2(arcEnd.y - arcCenter.y, arcEnd.x - arcCenter.x) * 180 / Math.PI;
+  
+  // Calculate actual radius from center to start point
+  const actualRadius = calculateDistance(arcCenter.x, arcCenter.y, arcStart.x, arcStart.y);
+  
+  // Calculate path length
   const arcAngle = Math.abs(normalizeAngle(endAngle - startAngle));
-  const pathLength = radius * arcAngle * Math.PI / 180;
+  const pathLength = actualRadius * arcAngle * Math.PI / 180;
   
   return {
-    center: { x: centerX, y: centerY },
-    radius,
+    arcStart,
+    arcEnd,
+    arcCenter,
+    radius: actualRadius,
     startAngle,
     endAngle,
     pathLength
@@ -147,235 +175,114 @@ export interface OptimalPathSegment extends ArcPathSegment {
 }
 
 /**
- * Calculate optimal approach angle for a waypoint given previous and next points
+ * Calculate path segments that smoothly connect mission points with arcs passing through waypoints
  */
-function calculateOptimalApproachAngle(
-  prevPoint: MissionPointType | null,
-  currentPoint: MissionPointType,
-  nextPoint: MissionPointType | null,
+function calculateSmoothPathSegments(
+  points: MissionPointType[],
   defaultRadius: number
-): { approachAngle: number; exitAngle: number } {
-  let approachAngle: number;
-  let exitAngle: number;
-
-  // If current point is an action point, use its specified heading
-  if (currentPoint.type === "action") {
-    const actionHeading = (currentPoint as ActionPoint).heading;
-    approachAngle = actionHeading;
-    exitAngle = actionHeading;
-    return { approachAngle, exitAngle };
-  }
-
-  // Calculate approach angle from previous point
-  if (prevPoint) {
-    approachAngle = calculateAngle(prevPoint.x, prevPoint.y, currentPoint.x, currentPoint.y);
-  } else {
-    // First point - look ahead to next point
-    approachAngle = nextPoint ? 
-      calculateAngle(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y) : 0;
-  }
-
-  // Calculate exit angle to next point
-  if (nextPoint) {
-    exitAngle = calculateAngle(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-  } else {
-    // Last point - use approach angle
-    exitAngle = approachAngle;
-  }
-
-  // For waypoints, optimize the angle to minimize total turn
-  if (currentPoint.type === "waypoint" && prevPoint && nextPoint) {
-    const directAngle = calculateAngle(prevPoint.x, prevPoint.y, nextPoint.x, nextPoint.y);
-    const distance1 = calculateDistance(prevPoint.x, prevPoint.y, currentPoint.x, currentPoint.y);
-    const distance2 = calculateDistance(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-    
-    // If waypoint is close to the direct line, use the direct angle for smoother path
-    const waypointOffset = calculateDistance(
-      currentPoint.x, currentPoint.y,
-      prevPoint.x + (nextPoint.x - prevPoint.x) * (distance1 / (distance1 + distance2)),
-      prevPoint.y + (nextPoint.y - prevPoint.y) * (distance1 / (distance1 + distance2))
-    );
-    
-    if (waypointOffset < defaultRadius * 0.5) {
-      // Waypoint is close to direct path, use average angle for smoothness
-      const avgAngle = (normalizeAngle(approachAngle) + normalizeAngle(exitAngle)) / 2;
-      approachAngle = avgAngle;
-      exitAngle = avgAngle;
-    }
-  }
-
-  return { approachAngle, exitAngle };
-}
-
-/**
- * Create optimal path segments using turn-straight-arc approach
- */
-function createOptimalSegments(
-  fromPoint: MissionPointType,
-  toPoint: MissionPointType,
-  startHeading: number,
-  endHeading: number,
-  defaultRadius: number
-): OptimalPathSegment[] {
-  const segments: OptimalPathSegment[] = [];
-  const distance = calculateDistance(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
-  const directAngle = calculateAngle(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+): ArcPathSegment[] {
+  if (points.length < 2) return [];
   
-  const startTurnAngle = normalizeAngle(directAngle - startHeading);
-  const endTurnAngle = normalizeAngle(endHeading - directAngle);
+  const segments: ArcPathSegment[] = [];
   
-  const needsStartTurn = Math.abs(startTurnAngle) > 5; // 5 degree tolerance
-  const needsEndTurn = Math.abs(endTurnAngle) > 5;
-  
-  let currentX = fromPoint.x;
-  let currentY = fromPoint.y;
-  let currentHeading = startHeading;
-
-  // 1. Initial turn if needed
-  if (needsStartTurn) {
-    segments.push({
-      fromPoint,
-      toPoint: fromPoint, // Turn in place
-      startX: currentX,
-      startY: currentY,
-      endX: currentX,
-      endY: currentY,
-      startHeading: currentHeading,
-      endHeading: directAngle,
-      pathType: "arc",
-      segmentType: "turn",
-      turnAngle: startTurnAngle,
-      pathLength: Math.abs(startTurnAngle) * Math.PI / 180 * (defaultRadius * 0.3), // Small turn radius
-      arcCenter: { x: currentX, y: currentY },
-      arcRadius: defaultRadius * 0.3,
-      arcStartAngle: currentHeading,
-      arcEndAngle: directAngle
-    });
-    currentHeading = directAngle;
-  }
-
-  // 2. Main straight segment
-  if (distance > defaultRadius * 0.1) {
-    let straightDistance = distance;
-    let straightEndX = toPoint.x;
-    let straightEndY = toPoint.y;
+  for (let i = 0; i < points.length - 1; i++) {
+    const prevPoint = i > 0 ? points[i - 1] : null;
+    const currentPoint = points[i];
+    const nextPoint = points[i + 1];
+    const followingPoint = i < points.length - 2 ? points[i + 2] : null;
     
-    // If we need an end turn, shorten the straight segment to allow for arc approach
-    if (needsEndTurn && distance > defaultRadius) {
-      const arcApproachDistance = Math.min(defaultRadius * 0.8, distance * 0.3);
-      straightDistance = distance - arcApproachDistance;
-      straightEndX = fromPoint.x + Math.cos(directAngle * Math.PI / 180) * straightDistance;
-      straightEndY = fromPoint.y + Math.sin(directAngle * Math.PI / 180) * straightDistance;
-    }
-
-    segments.push({
-      fromPoint: { ...fromPoint, x: currentX, y: currentY } as MissionPointType,
-      toPoint: { ...toPoint, x: straightEndX, y: straightEndY } as MissionPointType,
-      startX: currentX,
-      startY: currentY,
-      endX: straightEndX,
-      endY: straightEndY,
-      startHeading: currentHeading,
-      endHeading: currentHeading,
-      pathType: "straight",
-      segmentType: "straight",
-      pathLength: straightDistance
-    });
-    
-    currentX = straightEndX;
-    currentY = straightEndY;
-  }
-
-  // 3. Final arc approach to target if needed
-  if (needsEndTurn && distance > defaultRadius * 0.1) {
-    const arcParams = calculateArcParameters(
-      currentX,
-      currentY,
-      currentHeading,
-      toPoint.x,
-      toPoint.y,
-      endHeading,
-      defaultRadius
-    );
-
-    if (arcParams) {
-      segments.push({
-        fromPoint: { ...fromPoint, x: currentX, y: currentY } as MissionPointType,
-        toPoint,
-        startX: currentX,
-        startY: currentY,
-        endX: toPoint.x,
-        endY: toPoint.y,
-        startHeading: currentHeading,
-        endHeading: endHeading,
-        pathType: "arc",
-        segmentType: "arc",
-        arcSweepAngle: Math.abs(normalizeAngle(arcParams.endAngle - arcParams.startAngle)),
-        pathLength: arcParams.pathLength,
-        arcCenter: arcParams.center,
-        arcRadius: arcParams.radius,
-        arcStartAngle: arcParams.startAngle,
-        arcEndAngle: arcParams.endAngle
-      });
+    // For the current segment from currentPoint to nextPoint
+    if (nextPoint.type === "waypoint" && followingPoint) {
+      // Next point is a waypoint - create arc that passes through it
+      const arcResult = calculatePassThroughArc(
+        currentPoint,
+        nextPoint,
+        followingPoint,
+        defaultRadius
+      );
+      
+      if (arcResult) {
+        // Segment 1: Straight line from current point to arc start
+        const distToArcStart = calculateDistance(currentPoint.x, currentPoint.y, arcResult.arcStart.x, arcResult.arcStart.y);
+        if (distToArcStart > 5) {
+          segments.push({
+            fromPoint: currentPoint,
+            toPoint: nextPoint,
+            startX: currentPoint.x,
+            startY: currentPoint.y,
+            endX: arcResult.arcStart.x,
+            endY: arcResult.arcStart.y,
+            startHeading: calculateAngle(currentPoint.x, currentPoint.y, arcResult.arcStart.x, arcResult.arcStart.y),
+            endHeading: calculateAngle(currentPoint.x, currentPoint.y, arcResult.arcStart.x, arcResult.arcStart.y),
+            pathType: "straight",
+            pathLength: distToArcStart
+          });
+        }
+        
+        // Segment 2: Arc passing through waypoint
+        segments.push({
+          fromPoint: { ...nextPoint, x: arcResult.arcStart.x, y: arcResult.arcStart.y } as MissionPointType,
+          toPoint: { ...nextPoint, x: arcResult.arcEnd.x, y: arcResult.arcEnd.y } as MissionPointType,
+          startX: arcResult.arcStart.x,
+          startY: arcResult.arcStart.y,
+          endX: arcResult.arcEnd.x,
+          endY: arcResult.arcEnd.y,
+          startHeading: calculateAngle(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y),
+          endHeading: calculateAngle(nextPoint.x, nextPoint.y, followingPoint.x, followingPoint.y),
+          pathType: "arc",
+          pathLength: arcResult.pathLength,
+          arcCenter: arcResult.arcCenter,
+          arcRadius: arcResult.radius,
+          arcStartAngle: arcResult.startAngle,
+          arcEndAngle: arcResult.endAngle
+        });
+      } else {
+        // Fallback to straight line
+        segments.push({
+          fromPoint: currentPoint,
+          toPoint: nextPoint,
+          startX: currentPoint.x,
+          startY: currentPoint.y,
+          endX: nextPoint.x,
+          endY: nextPoint.y,
+          startHeading: calculateAngle(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y),
+          endHeading: calculateAngle(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y),
+          pathType: "straight",
+          pathLength: calculateDistance(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y)
+        });
+      }
     } else {
-      // Fallback straight line
+      // Direct connection for start/end/action points
+      const angle = calculateAngle(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
       segments.push({
-        fromPoint: { ...fromPoint, x: currentX, y: currentY } as MissionPointType,
-        toPoint,
-        startX: currentX,
-        startY: currentY,
-        endX: toPoint.x,
-        endY: toPoint.y,
-        startHeading: currentHeading,
-        endHeading: endHeading,
+        fromPoint: currentPoint,
+        toPoint: nextPoint,
+        startX: currentPoint.x,
+        startY: currentPoint.y,
+        endX: nextPoint.x,
+        endY: nextPoint.y,
+        startHeading: nextPoint.type === "action" ? (nextPoint as ActionPoint).heading : angle,
+        endHeading: nextPoint.type === "action" ? (nextPoint as ActionPoint).heading : angle,
         pathType: "straight",
-        segmentType: "straight",
-        pathLength: calculateDistance(currentX, currentY, toPoint.x, toPoint.y)
+        pathLength: calculateDistance(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y)
       });
     }
   }
-
+  
   return segments;
 }
 
+
 /**
- * Compute optimal arc-based path segments for a mission using turn-straight-arc approach
+ * Compute arc-based path segments that pass through waypoints for smooth motion
  */
 export function computeArcPath(mission: Mission): ArcPathSegment[] {
   if (!mission || mission.points.length < 2) {
     return [];
   }
   
-  const segments: ArcPathSegment[] = [];
   const defaultRadius = mission.defaultArcRadius || 100; // mm
-  
-  for (let i = 0; i < mission.points.length - 1; i++) {
-    const prevPoint = i > 0 ? mission.points[i - 1] : null;
-    const fromPoint = mission.points[i];
-    const toPoint = mission.points[i + 1];
-    const nextPoint = i < mission.points.length - 2 ? mission.points[i + 2] : null;
-    
-    // Calculate optimal approach and exit angles
-    const { approachAngle: fromApproachAngle } = calculateOptimalApproachAngle(
-      prevPoint, fromPoint, toPoint, defaultRadius
-    );
-    const { approachAngle: toApproachAngle } = calculateOptimalApproachAngle(
-      fromPoint, toPoint, nextPoint, defaultRadius
-    );
-    
-    // Use the calculated optimal angles
-    const startHeading = fromApproachAngle;
-    const endHeading = toApproachAngle;
-    
-    // Create optimal path segments for this point-to-point connection
-    const optimalSegments = createOptimalSegments(
-      fromPoint, toPoint, startHeading, endHeading, defaultRadius
-    );
-    
-    segments.push(...optimalSegments);
-  }
-  
-  return segments;
+  return calculateSmoothPathSegments(mission.points, defaultRadius);
 }
 
 /**

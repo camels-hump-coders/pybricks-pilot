@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { useMissionManager } from "./useMissionManager";
+import { usePositionManager } from "./usePositionManager";
 import { 
   pointPlacementModeAtom, 
   actionPointHeadingAtom, 
@@ -20,12 +21,32 @@ export function useMissionEditing() {
     isEditingMission,
     insertPointAfter,
   } = useMissionManager();
+  
+  const { positions } = usePositionManager();
 
   // Use atoms for shared state across components
   const [pointPlacementMode, setPointPlacementMode] = useAtom(pointPlacementModeAtom);
   const [actionPointHeading, setActionPointHeading] = useAtom(actionPointHeadingAtom);
   const [selectedStartEndRef, setSelectedStartEndRef] = useAtom(selectedStartEndRefAtom);
   const [insertAfterPointId, setInsertAfterPointId] = useAtom(insertAfterPointIdAtom);
+
+  // Resolve position reference to actual coordinates
+  const resolvePositionCoordinates = useCallback((referenceId: string): { x: number; y: number; heading: number } => {
+    // Find the position by ID
+    const position = positions.find(p => p.id === referenceId);
+    if (!position) {
+      console.warn(`Position ${referenceId} not found`);
+      return { x: 0, y: 0, heading: 0 };
+    }
+
+    // NamedPosition already contains the resolved coordinates
+    const resolved = {
+      x: position.x,
+      y: position.y,
+      heading: position.heading
+    };
+    return resolved;
+  }, [positions]);
 
   // Handle point placement mode changes
   const handleSetPlacementMode = useCallback((mode: PointPlacementMode, afterPointId?: string | null) => {
@@ -68,32 +89,38 @@ export function useMissionEditing() {
 
       case "start":
         if (!selectedStartEndRef) return null;
-        return {
+        // Resolve position coordinates instead of using mouse click coordinates
+        const startCoords = resolvePositionCoordinates(selectedStartEndRef);
+        const startPoint = {
           id: pointId,
-          x,
-          y,
+          x: startCoords.x,
+          y: startCoords.y,
           type: "start",
-          heading: 0,
+          heading: startCoords.heading,
           referenceType: selectedStartEndRef.startsWith("mission") ? "mission" : "position",
           referenceId: selectedStartEndRef,
         } as StartPoint;
+        return startPoint;
 
       case "end":
         if (!selectedStartEndRef) return null;
-        return {
+        // Resolve position coordinates instead of using mouse click coordinates
+        const endCoords = resolvePositionCoordinates(selectedStartEndRef);
+        const endPoint = {
           id: pointId,
-          x,
-          y,
+          x: endCoords.x,
+          y: endCoords.y,
           type: "end",
-          heading: 0,
+          heading: endCoords.heading,
           referenceType: selectedStartEndRef.startsWith("mission") ? "mission" : "position",
           referenceId: selectedStartEndRef,
         } as EndPoint;
+        return endPoint;
 
       default:
         return null;
     }
-  }, [pointPlacementMode, actionPointHeading, selectedStartEndRef, editingMission]);
+  }, [pointPlacementMode, actionPointHeading, selectedStartEndRef, editingMission, resolvePositionCoordinates]);
 
   // Handle point placement on canvas click
   const handlePointPlacement = useCallback((x: number, y: number) => {
