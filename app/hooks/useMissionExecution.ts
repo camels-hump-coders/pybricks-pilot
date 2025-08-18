@@ -4,7 +4,6 @@ import type { Mission } from "../types/missionPlanner";
 import { 
   missionExecutionService, 
   type RobotCommand, 
-  type MissionExecutionProgress,
   type MissionExecutionOptions 
 } from "../services/missionExecution";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
@@ -20,9 +19,7 @@ export interface MissionExecutionState {
   isExecuting: boolean;
   isPaused: boolean;
   currentCommands: RobotCommand[];
-  progress: MissionExecutionProgress | null;
   error: string | null;
-  estimatedDuration: number; // seconds
 }
 
 /**
@@ -38,9 +35,7 @@ export function useMissionExecution() {
     isExecuting: false,
     isPaused: false,
     currentCommands: [],
-    progress: null,
-    error: null,
-    estimatedDuration: 0
+    error: null
   });
   
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -61,13 +56,10 @@ export function useMissionExecution() {
         options
       );
       
-      const estimatedDuration = missionExecutionService.estimateExecutionTime(commands, options);
-      
       setState(prev => ({
         ...prev,
         isGenerating: false,
         currentCommands: commands,
-        estimatedDuration,
         error: null
       }));
       
@@ -94,6 +86,12 @@ export function useMissionExecution() {
       return false;
     }
 
+    // Debug: Log the command sequence
+    console.log(`[Mission Execution] Sending ${commandsToExecute.length} commands to ${robotType} robot:`);
+    commandsToExecute.forEach((cmd, i) => {
+      console.log(`  ${i + 1}. ${cmd.action}:`, cmd);
+    });
+
     // Check robot connection
     const isConnected = robotType === "real" ? pybricksHub.isConnected() : virtualRobotService.isConnected();
     if (!isConnected) {
@@ -105,19 +103,7 @@ export function useMissionExecution() {
       ...prev,
       isExecuting: true,
       isPaused: false,
-      error: null,
-      progress: {
-        currentSegmentIndex: 0,
-        currentCommandIndex: 0,
-        totalSegments: 1,
-        totalCommands: commandsToExecute.length,
-        currentSegment: null,
-        currentCommand: null,
-        isRunning: true,
-        isPaused: false,
-        completedCommands: 0,
-        estimatedTimeRemaining: state.estimatedDuration
-      }
+      error: null
     }));
 
     // Create abort controller for this execution
@@ -145,33 +131,19 @@ export function useMissionExecution() {
         },
         sendMotorCommand: async (motor: string, angle: number, speed: number) => {
           await virtualRobotService.setMotorAngle(motor, angle, speed);
-        }
-      };
-
-      // Progress callback
-      const onProgress = (progress: MissionExecutionProgress) => {
-        setState(prev => ({
-          ...prev,
-          progress: {
-            ...progress,
-            estimatedTimeRemaining: Math.max(0, 
-              state.estimatedDuration * (1 - progress.completedCommands / progress.totalCommands)
-            )
-          }
-        }));
+        },
+        arc: virtualRobotService.arc.bind(virtualRobotService)
       };
 
       // Execute the commands
       await missionExecutionService.executeMissionCommands(
         commandsToExecute,
-        robotInterface,
-        onProgress
+        robotInterface
       );
 
       setState(prev => ({
         ...prev,
-        isExecuting: false,
-        progress: prev.progress ? { ...prev.progress, isRunning: false } : null
+        isExecuting: false
       }));
       
       return true;
@@ -191,13 +163,12 @@ export function useMissionExecution() {
       setState(prev => ({
         ...prev,
         isExecuting: false,
-        error: `Execution failed: ${error instanceof Error ? error.message : String(error)}`,
-        progress: prev.progress ? { ...prev.progress, isRunning: false } : null
+        error: `Execution failed: ${error instanceof Error ? error.message : String(error)}`
       }));
       
       return false;
     }
-  }, [state.currentCommands, state.estimatedDuration, robotType, pybricksHub]);
+  }, [state.currentCommands, robotType, pybricksHub]);
 
   /**
    * Execute a complete mission (generate + execute)
@@ -242,8 +213,7 @@ export function useMissionExecution() {
     setState(prev => ({
       ...prev,
       isExecuting: false,
-      isPaused: false,
-      progress: prev.progress ? { ...prev.progress, isRunning: false } : null
+      isPaused: false
     }));
   }, [robotType, pybricksHub]);
 
@@ -256,9 +226,7 @@ export function useMissionExecution() {
       isExecuting: false,
       isPaused: false,
       currentCommands: [],
-      progress: null,
-      error: null,
-      estimatedDuration: 0
+      error: null
     });
   }, []);
 
@@ -275,8 +243,6 @@ export function useMissionExecution() {
     
     // Computed properties
     canExecute: !state.isExecuting && state.currentCommands.length > 0,
-    hasCommands: state.currentCommands.length > 0,
-    progressPercentage: state.progress ? 
-      (state.progress.completedCommands / Math.max(1, state.progress.totalCommands)) * 100 : 0
+    hasCommands: state.currentCommands.length > 0
   };
 }
