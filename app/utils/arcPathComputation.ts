@@ -23,7 +23,7 @@ export interface ArcPathSegment {
 /**
  * Normalize angle to -180 to 180 range
  */
-function normalizeAngle(angle: number): number {
+export function normalizeAngle(angle: number): number {
   let normalized = angle % 360;
   if (normalized > 180) {
     normalized -= 360;
@@ -34,10 +34,46 @@ function normalizeAngle(angle: number): number {
 }
 
 /**
- * Calculate the angle between two points
+ * Calculate the angle between two points in canvas coordinates
+ * Returns angle in degrees, 0° = East, 90° = South (canvas Y+ down)
  */
 function calculateAngle(x1: number, y1: number, x2: number, y2: number): number {
   return Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+}
+
+/**
+ * Convert canvas coordinates and heading to robot coordinates and heading
+ * Canvas: Y+ down, 0° = East
+ * Robot: Y+ up (North), 0° = North
+ */
+function canvasToRobotCoords(x: number, y: number, heading: number): {
+  x: number; y: number; heading: number;
+} {
+  return {
+    x: x,
+    y: -y, // Flip Y axis: Canvas Y+ down → Robot Y+ up
+    heading: normalizeAngle(90 - heading) // Convert: Canvas 0°=East → Robot 0°=North
+  };
+}
+
+/**
+ * Calculate tangent direction for an arc at a given point
+ * For a circle with center (cx, cy), the tangent at point (px, py) is perpendicular to the radius
+ */
+function calculateArcTangent(
+  pointX: number, 
+  pointY: number, 
+  centerX: number, 
+  centerY: number,
+  clockwise: boolean = false
+): number {
+  // Calculate radius direction (from center to point)
+  const radiusAngle = Math.atan2(pointY - centerY, pointX - centerX);
+  
+  // Tangent is perpendicular to radius (±90°)
+  const tangentAngle = radiusAngle + (clockwise ? -Math.PI/2 : Math.PI/2);
+  
+  return normalizeAngle(tangentAngle * 180 / Math.PI);
 }
 
 /**
@@ -343,6 +379,26 @@ function calculateSmoothPathSegments(
       const arcLength = nextArc.radius * arcAngle * Math.PI / 180;
       
       
+      // Calculate proper tangent directions for the arc
+      const arcSweep = normalizeAngle(nextArc.endAngle - nextArc.startAngle);
+      const clockwise = arcSweep < 0;
+      
+      const startTangent = calculateArcTangent(
+        nextArc.startPoint.x, 
+        nextArc.startPoint.y, 
+        nextArc.center.x, 
+        nextArc.center.y, 
+        clockwise
+      );
+      
+      const endTangent = calculateArcTangent(
+        nextArc.endPoint.x, 
+        nextArc.endPoint.y, 
+        nextArc.center.x, 
+        nextArc.center.y, 
+        clockwise
+      );
+      
       segments.push({
         fromPoint: currentPoint,
         toPoint: nextPoint,
@@ -350,8 +406,8 @@ function calculateSmoothPathSegments(
         startY: nextArc.startPoint.y,
         endX: nextArc.endPoint.x,
         endY: nextArc.endPoint.y,
-        startHeading: calculateAngle(nextArc.startPoint.x, nextArc.startPoint.y, nextArc.center.x, nextArc.center.y) - 90,
-        endHeading: calculateAngle(nextArc.endPoint.x, nextArc.endPoint.y, nextArc.center.x, nextArc.center.y) - 90,
+        startHeading: startTangent,
+        endHeading: endTangent,
         pathType: "arc",
         pathLength: arcLength,
         arcCenter: nextArc.center,

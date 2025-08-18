@@ -1,6 +1,18 @@
 import type { Mission } from "../types/missionPlanner";
 import type { ArcPathSegment } from "../utils/arcPathComputation";
 import { computeArcPath, normalizeAngle } from "../utils/arcPathComputation";
+
+/**
+ * Convert canvas heading to robot heading
+ * Canvas: 0° = East (right), 90° = South (down)
+ * Robot: 0° = North (up), 90° = East (right)
+ */
+function canvasToRobotHeading(canvasHeading: number): number {
+  // Canvas 0°=East needs to become Robot 90°=East
+  // Canvas 90°=South needs to become Robot 180°=South  
+  // Canvas -90°=North needs to become Robot 0°=North
+  return normalizeAngle(canvasHeading + 90);
+}
 import type { RobotConfig } from "../schemas/RobotConfig";
 
 /**
@@ -74,19 +86,56 @@ export class MissionExecutionService {
       return commands;
     }
 
+    // Track current robot heading (starts at 0° = North)
+    let currentRobotHeading = 0;
+
     // Convert each segment to robot commands
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      const segmentCommands = this.convertSegmentToCommands(segment, opts, i);
+      const segmentCommands = this.convertSegmentToCommands(segment, opts, i, currentRobotHeading);
       commands.push(...segmentCommands);
       
-      // Add pause at action points
-      if (opts.pauseAtActions && segment.toPoint.type === "action") {
-        commands.push({
-          action: "pause",
-          duration: opts.actionPauseDuration,
-          description: `Execute action: ${(segment.toPoint as any).actionName || "Action"}`
-        });
+      // Update current heading after this segment
+      if (segmentCommands.length > 0) {
+        // Find the last turn command to update our heading
+        for (let j = segmentCommands.length - 1; j >= 0; j--) {
+          const cmd = segmentCommands[j];
+          if (cmd.action === "turn" && cmd.angle !== undefined) {
+            currentRobotHeading = normalizeAngle(currentRobotHeading + cmd.angle);
+            break;
+          }
+        }
+      }
+      
+      // Add heading alignment and pause at action points
+      if (segment.toPoint.type === "action") {
+        // Get the action point's required heading
+        const actionPoint = segment.toPoint as any;
+        if (actionPoint.heading !== undefined) {
+          // Convert canvas heading to robot heading
+          const requiredHeading = canvasToRobotHeading(actionPoint.heading);
+          const headingChange = normalizeAngle(requiredHeading - currentRobotHeading);
+          
+          // Turn to action heading if needed
+          if (Math.abs(headingChange) > 2) {
+            commands.push({
+              action: "turn",
+              angle: headingChange,
+              speed: opts.defaultTurnSpeed,
+              description: `Turn to action heading ${requiredHeading.toFixed(1)}°`
+            });
+            currentRobotHeading = requiredHeading;
+          }
+        }
+        
+        // Add pause at action points
+        if (opts.pauseAtActions) {
+          commands.push({
+            action: "pause",
+            duration: opts.actionPauseDuration,
+            description: `Execute action: ${actionPoint.actionName || "Action"}`
+          });
+        }
       }
     }
 
@@ -105,7 +154,8 @@ export class MissionExecutionService {
   private convertSegmentToCommands(
     segment: ArcPathSegment,
     options: MissionExecutionOptions,
-    segmentIndex: number
+    segmentIndex: number,
+    currentRobotHeading: number = 0
   ): RobotCommand[] {
     const commands: RobotCommand[] = [];
     
@@ -117,10 +167,20 @@ export class MissionExecutionService {
       );
       
       if (distance > 1) { // Only move if distance is significant
-        // Calculate heading change needed
-        const currentHeading = segment.startHeading;
-        const targetHeading = segment.endHeading;
-        const headingChange = normalizeAngle(targetHeading - currentHeading);
+        // Calculate required heading to reach the target point
+        // Canvas coordinates: Y+ down, but we need to think in robot terms
+        // Robot coordinates: Y+ up (North), X+ right (East)
+        
+        // Calculate direction from start to end point in canvas coordinates
+        const dx = segment.endX - segment.startX;
+        const dy = segment.endY - segment.startY;
+        
+        // Canvas atan2 gives us angle where 0°=East, 90°=South
+        const canvasHeading = Math.atan2(dy, dx) * 180 / Math.PI;
+        
+        // Convert canvas heading to robot heading
+        const targetHeading = canvasToRobotHeading(canvasHeading);
+        const headingChange = normalizeAngle(targetHeading - currentRobotHeading);
         
         // Turn if needed
         if (Math.abs(headingChange) > 2) { // 2 degree threshold
@@ -143,7 +203,7 @@ export class MissionExecutionService {
       
     } else if (segment.pathType === "arc" && segment.arcCenter && segment.arcRadius) {
       // Arc movement - approximate with multiple straight segments
-      const arcCommands = this.convertArcToCommands(segment, options, segmentIndex);
+      const arcCommands = this.convertArcToCommands(segment, options, segmentIndex, currentRobotHeading);
       commands.push(...arcCommands);
     }
     
@@ -156,7 +216,8 @@ export class MissionExecutionService {
   private convertArcToCommands(
     segment: ArcPathSegment,
     options: MissionExecutionOptions,
-    segmentIndex: number
+    segmentIndex: number,
+    currentRobotHeading: number = 0
   ): RobotCommand[] {
     const commands: RobotCommand[] = [];
     
@@ -185,7 +246,7 @@ export class MissionExecutionService {
     let currentAngle = segment.arcStartAngle;
     let previousX = segment.startX;
     let previousY = segment.startY;
-    let previousHeading = segment.startHeading;
+    let previousHeading = currentRobotHeading;
 
     for (let i = 0; i < numSegments; i++) {
       currentAngle += angleStep;
@@ -195,13 +256,19 @@ export class MissionExecutionService {
       const pointX = segment.arcCenter.x + segment.arcRadius * Math.cos(angleRad);
       const pointY = segment.arcCenter.y + segment.arcRadius * Math.sin(angleRad);
       
-      // Calculate distance and heading
+      // Calculate distance
       const distance = Math.sqrt(
         Math.pow(pointX - previousX, 2) + 
         Math.pow(pointY - previousY, 2)
       );
       
-      const targetHeading = Math.atan2(pointY - previousY, pointX - previousX) * 180 / Math.PI;
+      // Calculate direction from previous to current point
+      const dx = pointX - previousX;
+      const dy = pointY - previousY;
+      
+      // Calculate canvas heading and convert to robot heading
+      const canvasHeading = Math.atan2(dy, dx) * 180 / Math.PI;
+      const targetHeading = canvasToRobotHeading(canvasHeading);
       const headingChange = normalizeAngle(targetHeading - previousHeading);
       
       if (distance > 1) { // Only add meaningful movements
