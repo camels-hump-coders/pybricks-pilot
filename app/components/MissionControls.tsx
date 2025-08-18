@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { useMissionEditing } from "../hooks/useMissionEditing";
 import { useMissionExecution } from "../hooks/useMissionExecution";
 import { useMissionManager } from "../hooks/useMissionManager";
@@ -80,74 +80,6 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
       startEditingMission(selectedMissionId);
     }
   }, [selectedMissionId, startEditingMission]);
-
-  // Track whether we've initialized default points to prevent duplicate additions
-  const [hasInitializedDefaultPoints, setHasInitializedDefaultPoints] =
-    React.useState(false);
-
-  // Initialize default start/end points when editing starts
-  React.useEffect(() => {
-    if (
-      isEditingMission &&
-      editingMission &&
-      editingMission.points.length === 0 &&
-      positions.length > 0 &&
-      !hasInitializedDefaultPoints
-    ) {
-      // Find the bottom-right position to get properly resolved coordinates
-      const bottomRightPosition = positions.find(
-        (pos) => pos.id === "bottom-right"
-      );
-
-      if (!bottomRightPosition) {
-        return;
-      }
-
-      // Mark that we're initializing to prevent multiple runs
-      setHasInitializedDefaultPoints(true);
-
-      const startPoint: StartPoint = {
-        id: `start-${Date.now()}-1`,
-        x: bottomRightPosition.x,
-        y: bottomRightPosition.y,
-        type: "start",
-        heading: bottomRightPosition.heading,
-        referenceType: "position",
-        referenceId: "bottom-right",
-      };
-
-      const endPoint: EndPoint = {
-        id: `end-${Date.now()}-2`,
-        x: bottomRightPosition.x,
-        y: bottomRightPosition.y,
-        type: "end",
-        heading: bottomRightPosition.heading,
-        referenceType: "position",
-        referenceId: "bottom-right",
-      };
-
-      // Insert points sequentially
-      setTimeout(() => {
-        insertPointAfter(null, startPoint);
-        setTimeout(() => {
-          insertPointAfter(startPoint.id, endPoint);
-        }, 20);
-      }, 10);
-    }
-  }, [
-    isEditingMission,
-    editingMission?.id,
-    positions.length,
-    hasInitializedDefaultPoints,
-    insertPointAfter,
-  ]);
-
-  // Reset the initialization flag when editing mode changes
-  React.useEffect(() => {
-    if (!isEditingMission) {
-      setHasInitializedDefaultPoints(false);
-    }
-  }, [isEditingMission]);
 
   // Handle adding waypoint after a specific point
   const handleAddWaypoint = useCallback(

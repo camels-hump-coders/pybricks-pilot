@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMissionManager } from "../hooks/useMissionManager";
 
 /**
@@ -15,7 +15,6 @@ export function AddMissionDialog() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [defaultArcRadius, setDefaultArcRadius] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,7 +23,6 @@ export function AddMissionDialog() {
     if (isAddMissionDialogOpen) {
       setName("");
       setDescription("");
-      setDefaultArcRadius(100);
       setError("");
       setIsLoading(false);
     }
@@ -37,10 +35,6 @@ export function AddMissionDialog() {
   const validateForm = (): string | null => {
     const nameError = validateMissionName(name);
     if (nameError) return nameError;
-
-    if (defaultArcRadius < 10 || defaultArcRadius > 1000) {
-      return "Arc radius must be between 10 and 1000mm";
-    }
 
     return null;
   };
@@ -58,8 +52,7 @@ export function AddMissionDialog() {
     try {
       const newMission = await addMission(
         name.trim(),
-        description.trim() || undefined,
-        defaultArcRadius
+        description.trim() || undefined
       );
 
       if (newMission) {
@@ -86,7 +79,7 @@ export function AddMissionDialog() {
               Folder Not Mounted
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Mission creation requires a mounted folder to save mission files. 
+              Mission creation requires a mounted folder to save mission files.
               Please mount a folder to enable mission management.
             </p>
             <button
@@ -112,8 +105,18 @@ export function AddMissionDialog() {
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -149,25 +152,6 @@ export function AddMissionDialog() {
             />
           </div>
 
-          {/* Default Arc Radius */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Default Arc Radius (mm)
-            </label>
-            <input
-              type="number"
-              min="10"
-              max="1000"
-              value={defaultArcRadius}
-              onChange={(e) => setDefaultArcRadius(Math.max(10, parseInt(e.target.value) || 10))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              disabled={isLoading}
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Default radius for smooth curves between waypoints (10-1000mm)
-            </p>
-          </div>
-
           {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
@@ -191,9 +175,24 @@ export function AddMissionDialog() {
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
-                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      className="opacity-25"
+                    ></circle>
+                    <path
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      className="opacity-75"
+                    ></path>
                   </svg>
                   Creating...
                 </>
