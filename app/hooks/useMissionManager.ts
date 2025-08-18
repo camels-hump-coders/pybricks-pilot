@@ -18,6 +18,7 @@ import {
   saveEditingMissionAtom,
   cancelEditingMissionAtom,
   addPointToMissionAtom,
+  insertPointAfterAtom,
   removePointFromMissionAtom,
   updatePointInMissionAtom,
   selectPointAtom,
@@ -60,6 +61,7 @@ export function useMissionManager() {
   const saveEditingMission = useSetAtom(saveEditingMissionAtom);
   const cancelEditingMission = useSetAtom(cancelEditingMissionAtom);
   const addPointToMission = useSetAtom(addPointToMissionAtom);
+  const insertPointAfter = useSetAtom(insertPointAfterAtom);
   const removePointFromMission = useSetAtom(removePointFromMissionAtom);
   const updatePointInMission = useSetAtom(updatePointInMissionAtom);
   const selectPoint = useSetAtom(selectPointAtom);
@@ -109,10 +111,12 @@ export function useMissionManager() {
     }
   }, [hasDirectoryAccess, directoryHandle, missions]);
 
-  // Save whenever missions change
+  // Save whenever missions change (temporarily disabled to debug point placement)
   useEffect(() => {
     if (hasDirectoryAccess && missions.length >= 0) {
-      saveMissions();
+      // Temporarily disable auto-save to debug point placement issues
+      // saveMissions();
+      console.log("Auto-save disabled - missions changed:", missions.length);
     }
   }, [missions, hasDirectoryAccess, saveMissions]);
 
@@ -187,6 +191,10 @@ export function useMissionManager() {
   const handleAddPoint = useCallback((point: MissionPointType) => {
     return addPointToMission(point);
   }, [addPointToMission]);
+
+  const handleInsertPointAfter = useCallback((afterPointId: string | null, point: MissionPointType) => {
+    return insertPointAfter(afterPointId, point);
+  }, [insertPointAfter]);
 
   const handleRemovePoint = useCallback((pointId: string) => {
     return removePointFromMission(pointId);
@@ -270,6 +278,7 @@ export function useMissionManager() {
 
     // Point management actions
     addPoint: handleAddPoint,
+    insertPointAfter: handleInsertPointAfter,
     removePoint: handleRemovePoint,
     updatePoint: handleUpdatePoint,
     selectPoint: handleSelectPoint,

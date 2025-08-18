@@ -36,6 +36,12 @@ export const isAddMissionDialogOpenAtom = atom<boolean>(false);
 export const isMissionEditorOpenAtom = atom<boolean>(false);
 export const showMissionValidationAtom = atom<boolean>(false);
 
+// Mission editing state atoms
+export const pointPlacementModeAtom = atom<"waypoint" | "action" | "start" | "end" | null>(null);
+export const actionPointHeadingAtom = atom<number>(0);
+export const selectedStartEndRefAtom = atom<string>("");
+export const insertAfterPointIdAtom = atom<string | null>(null);
+
 // Action atoms for mission management
 
 // Create a new mission
@@ -218,6 +224,53 @@ export const removePointFromMissionAtom = atom(
     if (selectedPointId === pointId) {
       set(selectedPointIdAtom, null);
     }
+    
+    return true;
+  }
+);
+
+// Insert a point after a specific point (or at beginning if afterPointId is null)
+export const insertPointAfterAtom = atom(
+  null,
+  (get, set, afterPointId: string | null, newPoint: MissionPointType) => {
+    console.log("insertPointAfterAtom called:", { afterPointId, newPoint });
+    const editingMission = get(editingMissionAtom);
+    console.log("Current editing mission:", editingMission);
+    
+    if (!editingMission) {
+      console.log("No editing mission found");
+      return false;
+    }
+    
+    let insertIndex = 0;
+    if (afterPointId) {
+      const afterIndex = editingMission.points.findIndex(p => p.id === afterPointId);
+      if (afterIndex === -1) {
+        console.log("After point not found:", afterPointId);
+        return false;
+      }
+      insertIndex = afterIndex + 1;
+    }
+    
+    console.log("Inserting at index:", insertIndex);
+    const newPoints = [...editingMission.points];
+    newPoints.splice(insertIndex, 0, newPoint);
+    
+    const updatedMission: Mission = {
+      ...editingMission,
+      points: newPoints,
+      modified: new Date().toISOString()
+    };
+    
+    console.log("Setting updated mission:", updatedMission);
+    set(editingMissionAtom, updatedMission);
+    
+    // Also update the main missions array to trigger UI updates
+    const missions = get(missionsAtom);
+    const updatedMissions = missions.map(m => 
+      m.id === updatedMission.id ? updatedMission : m
+    );
+    set(missionsAtom, updatedMissions);
     
     return true;
   }

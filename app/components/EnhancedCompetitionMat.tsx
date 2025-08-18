@@ -72,7 +72,6 @@ import {
 } from "../utils/scoringUtils";
 import { calculateTrajectoryProjection } from "./MovementPreview";
 import { PseudoCodePanel } from "./PseudoCodePanel";
-import { MissionEditingOverlay } from "./MissionEditingOverlay";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
 import { TelemetryTooltip } from "./EnhancedCompetitionMat/TelemetryTooltip";
@@ -238,6 +237,8 @@ export function EnhancedCompetitionMat({
     hoveredPoint,
     hoveredPointIndexValue,
     setMissionBounds,
+    pointPlacementMode: missionEditing.pointPlacementMode,
+    actionPointHeading: missionEditing.actionPointHeading,
   });
 
   // Use CMD key detection hook
@@ -312,6 +313,12 @@ export function EnhancedCompetitionMat({
 
   // Custom canvas click handler that includes mission editing
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    console.log("Canvas clicked - mission editing check:", {
+      controlMode,
+      isEditingMission,
+      pointPlacementMode
+    });
+    
     // If we're in mission editing mode and have a point placement mode active
     if (controlMode === "mission" && isEditingMission && pointPlacementMode) {
       const canvas = canvasRef.current;
@@ -321,12 +328,17 @@ export function EnhancedCompetitionMat({
       const canvasX = event.clientX - rect.left;
       const canvasY = event.clientY - rect.top;
       
+      console.log("Canvas coordinates:", { canvasX, canvasY });
+      
       // Convert canvas coordinates to mat coordinates
       const { canvasToMm } = coordinateUtils;
       const matPos = canvasToMm(canvasX, canvasY);
       
+      console.log("Mat coordinates:", matPos);
+      
       // Handle mission point placement
       const newPoint = handlePointPlacement(matPos.x, matPos.y);
+      console.log("Point placement result:", newPoint);
       if (newPoint) {
         // Point was placed, we're done
         return;
@@ -408,8 +420,6 @@ export function EnhancedCompetitionMat({
           style={{ height: "auto" }}
         />
 
-        {/* Mission Editing Overlay */}
-        {controlMode === "mission" && <MissionEditingOverlay />}
 
         {!isConnected && (
           <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 bg-opacity-75 flex items-center justify-center">

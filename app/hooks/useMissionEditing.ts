@@ -1,5 +1,12 @@
 import { useState, useCallback } from "react";
+import { useAtom, useAtomValue } from "jotai";
 import { useMissionManager } from "./useMissionManager";
+import { 
+  pointPlacementModeAtom, 
+  actionPointHeadingAtom, 
+  selectedStartEndRefAtom, 
+  insertAfterPointIdAtom 
+} from "../store/atoms/missionPlanner";
 import type { MissionPointType, Waypoint, ActionPoint, StartPoint, EndPoint } from "../types/missionPlanner";
 
 type PointPlacementMode = "waypoint" | "action" | "start" | "end" | null;
@@ -11,21 +18,27 @@ export function useMissionEditing() {
   const {
     editingMission,
     isEditingMission,
-    addPoint,
+    insertPointAfter,
   } = useMissionManager();
 
-  const [pointPlacementMode, setPointPlacementMode] = useState<PointPlacementMode>(null);
-  const [actionPointHeading, setActionPointHeading] = useState(0);
-  const [selectedStartEndRef, setSelectedStartEndRef] = useState("");
+  // Use atoms for shared state across components
+  const [pointPlacementMode, setPointPlacementMode] = useAtom(pointPlacementModeAtom);
+  const [actionPointHeading, setActionPointHeading] = useAtom(actionPointHeadingAtom);
+  const [selectedStartEndRef, setSelectedStartEndRef] = useAtom(selectedStartEndRefAtom);
+  const [insertAfterPointId, setInsertAfterPointId] = useAtom(insertAfterPointIdAtom);
 
   // Handle point placement mode changes
-  const handleSetPlacementMode = useCallback((mode: PointPlacementMode) => {
+  const handleSetPlacementMode = useCallback((mode: PointPlacementMode, afterPointId?: string | null) => {
+    console.log("handleSetPlacementMode called:", { mode, afterPointId });
     setPointPlacementMode(mode);
+    setInsertAfterPointId(afterPointId || null);
+    console.log("Point placement mode set to:", mode);
     if (!mode) {
       setActionPointHeading(0);
       setSelectedStartEndRef("");
+      setInsertAfterPointId(null);
     }
-  }, []);
+  }, [setPointPlacementMode, setInsertAfterPointId, setActionPointHeading, setSelectedStartEndRef]);
 
   // Create a point at the given position
   const createPoint = useCallback((x: number, y: number): MissionPointType | null => {
@@ -84,14 +97,18 @@ export function useMissionEditing() {
 
   // Handle point placement on canvas click
   const handlePointPlacement = useCallback((x: number, y: number) => {
+    console.log("handlePointPlacement called:", { x, y, pointPlacementMode, insertAfterPointId });
     const newPoint = createPoint(x, y);
+    console.log("Created point:", newPoint);
     if (newPoint) {
-      addPoint(newPoint);
+      const result = insertPointAfter(insertAfterPointId, newPoint);
+      console.log("Insert result:", result);
       setPointPlacementMode(null);
+      setInsertAfterPointId(null);
       return newPoint;
     }
     return null;
-  }, [createPoint, addPoint]);
+  }, [createPoint, insertPointAfter, insertAfterPointId, pointPlacementMode]);
 
   // Get preview data for rendering
   const getPreviewData = useCallback(() => {
@@ -111,11 +128,13 @@ export function useMissionEditing() {
     pointPlacementMode,
     actionPointHeading,
     selectedStartEndRef,
+    insertAfterPointId,
     
     // Actions
     setPointPlacementMode: handleSetPlacementMode,
     setActionPointHeading,
     setSelectedStartEndRef,
+    setInsertAfterPointId,
     handlePointPlacement,
     
     // Utils

@@ -19,8 +19,9 @@ import {
   pathVisualizationOptionsAtom, 
   selectedPathPointsAtom 
 } from "../store/atoms/telemetryPoints";
+import { editingMissionAtom, selectedPointIdAtom } from "../store/atoms/missionPlanner";
 import { drawBorderWalls, drawGrid } from "../utils/canvas/basicDrawing";
-import { drawMissions } from "../utils/canvas/missionDrawing";
+import { drawMissions, drawMissionPlanner, drawMissionPointPreview } from "../utils/canvas/missionDrawing";
 import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
 import { drawRobot } from "../utils/canvas/robotDrawing";
 import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
@@ -49,6 +50,9 @@ interface UseCanvasDrawingProps {
   hoveredPoint: any; // TODO: Add proper typing
   hoveredPointIndexValue: number;
   setMissionBounds: (bounds: Map<string, { x: number; y: number; width: number; height: number }>) => void;
+  // Mission editing props
+  pointPlacementMode?: "waypoint" | "action" | "start" | "end" | null;
+  actionPointHeading?: number;
 }
 
 const BORDER_WALL_HEIGHT_MM = 36; // 36mm tall border walls
@@ -75,6 +79,8 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     hoveredPoint,
     hoveredPointIndexValue,
     setMissionBounds,
+    pointPlacementMode = null,
+    actionPointHeading = 0,
   } = props;
 
   // Get state from atoms
@@ -90,6 +96,8 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   const pathOptions = useAtomValue(pathVisualizationOptionsAtom);
   const selectedPathPoints = useAtomValue(selectedPathPointsAtom);
   const ghostRobot = useAtomValue(ghostRobotAtom);
+  const editingMission = useAtomValue(editingMissionAtom);
+  const selectedPointId = useAtomValue(selectedPointIdAtom);
 
   // Extract coordinate utilities
   const { canvasToMm, mmToCanvas } = coordinateUtils;
@@ -340,6 +348,39 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         drawSplinePath(ctx, splinePath, null, { mmToCanvas, scale });
       }
     }
+
+    // Draw mission planner points and connections
+    if (controlMode === "mission" && editingMission) {
+      drawMissionPlanner(
+        ctx,
+        editingMission,
+        { mmToCanvas, scale },
+        {
+          showConnections: true,
+          selectedPointId: selectedPointId,
+          showRobotGhosts: true,
+          robotConfig: robotConfig,
+        }
+      );
+    }
+
+    // Draw mission point placement preview
+    if (controlMode === "mission" && pointPlacementMode && mousePosition) {
+      console.log("Drawing mission point preview:", { 
+        controlMode, 
+        pointPlacementMode, 
+        mousePosition, 
+        actionPointHeading 
+      });
+      drawMissionPointPreview(
+        ctx,
+        mousePosition,
+        pointPlacementMode,
+        actionPointHeading,
+        { mmToCanvas, scale },
+        robotConfig
+      );
+    }
   }, [
     scale,
     currentPosition,
@@ -370,7 +411,12 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     hoveredPointIndexValue,
     selectedPathPoints,
     ghostPosition,
+    // Mission planner state
+    editingMission,
+    selectedPointId,
     missionBounds,
+    pointPlacementMode,
+    actionPointHeading,
   ]);
 
   const updateCanvas = useCallback(() => {
@@ -407,6 +453,8 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     showScoring,
     controlMode,
     ghostPosition,
+    pointPlacementMode,
+    actionPointHeading,
     updateCanvas,
   ]);
 
