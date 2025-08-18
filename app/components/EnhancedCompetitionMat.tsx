@@ -284,6 +284,7 @@ export function EnhancedCompetitionMat({
     showScoring,
     scoringState,
     setScoringState,
+    coordinateUtils,
     currentSplinePath,
     isSplinePathMode,
     justFinishedDragging,

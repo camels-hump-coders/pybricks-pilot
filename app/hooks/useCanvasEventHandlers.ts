@@ -12,6 +12,7 @@ interface UseCanvasEventHandlersProps {
   showScoring: boolean;
   scoringState: any;
   setScoringState: React.Dispatch<React.SetStateAction<any>>;
+  coordinateUtils: any; // TODO: Add proper typing
   // Spline-related props
   currentSplinePath: any;
   isSplinePathMode: boolean;
@@ -38,6 +39,7 @@ export function useCanvasEventHandlers({
   showScoring,
   scoringState,
   setScoringState,
+  coordinateUtils,
   currentSplinePath,
   isSplinePathMode,
   justFinishedDragging,
@@ -138,6 +140,15 @@ export function useCanvasEventHandlers({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
+    // Update mouse position for mission point placement preview
+    // Convert canvas coordinates to mat coordinates (mm)
+    const matPosition = coordinateUtils.canvasToMm(canvasX, canvasY);
+    setMousePosition({
+      x: matPosition.x,
+      y: matPosition.y,
+      heading: 0 // Default heading, not used for mouse position
+    });
+
     // Handle spline interactions
     splineInteractions.handleSplineMouseMove(
       canvasX,
@@ -163,6 +174,8 @@ export function useCanvasEventHandlers({
     }
   }, [
     canvasRef,
+    coordinateUtils,
+    setMousePosition,
     splineInteractions,
     isDraggingPoint,
     draggedPointId,

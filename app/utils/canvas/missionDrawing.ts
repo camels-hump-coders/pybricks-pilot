@@ -2,9 +2,11 @@ import type { Mission, GameMatConfig } from "../../schemas/GameMatConfig";
 import type { Mission as MissionPlannerMission, MissionPointType, ActionPoint } from "../../types/missionPlanner";
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { LEGO_STUD_SIZE_MM } from "../../schemas/RobotConfig";
+import { computeArcPath, generateArcPathPoints, type ArcPathSegment } from "../arcPathComputation";
 
 export interface MissionDrawingUtils {
   mmToCanvas: (x: number, y: number) => { x: number; y: number };
+  canvasToMm: (x: number, y: number) => { x: number; y: number };
   scale: number;
 }
 
@@ -169,26 +171,14 @@ export function drawMissionPlanner(
   const { mmToCanvas, scale } = utils;
   const { showConnections = true, highlightedPointId = null, selectedPointId = null, showRobotGhosts = false, robotConfig = null } = options;
 
-  // Draw connections between points first (so they appear behind points)
+  // Draw arc-based connections between points first (so they appear behind points)
   if (showConnections && mission.points.length > 1) {
-    ctx.strokeStyle = "#6b7280"; // gray-500
-    ctx.lineWidth = 2 * scale;
-    ctx.setLineDash([5 * scale, 5 * scale]); // Dashed line
-
-    for (let i = 0; i < mission.points.length - 1; i++) {
-      const currentPoint = mission.points[i];
-      const nextPoint = mission.points[i + 1];
-
-      const fromPos = mmToCanvas(currentPoint.x, currentPoint.y);
-      const toPos = mmToCanvas(nextPoint.x, nextPoint.y);
-
-      ctx.beginPath();
-      ctx.moveTo(fromPos.x, fromPos.y);
-      ctx.lineTo(toPos.x, toPos.y);
-      ctx.stroke();
-    }
-
-    ctx.setLineDash([]); // Reset line dash
+    drawMissionArcPaths(ctx, mission, utils, {
+      strokeColor: "#8b5cf6", // violet-500
+      strokeWidth: 3,
+      showArrows: true,
+      opacity: 0.7
+    });
   }
 
   // Draw each point
@@ -491,4 +481,192 @@ export function drawMissionPointPreview(
     ctx.font = `${Math.max(10 * scale, 10)}px sans-serif`;
     ctx.fillText(headingLabel, canvasX, labelY + labelHeight);
   }
+}
+
+/**
+ * Draw arc path segments for a mission
+ */
+export function drawMissionArcPaths(
+  ctx: CanvasRenderingContext2D,
+  mission: MissionPlannerMission,
+  utils: MissionDrawingUtils,
+  options: {
+    strokeColor?: string;
+    strokeWidth?: number;
+    showArrows?: boolean;
+    opacity?: number;
+  } = {}
+) {
+  if (!mission || mission.points.length < 2) return;
+  
+  const { mmToCanvas, scale } = utils;
+  const {
+    strokeColor = "#8b5cf6", // violet-500
+    strokeWidth = 3,
+    showArrows = true,
+    opacity = 0.8
+  } = options;
+  
+  // Compute arc path segments
+  const segments = computeArcPath(mission);
+  
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = strokeWidth * scale;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  
+  // Draw each path segment with different styles for turn/straight/arc
+  segments.forEach((segment, index) => {
+    const pathPoints = generateArcPathPoints(segment, 15); // Higher resolution for smooth curves
+    
+    if (pathPoints.length < 2) return;
+    
+    // Convert points to canvas coordinates
+    const canvasPoints = pathPoints.map(point => mmToCanvas(point.x, point.y));
+    
+    // Set different styles based on segment type
+    const segmentType = (segment as any).segmentType || "straight";
+    switch (segmentType) {
+      case "turn":
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = (strokeWidth * 0.7) * scale; // Thinner for turns
+        ctx.setLineDash([5 * scale, 3 * scale]); // Dashed for turns
+        break;
+      case "arc":
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = strokeWidth * scale;
+        ctx.setLineDash([8 * scale, 2 * scale]); // Longer dashes for arcs
+        break;
+      case "straight":
+      default:
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = strokeWidth * scale;
+        ctx.setLineDash([]); // Solid line for straight segments
+        break;
+    }
+    
+    // Draw the path
+    ctx.beginPath();
+    ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
+    
+    for (let i = 1; i < canvasPoints.length; i++) {
+      ctx.lineTo(canvasPoints[i].x, canvasPoints[i].y);
+    }
+    
+    ctx.stroke();
+    
+    // Draw direction arrow at the midpoint (only for straight and arc segments)
+    if (showArrows && canvasPoints.length >= 2 && segmentType !== "turn") {
+      const midIndex = Math.floor(canvasPoints.length / 2);
+      const midPoint = canvasPoints[midIndex];
+      const nextPoint = canvasPoints[Math.min(midIndex + 1, canvasPoints.length - 1)];
+      
+      ctx.setLineDash([]); // Reset to solid for arrows
+      drawPathArrow(ctx, midPoint, nextPoint, scale);
+    }
+  });
+  
+  ctx.restore();
+}
+
+/**
+ * Draw direction arrow on a path
+ */
+function drawPathArrow(
+  ctx: CanvasRenderingContext2D,
+  fromPoint: { x: number; y: number },
+  toPoint: { x: number; y: number },
+  scale: number
+) {
+  const dx = toPoint.x - fromPoint.x;
+  const dy = toPoint.y - fromPoint.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  
+  if (length < 1) return; // Too short to draw arrow
+  
+  const angle = Math.atan2(dy, dx);
+  const arrowLength = 12 * scale;
+  const arrowWidth = 8 * scale;
+  
+  ctx.save();
+  ctx.translate(fromPoint.x, fromPoint.y);
+  ctx.rotate(angle);
+  
+  // Draw arrow
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-arrowLength, -arrowWidth / 2);
+  ctx.lineTo(-arrowLength * 0.7, 0);
+  ctx.lineTo(-arrowLength, arrowWidth / 2);
+  ctx.closePath();
+  ctx.fill();
+  
+  ctx.restore();
+}
+
+/**
+ * Draw smooth path preview for mission editing
+ */
+export function drawMissionPathPreview(
+  ctx: CanvasRenderingContext2D,
+  mission: MissionPlannerMission,
+  mousePosition: { x: number; y: number },
+  pointType: "waypoint" | "action",
+  actionHeading: number,
+  utils: MissionDrawingUtils,
+  options: {
+    previewPointId?: string | null;
+    strokeColor?: string;
+    opacity?: number;
+  } = {}
+) {
+  if (!mission || mission.points.length === 0) return;
+  
+  const { mmToCanvas, canvasToMm } = utils;
+  const {
+    strokeColor = "#f59e0b", // amber-500 for preview
+    opacity = 0.6
+  } = options;
+  
+  // Convert mouse position to mat coordinates
+  const matPos = canvasToMm(mousePosition.x, mousePosition.y);
+  
+  // Create temporary mission with preview point added
+  const previewPoint: MissionPointType = {
+    id: "preview-point",
+    x: matPos.x,
+    y: matPos.y,
+    type: pointType,
+    ...(pointType === "action" ? { heading: actionHeading, actionName: "Preview", pauseDuration: 1 } : {})
+  } as MissionPointType;
+  
+  // Find insertion point (last non-end point)
+  let insertIndex = mission.points.length;
+  for (let i = mission.points.length - 1; i >= 0; i--) {
+    if (mission.points[i].type !== "end") {
+      insertIndex = i + 1;
+      break;
+    }
+  }
+  
+  // Create preview mission
+  const previewMission: MissionPlannerMission = {
+    ...mission,
+    points: [
+      ...mission.points.slice(0, insertIndex),
+      previewPoint,
+      ...mission.points.slice(insertIndex)
+    ]
+  };
+  
+  // Draw the preview path
+  drawMissionArcPaths(ctx, previewMission, utils, {
+    strokeColor,
+    strokeWidth: 2,
+    showArrows: false,
+    opacity
+  });
 }

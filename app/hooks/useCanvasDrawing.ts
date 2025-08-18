@@ -10,7 +10,8 @@ import {
 import { 
   controlModeAtom, 
   customMatConfigAtom, 
-  showGridOverlayAtom 
+  showGridOverlayAtom,
+  mousePositionAtom
 } from "../store/atoms/gameMat";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
@@ -19,9 +20,9 @@ import {
   pathVisualizationOptionsAtom, 
   selectedPathPointsAtom 
 } from "../store/atoms/telemetryPoints";
-import { editingMissionAtom, selectedPointIdAtom } from "../store/atoms/missionPlanner";
+import { editingMissionAtom, selectedPointIdAtom, selectedMissionAtom } from "../store/atoms/missionPlanner";
 import { drawBorderWalls, drawGrid } from "../utils/canvas/basicDrawing";
-import { drawMissions, drawMissionPlanner, drawMissionPointPreview } from "../utils/canvas/missionDrawing";
+import { drawMissions, drawMissionPlanner, drawMissionPointPreview, drawMissionPathPreview } from "../utils/canvas/missionDrawing";
 import { drawMovementPreview } from "../utils/canvas/movementPreviewDrawing";
 import { drawRobot } from "../utils/canvas/robotDrawing";
 import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
@@ -97,7 +98,11 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   const selectedPathPoints = useAtomValue(selectedPathPointsAtom);
   const ghostRobot = useAtomValue(ghostRobotAtom);
   const editingMission = useAtomValue(editingMissionAtom);
+  const selectedMission = useAtomValue(selectedMissionAtom);
   const selectedPointId = useAtomValue(selectedPointIdAtom);
+  
+  // Get mouse position directly from atom instead of prop
+  const atomMousePosition = useAtomValue(mousePositionAtom);
 
   // Extract coordinate utilities
   const { canvasToMm, mmToCanvas } = coordinateUtils;
@@ -185,7 +190,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         customMatConfig,
         scoringState,
         hoveredObject,
-        { mmToCanvas, scale },
+        { mmToCanvas, canvasToMm, scale },
         {
           matWidthMm:
             customMatConfig?.dimensions?.widthMm ||
@@ -349,37 +354,67 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       }
     }
 
-    // Draw mission planner points and connections
-    if (controlMode === "mission" && editingMission) {
-      drawMissionPlanner(
-        ctx,
-        editingMission,
-        { mmToCanvas, scale },
-        {
-          showConnections: true,
-          selectedPointId: selectedPointId,
-          showRobotGhosts: true,
-          robotConfig: robotConfig,
-        }
-      );
+    // Draw mission planner points and connections - ALWAYS show in mission mode
+    if (controlMode === "mission") {
+      // Show the editing mission if available, otherwise show the selected mission
+      const missionToShow = editingMission || selectedMission;
+      if (missionToShow) {
+        drawMissionPlanner(
+          ctx,
+          missionToShow,
+          { mmToCanvas, canvasToMm, scale },
+          {
+            showConnections: true,
+            selectedPointId: selectedPointId,
+            showRobotGhosts: true,
+            robotConfig: robotConfig,
+          }
+        );
+      }
     }
 
-    // Draw mission point placement preview
-    if (controlMode === "mission" && pointPlacementMode && mousePosition) {
+    // Draw mission point placement preview with arc path preview
+    // Use atom mouse position instead of prop, and convert from mat coordinates to canvas coordinates
+    const mousePositionForPreview = atomMousePosition ? mmToCanvas(atomMousePosition.x, atomMousePosition.y) : null;
+    
+    if (controlMode === "mission" && pointPlacementMode && mousePositionForPreview && editingMission) {
       console.log("Drawing mission point preview:", { 
         controlMode, 
         pointPlacementMode, 
-        mousePosition, 
+        atomMousePosition,
+        mousePositionForPreview, 
         actionPointHeading 
       });
+      
+      // Draw the smooth path preview showing how the new point will connect
+      if (pointPlacementMode === "waypoint" || pointPlacementMode === "action") {
+        drawMissionPathPreview(
+          ctx,
+          editingMission,
+          mousePositionForPreview,
+          pointPlacementMode,
+          actionPointHeading,
+          { mmToCanvas, canvasToMm, scale }
+        );
+      }
+      
+      // Draw the point preview on top of the path preview
       drawMissionPointPreview(
         ctx,
-        mousePosition,
+        mousePositionForPreview,
         pointPlacementMode,
         actionPointHeading,
         { mmToCanvas, scale },
         robotConfig
       );
+    } else if (controlMode === "mission" && pointPlacementMode) {
+      console.log("Preview conditions not met:", {
+        controlMode,
+        pointPlacementMode,
+        hasAtomMousePosition: !!atomMousePosition,
+        hasMousePositionForPreview: !!mousePositionForPreview,
+        hasEditingMission: !!editingMission
+      });
     }
   }, [
     scale,
@@ -413,10 +448,13 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     ghostPosition,
     // Mission planner state
     editingMission,
+    selectedMission,
     selectedPointId,
     missionBounds,
     pointPlacementMode,
     actionPointHeading,
+    atomMousePosition,
+    coordinateUtils,
   ]);
 
   const updateCanvas = useCallback(() => {
@@ -455,6 +493,9 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     ghostPosition,
     pointPlacementMode,
     actionPointHeading,
+    atomMousePosition,
+    selectedMission,
+    coordinateUtils,
     updateCanvas,
   ]);
 
