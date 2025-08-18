@@ -416,6 +416,9 @@ function calculateSmoothPathSegments(
         arcEndAngle: nextArc.endAngle
       });
       
+      // Skip the next iteration since this arc already covers the path to the point after nextPoint
+      i++;
+      
     } else {
       // No arc - create simple straight line segment
       const segmentDistance = calculateDistance(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);

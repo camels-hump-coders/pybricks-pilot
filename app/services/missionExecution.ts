@@ -77,6 +77,12 @@ export class MissionExecutionService {
 
     // Generate optimized arc path segments
     const segments = computeArcPath(mission);
+    
+    // Debug: Log all generated segments
+    console.log(`[Command Generation] Generated ${segments.length} path segments for mission "${mission.name}":`);
+    segments.forEach((segment, i) => {
+      console.log(`  Segment ${i + 1}: ${segment.pathType} from (${segment.startX.toFixed(1)}, ${segment.startY.toFixed(1)}) to (${segment.endX.toFixed(1)}, ${segment.endY.toFixed(1)}) - From ${segment.fromPoint.type} to ${segment.toPoint.type}`, segment);
+    });
 
     if (segments.length === 0) {
       return commands;
