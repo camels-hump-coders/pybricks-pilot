@@ -90,13 +90,14 @@ export function useJotaiFileSystem() {
   const moveProgramDown = useSetAtom(moveProgramDownAtom);
   
   // Auto-restore directory on component mount
+  // The atom itself has guards to prevent multiple restoration attempts
   useEffect(() => {
     restoreLastDirectory();
-  }, [restoreLastDirectory]);
+  }, []); // Empty deps - only run once per component mount
   
   // Auto-refresh files periodically
   useEffect(() => {
-    if (!directoryHandle) return;
+    if (!directoryName || !hasDirectoryAccess) return;
     
     // Initial refresh
     refreshFiles();
@@ -107,7 +108,7 @@ export function useJotaiFileSystem() {
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [directoryHandle, refreshFiles]);
+  }, [directoryName, hasDirectoryAccess, refreshFiles]);
   
   // Helper function to get file content (maintains backward compatibility)
   const getFileContent = useCallback((fileName: string) => {

@@ -4,7 +4,7 @@ import type { PythonFile } from "../../types/fileSystem";
 // Directory state atoms
 export const directoryHandleAtom = atom<FileSystemDirectoryHandle | null>(null);
 export const directoryNameAtom = atom<string>("");
-export const isRestoringDirectoryAtom = atom<boolean>(true);
+export const isRestoringDirectoryAtom = atom<boolean>(false);
 
 // File state atoms
 export const pythonFilesAtom = atom<PythonFile[]>([]);
@@ -21,10 +21,19 @@ export const isCreatingFileAtom = atom<boolean>(false);
 export const fileContentCacheAtom = atom<Map<string, string>>(new Map());
 
 // Programs manifest atom - stores the config/programs.json data
-export const programsManifestAtom = atom<{ relativePath: string; programSide?: "left" | "right"; programStartPosition?: import("../../types/fileSystem").RobotStartPosition }[]>([]);
+export const programsManifestAtom = atom<
+  {
+    relativePath: string;
+    programSide?: "left" | "right";
+    programStartPosition?: import("../../types/fileSystem").RobotStartPosition;
+  }[]
+>([]);
 
 // Helper function to find a file by relative path recursively
-const findFileByPath = (files: PythonFile[], relativePath: string): PythonFile | null => {
+const findFileByPath = (
+  files: PythonFile[],
+  relativePath: string
+): PythonFile | null => {
   for (const file of files) {
     if (file.relativePath === relativePath && !file.isDirectory) {
       return file;
@@ -53,9 +62,9 @@ export const programCountAtom = atom((get) => {
 export const allProgramsAtom = atom((get) => {
   const pythonFiles = get(pythonFilesAtom);
   const programsManifest = get(programsManifestAtom);
-  
+
   const programs: (PythonFile & { programNumber: number })[] = [];
-  
+
   programsManifest.forEach((programMeta, index) => {
     const file = findFileByPath(pythonFiles, programMeta.relativePath);
     if (file) {
@@ -66,7 +75,7 @@ export const allProgramsAtom = atom((get) => {
       });
     }
   });
-  
+
   return programs;
 });
 
@@ -74,8 +83,10 @@ export const allProgramsAtom = atom((get) => {
 export const getProgramInfoAtom = atom((get) => {
   return (relativePath: string) => {
     const programsManifest = get(programsManifestAtom);
-    const index = programsManifest.findIndex(p => p.relativePath === relativePath);
-    
+    const index = programsManifest.findIndex(
+      (p) => p.relativePath === relativePath
+    );
+
     if (index >= 0) {
       return {
         programNumber: index + 1, // 1-based
@@ -83,7 +94,7 @@ export const getProgramInfoAtom = atom((get) => {
         isProgram: true,
       };
     }
-    
+
     return {
       programNumber: undefined,
       programStartPosition: undefined,

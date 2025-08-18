@@ -40,7 +40,6 @@ import { drawSplinePath } from "../utils/canvas/splinePathDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing";
 import { type RobotPosition } from "../utils/robotPosition";
-import type { Mission } from "../types/missionPlanner";
 
 interface UseCanvasDrawingProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -366,27 +365,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     if (controlMode === "mission") {
       // Show the editing mission if available, otherwise show the selected mission
       let missionToShow = editingMission || selectedMission;
-      
-      // DEBUG: Create a test mission if none exists to test arc rendering
-      if (!missionToShow) {
-        missionToShow = {
-          id: "test-mission",
-          name: "Arc Test Mission",
-          description: "Test mission for debugging arc rendering",
-          points: [
-            { id: "start-1", type: "start", x: 500, y: 300 },
-            { id: "waypoint-1", type: "waypoint", x: 800, y: 500 },
-            { id: "waypoint-2", type: "waypoint", x: 1200, y: 400 },
-            { id: "end-1", type: "end", x: 1500, y: 700 }
-          ],
-          segments: [],
-          created: new Date().toISOString(),
-          modified: new Date().toISOString(),
-          defaultArcRadius: 100
-        };
-        console.log('DEBUG: Created test mission for arc rendering:', missionToShow);
-      }
-      
+
       if (missionToShow) {
         drawMissionPlanner(
           ctx,

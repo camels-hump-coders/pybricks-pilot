@@ -1,32 +1,4 @@
 import { atom } from "jotai";
-
-// Helper function to recursively enrich file metadata at any depth
-async function enrichFileRecursively(
-  file: PythonFile, 
-  directoryHandle: FileSystemDirectoryHandle
-): Promise<PythonFile> {
-  if (!file.isDirectory) {
-    // For files, get metadata and return enriched file
-    const metadata = await programMetadataStorage.getProgramMetadata(directoryHandle, file.relativePath);
-    return {
-      ...file,
-      programStartPosition: metadata?.programStartPosition,
-    };
-  } else {
-    // For directories, recursively process all children
-    const enrichedChildren: PythonFile[] = [];
-    if (file.children) {
-      for (const child of file.children) {
-        // Recursively enrich each child (file or directory)
-        enrichedChildren.push(await enrichFileRecursively(child, directoryHandle));
-      }
-    }
-    return {
-      ...file,
-      children: enrichedChildren,
-    };
-  }
-}
 import { fileSystemService } from "../../services/fileSystem";
 import { programMetadataStorage } from "../../services/programMetadataStorage";
 import type { PythonFile, RobotStartPosition } from "../../types/fileSystem";
@@ -45,11 +17,45 @@ import {
   unmountDirectoryAtom,
 } from "../atoms/fileSystem";
 
+// Helper function to recursively enrich file metadata at any depth
+async function enrichFileRecursively(
+  file: PythonFile,
+  directoryHandle: FileSystemDirectoryHandle
+): Promise<PythonFile> {
+  if (!file.isDirectory) {
+    // For files, get metadata and return enriched file
+    const metadata = await programMetadataStorage.getProgramMetadata(
+      directoryHandle,
+      file.relativePath
+    );
+    return {
+      ...file,
+      programStartPosition: metadata?.programStartPosition,
+    };
+  } else {
+    // For directories, recursively process all children
+    const enrichedChildren: PythonFile[] = [];
+    if (file.children) {
+      for (const child of file.children) {
+        // Recursively enrich each child (file or directory)
+        enrichedChildren.push(
+          await enrichFileRecursively(child, directoryHandle)
+        );
+      }
+    }
+    return {
+      ...file,
+      children: enrichedChildren,
+    };
+  }
+}
+
 // Request directory access action
 export const requestDirectoryAccessAtom = atom(null, async (get, set) => {
   set(isRequestingDirectoryAtom, true);
 
   try {
+    console.log("requestDirectoryAccessAtom");
     const handle = await fileSystemService.requestDirectoryAccess();
     if (handle) {
       set(directoryHandleAtom, handle);
@@ -63,11 +69,25 @@ export const requestDirectoryAccessAtom = atom(null, async (get, set) => {
   }
 });
 
+// Flag to prevent multiple simultaneous restoration attempts
+const restorationAttemptedAtom = atom(false);
+
 // Restore last directory action
 export const restoreLastDirectoryAtom = atom(null, async (get, set) => {
+  // Prevent multiple simultaneous restoration attempts
+  const alreadyAttempted = get(restorationAttemptedAtom);
+  const isCurrentlyRestoring = get(isRestoringDirectoryAtom);
+  const hasDirectory = get(directoryHandleAtom);
+
+  if (alreadyAttempted || isCurrentlyRestoring || hasDirectory) {
+    return hasDirectory;
+  }
+
+  set(restorationAttemptedAtom, true);
   set(isRestoringDirectoryAtom, true);
 
   try {
+    console.log("restoreLastDirectoryAtom");
     const restoredHandle = await fileSystemService.restoreLastDirectory();
     if (restoredHandle) {
       set(directoryHandleAtom, restoredHandle);
@@ -94,21 +114,23 @@ export const refreshPythonFilesAtom = atom(null, async (get, set) => {
 
   try {
     // Get the basic file list from the file system service
-    const filesWithInfo = await fileSystemService.listPythonFiles(directoryHandle);
-    
+    const filesWithInfo =
+      await fileSystemService.listPythonFiles(directoryHandle);
+
     // Load programs manifest for program number calculation
-    const programsManifest = await programMetadataStorage.getAllPrograms(directoryHandle);
-    
+    const programsManifest =
+      await programMetadataStorage.getAllPrograms(directoryHandle);
+
     // Store programs manifest in atom for UI access
     const { programsManifestAtom } = await import("../atoms/fileSystem");
     set(programsManifestAtom, programsManifest);
-    
+
     // Load program metadata and enrich the file objects recursively
     const enrichedFiles: PythonFile[] = [];
     for (const file of filesWithInfo) {
       enrichedFiles.push(await enrichFileRecursively(file, directoryHandle));
     }
-    
+
     set(pythonFilesAtom, enrichedFiles);
   } catch (error) {
     set(pythonFilesErrorAtom, error as Error);
@@ -192,26 +214,23 @@ export const createFileAtom = atom(
 );
 
 // Create example project action
-export const createExampleProjectAtom = atom(
-  null,
-  async (get, set) => {
-    const directoryHandle = get(directoryHandleAtom);
-    if (!directoryHandle) throw new Error("No directory selected");
+export const createExampleProjectAtom = atom(null, async (get, set) => {
+  const directoryHandle = get(directoryHandleAtom);
+  if (!directoryHandle) throw new Error("No directory selected");
 
-    try {
-      await fileSystemService.createExampleProject(directoryHandle);
-      // Refresh file list to show the new example directory
-      await set(refreshPythonFilesAtom);
-      return true;
-    } catch (error) {
-      console.error("Failed to create example project:", error);
-      throw error;
-    }
+  try {
+    await fileSystemService.createExampleProject(directoryHandle);
+    // Refresh file list to show the new example directory
+    await set(refreshPythonFilesAtom);
+    return true;
+  } catch (error) {
+    console.error("Failed to create example project:", error);
+    throw error;
   }
-);
+});
 
 // Clear persisted data action
-export const clearPersistedDataAtom = atom(null, async (get, set) => {
+export const clearPersistedDataAtom = atom(null, async (_get, set) => {
   try {
     await fileSystemService.clearPersistedData();
     set(unmountDirectoryAtom);
@@ -266,7 +285,11 @@ export const addToProgramsAtom = atom(
 // Set program side for a file
 export const setProgramSideAtom = atom(
   null,
-  async (get, set, params: { relativePath: string; programSide: "left" | "right" | undefined }) => {
+  async (
+    get,
+    set,
+    params: { relativePath: string; programSide: "left" | "right" | undefined }
+  ) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
@@ -284,24 +307,24 @@ export const setProgramSideAtom = atom(
 // Get program metadata for a file
 export const getProgramMetadataAtom = atom(
   null,
-  async (get, set, relativePath: string) => {
+  async (get, _set, relativePath: string) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) return null;
 
-    return await programMetadataStorage.getProgramMetadata(directoryHandle, relativePath);
+    return await programMetadataStorage.getProgramMetadata(
+      directoryHandle,
+      relativePath
+    );
   }
 );
 
 // Get all programs in order
-export const getAllProgramsAtom = atom(
-  null,
-  async (get, set) => {
-    const directoryHandle = get(directoryHandleAtom);
-    if (!directoryHandle) return [];
+export const getAllProgramsAtom = atom(null, async (get, _set) => {
+  const directoryHandle = get(directoryHandleAtom);
+  if (!directoryHandle) return [];
 
-    return await programMetadataStorage.getAllPrograms(directoryHandle);
-  }
-);
+  return await programMetadataStorage.getAllPrograms(directoryHandle);
+});
 
 // Remove from programs (atomic operation)
 export const removeFromProgramsAtom = atom(
@@ -311,7 +334,10 @@ export const removeFromProgramsAtom = atom(
     if (!directoryHandle) throw new Error("No directory selected");
 
     // Remove program from the array (automatically fixes numbering)
-    await programMetadataStorage.removeProgramMetadata(directoryHandle, relativePath);
+    await programMetadataStorage.removeProgramMetadata(
+      directoryHandle,
+      relativePath
+    );
 
     // Refresh to get the latest state from filesystem
     await set(refreshPythonFilesAtom);
@@ -349,7 +375,14 @@ export const moveProgramDownAtom = atom(
 // Set program start position for a file
 export const setProgramStartPositionAtom = atom(
   null,
-  async (get, set, params: { relativePath: string; programStartPosition: RobotStartPosition | undefined }) => {
+  async (
+    get,
+    set,
+    params: {
+      relativePath: string;
+      programStartPosition: RobotStartPosition | undefined;
+    }
+  ) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
 
