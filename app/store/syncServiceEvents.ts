@@ -3,11 +3,11 @@ import { useEffect } from "react";
 
 // Custom hook to sync file system polling
 export function useSyncFileSystem() {
-  const directoryHandle = useAtomValue(directoryHandleAtom);
+  const stableDirectoryAccess = useAtomValue(stableDirectoryAccessAtom);
   const refreshFiles = useSetAtom(refreshPythonFilesAtom);
 
   useEffect(() => {
-    if (!directoryHandle) return;
+    if (!stableDirectoryAccess) return;
 
     // Auto-refresh every 5 seconds to detect file changes
     const interval = setInterval(() => {
@@ -15,9 +15,9 @@ export function useSyncFileSystem() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [directoryHandle, refreshFiles]);
+  }, [stableDirectoryAccess, refreshFiles]);
 }
 
 // Import the refresh action
 import { refreshPythonFilesAtom } from "./actions/fileSystemActions";
-import { directoryHandleAtom } from "./atoms/fileSystem";
+import { stableDirectoryAccessAtom } from "./atoms/fileSystem";

@@ -161,16 +161,16 @@ export default function Home() {
     }
   }, [isConnected]);
 
-  // Discover robot configurations when directory handle changes
+  // Discover robot configurations when directory changes
   useEffect(() => {
-    const { directoryHandle } = fileSystem;
-    if (directoryHandle) {
-      console.log("Directory handle changed, discovering robot configurations...");
+    const { stableDirectoryAccess } = fileSystem;
+    if (stableDirectoryAccess) {
+      console.log("Directory changed, discovering robot configurations...");
       discoverRobotConfigs().catch(error => {
         console.warn("Robot discovery failed on directory change:", error);
       });
     }
-  }, [fileSystem.directoryHandle, discoverRobotConfigs]);
+  }, [fileSystem.stableDirectoryAccess, discoverRobotConfigs]);
 
   // Enhanced error handling with notifications
   const handleConnect = async (options: any) => {

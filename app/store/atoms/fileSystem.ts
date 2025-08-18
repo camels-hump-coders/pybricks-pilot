@@ -52,6 +52,30 @@ export const isFileSystemSupportedAtom = atom(
   () => "showDirectoryPicker" in window
 );
 
+// Stable directory access atom - only depends on directory name, not the handle object
+export const stableDirectoryAccessAtom = atom((get) => {
+  const directoryName = get(directoryNameAtom);
+  const hasAccess = get(hasDirectoryAccessAtom);
+  return hasAccess && directoryName ? directoryName : null;
+});
+
+// Memoized directory handle atom that's stable based on directory name
+export const stableDirectoryHandleAtom = atom((get) => {
+  const directoryHandle = get(directoryHandleAtom);
+  const directoryName = get(directoryNameAtom);
+  
+  // Return a stable object that includes both handle and name for comparison
+  if (directoryHandle && directoryName) {
+    return {
+      handle: directoryHandle,
+      name: directoryName,
+      // Create a stable key for memoization
+      key: directoryName
+    };
+  }
+  return null;
+});
+
 // Derived atom for program count
 export const programCountAtom = atom((get) => {
   const programsManifest = get(programsManifestAtom);

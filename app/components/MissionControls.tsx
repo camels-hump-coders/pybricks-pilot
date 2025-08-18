@@ -1,15 +1,14 @@
 import { useAtomValue } from "jotai";
 import React, { useCallback, useState } from "react";
 import { useMissionEditing } from "../hooks/useMissionEditing";
-import { useMissionManager } from "../hooks/useMissionManager";
 import { useMissionExecution } from "../hooks/useMissionExecution";
+import { useMissionManager } from "../hooks/useMissionManager";
 import { usePositionManager } from "../hooks/usePositionManager";
 import { coordinateUtilsAtom } from "../store/atoms/canvasState";
 import { robotTypeAtom } from "../store/atoms/robotConnection";
 import type {
   ActionPoint,
   EndPoint,
-  MissionPointType,
   StartPoint,
 } from "../types/missionPlanner";
 import { AddMissionDialog } from "./AddMissionDialog";
@@ -54,20 +53,17 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
   const robotType = useAtomValue(robotTypeAtom);
 
   const [selectedMissionId, setSelectedMissionId] = useState<string>("");
-  
+
   // Mission execution hook
   const {
     isGenerating,
     isExecuting,
     currentCommands,
-    progress,
     error: executionError,
-    estimatedDuration,
     executeMission,
     stopExecution,
     clearState,
     canExecute,
-    progressPercentage,
   } = useMissionExecution();
 
   const handleMissionSelect = (missionId: string) => {
@@ -85,13 +81,18 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
     }
   }, [selectedMissionId, startEditingMission]);
 
+  // Track whether we've initialized default points to prevent duplicate additions
+  const [hasInitializedDefaultPoints, setHasInitializedDefaultPoints] =
+    React.useState(false);
+
   // Initialize default start/end points when editing starts
   React.useEffect(() => {
     if (
       isEditingMission &&
       editingMission &&
       editingMission.points.length === 0 &&
-      positions.length > 0
+      positions.length > 0 &&
+      !hasInitializedDefaultPoints
     ) {
       // Find the bottom-right position to get properly resolved coordinates
       const bottomRightPosition = positions.find(
@@ -102,58 +103,51 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
         return;
       }
 
-      // Check if we already have start/end points to avoid duplicates
-      const hasStart = editingMission.points.some((p) => p.type === "start");
-      const hasEnd = editingMission.points.some((p) => p.type === "end");
+      // Mark that we're initializing to prevent multiple runs
+      setHasInitializedDefaultPoints(true);
 
-      if (hasStart && hasEnd) {
-        return;
-      }
+      const startPoint: StartPoint = {
+        id: `start-${Date.now()}-1`,
+        x: bottomRightPosition.x,
+        y: bottomRightPosition.y,
+        type: "start",
+        heading: bottomRightPosition.heading,
+        referenceType: "position",
+        referenceId: "bottom-right",
+      };
 
-      const pointsToAdd: MissionPointType[] = [];
-
-      // Add default start point if missing
-      if (!hasStart) {
-        const startPoint: StartPoint = {
-          id: `start-${Date.now()}-1`,
-          x: bottomRightPosition.x,
-          y: bottomRightPosition.y,
-          type: "start",
-          heading: bottomRightPosition.heading,
-          referenceType: "position",
-          referenceId: "bottom-right",
-        };
-        pointsToAdd.push(startPoint);
-      }
-
-      // Add default end point if missing
-      if (!hasEnd) {
-        const endPoint: EndPoint = {
-          id: `end-${Date.now()}-2`,
-          x: bottomRightPosition.x,
-          y: bottomRightPosition.y,
-          type: "end",
-          heading: bottomRightPosition.heading,
-          referenceType: "position",
-          referenceId: "bottom-right",
-        };
-        pointsToAdd.push(endPoint);
-      }
+      const endPoint: EndPoint = {
+        id: `end-${Date.now()}-2`,
+        x: bottomRightPosition.x,
+        y: bottomRightPosition.y,
+        type: "end",
+        heading: bottomRightPosition.heading,
+        referenceType: "position",
+        referenceId: "bottom-right",
+      };
 
       // Insert points sequentially
-      if (pointsToAdd.length > 0) {
+      setTimeout(() => {
+        insertPointAfter(null, startPoint);
         setTimeout(() => {
-          let prevPointId: string | null = null;
-          pointsToAdd.forEach((point, index) => {
-            setTimeout(() => {
-              insertPointAfter(prevPointId, point);
-              prevPointId = point.id;
-            }, index * 20); // Stagger insertions
-          });
-        }, 10);
-      }
+          insertPointAfter(startPoint.id, endPoint);
+        }, 20);
+      }, 10);
     }
-  }, [isEditingMission, editingMission, positions, insertPointAfter]);
+  }, [
+    isEditingMission,
+    editingMission?.id,
+    positions.length,
+    hasInitializedDefaultPoints,
+    insertPointAfter,
+  ]);
+
+  // Reset the initialization flag when editing mode changes
+  React.useEffect(() => {
+    if (!isEditingMission) {
+      setHasInitializedDefaultPoints(false);
+    }
+  }, [isEditingMission]);
 
   // Handle adding waypoint after a specific point
   const handleAddWaypoint = useCallback(
@@ -193,7 +187,6 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
         defaultSpeed: 200, // mm/s
         defaultTurnSpeed: 90, // degrees/s
         arcApproximationSegments: 6,
-        pauseAtActions: true,
         actionPauseDuration: 2000, // 2 seconds
       });
     } catch (error) {
@@ -275,13 +268,19 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                   <button
                     onClick={handleRunMission}
                     disabled={
-                      !selectedMission || 
-                      selectedMission.points.length < 2 || 
-                      isGenerating || 
-                      robotType === "none"
+                      !selectedMission ||
+                      selectedMission.points.length < 2 ||
+                      isGenerating ||
+                      robotType === null
                     }
                     className="px-3 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={robotType === "none" ? "Connect a robot to run missions" : selectedMission?.points.length < 2 ? "Mission needs at least start and end points" : ""}
+                    title={
+                      robotType === null
+                        ? "Connect a robot to run missions"
+                        : (selectedMission?.points?.length || 0) < 2
+                          ? "Mission needs at least start and end points"
+                          : ""
+                    }
                   >
                     {isGenerating ? "⏳ Generating..." : "▶️ Run Mission"}
                   </button>
@@ -300,58 +299,6 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
           {/* Mission Execution Status */}
           {(isExecuting || isGenerating || executionError) && (
             <div className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {isGenerating && "⏳ Generating Mission Commands..."}
-                  {isExecuting && "🚀 Executing Mission"}
-                  {executionError && "❌ Mission Failed"}
-                </h4>
-                {isExecuting && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {Math.round(progressPercentage)}%
-                  </span>
-                )}
-              </div>
-
-              {/* Progress Bar */}
-              {(isExecuting || isGenerating) && (
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      isGenerating ? "bg-yellow-500" : "bg-blue-500"
-                    }`}
-                    style={{ width: `${isGenerating ? 100 : progressPercentage}%` }}
-                  />
-                </div>
-              )}
-
-              {/* Execution Details */}
-              {isExecuting && progress && (
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">Commands:</span>
-                    <span className="ml-1 font-mono">
-                      {progress.completedCommands}/{progress.totalCommands}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">Time remaining:</span>
-                    <span className="ml-1 font-mono">
-                      {Math.ceil(progress.estimatedTimeRemaining)}s
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Current Command */}
-              {progress && progress.currentCommand && (
-                <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
-                  <div className="text-xs text-blue-700 dark:text-blue-300">
-                    <span className="font-medium">Current:</span> {progress.currentCommand.description || `${progress.currentCommand.action.charAt(0).toUpperCase() + progress.currentCommand.action.slice(1)} command`}
-                  </div>
-                </div>
-              )}
-
               {/* Error Display */}
               {executionError && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
@@ -368,16 +315,19 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
               )}
 
               {/* Mission Summary */}
-              {currentCommands.length > 0 && !isExecuting && !executionError && (
-                <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
-                  <div className="text-xs text-green-700 dark:text-green-300">
-                    <div className="flex justify-between items-center">
-                      <span>Mission ready: {currentCommands.length} commands</span>
-                      <span>~{Math.ceil(estimatedDuration)}s duration</span>
+              {currentCommands.length > 0 &&
+                !isExecuting &&
+                !executionError && (
+                  <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+                    <div className="text-xs text-green-700 dark:text-green-300">
+                      <div className="flex justify-between items-center">
+                        <span>
+                          Mission ready: {currentCommands.length} commands
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           )}
 

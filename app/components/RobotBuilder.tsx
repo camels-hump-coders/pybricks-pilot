@@ -38,7 +38,7 @@ export function RobotBuilder({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { directoryHandle } = useJotaiFileSystem();
+  const { stableDirectoryAccess } = useJotaiFileSystem();
   
   // Use filesystem-based configuration atoms
   const savedConfigs = useAtomValue(availableRobotConfigsAtom);
@@ -57,10 +57,10 @@ export function RobotBuilder({
 
   // Discover robot configurations when directory changes
   useEffect(() => {
-    if (directoryHandle) {
+    if (stableDirectoryAccess) {
       discoverRobots();
     }
-  }, [directoryHandle, discoverRobots]);
+  }, [stableDirectoryAccess, discoverRobots]);
 
   // Automatically recalculate center of rotation when robot dimensions or wheel positions change
   useEffect(() => {

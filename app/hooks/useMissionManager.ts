@@ -38,7 +38,7 @@ interface MissionsFileDataV1 {
  * Custom hook for managing missions with file system integration
  */
 export function useMissionManager() {
-  const { hasDirectoryAccess, directoryHandle } = useJotaiFileSystem();
+  const { hasDirectoryAccess, stableDirectoryHandle, stableDirectoryAccess } = useJotaiFileSystem();
 
   // Mission state
   const [missions, setMissions] = useAtom(missionsAtom);
@@ -69,11 +69,11 @@ export function useMissionManager() {
 
   // Load missions from config/missions.json
   const loadMissions = useCallback(async () => {
-    if (!hasDirectoryAccess || !directoryHandle) return;
+    if (!stableDirectoryAccess || !stableDirectoryHandle) return;
 
     try {
       // Get config directory and missions file
-      const configHandle = await directoryHandle.getDirectoryHandle("config");
+      const configHandle = await stableDirectoryHandle.getDirectoryHandle("config");
       const missionsFileHandle = await configHandle.getFileHandle("missions.json");
       const missionsFile = await missionsFileHandle.getFile();
       const fileContent = await missionsFile.text();
@@ -87,11 +87,11 @@ export function useMissionManager() {
     } catch (error) {
       console.log("No existing missions config file found, starting with empty missions");
     }
-  }, [hasDirectoryAccess, directoryHandle, setMissions]);
+  }, [stableDirectoryAccess, stableDirectoryHandle, setMissions]);
 
   // Save missions to config/missions.json
   const saveMissions = useCallback(async () => {
-    if (!hasDirectoryAccess || !directoryHandle) return;
+    if (!stableDirectoryAccess || !stableDirectoryHandle) return;
 
     try {
       const data: MissionsFileDataV1 = {
@@ -101,7 +101,7 @@ export function useMissionManager() {
       };
 
       // Ensure config directory exists
-      const configHandle = await directoryHandle.getDirectoryHandle("config", { create: true });
+      const configHandle = await stableDirectoryHandle.getDirectoryHandle("config", { create: true });
       const missionsFileHandle = await configHandle.getFileHandle("missions.json", { create: true });
       const writable = await missionsFileHandle.createWritable();
       await writable.write(JSON.stringify(data, null, 2));
@@ -109,15 +109,15 @@ export function useMissionManager() {
     } catch (error) {
       console.error("Failed to save missions:", error);
     }
-  }, [hasDirectoryAccess, directoryHandle, missions]);
+  }, [stableDirectoryAccess, stableDirectoryHandle, missions]);
 
   // Save whenever missions change
   useEffect(() => {
-    if (hasDirectoryAccess && missions.length >= 0) {
+    if (stableDirectoryAccess && missions.length >= 0) {
       saveMissions();
       console.log("Auto-save enabled - missions saved:", missions.length);
     }
-  }, [missions, hasDirectoryAccess, saveMissions]);
+  }, [missions, stableDirectoryAccess, saveMissions]);
 
   // Load missions on mount
   useEffect(() => {

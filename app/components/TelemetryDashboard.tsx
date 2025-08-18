@@ -531,7 +531,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   } = robotConnection;
 
   // Get file system data for program list
-  const { allPrograms, pythonFiles, directoryHandle } = useJotaiFileSystem();
+  const { allPrograms, pythonFiles, stableDirectoryHandle } =
+    useJotaiFileSystem();
 
   // Create a smart upload function that uses hub menu when there are numbered programs
   const handleUploadAndRun = async (
@@ -626,11 +627,11 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         console.log(`Created new mat configuration with ID: ${matId}`);
 
         // If we have an image file, save it as well
-        if (imageFile && directoryHandle) {
+        if (imageFile && stableDirectoryHandle) {
           try {
             // Save the image file to the mat's directory
             await matConfigFileSystem.saveMatImage(
-              directoryHandle,
+              stableDirectoryHandle,
               matId,
               imageFile
             );
@@ -650,11 +651,11 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         console.log(`Saved mat configuration with ID: ${matId}`);
 
         // If we have an image file, update it as well
-        if (imageFile && directoryHandle) {
+        if (imageFile && stableDirectoryHandle) {
           try {
             // Save the updated image file to the mat's directory
             await matConfigFileSystem.saveMatImage(
-              directoryHandle,
+              stableDirectoryHandle,
               matId,
               imageFile
             );

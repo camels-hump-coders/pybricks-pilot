@@ -33,7 +33,7 @@ interface PositionsFileData {
  * Custom hook for managing robot positions (default and custom)
  */
 export function usePositionManager() {
-  const { hasDirectoryAccess, directoryHandle } = useJotaiFileSystem();
+  const { hasDirectoryAccess, stableDirectoryHandle, stableDirectoryAccess } = useJotaiFileSystem();
   const coordinateUtils = useAtomValue(coordinateUtilsAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
   const customMatConfig = useAtomValue(customMatConfigAtom);
@@ -57,11 +57,11 @@ export function usePositionManager() {
 
   // Load custom positions from config/positions.json on mount
   const loadCustomPositions = useCallback(async () => {
-    if (!hasDirectoryAccess || !directoryHandle) return;
+    if (!stableDirectoryAccess || !stableDirectoryHandle) return;
 
     try {
       // Get config directory and positions file
-      const configHandle = await directoryHandle.getDirectoryHandle("config");
+      const configHandle = await stableDirectoryHandle.getDirectoryHandle("config");
       const positionsFileHandle = await configHandle.getFileHandle("positions.json");
       const positionsFile = await positionsFileHandle.getFile();
       const fileContent = await positionsFile.text();
@@ -75,11 +75,11 @@ export function usePositionManager() {
     } catch (error) {
       console.log("No existing positions config file found, starting with defaults");
     }
-  }, [hasDirectoryAccess, directoryHandle, setCustomPositions]);
+  }, [stableDirectoryAccess, stableDirectoryHandle, setCustomPositions]);
 
   // Save custom positions to config/positions.json
   const saveCustomPositions = useCallback(async () => {
-    if (!hasDirectoryAccess || !directoryHandle) return;
+    if (!stableDirectoryAccess || !stableDirectoryHandle) return;
 
     try {
       const data: PositionsFileData = {
@@ -88,7 +88,7 @@ export function usePositionManager() {
       };
 
       // Ensure config directory exists
-      const configHandle = await directoryHandle.getDirectoryHandle("config", { create: true });
+      const configHandle = await stableDirectoryHandle.getDirectoryHandle("config", { create: true });
       const positionsFileHandle = await configHandle.getFileHandle("positions.json", { create: true });
       const writable = await positionsFileHandle.createWritable();
       await writable.write(JSON.stringify(data, null, 2));
@@ -96,14 +96,14 @@ export function usePositionManager() {
     } catch (error) {
       console.error("Failed to save custom positions:", error);
     }
-  }, [hasDirectoryAccess, directoryHandle, customPositions]);
+  }, [stableDirectoryAccess, stableDirectoryHandle, customPositions]);
 
   // Save whenever custom positions change
   useEffect(() => {
-    if (hasDirectoryAccess && customPositions.length > 0) {
+    if (stableDirectoryAccess && customPositions.length > 0) {
       saveCustomPositions();
     }
-  }, [customPositions, hasDirectoryAccess, saveCustomPositions]);
+  }, [customPositions, stableDirectoryAccess, saveCustomPositions]);
 
   // Calculate default positions from edge-based settings
   const calculateDefaultPositions = useCallback((): NamedPosition[] => {
