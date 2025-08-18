@@ -1,4 +1,6 @@
-import type { Mission, MissionPointType, ActionPoint } from "../types/missionPlanner";
+import type { Mission, MissionPointType, ActionPoint, ResolvedMissionPoint } from "../types/missionPlanner";
+import { resolveMissionPoints } from "./missionPointResolver";
+import type { NamedPosition } from "../store/atoms/positionManagement";
 
 /**
  * Arc path segment representing a smooth curved path between two points
@@ -132,7 +134,7 @@ function findCircleThroughThreePoints(
  * Identify optimization segments between action points
  * Action points create breaks where we don't optimize across them
  */
-function identifyOptimizationSegments(points: MissionPointType[]): Array<{startIndex: number, endIndex: number}> {
+function identifyOptimizationSegments(points: ResolvedMissionPoint[]): Array<{startIndex: number, endIndex: number}> {
   const segments: Array<{startIndex: number, endIndex: number}> = [];
   let segmentStart = 0;
   
@@ -164,7 +166,7 @@ function identifyOptimizationSegments(points: MissionPointType[]): Array<{startI
  * This considers overlapping triplets: A-B-C, B-C-D, C-D-E, etc.
  */
 function calculateRollingTriarc(
-  points: MissionPointType[],
+  points: ResolvedMissionPoint[],
   startIndex: number,
   endIndex: number
 ): Map<number, {
@@ -235,7 +237,7 @@ function calculateRollingTriarc(
  * Calculate triarc for a triplet of points, optimizing energy
  */
 function calculateTriarcForTriplet(
-  triplet: MissionPointType[],
+  triplet: ResolvedMissionPoint[],
   _baseIndex: number
 ): {
   arc: {
@@ -335,7 +337,7 @@ export interface OptimalPathSegment extends ArcPathSegment {
  * Optimizes paths across multiple waypoints while treating action points as breaks
  */
 function calculateSmoothPathSegments(
-  points: MissionPointType[],
+  points: ResolvedMissionPoint[],
   _defaultRadius: number
 ): ArcPathSegment[] {
   if (points.length < 2) return [];
@@ -449,7 +451,7 @@ function calculateSmoothPathSegments(
 /**
  * Create simple straight line segments between all mission points as fallback
  */
-function createFallbackStraightSegments(points: MissionPointType[]): ArcPathSegment[] {
+function createFallbackStraightSegments(points: ResolvedMissionPoint[]): ArcPathSegment[] {
   const segments: ArcPathSegment[] = [];
   
   for (let i = 0; i < points.length - 1; i++) {
@@ -479,17 +481,20 @@ function createFallbackStraightSegments(points: MissionPointType[]): ArcPathSegm
  * Compute arc-based path segments that pass through waypoints for smooth motion
  * Falls back to straight line connections if arc calculation fails
  */
-export function computeArcPath(mission: Mission): ArcPathSegment[] {
+export function computeArcPath(mission: Mission, positions: NamedPosition[]): ArcPathSegment[] {
   if (!mission || mission.points.length < 2) {
     return [];
   }
   
+  // Resolve all points to include computed coordinates
+  const resolvedPoints = resolveMissionPoints(mission.points, positions);
+  
   const defaultRadius = mission.defaultArcRadius || 100; // mm
-  const segments = calculateSmoothPathSegments(mission.points, defaultRadius);
+  const segments = calculateSmoothPathSegments(resolvedPoints, defaultRadius);
   
   // If no segments were generated, create fallback straight line segments
   if (segments.length === 0) {
-    return createFallbackStraightSegments(mission.points);
+    return createFallbackStraightSegments(resolvedPoints);
   }
   
   return segments;
@@ -548,8 +553,8 @@ export function generateArcPathPoints(
 /**
  * Get the total path length for a mission
  */
-export function calculateMissionPathLength(mission: Mission): number {
-  const segments = computeArcPath(mission);
+export function calculateMissionPathLength(mission: Mission, positions: NamedPosition[]): number {
+  const segments = computeArcPath(mission, positions);
   return segments.reduce((total, segment) => total + segment.pathLength, 0);
 }
 
@@ -558,16 +563,17 @@ export function calculateMissionPathLength(mission: Mission): number {
  */
 export function estimateMissionTime(
   mission: Mission,
+  positions: NamedPosition[],
   averageSpeed: number = 200 // mm/s
 ): number {
-  const pathLength = calculateMissionPathLength(mission);
+  const pathLength = calculateMissionPathLength(mission, positions);
   
   // Add extra time for action points (1 second each)
   const actionPoints = mission.points.filter(p => p.type === "action").length;
   const actionTime = actionPoints * 1000; // ms
   
   // Add extra time for turns (based on heading changes)
-  const segments = computeArcPath(mission);
+  const segments = computeArcPath(mission, positions);
   const turnTime = segments.reduce((total, segment) => {
     if (segment.pathType === "arc") {
       const headingChange = Math.abs(normalizeAngle(segment.endHeading - segment.startHeading));

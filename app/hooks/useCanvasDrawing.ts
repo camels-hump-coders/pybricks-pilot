@@ -21,6 +21,7 @@ import {
   selectedMissionAtom,
   selectedPointIdAtom,
 } from "../store/atoms/missionPlanner";
+import { positionsAtom } from "../store/atoms/positionManagement";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import {
   pathVisualizationOptionsAtom,
@@ -108,6 +109,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   const editingMission = useAtomValue(editingMissionAtom);
   const selectedMission = useAtomValue(selectedMissionAtom);
   const selectedPointId = useAtomValue(selectedPointIdAtom);
+  const positions = useAtomValue(positionsAtom) || [];
 
   // Get mouse position directly from atom instead of prop
   const atomMousePosition = useAtomValue(mousePositionAtom);
@@ -370,6 +372,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         drawMissionPlanner(
           ctx,
           missionToShow,
+          positions,
           { mmToCanvas, canvasToMm, scale },
           {
             showConnections: true,
@@ -409,6 +412,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         drawMissionPathPreview(
           ctx,
           editingMission,
+          positions,
           mousePositionForPreview,
           pointPlacementMode,
           actionPointHeading,

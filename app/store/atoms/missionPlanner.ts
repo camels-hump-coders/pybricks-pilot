@@ -55,19 +55,13 @@ export const addMissionAtom = atom(
       points: [
         {
           id: "start",
-          x: 0,
-          y: 0,
           type: "start",
-          heading: 0,
           referenceType: "position",
           referenceId: "bottom-right",
         },
         {
           id: "end",
-          x: 0,
-          y: 0,
           type: "end",
-          heading: 0,
           referenceType: "position",
           referenceId: "bottom-left",
         },

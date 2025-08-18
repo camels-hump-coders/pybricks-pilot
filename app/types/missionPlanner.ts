@@ -2,12 +2,21 @@
  * Mission Planner types and interfaces
  */
 
-// Base point interface
+// Base point interface for waypoints and actions (have explicit coordinates)
 export interface MissionPoint {
   id: string;
   x: number; // mm from left edge of mat
   y: number; // mm from top edge of mat (0 = top, positive = downward)
   type: "waypoint" | "action" | "start" | "end";
+}
+
+// Base interface for points that reference positions (start/end points)
+export interface ReferencedPoint {
+  id: string;
+  type: "start" | "end";
+  referenceType: "position" | "mission";
+  referenceId: string; // position ID or mission ID
+  // Note: x, y, heading are computed dynamically from the referenced position
 }
 
 // Waypoint - robot passes through but angle is determined by surrounding points
@@ -24,23 +33,31 @@ export interface ActionPoint extends MissionPoint {
 }
 
 // Start point - references a position or another mission
-export interface StartPoint extends MissionPoint {
+export interface StartPoint extends ReferencedPoint {
   type: "start";
-  heading: number;
-  referenceType: "position" | "mission";
-  referenceId: string; // position ID or mission ID
 }
 
 // End point - references a position or another mission  
-export interface EndPoint extends MissionPoint {
+export interface EndPoint extends ReferencedPoint {
   type: "end";
-  heading: number;
-  referenceType: "position" | "mission";
-  referenceId: string; // position ID or mission ID
 }
 
 // Union type for all point types
 export type MissionPointType = Waypoint | ActionPoint | StartPoint | EndPoint;
+
+// Resolved point type that includes computed coordinates for start/end points
+export interface ResolvedMissionPoint {
+  id: string;
+  x: number; // mm from left edge of mat
+  y: number; // mm from top edge of mat (0 = top, positive = downward)
+  heading: number; // degrees clockwise from north (0 = north, 90 = east)
+  type: "waypoint" | "action" | "start" | "end";
+  // Additional properties for context
+  referenceType?: "position" | "mission"; // only for start/end points
+  referenceId?: string; // only for start/end points
+  actionName?: string; // only for action points
+  pauseDuration?: number; // only for action points
+}
 
 // Arc configuration for smooth movement between points
 export interface ArcConfig {

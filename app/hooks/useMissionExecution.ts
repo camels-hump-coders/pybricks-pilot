@@ -10,6 +10,7 @@ import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { robotTypeAtom } from "../store/atoms/robotConnection";
 import { useJotaiPybricksHub } from "./useJotaiPybricksHub";
 import { virtualRobotService } from "../services/virtualRobot";
+import { usePositionManager } from "./usePositionManager";
 
 /**
  * Mission execution state
@@ -29,6 +30,8 @@ export function useMissionExecution() {
   const robotConfig = useAtomValue(robotConfigAtom);
   const robotType = useAtomValue(robotTypeAtom);
   const pybricksHub = useJotaiPybricksHub();
+  const { positions } = usePositionManager();
+  const safePositions = positions || [];
   
   const [state, setState] = useState<MissionExecutionState>({
     isGenerating: false,
@@ -52,6 +55,7 @@ export function useMissionExecution() {
     try {
       const commands = missionExecutionService.generateMissionCommands(
         mission,
+        safePositions,
         robotConfig || undefined,
         options
       );
@@ -73,7 +77,7 @@ export function useMissionExecution() {
       }));
       return [];
     }
-  }, [robotConfig]);
+  }, [robotConfig, safePositions]);
 
   /**
    * Execute generated commands on the current robot

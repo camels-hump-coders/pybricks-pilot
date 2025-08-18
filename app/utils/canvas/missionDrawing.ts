@@ -7,6 +7,7 @@ import type {
   MissionPointType,
 } from "../../types/missionPlanner";
 import { computeArcPath, generateArcPathPoints } from "../arcPathComputation";
+import type { NamedPosition } from "../../store/atoms/positionManagement";
 
 export interface MissionDrawingUtils {
   mmToCanvas: (x: number, y: number) => { x: number; y: number };
@@ -167,6 +168,7 @@ export function drawMissions(
 export function drawMissionPlanner(
   ctx: CanvasRenderingContext2D,
   mission: MissionPlannerMission | null,
+  positions: NamedPosition[],
   utils: MissionDrawingUtils,
   options: {
     showConnections?: boolean;
@@ -189,7 +191,7 @@ export function drawMissionPlanner(
 
   // Draw arc-based connections between points first (so they appear behind points)
   if (showConnections && mission.points.length > 1) {
-    drawMissionArcPaths(ctx, mission, utils, {
+    drawMissionArcPaths(ctx, mission, positions, utils, {
       strokeColor: "#8b5cf6", // violet-500
       strokeWidth: 3,
       showArrows: true,
@@ -523,6 +525,7 @@ export function drawMissionPointPreview(
 export function drawMissionArcPaths(
   ctx: CanvasRenderingContext2D,
   mission: MissionPlannerMission,
+  positions: NamedPosition[],
   utils: MissionDrawingUtils,
   options: {
     strokeColor?: string;
@@ -541,8 +544,8 @@ export function drawMissionArcPaths(
     opacity = 0.8,
   } = options;
 
-  // Compute arc path segments
-  const segments = computeArcPath(mission);
+  // Compute arc path segments with resolved coordinates
+  const segments = computeArcPath(mission, positions);
 
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -717,6 +720,7 @@ function drawMissionPathPreviewSegments(
   originalMission: MissionPlannerMission,
   previewMission: MissionPlannerMission,
   insertIndex: number,
+  positions: NamedPosition[],
   utils: MissionDrawingUtils,
   options: {
     strokeColor: string;
@@ -746,8 +750,8 @@ function drawMissionPathPreviewSegments(
     }
   }
 
-  // Generate the optimized path segments for the preview mission
-  const previewSegments = computeArcPath(previewMission);
+  // Generate the optimized path segments for the preview mission with resolved coordinates
+  const previewSegments = computeArcPath(previewMission, positions);
 
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -806,6 +810,7 @@ function drawMissionPathPreviewSegments(
 export function drawMissionPathPreview(
   ctx: CanvasRenderingContext2D,
   mission: MissionPlannerMission,
+  positions: NamedPosition[],
   mousePosition: { x: number; y: number },
   pointType: "waypoint" | "action",
   actionHeading: number,
@@ -857,6 +862,7 @@ export function drawMissionPathPreview(
     mission,
     previewMission,
     insertIndex,
+    positions,
     utils,
     {
       strokeColor,

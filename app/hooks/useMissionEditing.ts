@@ -89,14 +89,10 @@ export function useMissionEditing() {
 
       case "start":
         if (!selectedStartEndRef) return null;
-        // Resolve position coordinates instead of using mouse click coordinates
-        const startCoords = resolvePositionCoordinates(selectedStartEndRef);
+        // Start points only store the reference, coordinates are computed dynamically
         const startPoint = {
           id: pointId,
-          x: startCoords.x,
-          y: startCoords.y,
           type: "start",
-          heading: startCoords.heading,
           referenceType: selectedStartEndRef.startsWith("mission") ? "mission" : "position",
           referenceId: selectedStartEndRef,
         } as StartPoint;
@@ -104,14 +100,10 @@ export function useMissionEditing() {
 
       case "end":
         if (!selectedStartEndRef) return null;
-        // Resolve position coordinates instead of using mouse click coordinates
-        const endCoords = resolvePositionCoordinates(selectedStartEndRef);
+        // End points only store the reference, coordinates are computed dynamically
         const endPoint = {
           id: pointId,
-          x: endCoords.x,
-          y: endCoords.y,
           type: "end",
-          heading: endCoords.heading,
           referenceType: selectedStartEndRef.startsWith("mission") ? "mission" : "position",
           referenceId: selectedStartEndRef,
         } as EndPoint;

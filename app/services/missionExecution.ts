@@ -2,6 +2,7 @@ import type { RobotConfig } from "../schemas/RobotConfig";
 import type { Mission } from "../types/missionPlanner";
 import type { ArcPathSegment } from "../utils/arcPathComputation";
 import { computeArcPath, normalizeAngle } from "../utils/arcPathComputation";
+import type { NamedPosition } from "../store/atoms/positionManagement";
 
 /**
  * Convert canvas heading to robot heading
@@ -69,14 +70,15 @@ export class MissionExecutionService {
    */
   generateMissionCommands(
     mission: Mission,
+    positions: NamedPosition[],
     _robotConfig?: RobotConfig,
     options: Partial<MissionExecutionOptions> = {}
   ): RobotCommand[] {
     const opts = { ...this.defaultOptions, ...options };
     const commands: RobotCommand[] = [];
 
-    // Generate optimized arc path segments
-    const segments = computeArcPath(mission);
+    // Generate optimized arc path segments with resolved coordinates
+    const segments = computeArcPath(mission, positions);
     
     // Debug: Log all generated segments
     console.log(`[Command Generation] Generated ${segments.length} path segments for mission "${mission.name}":`);
