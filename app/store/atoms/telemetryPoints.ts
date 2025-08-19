@@ -79,7 +79,7 @@ export const updateTelemetryDataAtom = atom(
 );
 
 // Atom for clearing all telemetry history
-export const clearTelemetryHistoryAtom = atom(null, (_get, set) => {
+const clearTelemetryHistoryAtom = atom(null, (_get, set) => {
   set(allTelemetryPointsAtom, []);
   set(telemetryPathsAtom, []);
   set(currentTelemetryPathAtom, null);

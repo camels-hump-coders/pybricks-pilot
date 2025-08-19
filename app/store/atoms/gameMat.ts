@@ -695,7 +695,7 @@ export interface SplinePath {
   modifiedAt: number;
 }
 
-export interface SplinePathCommand {
+interface SplinePathCommand {
   type: "drive" | "turn" | "arc";
   distance?: number;
   angle?: number;

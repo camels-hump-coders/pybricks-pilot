@@ -1,5 +1,6 @@
 import { TarWriter } from "@gera2ld/tarjs";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useGameMatEditorDrawing } from "../hooks/useGameMatEditorDrawing";
 import type {
   GameMatConfig,
   Mission,
@@ -7,10 +8,9 @@ import type {
   Point,
 } from "../schemas/GameMatConfig";
 import { deSkewImage } from "../utils/perspectiveTransform";
-import { useGameMatEditorDrawing } from "../hooks/useGameMatEditorDrawing";
-import { UploadInterface } from "./GameMatEditor/UploadInterface";
 import { CanvasArea } from "./GameMatEditor/CanvasArea";
 import { SidePanel } from "./GameMatEditor/SidePanel";
+import { UploadInterface } from "./GameMatEditor/UploadInterface";
 
 // Re-export types for backward compatibility;
 
@@ -95,7 +95,7 @@ export function GameMatEditor({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const areAllCornersSet = () => {
+  const areAllCornersSet = useCallback(() => {
     // Check if all corners have been set (moved from default positions)
     // At least one coordinate should be different from the defaults
     const hasTopLeft = corners.topLeft.x !== 0 || corners.topLeft.y !== 0;
@@ -106,7 +106,7 @@ export function GameMatEditor({
       corners.bottomRight.x !== 1 || corners.bottomRight.y !== 1;
 
     return hasTopLeft && hasTopRight && hasBottomLeft && hasBottomRight;
-  };
+  }, [corners]);
 
   // Continuous canvas drawing hook
   const { redraw } = useGameMatEditorDrawing({
@@ -147,7 +147,7 @@ export function GameMatEditor({
       setOriginalImageData(initialConfig.imageUrl);
       setNormalizedImageData(initialConfig.imageUrl);
     }
-  }, [initialConfig]);
+  }, [initialConfig, normalizedImageData, originalImageData]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -196,8 +196,6 @@ export function GameMatEditor({
     }
   };
 
-
-
   const canvasToNormalized = (
     canvasX: number,
     canvasY: number,
@@ -221,7 +219,7 @@ export function GameMatEditor({
   };
 
   // Add function to perform de-skewing
-  const performDeSkew = () => {
+  const performDeSkew = useCallback(() => {
     if (!originalImageData || !areAllCornersSet()) return;
 
     const img = new Image();
@@ -237,7 +235,7 @@ export function GameMatEditor({
       setMode("calibration"); // Move to calibration instead of objects
     };
     img.src = originalImageData;
-  };
+  }, [originalImageData, corners, areAllCornersSet]);
 
   // Add calibration functions
   const calculateDimensionsFromCalibration = () => {
@@ -922,17 +920,7 @@ ${new Date().toISOString()}
     redraw();
   };
 
-  useEffect(() => {
-    redraw();
-  }, [
-    mode,
-    corners,
-    calibrationPoints,
-    missions,
-    selectedObject,
-    hoveredObject,
-    draggingObject,
-  ]);
+  // No need for useEffect-based redrawing - continuous rendering handles all updates
 
   // Auto de-skew when all corners are set
   useEffect(() => {
@@ -942,6 +930,7 @@ ${new Date().toISOString()}
       areAllCornersSet() &&
       !currentCorner &&
       originalImageData &&
+      corners &&
       !normalizedImageData
     ) {
       performDeSkew();
@@ -949,9 +938,11 @@ ${new Date().toISOString()}
   }, [
     corners,
     currentCorner,
+    areAllCornersSet,
     mode,
     autoDeSkew,
     originalImageData,
+    performDeSkew,
     normalizedImageData,
   ]);
 

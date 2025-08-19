@@ -1,10 +1,16 @@
-import type { MissionObjective, MissionObjectiveChoice } from "../../schemas/GameMatConfig";
+import type {
+  MissionObjective,
+  MissionObjectiveChoice,
+} from "../../schemas/GameMatConfig";
 
 interface ChoiceEditorProps {
   choice: MissionObjectiveChoice;
   choiceIndex: number;
   choices: MissionObjectiveChoice[];
-  onUpdateChoice: (choiceIndex: number, updatedChoice: MissionObjectiveChoice) => void;
+  onUpdateChoice: (
+    choiceIndex: number,
+    updatedChoice: MissionObjectiveChoice,
+  ) => void;
   onRemoveChoice: (choiceIndex: number) => void;
   canRemove: boolean;
 }
@@ -47,7 +53,9 @@ export function ChoiceEditor({
       />
       <select
         value={choice.type || "primary"}
-        onChange={(e) => handleTypeChange(e.target.value as "primary" | "bonus")}
+        onChange={(e) =>
+          handleTypeChange(e.target.value as "primary" | "bonus")
+        }
         className="px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
       >
         <option value="primary">Pri</option>

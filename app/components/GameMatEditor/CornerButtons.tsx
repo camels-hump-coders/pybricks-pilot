@@ -32,7 +32,7 @@ export function CornerButtons({
 }: CornerButtonsProps) {
   const cornerNames = [
     "topLeft",
-    "topRight", 
+    "topRight",
     "bottomRight",
     "bottomLeft",
   ] as const;
@@ -42,7 +42,8 @@ export function CornerButtons({
     return (
       (corner === "topLeft" && (cornerPoint.x !== 0 || cornerPoint.y !== 0)) ||
       (corner === "topRight" && (cornerPoint.x !== 1 || cornerPoint.y !== 0)) ||
-      (corner === "bottomLeft" && (cornerPoint.x !== 0 || cornerPoint.y !== 1)) ||
+      (corner === "bottomLeft" &&
+        (cornerPoint.x !== 0 || cornerPoint.y !== 1)) ||
       (corner === "bottomRight" && (cornerPoint.x !== 1 || cornerPoint.y !== 1))
     );
   };
@@ -59,10 +60,10 @@ export function CornerButtons({
         Set Corner Points
       </h3>
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Click on each corner of the game mat in the image. Use the
-        magnifier for pixel-perfect precision.
+        Click on each corner of the game mat in the image. Use the magnifier for
+        pixel-perfect precision.
       </p>
-      
+
       <div className="space-y-2">
         {cornerNames.map((corner) => (
           <button
@@ -79,7 +80,7 @@ export function CornerButtons({
           </button>
         ))}
       </div>
-      
+
       <label className="flex items-center mt-4 mb-2">
         <input
           type="checkbox"
@@ -91,14 +92,14 @@ export function CornerButtons({
           Auto-apply corrections after setting corners
         </span>
       </label>
-      
+
       <button
         onClick={onResetCorners}
         className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
       >
         Reset Corners
       </button>
-      
+
       {areAllCornersSet && !normalizedImageData && (
         <button
           onClick={onPerformDeSkew}

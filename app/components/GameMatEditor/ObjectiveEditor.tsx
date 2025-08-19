@@ -1,10 +1,16 @@
-import type { MissionObjective, MissionObjectiveChoice } from "../../schemas/GameMatConfig";
+import type {
+  MissionObjective,
+  MissionObjectiveChoice,
+} from "../../schemas/GameMatConfig";
 import { ChoiceEditor } from "./ChoiceEditor";
 
 interface ObjectiveEditorProps {
   objective: MissionObjective;
   index: number;
-  onUpdateObjective: (objectiveId: string, updates: Partial<MissionObjective>) => void;
+  onUpdateObjective: (
+    objectiveId: string,
+    updates: Partial<MissionObjective>,
+  ) => void;
   onRemoveObjective: (objectiveId: string) => void;
 }
 
@@ -18,18 +24,25 @@ export function ObjectiveEditor({
     onUpdateObjective(objective.id, { description });
   };
 
-  const handleScoringModeChange = (scoringMode: "multi-select" | "single-select") => {
+  const handleScoringModeChange = (
+    scoringMode: "multi-select" | "single-select",
+  ) => {
     onUpdateObjective(objective.id, { scoringMode });
   };
 
-  const handleUpdateChoice = (choiceIndex: number, updatedChoice: MissionObjectiveChoice) => {
+  const handleUpdateChoice = (
+    choiceIndex: number,
+    updatedChoice: MissionObjectiveChoice,
+  ) => {
     const updatedChoices = [...(objective.choices || [])];
     updatedChoices[choiceIndex] = updatedChoice;
     onUpdateObjective(objective.id, { choices: updatedChoices });
   };
 
   const handleRemoveChoice = (choiceIndex: number) => {
-    const updatedChoices = objective.choices?.filter((_, i) => i !== choiceIndex);
+    const updatedChoices = objective.choices?.filter(
+      (_, i) => i !== choiceIndex,
+    );
     onUpdateObjective(objective.id, { choices: updatedChoices });
   };
 
@@ -60,7 +73,7 @@ export function ObjectiveEditor({
           ✕
         </button>
       </div>
-      
+
       <input
         type="text"
         value={objective.description || ""}
@@ -72,11 +85,19 @@ export function ObjectiveEditor({
       {/* Scoring Mode */}
       <select
         value={objective.scoringMode || "multi-select"}
-        onChange={(e) => handleScoringModeChange(e.target.value as "multi-select" | "single-select")}
+        onChange={(e) =>
+          handleScoringModeChange(
+            e.target.value as "multi-select" | "single-select",
+          )
+        }
         className="w-full px-2 py-1 mb-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
       >
-        <option value="multi-select">Multi-select (can complete multiple)</option>
-        <option value="single-select">Single-select (only one at a time)</option>
+        <option value="multi-select">
+          Multi-select (can complete multiple)
+        </option>
+        <option value="single-select">
+          Single-select (only one at a time)
+        </option>
       </select>
 
       {/* Choices for this objective */}

@@ -556,7 +556,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         hasEditingMission: !!data.editingMission,
       });
     }
-  }, []); // No dependencies - uses refs for always-current data
+  }, [matImageRef.current, canvasRef.current]);
 
   // Main render loop - continuous frame-rate rendering
   const renderLoop = useCallback(() => {

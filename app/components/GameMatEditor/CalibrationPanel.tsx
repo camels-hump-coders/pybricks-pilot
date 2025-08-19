@@ -34,11 +34,11 @@ export function CalibrationPanel({
         Calibrate Mat Dimensions
       </h3>
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Click on two points on the X-axis and two points on the Y-axis
-        that represent 100mm distances. This will allow us to
-        automatically calculate the mat's actual dimensions.
+        Click on two points on the X-axis and two points on the Y-axis that
+        represent 100mm distances. This will allow us to automatically calculate
+        the mat's actual dimensions.
       </p>
-      
+
       <CalibrationPointButtons
         calibrationPoints={calibrationPoints}
         currentCalibrationPoint={currentCalibrationPoint}

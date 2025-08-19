@@ -7,7 +7,10 @@ interface ObjectEditorProps {
   onDeleteObject: () => void;
   onAddObjective: () => void;
   onRemoveObjective: (objectiveId: string) => void;
-  onUpdateObjective: (objectiveId: string, updates: Partial<MissionObjective>) => void;
+  onUpdateObjective: (
+    objectiveId: string,
+    updates: Partial<MissionObjective>,
+  ) => void;
 }
 
 export function ObjectEditor({
@@ -23,7 +26,7 @@ export function ObjectEditor({
       <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Edit Object
       </h4>
-      
+
       <input
         type="text"
         value={selectedObject.name}
@@ -31,7 +34,7 @@ export function ObjectEditor({
         className="w-full px-2 py-1 mb-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
         placeholder="Object name"
       />
-      
+
       <textarea
         value={selectedObject.description}
         onChange={(e) => onUpdateObject({ description: e.target.value })}
@@ -55,8 +58,9 @@ export function ObjectEditor({
           </option>
         </select>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Multi-select allows multiple objectives to be completed simultaneously. 
-          Single-select allows only one objective at a time (like Precision Tokens).
+          Multi-select allows multiple objectives to be completed
+          simultaneously. Single-select allows only one objective at a time
+          (like Precision Tokens).
         </p>
       </div>
 
@@ -91,7 +95,7 @@ export function ObjectEditor({
           )}
         </div>
       </div>
-      
+
       <button
         onClick={onDeleteObject}
         className="w-full px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"

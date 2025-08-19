@@ -115,15 +115,10 @@ interface MissionsFileData {
 }
 
 // Mission execution status
-export type MissionStatus =
-  | "idle"
-  | "running"
-  | "paused"
-  | "completed"
-  | "error";
+type MissionStatus = "idle" | "running" | "paused" | "completed" | "error";
 
 // Mission execution state
-export interface MissionExecution {
+interface MissionExecution {
   mission: Mission;
   compiledMission: CompiledMission;
   status: MissionStatus;

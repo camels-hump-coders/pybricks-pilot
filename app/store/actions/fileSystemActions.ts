@@ -230,7 +230,7 @@ export const createExampleProjectAtom = atom(null, async (get, set) => {
 });
 
 // Clear persisted data action
-export const clearPersistedDataAtom = atom(null, async (_get, set) => {
+const clearPersistedDataAtom = atom(null, async (_get, set) => {
   try {
     await fileSystemService.clearPersistedData();
     set(unmountDirectoryAtom);

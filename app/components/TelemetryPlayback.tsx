@@ -142,7 +142,7 @@ export function TelemetryPlayback(_props: TelemetryPlaybackProps) {
     if (currentTime < 0 || currentTime > timeWindow.end - timeWindow.start) {
       setCurrentTime(0);
     }
-  }, [timeWindow, selectedPoints, allPoints]);
+  }, [timeWindow, selectedPoints, allPoints, currentTime]);
 
   // Find the current point based on playback time - stabilized with useMemo
   const getCurrentPoint = useMemo(

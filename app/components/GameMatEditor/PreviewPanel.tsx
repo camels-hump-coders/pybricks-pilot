@@ -25,10 +25,7 @@ export function PreviewPanel({
       obj.objectives.reduce(
         (objSum, objective) =>
           objSum +
-          (objective.choices?.reduce(
-            (cSum, c) => cSum + c.points,
-            0,
-          ) || 0),
+          (objective.choices?.reduce((cSum, c) => cSum + c.points, 0) || 0),
         0,
       ),
     0,
@@ -45,8 +42,7 @@ export function PreviewPanel({
         </p>
         <p className="text-sm text-gray-600 dark:text-gray-400">
           <strong>Dimensions:</strong>{" "}
-          {calculatedDimensions?.widthMm.toFixed(2) || MAT_WIDTH_MM}mm
-          ×{" "}
+          {calculatedDimensions?.widthMm.toFixed(2) || MAT_WIDTH_MM}mm ×{" "}
           {calculatedDimensions?.heightMm.toFixed(2) || MAT_HEIGHT_MM}
           mm
           {calculatedDimensions && " (calculated)"}
@@ -72,8 +68,8 @@ export function PreviewPanel({
           📦 Export Season Pack (.tar)
         </button>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Downloads a complete season pack with config.json, mat.png,
-          and README.md in a proper directory structure
+          Downloads a complete season pack with config.json, mat.png, and
+          README.md in a proper directory structure
         </p>
       </div>
     </div>

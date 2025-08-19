@@ -11,7 +11,10 @@ interface ObjectsPanelProps {
   onDeleteObject: () => void;
   onAddObjective: () => void;
   onRemoveObjective: (objectiveId: string) => void;
-  onUpdateObjective: (objectiveId: string, updates: Partial<MissionObjective>) => void;
+  onUpdateObjective: (
+    objectiveId: string,
+    updates: Partial<MissionObjective>,
+  ) => void;
 }
 
 export function ObjectsPanel({
@@ -26,13 +29,14 @@ export function ObjectsPanel({
   onRemoveObjective,
   onUpdateObjective,
 }: ObjectsPanelProps) {
-  const selectedMission = selectedObject ? missions.find((obj) => obj.id === selectedObject) : null;
+  const selectedMission = selectedObject
+    ? missions.find((obj) => obj.id === selectedObject)
+    : null;
 
   const calculateMissionPoints = (mission: Mission) => {
     return mission.objectives.reduce(
       (sum, o) =>
-        sum +
-        (o.choices?.reduce((cSum, c) => cSum + c.points, 0) || 0),
+        sum + (o.choices?.reduce((cSum, c) => cSum + c.points, 0) || 0),
       0,
     );
   };
@@ -43,10 +47,10 @@ export function ObjectsPanel({
         Scoring Objects
       </h3>
       <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Click "Add New Object" to place markers. Click and drag
-        existing markers to move them.
+        Click "Add New Object" to place markers. Click and drag existing markers
+        to move them.
       </p>
-      
+
       <button
         onClick={() => onSetPlacingObject(true)}
         className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-4"

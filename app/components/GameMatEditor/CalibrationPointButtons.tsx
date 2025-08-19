@@ -27,7 +27,7 @@ export function CalibrationPointButtons({
   onResetCalibration,
   calculatedDimensions,
 }: CalibrationPointButtonsProps) {
-  const allPointsSet = 
+  const allPointsSet =
     calibrationPoints.xAxis.first &&
     calibrationPoints.xAxis.second &&
     calibrationPoints.yAxis.first &&
@@ -120,8 +120,7 @@ export function CalibrationPointButtons({
           <p className="text-sm text-blue-800 dark:text-blue-200">
             Click on the mat to set{" "}
             {currentCalibrationPoint.axis === "xAxis" ? "X" : "Y"}
-            -axis point{" "}
-            {currentCalibrationPoint.point === "first" ? "1" : "2"}
+            -axis point {currentCalibrationPoint.point === "first" ? "1" : "2"}
           </p>
         </div>
       )}

@@ -141,7 +141,7 @@ export const updateCustomPositionAtom = atom(
 );
 
 // Action to update default position coordinates (when mat dimensions change)
-export const updateDefaultPositionCoordinatesAtom = atom(
+const updateDefaultPositionCoordinatesAtom = atom(
   null,
   (get, set, matWidthMm: number, _matHeightMm: number) => {
     const positions = get(positionsAtom);

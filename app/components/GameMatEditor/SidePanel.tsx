@@ -1,6 +1,10 @@
-import type { Mission, MissionObjective, Point } from "../../schemas/GameMatConfig";
-import { CornerButtons } from "./CornerButtons";
+import type {
+  Mission,
+  MissionObjective,
+  Point,
+} from "../../schemas/GameMatConfig";
 import { CalibrationPanel } from "./CalibrationPanel";
+import { CornerButtons } from "./CornerButtons";
 import { ObjectsPanel } from "./ObjectsPanel";
 import { PreviewPanel } from "./PreviewPanel";
 
@@ -50,7 +54,10 @@ interface SidePanelProps {
   onDeleteObject: () => void;
   onAddObjective: () => void;
   onRemoveObjective: (objectiveId: string) => void;
-  onUpdateObjective: (objectiveId: string, updates: Partial<MissionObjective>) => void;
+  onUpdateObjective: (
+    objectiveId: string,
+    updates: Partial<MissionObjective>,
+  ) => void;
   // Preview props
   matName: string;
   onSave: () => void;

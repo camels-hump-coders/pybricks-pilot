@@ -603,9 +603,9 @@ function drawMissionArcPaths(
     // Set different styles based on segment type
     switch (segment.pathType) {
       case "arc":
-        ctx.strokeStyle = "#ff0000"; // RED for debugging - make arcs very visible
-        ctx.lineWidth = (strokeWidth + 2) * scale; // Thicker line for arcs
-        ctx.setLineDash([]); // SOLID line for now to ensure visibility
+        ctx.strokeStyle = strokeColor; // Use normal stroke color
+        ctx.lineWidth = strokeWidth * scale;
+        ctx.setLineDash([8, 4]); // Dashed line to distinguish arcs from straight segments
         break;
       default:
         ctx.strokeStyle = strokeColor;
