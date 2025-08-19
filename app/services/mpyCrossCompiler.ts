@@ -1,6 +1,5 @@
 import { compile as mpyCrossCompileV6 } from "@pybricks/mpy-cross-v6";
 import wasmUrl from "@pybricks/mpy-cross-v6/build/mpy-cross-v6.wasm?url";
-import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 
 interface CompilationResult {
   file: Blob; // Change to match Pybricks approach
@@ -124,7 +123,7 @@ class MpyCrossCompiler extends EventTarget {
 
   // Create a multi-file format with __main__.py as entry point
   createMultiFileFormat(
-    mainFileName: string,
+    _mainFileName: string,
     mpyBytecode: Uint8Array,
   ): Uint8Array {
     // Multi-file format structure:

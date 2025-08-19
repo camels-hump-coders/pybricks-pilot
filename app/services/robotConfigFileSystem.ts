@@ -12,8 +12,6 @@ interface RobotMetadata {
 }
 
 class RobotConfigFileSystem {
-  private readonly ROBOTS_DIR = "config/robots";
-
   // Discover all available robot configurations from the filesystem
   async discoverRobots(
     dirHandle: FileSystemDirectoryHandle,
@@ -230,7 +228,7 @@ class RobotConfigFileSystem {
       const robotDirHandle = await robotsHandle.getDirectoryHandle(robotId);
       await robotDirHandle.getFileHandle("robot.json");
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

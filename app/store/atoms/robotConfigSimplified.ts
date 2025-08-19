@@ -15,13 +15,13 @@ export const robotConfigAtom = atom<RobotConfig>(DEFAULT_ROBOT_CONFIG);
 export const robotBuilderOpenAtom = atom<boolean>(false);
 
 // Loading/error states for robot operations
-const robotConfigLoadingAtom = atom<boolean>(false);
-const robotConfigErrorAtom = atom<string | null>(null);
+const _robotConfigLoadingAtom = atom<boolean>(false);
+const _robotConfigErrorAtom = atom<string | null>(null);
 
 // Action to set the current robot config and persist the selection
 export const setActiveRobotAtom = atom(
   null,
-  (get, set, config: RobotConfig) => {
+  (_get, set, config: RobotConfig) => {
     // Update the UI atom
     set(robotConfigAtom, config);
 
@@ -40,7 +40,7 @@ export const setActiveRobotAtom = atom(
 // Initialize robot configuration from localStorage + filesystem
 export const initializeActiveRobotAtom = atom(
   null,
-  async (get, set, availableRobots: RobotConfig[]) => {
+  async (_get, set, availableRobots: RobotConfig[]) => {
     const storedActiveId = userPreferences.getActiveRobotId();
 
     // Try to find the stored active robot in the available robots
@@ -63,7 +63,7 @@ export const initializeActiveRobotAtom = atom(
 );
 
 // Derived atoms
-const robotDimensionsAtom = atom((get) => {
+const _robotDimensionsAtom = atom((get) => {
   const config = get(robotConfigAtom);
   return {
     widthMm: config.dimensions.width * 8, // Convert studs to mm
@@ -73,7 +73,7 @@ const robotDimensionsAtom = atom((get) => {
   };
 });
 
-const robotWheelbaseAtom = atom((get) => {
+const _robotWheelbaseAtom = atom((get) => {
   const config = get(robotConfigAtom);
   return {
     leftWheel: config.wheels.left,
@@ -84,7 +84,7 @@ const robotWheelbaseAtom = atom((get) => {
   };
 });
 
-const robotAppearanceAtom = atom((get) => {
+const _robotAppearanceAtom = atom((get) => {
   const config = get(robotConfigAtom);
   return config.appearance;
 });
@@ -105,7 +105,7 @@ const robotBuilderStateAtom = atom({
   pan: { x: 0, y: 0 },
 });
 
-const updateRobotBuilderStateAtom = atom(
+const _updateRobotBuilderStateAtom = atom(
   null,
   (
     get,

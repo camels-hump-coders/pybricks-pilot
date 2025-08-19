@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useRef } from "react";
 import { useCanvasDrawing } from "../hooks/useCanvasDrawing";
 import { useCanvasEventHandlers } from "../hooks/useCanvasEventHandlers";
@@ -18,32 +18,18 @@ import {
   hoveredPointAtom,
   missionBoundsAtom,
 } from "../store/atoms/canvasState";
+import { controlModeAtom, customMatConfigAtom } from "../store/atoms/gameMat";
 import {
-  controlModeAtom,
-  customMatConfigAtom,
-  showGridOverlayAtom,
-} from "../store/atoms/gameMat";
-import { ghostRobotAtom } from "../store/atoms/ghostPosition";
-import {
-  draggedControlPointAtom,
-  draggedPointIdAtom,
-  draggedTangencyHandleAtom,
   hoveredTelemetryPointAtom,
-  isDraggingControlPointAtom,
-  isDraggingPointAtom,
-  isDraggingTangencyHandleAtom,
   isPseudoCodeExpandedAtom,
   isTelemetryPlaybackExpandedAtom,
   justFinishedDraggingAtom,
   popoverObjectAtom,
-  stopAllDraggingAtom,
   tooltipPositionAtom,
 } from "../store/atoms/matUIState";
-import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { telemetryDataAtom } from "../store/atoms/robotConnection";
 import {
   allTelemetryPointsAtom,
-  pathVisualizationOptionsAtom,
   selectedPathPointsAtom,
 } from "../store/atoms/telemetryPoints";
 import {
@@ -80,15 +66,10 @@ export function EnhancedCompetitionMat({
 
   // Mission editing functionality
   const missionEditing = useMissionEditing();
-  const {
-    isEditingMission,
-    pointPlacementMode,
-    handlePointPlacement,
-    getPreviewData,
-  } = missionEditing;
+  const { isEditingMission, pointPlacementMode, handlePointPlacement } =
+    missionEditing;
 
   // Get robot configuration
-  const robotConfig = useAtomValue(robotConfigAtom);
   const allTelemetryPoints = useAtomValue(allTelemetryPointsAtom);
 
   // Use Jotai for game mat state management
@@ -102,7 +83,6 @@ export function EnhancedCompetitionMat({
     manualHeadingAdjustment,
     scoringState,
     setScoringState,
-    resetRobotToStartPosition,
     updateRobotPositionFromTelemetry,
     movementPreview,
     perpendicularPreview,
@@ -129,13 +109,12 @@ export function EnhancedCompetitionMat({
   const [popoverObject, setPopoverObject] = useAtom(popoverObjectAtom);
 
   // Canvas state from atoms
-  const [hoveredObject, setHoveredObject] = useAtom(hoveredObjectAtom);
-  const [missionBounds, setMissionBounds] = useAtom(missionBoundsAtom);
+  const [hoveredObject, _setHoveredObject] = useAtom(hoveredObjectAtom);
+  const [_missionBounds, setMissionBounds] = useAtom(missionBoundsAtom);
 
   // Note: missionsExpanded is now handled inside MissionsList component
 
   // Path visualization state from atom
-  const pathOptions = useAtomValue(pathVisualizationOptionsAtom);
   const selectedPathPoints = useAtomValue(selectedPathPointsAtom);
   const [hoveredPoint, setHoveredPoint] = useAtom(hoveredTelemetryPointAtom);
   const [hoveredPointIndex, setHoveredPointIndex] = useAtom(hoveredPointAtom);
@@ -151,37 +130,7 @@ export function EnhancedCompetitionMat({
   );
 
   // Spline path dragging state from atoms
-  const [isDraggingPoint, setIsDraggingPoint] = useAtom(isDraggingPointAtom);
-  const [draggedPointId, setDraggedPointId] = useAtom(draggedPointIdAtom);
   const justFinishedDragging = useAtomValue(justFinishedDraggingAtom);
-
-  // Control point dragging state from atoms
-  const [isDraggingControlPoint, setIsDraggingControlPoint] = useAtom(
-    isDraggingControlPointAtom,
-  );
-  const [draggedControlPoint, setDraggedControlPoint] = useAtom(
-    draggedControlPointAtom,
-  );
-
-  // Curvature handle dragging state from atoms
-  const [isDraggingTangencyHandle, setIsDraggingTangencyHandle] = useAtom(
-    isDraggingTangencyHandleAtom,
-  );
-  const [draggedTangencyHandle, setDraggedTangencyHandle] = useAtom(
-    draggedTangencyHandleAtom,
-  );
-
-  // Stop all dragging action
-  const stopAllDragging = useSetAtom(stopAllDraggingAtom);
-
-  // Hover states are now managed by Jotai atoms
-
-  // Ghost robot state for telemetry playback
-  const ghostRobot = useAtomValue(ghostRobotAtom);
-  const ghostPosition = ghostRobot.isVisible ? ghostRobot.position : null;
-
-  // Grid overlay state from Jotai atom
-  const showGridOverlay = useAtomValue(showGridOverlayAtom);
 
   // Fresh telemetry data from atom (not stale closure data)
   const currentTelemetryData = useAtomValue(telemetryDataAtom);
@@ -202,9 +151,6 @@ export function EnhancedCompetitionMat({
     customMatConfig || null,
     updateCanvasSize,
   );
-
-  // Use the coordinate utils from atoms - no need for duplicate implementation
-  const { canvasToMm, mmToCanvas, scale } = coordinateUtils;
 
   // Canvas drawing hook
   useCanvasDrawing({
@@ -352,7 +298,6 @@ export function EnhancedCompetitionMat({
       coordinateUtils,
       handlePointPlacement,
       originalHandleCanvasClick,
-      canvasRef,
     ],
   );
 

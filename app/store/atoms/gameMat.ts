@@ -124,7 +124,7 @@ export const robotPositionAtom = atom<RobotPosition>(
 );
 
 // Derived atom that recalculates initial position when mat or robot config changes
-const initialRobotPositionAtom = atom((get) => {
+const _initialRobotPositionAtom = atom((get) => {
   const robotConfig = get(robotConfigAtom);
   const matConfig = get(customMatConfigAtom);
 
@@ -214,7 +214,7 @@ export const currentScoreAtom = atom((get) => {
 // Action atoms
 export const setRobotPositionAtom = atom(
   null,
-  (get, set, position: RobotPosition) => {
+  (_get, set, position: RobotPosition) => {
     set(robotPositionAtom, position);
     // Reset telemetry reference when manually setting position
     set(telemetryReferenceAtom, {
@@ -246,7 +246,7 @@ export const updateScoringAtom = atom(
   },
 );
 
-export const resetScoringAtom = atom(null, (get, set) => {
+export const resetScoringAtom = atom(null, (_get, set) => {
   set(scoringStateAtom, {});
   set(totalScoreAtom, 0);
 });

@@ -22,6 +22,7 @@ export function ObjectiveChoice({
 }: ObjectiveChoiceProps) {
   return (
     <button
+      type="button"
       onClick={() => onToggle(objectId, objectiveId, choice.points, choice.id)}
       className={`w-full text-left p-2 rounded text-sm transition-colors ${
         isSelected

@@ -107,7 +107,7 @@ export function useJotaiVirtualHub() {
       setProgramStatus(status);
 
       // If there's program output, add it to the log
-      if (status.output && status.output.trim()) {
+      if (status.output?.trim()) {
         const timestamp = new Date().toLocaleTimeString();
         const logEntry = `[${timestamp}] ${status.output.trim()}`;
         setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines

@@ -35,6 +35,7 @@ export function ControlModeToggle({
       Control Mode
       <div className="grid grid-cols-4 gap-1 mt-1">
         <button
+          type="button"
           onClick={() => handleModeChange("program")}
           className={`px-1 py-2 text-xs rounded transition-colors ${
             controlMode === "program"
@@ -45,6 +46,7 @@ export function ControlModeToggle({
           {robotType === "real" ? "Program" : "Scoring"}
         </button>
         <button
+          type="button"
           disabled={!robotControlsEnabled}
           onClick={() => handleModeChange("incremental")}
           className={`px-1 py-2 text-xs rounded transition-colors ${
@@ -56,6 +58,7 @@ export function ControlModeToggle({
           Step
         </button>
         <button
+          type="button"
           disabled={!robotControlsEnabled}
           onClick={() => handleModeChange("continuous")}
           className={`px-1 py-2 text-xs rounded transition-colors ${
@@ -67,6 +70,7 @@ export function ControlModeToggle({
           Hold
         </button>
         <button
+          type="button"
           disabled={!robotControlsEnabled}
           onClick={() => handleModeChange("mission")}
           className={`px-1 py-2 text-xs rounded transition-colors ${

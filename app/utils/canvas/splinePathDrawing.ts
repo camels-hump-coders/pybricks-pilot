@@ -1,4 +1,4 @@
-import type { SplinePath, SplinePathPoint } from "../../store/atoms/gameMat";
+import type { SplinePath } from "../../store/atoms/gameMat";
 import type { RobotDrawingUtils } from "./robotDrawing";
 
 interface SplinePathDrawingProps {
@@ -385,35 +385,6 @@ export function drawSplinePath(
     ctx.textBaseline = "bottom";
     ctx.fillText(splinePath.name, firstPoint.x + 15, firstPoint.y - 10);
   }
-}
-
-/**
- * Draw a smooth spline curve through the given points (future enhancement)
- */
-function drawSplineCurve(
-  ctx: CanvasRenderingContext2D,
-  points: SplinePathPoint[],
-  utils: RobotDrawingUtils,
-) {
-  if (points.length < 2) return;
-
-  const { mmToCanvas } = utils;
-
-  // For now, draw straight lines - this will be enhanced with actual spline curves
-  ctx.strokeStyle = "#6366f1";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([5, 5]);
-
-  ctx.beginPath();
-  const firstPoint = mmToCanvas(points[0].position.x, points[0].position.y);
-  ctx.moveTo(firstPoint.x, firstPoint.y);
-
-  for (let i = 1; i < points.length; i++) {
-    const point = mmToCanvas(points[i].position.x, points[i].position.y);
-    ctx.lineTo(point.x, point.y);
-  }
-  ctx.stroke();
-  ctx.setLineDash([]);
 }
 
 /**

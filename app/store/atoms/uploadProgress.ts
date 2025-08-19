@@ -22,7 +22,7 @@ export const uploadProgressAtom = atom<UploadProgressData>({
  */
 export const updateUploadProgressAtom = atom(
   null,
-  (get, set, debugEvents: DebugEvent[]) => {
+  (_get, set, debugEvents: DebugEvent[]) => {
     if (!debugEvents || debugEvents.length === 0) return;
 
     // Look for the latest upload-related debug events
@@ -35,8 +35,8 @@ export const updateUploadProgressAtom = atom(
           /Progress: chunk (\d+)\/(\d+)/,
         );
         if (progressMatch) {
-          const current = parseInt(progressMatch[1]);
-          const total = parseInt(progressMatch[2]);
+          const current = parseInt(progressMatch[1], 10);
+          const total = parseInt(progressMatch[2], 10);
           set(uploadProgressAtom, { current, total, isVisible: true });
           return; // Use the most recent progress event
         }
@@ -79,6 +79,6 @@ export const updateUploadProgressAtom = atom(
 /**
  * Action atom to reset upload progress
  */
-export const resetUploadProgressAtom = atom(null, (get, set) => {
+export const resetUploadProgressAtom = atom(null, (_get, set) => {
   set(uploadProgressAtom, { current: 0, total: 0, isVisible: false });
 });

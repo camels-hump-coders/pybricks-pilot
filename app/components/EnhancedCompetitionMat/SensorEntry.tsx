@@ -4,7 +4,7 @@ import {
 } from "../../services/telemetryHistory";
 
 interface SensorData {
-  color?: any;
+  color?: string | number; // Pybricks Color enum (can be string like "Color.RED" or number)
   distance?: number;
   reflection?: number;
   force?: number;

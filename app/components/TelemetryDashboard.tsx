@@ -1,6 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
-import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
@@ -146,6 +145,7 @@ function MatControlsPanel({
         {/* Map Selection/Creation Buttons */}
         <div className="space-y-2">
           <button
+            type="button"
             onClick={onMapSelectorOpen}
             disabled={isLoadingConfig}
             className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -156,6 +156,7 @@ function MatControlsPanel({
           {hasDirectoryAccess ? (
             <>
               <button
+                type="button"
                 onClick={() => onMatEditorOpen("edit")}
                 disabled={!customMatConfig || isLoadingConfig}
                 className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -166,6 +167,7 @@ function MatControlsPanel({
                 ✏️ Edit Mat
               </button>
               <button
+                type="button"
                 onClick={() => onMatEditorOpen("new")}
                 className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
               >
@@ -196,6 +198,7 @@ function MatControlsPanel({
         {customMatConfig && (
           <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
             <button
+              type="button"
               onClick={onScoringToggle}
               className={`w-full px-3 py-2 rounded text-sm transition-colors ${
                 showScoring
@@ -207,6 +210,7 @@ function MatControlsPanel({
             </button>
 
             <button
+              type="button"
               onClick={onClearMat}
               className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
             >
@@ -300,6 +304,7 @@ function RobotControlsSection({
         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
           {hasDirectoryAccess ? (
             <button
+              type="button"
               onClick={onRobotBuilderOpen}
               className="w-full px-3 py-1.5 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
             >
@@ -536,9 +541,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
   // Create a smart upload function that uses hub menu when there are numbered programs
   const handleUploadAndRun = async (
-    file: any,
-    content: string,
-    availableFiles: any[],
+    _file: any,
+    _content: string,
+    _availableFiles: any[],
   ) => {
     // allPrograms already contains numbered programs with programNumber
     // No need to filter since allPrograms is already the numbered programs list
@@ -575,11 +580,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const discoverMats = useSetAtom(discoverMatConfigsAtom);
 
   // Use Jotai atoms for movement preview and robot position
-  const [movementPreview, setMovementPreview] = useAtom(movementPreviewAtom);
+  const [_movementPreview, _setMovementPreview] = useAtom(movementPreviewAtom);
   const setRobotPosition = useSetAtom(setRobotPositionAtom);
-
-  // Use CMD key detection hook
-  const isCmdKeyPressed = useCmdKey();
 
   // Always start with default unearthed mat, don't auto-load custom configs
   useEffect(() => {
@@ -592,7 +594,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       setIsLoadingConfig(false);
     };
     loadDefaultMat();
-  }, [setRobotPosition]);
+  }, [setCustomMatConfig]);
 
   useEffect(() => {
     if (currentRobotConfig && customMatConfig) {
@@ -687,8 +689,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const handleMapChange = async (config: GameMatConfig | null) => {
     if (config) {
       // Check if this is a built-in map (has imageUrl from assets) or a custom map
-      const isBuiltInMap =
-        config.imageUrl && config.imageUrl.includes("/assets/seasons/");
+      const isBuiltInMap = config.imageUrl?.includes("/assets/seasons/");
 
       if (isBuiltInMap) {
         // Built-in maps are not saved to IndexedDB, just used temporarily
@@ -784,6 +785,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
                 Select Game Mat
               </h2>
               <button
+                type="button"
                 onClick={() => setShowMapSelector(false)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
               >

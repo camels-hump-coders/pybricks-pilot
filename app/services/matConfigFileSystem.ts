@@ -12,8 +12,6 @@ interface MatMetadata {
 }
 
 class MatConfigFileSystem {
-  private readonly MATS_DIR = "config/mats";
-
   // Discover all available mats from the filesystem
   async discoverMats(
     dirHandle: FileSystemDirectoryHandle,
@@ -170,7 +168,7 @@ class MatConfigFileSystem {
       const matDirHandle = await matsHandle.getDirectoryHandle(matId);
       await matDirHandle.getFileHandle("mat.json");
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

@@ -54,47 +54,6 @@ export function drawBorderWalls(
 }
 
 /**
- * Draw grid overlay on the mat
- */
-function drawGridOverlay(
-  ctx: CanvasRenderingContext2D,
-  utils: CanvasDrawingUtils,
-  matX: number,
-  matY: number,
-  matWidth: number,
-  matHeight: number,
-  gridSize = 50, // mm
-) {
-  const { scale } = utils;
-
-  ctx.save();
-
-  // Set grid style
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
-  ctx.lineWidth = 1;
-
-  // Draw vertical grid lines
-  for (let x = 0; x <= matWidth; x += gridSize) {
-    const canvasX = matX + x * scale;
-    ctx.beginPath();
-    ctx.moveTo(canvasX, matY);
-    ctx.lineTo(canvasX, matY + matHeight * scale);
-    ctx.stroke();
-  }
-
-  // Draw horizontal grid lines
-  for (let y = 0; y <= matHeight; y += gridSize) {
-    const canvasY = matY + y * scale;
-    ctx.beginPath();
-    ctx.moveTo(matX, canvasY);
-    ctx.lineTo(matX + matWidth * scale, canvasY);
-    ctx.stroke();
-  }
-
-  ctx.restore();
-}
-
-/**
  * Draw a grid with spacing in pixels
  */
 export function drawGrid(
@@ -125,17 +84,4 @@ export function drawGrid(
   }
 
   ctx.restore();
-}
-
-/**
- * Clear canvas with background color
- */
-function clearCanvas(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  backgroundColor = "#e5e5e5",
-) {
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, width, height);
 }

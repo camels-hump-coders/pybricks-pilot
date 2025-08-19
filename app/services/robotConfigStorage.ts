@@ -350,7 +350,7 @@ class RobotConfigStorage {
         });
         return null;
       }
-    } catch (error) {
+    } catch (_error) {
       // robot.json doesn't exist or can't be read
       return null;
     }

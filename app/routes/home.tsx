@@ -229,7 +229,7 @@ export default function Home() {
 
   const handleCreateFile = () => {
     const fileName = prompt("Enter file name (e.g., program.py):");
-    if (fileName && fileName.trim()) {
+    if (fileName?.trim()) {
       const name = fileName.trim();
       if (!name.endsWith(".py")) {
         showError("Invalid File Name", "File name must end with .py");
@@ -420,7 +420,7 @@ print("Hello from ${name}!")
             onUnmountDirectory={unmountDirectory}
             onRequestDirectoryAccess={handleFileSystemAccess}
             onStopProgram={handleStopProgram}
-            onUploadAndRunFile={async (file, content) => {
+            onUploadAndRunFile={async (file, _content) => {
               // Placeholder - hub menu system handles program upload
               console.log("onUploadAndRunFile called for:", file.relativePath);
             }}

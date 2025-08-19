@@ -72,11 +72,11 @@ class DependencyResolver {
     const pathParts = moduleName.split(".");
 
     // Direct file: robot/sensors.py
-    paths.push(pathParts.join("/") + ".py");
+    paths.push(`${pathParts.join("/")}.py`);
 
     // Package with __init__.py: robot/sensors/__init__.py
     if (pathParts.length > 0) {
-      paths.push(pathParts.join("/") + "/__init__.py");
+      paths.push(`${pathParts.join("/")}/__init__.py`);
     }
 
     return paths;
@@ -159,7 +159,7 @@ class DependencyResolver {
     const possiblePaths = this.moduleNameToFilePaths(moduleName);
 
     // Get flattened files for debugging
-    const flatFiles = this.flattenFileTree(files);
+    const _flatFiles = this.flattenFileTree(files);
 
     for (const path of possiblePaths) {
       const file = this.findFileByPath(files, path);

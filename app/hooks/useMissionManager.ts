@@ -26,7 +26,7 @@ import {
 import type { Mission, MissionPointType } from "../types/missionPlanner";
 import { useJotaiFileSystem } from "./useJotaiFileSystem";
 
-const MISSIONS_CONFIG_FILE = "config/missions.json";
+const _MISSIONS_CONFIG_FILE = "config/missions.json";
 
 interface MissionsFileDataV1 {
   version: string;
@@ -47,9 +47,10 @@ export function useMissionManager() {
     selectedMissionIdAtom,
   );
   const selectedMission = useAtomValue(selectedMissionAtom);
-  const [isEditingMission, setIsEditingMission] = useAtom(isEditingMissionAtom);
-  const [editingMission, setEditingMission] = useAtom(editingMissionAtom);
-  const [selectedPointId, setSelectedPointId] = useAtom(selectedPointIdAtom);
+  const [isEditingMission, _setIsEditingMission] =
+    useAtom(isEditingMissionAtom);
+  const [editingMission, _setEditingMission] = useAtom(editingMissionAtom);
+  const [selectedPointId, _setSelectedPointId] = useAtom(selectedPointIdAtom);
 
   // UI state
   const [isMissionManagementOpen, setIsMissionManagementOpen] = useAtom(
@@ -95,7 +96,7 @@ export function useMissionManager() {
           setMissions(data.missions);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       console.log(
         "No existing missions config file found, starting with empty missions",
       );

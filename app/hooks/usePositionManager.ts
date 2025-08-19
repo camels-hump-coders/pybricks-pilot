@@ -7,7 +7,6 @@ import {
   clearPositionSelectionAtom,
   customPositionsAtom,
   DEFAULT_EDGE_POSITIONS,
-  type EdgeBasedPosition,
   isAddPositionDialogOpenAtom,
   isPositionManagementOpenAtom,
   type NamedPosition,
@@ -22,7 +21,7 @@ import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { calculateRobotPositionFromEdges } from "../utils/robotPosition";
 import { useJotaiFileSystem } from "./useJotaiFileSystem";
 
-const POSITIONS_CONFIG_FILE = "config/positions.json";
+const _POSITIONS_CONFIG_FILE = "config/positions.json";
 
 interface PositionsFileData {
   version: string;
@@ -35,7 +34,7 @@ interface PositionsFileData {
 export function usePositionManager() {
   const { hasDirectoryAccess, stableDirectoryHandle, stableDirectoryAccess } =
     useJotaiFileSystem();
-  const coordinateUtils = useAtomValue(coordinateUtilsAtom);
+  const _coordinateUtils = useAtomValue(coordinateUtilsAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
   const customMatConfig = useAtomValue(customMatConfigAtom);
 
@@ -59,7 +58,7 @@ export function usePositionManager() {
   const addCustomPosition = useSetAtom(addCustomPositionAtom);
   const removeCustomPosition = useSetAtom(removeCustomPositionAtom);
   const updateCustomPosition = useSetAtom(updateCustomPositionAtom);
-  const updateDefaultPositionCoordinates = useSetAtom(
+  const _updateDefaultPositionCoordinates = useSetAtom(
     updateDefaultPositionCoordinatesAtom,
   );
   const clearPositionSelection = useSetAtom(clearPositionSelectionAtom);
@@ -83,7 +82,7 @@ export function usePositionManager() {
           setCustomPositions(data.customPositions);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       console.log(
         "No existing positions config file found, starting with defaults",
       );

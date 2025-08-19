@@ -1,11 +1,9 @@
 import type { NamedPosition } from "../store/atoms/positionManagement";
 import type {
-  ActionPoint,
   EndPoint,
   MissionPointType,
   ResolvedMissionPoint,
   StartPoint,
-  Waypoint,
 } from "../types/missionPlanner";
 
 /**
@@ -78,22 +76,4 @@ export function resolveMissionPoints(
   // Ensure positions is an array
   const safePositions = Array.isArray(positions) ? positions : [];
   return points.map((point) => resolveMissionPoint(point, safePositions));
-}
-
-/**
- * Check if a point needs coordinate resolution (is a start/end point)
- */
-function isReferencedPoint(
-  point: MissionPointType,
-): point is StartPoint | EndPoint {
-  return point.type === "start" || point.type === "end";
-}
-
-/**
- * Check if a point has explicit coordinates (is a waypoint/action)
- */
-function hasExplicitCoordinates(
-  point: MissionPointType,
-): point is Waypoint | ActionPoint {
-  return point.type === "waypoint" || point.type === "action";
 }

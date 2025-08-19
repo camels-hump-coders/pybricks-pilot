@@ -92,7 +92,7 @@ export function useJotaiGameMat() {
   const [currentSplinePath, setCurrentSplinePath] = useAtom(
     currentSplinePathAtom,
   );
-  const [splinePaths, setSplinePaths] = useAtom(splinePathsAtom);
+  const [splinePaths, _setSplinePaths] = useAtom(splinePathsAtom);
   const [selectedSplinePointId, setSelectedSplinePointId] = useAtom(
     selectedSplinePointIdAtom,
   );
@@ -178,7 +178,7 @@ export function useJotaiGameMat() {
       const currentTelemetryReference = telemetryReferenceRef.current;
       const currentRobotPosition = robotPositionRef.current;
       const currentManualHeadingAdjustment = manualHeadingAdjustmentRef.current;
-      const currentRobotConfig = robotConfigRef.current;
+      const _currentRobotConfig = robotConfigRef.current;
 
       // Initialize reference if needed
       if (!currentTelemetryReference) {

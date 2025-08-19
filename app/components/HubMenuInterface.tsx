@@ -13,7 +13,7 @@ export function HubMenuInterface() {
   const [hubMenuStatus, setHubMenuStatus] = useState<HubMenuStatus | null>(
     null,
   );
-  const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const [_lastUpdate, setLastUpdate] = useState<number>(0);
   const [pendingSelection, setPendingSelection] = useState<number | null>(null);
   const { allPrograms } = useJotaiFileSystem();
 
@@ -41,7 +41,7 @@ export function HubMenuInterface() {
     return () => {
       document.removeEventListener("hubMenuStatus", handleHubMenuStatus);
     };
-  }, []);
+  }, [pendingSelection]);
 
   const handleSelectProgram = async (programNumber: number) => {
     // Set pending selection for optimistic UI
@@ -78,9 +78,6 @@ export function HubMenuInterface() {
     pendingSelection !== null
       ? pendingSelection
       : hubMenuStatus?.selectedProgram;
-  const currentProgram = numberedPrograms.find(
-    (p) => p.programNumber === displayedSelection,
-  );
 
   return (
     <div className="flex items-center gap-2">
@@ -98,6 +95,7 @@ export function HubMenuInterface() {
       </select>
 
       <button
+        type="button"
         onClick={handleRunSelected}
         disabled={hubMenuStatus?.state === "running"}
         className={`

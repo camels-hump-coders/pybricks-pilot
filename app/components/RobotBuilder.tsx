@@ -7,7 +7,6 @@ import {
   DEFAULT_ROBOT_CONFIG,
   studsToMm,
 } from "../schemas/RobotConfig";
-import { robotConfigStorage } from "../services/robotConfigStorage";
 import {
   availableRobotConfigsAtom,
   createRobotConfigAtom,
@@ -104,10 +103,10 @@ export function RobotBuilder({
       if (config.id === "default") {
         // Cannot save over default robot - need to create new one
         const newRobotId = await createRobotConfig({
-          name: config.name + " (Custom)",
+          name: `${config.name} (Custom)`,
           config: {
             ...config,
-            name: config.name + " (Custom)",
+            name: `${config.name} (Custom)`,
           },
         });
         console.log(`Created new robot configuration with ID: ${newRobotId}`);
@@ -116,7 +115,7 @@ export function RobotBuilder({
         activeRobotConfig = {
           ...config,
           id: newRobotId,
-          name: config.name + " (Custom)",
+          name: `${config.name} (Custom)`,
         };
       } else {
         // Save existing custom robot
@@ -457,7 +456,10 @@ export function RobotBuilder({
                     max="50"
                     value={config.dimensions.width}
                     onChange={(e) =>
-                      handleDimensionChange("width", parseInt(e.target.value))
+                      handleDimensionChange(
+                        "width",
+                        parseInt(e.target.value, 10),
+                      )
                     }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
@@ -476,7 +478,10 @@ export function RobotBuilder({
                     max="50"
                     value={config.dimensions.length}
                     onChange={(e) =>
-                      handleDimensionChange("length", parseInt(e.target.value))
+                      handleDimensionChange(
+                        "length",
+                        parseInt(e.target.value, 10),
+                      )
                     }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />

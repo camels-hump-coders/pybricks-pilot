@@ -36,6 +36,7 @@ export function MissionsList({
     <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
       {/* Accordion Header */}
       <button
+        type="button"
         onClick={() => setMissionsExpanded(!missionsExpanded)}
         className="w-full p-3 text-left border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
       >

@@ -40,7 +40,7 @@ class ProgramMetadataStorage {
         );
         return this.createDefaultManifest();
       }
-    } catch (error) {
+    } catch (_error) {
       // config/programs.json doesn't exist or can't be read, return default
       return this.createDefaultManifest();
     }

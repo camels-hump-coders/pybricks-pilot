@@ -201,7 +201,7 @@ export function MissionManagementDialog() {
                           value={editArcRadius}
                           onChange={(e) =>
                             setEditArcRadius(
-                              Math.max(10, parseInt(e.target.value) || 10),
+                              Math.max(10, parseInt(e.target.value, 10) || 10),
                             )
                           }
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"

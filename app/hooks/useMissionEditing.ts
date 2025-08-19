@@ -1,5 +1,5 @@
-import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useState } from "react";
+import { useAtom } from "jotai";
+import { useCallback } from "react";
 import {
   actionPointHeadingAtom,
   insertAfterPointIdAtom,

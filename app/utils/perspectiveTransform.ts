@@ -93,27 +93,6 @@ function calculateHomography(src: number[][], dst: number[][]): Transform {
 }
 
 /**
- * Invert a perspective transform matrix
- */
-function invertTransform(t: Transform): Transform {
-  const det =
-    t.a * (t.e - t.f * t.h) -
-    t.b * (t.d - t.f * t.g) +
-    t.c * (t.d * t.h - t.e * t.g);
-
-  return {
-    a: (t.e - t.f * t.h) / det,
-    b: (t.c * t.h - t.b) / det,
-    c: (t.b * t.f - t.c * t.e) / det,
-    d: (t.f * t.g - t.d) / det,
-    e: (t.a - t.c * t.g) / det,
-    f: (t.c * t.d - t.a * t.f) / det,
-    g: (t.d * t.h - t.e * t.g) / det,
-    h: (t.b * t.g - t.a * t.h) / det,
-  };
-}
-
-/**
  * Solve linear system Ax = b using Gaussian elimination
  */
 function solveLinearSystem(A: number[][], b: number[]): number[] {

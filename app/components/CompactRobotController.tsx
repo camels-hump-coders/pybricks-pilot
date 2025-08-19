@@ -273,7 +273,8 @@ export function CompactRobotController({
     showTrajectoryOverlay,
     controlMode,
     currentRobotPosition,
-    robotConfig,
+    robotConfig, // Only update if there are no hover ghosts currently
+    setPerpendicularPreview,
   ]);
 
   // Separate effect to clear trajectory overlay when disabled OR when not in Step mode
@@ -296,7 +297,13 @@ export function CompactRobotController({
         return prev; // Don't change if there are hover ghosts
       });
     }
-  }, [showTrajectoryOverlay, controlMode, distance, angle]);
+  }, [
+    showTrajectoryOverlay,
+    controlMode,
+    distance,
+    angle, // Only clear if the current ghosts are trajectory overlay ghosts
+    setPerpendicularPreview,
+  ]);
 
   // For virtual robots, manual controls should work when connected regardless of program status
   // For real robots, manual controls work when connected and hub menu program is running
@@ -682,68 +689,6 @@ export function CompactRobotController({
       }
     }
   }
-
-  // Spline path execution handler
-  const handleExecutePath = async (path: any) => {
-    console.log("Execute spline path", path);
-    console.log(
-      "onExecuteCommandSequence available:",
-      !!onExecuteCommandSequence,
-    );
-    console.log("isFullyConnected:", isFullyConnected);
-    console.log("robotType:", robotType);
-
-    const { executeSplinePath } = await import("../utils/splinePathCommands");
-
-    const executeCommands = async (commands: any[]) => {
-      console.log("executeCommands called with:", commands);
-      console.log("Commands details:", JSON.stringify(commands, null, 2));
-
-      if (onExecuteCommandSequence) {
-        // Use command sequence for proper stop behavior handling
-        console.log("Executing command sequence:", commands);
-        try {
-          await onExecuteCommandSequence(commands);
-        } catch (error) {
-          console.error("Command sequence failed:", error);
-          // Fallback to individual commands on GATT error
-          console.log("Falling back to individual commands due to error");
-          for (const cmd of commands) {
-            try {
-              if (cmd.action === "turn" && onTurnCommand) {
-                console.log("Executing individual turn:", cmd);
-                await onTurnCommand(cmd.angle, cmd.speed);
-              } else if (cmd.action === "drive" && onDriveCommand) {
-                console.log("Executing individual drive:", cmd);
-                await onDriveCommand(cmd.distance, cmd.speed);
-              }
-              await new Promise((resolve) => setTimeout(resolve, 500)); // Longer delay for individual commands
-            } catch (individualError) {
-              console.error("Individual command failed:", cmd, individualError);
-            }
-          }
-        }
-      } else {
-        // Fallback to individual commands
-        console.log("Fallback to individual commands:", commands);
-        for (const cmd of commands) {
-          if (cmd.action === "turn" && onTurnCommand) {
-            await onTurnCommand(cmd.angle, cmd.speed);
-          } else if (cmd.action === "drive" && onDriveCommand) {
-            await onDriveCommand(cmd.distance, cmd.speed);
-          }
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-      }
-    };
-
-    try {
-      await executeSplinePath(path, executeCommands);
-      console.log("executeSplinePath completed");
-    } catch (error) {
-      console.error("executeSplinePath failed:", error);
-    }
-  };
 
   return (
     <div

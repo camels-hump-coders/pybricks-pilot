@@ -61,47 +61,53 @@ export const draggedTangencyHandleAtom = atom<{
 // ============================================
 
 // UI State Actions
-const setPopoverObjectAtom = atom(null, (get, set, objectId: string | null) => {
-  set(popoverObjectAtom, objectId);
-});
+const _setPopoverObjectAtom = atom(
+  null,
+  (_get, set, objectId: string | null) => {
+    set(popoverObjectAtom, objectId);
+  },
+);
 
-const toggleMissionsExpandedAtom = atom(null, (get, set) => {
+const _toggleMissionsExpandedAtom = atom(null, (get, set) => {
   set(missionsExpandedAtom, !get(missionsExpandedAtom));
 });
 
-const setPseudoCodeExpandedAtom = atom(null, (get, set, expanded: boolean) => {
-  set(isPseudoCodeExpandedAtom, expanded);
-});
-
-const setTelemetryPlaybackExpandedAtom = atom(
+const _setPseudoCodeExpandedAtom = atom(
   null,
-  (get, set, expanded: boolean) => {
+  (_get, set, expanded: boolean) => {
+    set(isPseudoCodeExpandedAtom, expanded);
+  },
+);
+
+const _setTelemetryPlaybackExpandedAtom = atom(
+  null,
+  (_get, set, expanded: boolean) => {
     set(isTelemetryPlaybackExpandedAtom, expanded);
   },
 );
 
 // Canvas Interaction Actions
-const setHoveredTelemetryPointAtom = atom(
+const _setHoveredTelemetryPointAtom = atom(
   null,
-  (get, set, point: TelemetryPoint | null) => {
+  (_get, set, point: TelemetryPoint | null) => {
     set(hoveredTelemetryPointAtom, point);
   },
 );
 
-const setTooltipPositionAtom = atom(
+const _setTooltipPositionAtom = atom(
   null,
-  (get, set, position: { x: number; y: number } | null) => {
+  (_get, set, position: { x: number; y: number } | null) => {
     set(tooltipPositionAtom, position);
   },
 );
 
 // Spline dragging actions
-const startDraggingPointAtom = atom(null, (get, set, pointId: string) => {
+const _startDraggingPointAtom = atom(null, (_get, set, pointId: string) => {
   set(isDraggingPointAtom, true);
   set(draggedPointIdAtom, pointId);
 });
 
-const stopDraggingPointAtom = atom(null, (get, set) => {
+const _stopDraggingPointAtom = atom(null, (get, set) => {
   const wasDragging = get(isDraggingPointAtom);
   set(isDraggingPointAtom, false);
   set(draggedPointIdAtom, null);
@@ -113,15 +119,15 @@ const stopDraggingPointAtom = atom(null, (get, set) => {
 });
 
 // Control point dragging actions
-const startDraggingControlPointAtom = atom(
+const _startDraggingControlPointAtom = atom(
   null,
-  (get, set, pointId: string, controlType: "before" | "after") => {
+  (_get, set, pointId: string, controlType: "before" | "after") => {
     set(isDraggingControlPointAtom, true);
     set(draggedControlPointAtom, { pointId, controlType });
   },
 );
 
-const stopDraggingControlPointAtom = atom(null, (get, set) => {
+const _stopDraggingControlPointAtom = atom(null, (get, set) => {
   const wasDragging = get(isDraggingControlPointAtom);
   set(isDraggingControlPointAtom, false);
   set(draggedControlPointAtom, null);
@@ -133,10 +139,10 @@ const stopDraggingControlPointAtom = atom(null, (get, set) => {
 });
 
 // Tangency handle dragging actions
-const startDraggingTangencyHandleAtom = atom(
+const _startDraggingTangencyHandleAtom = atom(
   null,
   (
-    get,
+    _get,
     set,
     handle: {
       pointId: string;
@@ -156,7 +162,7 @@ const startDraggingTangencyHandleAtom = atom(
   },
 );
 
-const stopDraggingTangencyHandleAtom = atom(null, (get, set) => {
+const _stopDraggingTangencyHandleAtom = atom(null, (get, set) => {
   const wasDragging = get(isDraggingTangencyHandleAtom);
   set(isDraggingTangencyHandleAtom, false);
   set(draggedTangencyHandleAtom, null);

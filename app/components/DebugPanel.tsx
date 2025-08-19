@@ -10,7 +10,6 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
   const {
     hubInfo,
     programStatus,
-    telemetryData,
     isConnected,
     debugEvents,
     clearDebugEvents,
@@ -82,7 +81,7 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
     setExpandedEvents(newExpanded);
   };
 
-  const formatDetails = (details: Record<string, any>) => {
+  const formatDetails = (details: Record<string, unknown>) => {
     const formatted: { [key: string]: string } = {};
     for (const [key, value] of Object.entries(details)) {
       if (typeof value === "object" && value !== null) {
@@ -211,7 +210,7 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
                 onChange={(e) => {
                   if (setInstrumentationOptions) {
                     setInstrumentationOptions({
-                      telemetryInterval: parseInt(e.target.value),
+                      telemetryInterval: parseInt(e.target.value, 10),
                     });
                   }
                 }}

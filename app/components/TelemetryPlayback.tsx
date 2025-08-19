@@ -11,7 +11,6 @@ import {
 } from "../store/atoms/ghostPosition";
 import {
   allTelemetryPointsAtom,
-  clearTelemetryHistoryAtom,
   colorModeAtom,
   currentTelemetryPathAtom,
   selectedPathPointsAtom,
@@ -54,7 +53,6 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
   const allPaths = useAtomValue(telemetryPathsAtom);
   const currentPath = useAtomValue(currentTelemetryPathAtom);
   const totalDuration = useAtomValue(telemetryTotalDurationAtom);
-  const clearTelemetryHistory = useSetAtom(clearTelemetryHistoryAtom);
   const updateTelemetryData = useSetAtom(updateTelemetryDataAtom);
 
   // Ghost position atoms
@@ -455,6 +453,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
                   </label>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     const wasDeleted = telemetryHistory.deletePath(path.id);
                     if (wasDeleted && selectedPathId === path.id) {
@@ -509,6 +508,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
       {/* Playback Controls */}
       <div className="flex items-center gap-4">
         <button
+          type="button"
           onClick={() => {
             lastFrameTimeRef.current = 0;
             setIsPlaying(!isPlaying);
@@ -521,6 +521,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
         </button>
 
         <button
+          type="button"
           onClick={() => {
             lastFrameTimeRef.current = 0;
             setCurrentTime(0);
@@ -557,6 +558,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
         </div>
 
         <button
+          type="button"
           onClick={() => setTimeWindow({ start: 0, end: totalDuration })}
           className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
           title="Reset window to full timeline"
@@ -565,6 +567,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
         </button>
 
         <button
+          type="button"
           onClick={() => {
             lastFrameTimeRef.current = 0;
             setCurrentTime(0);

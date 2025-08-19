@@ -5,7 +5,6 @@ import type {
   ProgramStatus,
   TelemetryData,
 } from "../../services/pybricksHub";
-import type { RobotConnectionOptions } from "../../services/robotInterface";
 import { pybricksHubCapabilitiesAtom } from "./pybricksHub";
 import { virtualRobotCapabilitiesAtom } from "./virtualRobot";
 
@@ -45,7 +44,7 @@ export const sensorDataAtom = atom((get) => get(telemetryDataAtom)?.sensors);
 export const imuDataAtom = atom((get) => get(telemetryDataAtom)?.hub?.imu);
 
 // Capabilities atom - delegates to robot-specific capability atoms
-const robotCapabilitiesAtom = atom((get) => {
+const _robotCapabilitiesAtom = atom((get) => {
   const robotType = get(robotTypeAtom);
 
   if (robotType === "virtual") {
@@ -58,22 +57,22 @@ const robotCapabilitiesAtom = atom((get) => {
 });
 
 // Action atoms for clearing data
-export const clearDebugEventsAtom = atom(null, (get, set) => {
+export const clearDebugEventsAtom = atom(null, (_get, set) => {
   set(debugEventsAtom, []);
 });
 
-export const clearProgramOutputLogAtom = atom(null, (get, set) => {
+export const clearProgramOutputLogAtom = atom(null, (_get, set) => {
   set(programOutputLogAtom, []);
 });
 
-const resetTelemetryAtom = atom(null, (get, set) => {
+const _resetTelemetryAtom = atom(null, (_get, set) => {
   set(telemetryDataAtom, null);
   set(telemetryHistoryAtom, []);
   set(programStatusAtom, { running: false });
   set(programOutputLogAtom, []);
 });
 
-export const resetRobotTypeAtom = atom(null, (get, set) => {
+export const resetRobotTypeAtom = atom(null, (_get, set) => {
   set(robotTypeAtom, null);
   set(hubInfoAtom, null);
   set(isConnectedAtom, false);

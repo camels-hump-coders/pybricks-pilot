@@ -36,7 +36,7 @@ interface CompactHeadingSelectorProps {
   size?: number;
 }
 
-function CompactHeadingSelector({
+function _CompactHeadingSelector({
   heading,
   onChange,
   size = 40,
@@ -141,6 +141,7 @@ function HeadingDisplay({ heading, size = 20 }: HeadingDisplayProps) {
         height={size}
         viewBox={`0 0 ${size} ${size}`}
       >
+        <title>Robot heading: {heading}°</title>
         {/* Arrow line */}
         <line
           x1={centerX}
@@ -189,6 +190,7 @@ function ProgramPositionConfig({
     <div className="flex flex-col gap-2">
       {/* Toggle button with current position summary */}
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onToggle();
@@ -212,6 +214,7 @@ function ProgramPositionConfig({
           {/* Side Selection */}
           <div className="grid grid-cols-2 gap-1">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onPositionChange({ ...currentPosition, side: "left" });
@@ -225,6 +228,7 @@ function ProgramPositionConfig({
               ← Left Side
             </button>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onPositionChange({ ...currentPosition, side: "right" });
@@ -254,7 +258,7 @@ function ProgramPositionConfig({
                   e.stopPropagation();
                   onPositionChange({
                     ...currentPosition,
-                    fromBottom: Math.max(0, parseInt(e.target.value) || 0),
+                    fromBottom: Math.max(0, parseInt(e.target.value, 10) || 0),
                   });
                 }}
                 className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -273,7 +277,7 @@ function ProgramPositionConfig({
                   e.stopPropagation();
                   onPositionChange({
                     ...currentPosition,
-                    fromSide: Math.max(0, parseInt(e.target.value) || 0),
+                    fromSide: Math.max(0, parseInt(e.target.value, 10) || 0),
                   });
                 }}
                 className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -293,7 +297,7 @@ function ProgramPositionConfig({
               value={currentPosition.heading}
               onChange={(e) => {
                 e.stopPropagation();
-                const value = parseInt(e.target.value) || 0;
+                const value = parseInt(e.target.value, 10) || 0;
                 const clampedValue = Math.max(-180, Math.min(180, value));
                 onPositionChange({
                   ...currentPosition,
@@ -395,7 +399,7 @@ function FileTreeItem({
     const k = 1024;
     const sizes = ["B", "KB", "MB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / k ** i).toFixed(1)) + " " + sizes[i];
+    return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
   };
 
   const formatLastModified = (timestamp: number) => {
@@ -441,16 +445,6 @@ function FileTreeItem({
     }
   };
 
-  const handleSetProgramSide = async (side: "left" | "right") => {
-    if (!onSetProgramSide) return;
-
-    try {
-      await onSetProgramSide(file.relativePath, side);
-    } catch (error) {
-      console.error("Failed to set program side:", error);
-    }
-  };
-
   const handleMoveProgramUp = async () => {
     if (!onMoveProgramUp) return;
 
@@ -491,6 +485,7 @@ function FileTreeItem({
         {/* Name Column */}
         <div className="col-span-4 min-w-0">
           <button
+            type="button"
             onClick={handleClick}
             className="flex items-center gap-2 min-w-0 w-full text-left"
           >
@@ -517,6 +512,7 @@ function FileTreeItem({
                   {/* 1) Up arrow to move program up */}
                   {onMoveProgramUp && (
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleMoveProgramUp();
@@ -548,6 +544,7 @@ function FileTreeItem({
                   {/* 5) Down arrow to move program down */}
                   {onMoveProgramDown && (
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleMoveProgramDown();
@@ -562,6 +559,7 @@ function FileTreeItem({
                   {/* 6) X to remove from program list */}
                   {onRemoveFromPrograms && (
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemoveFromPrograms();
@@ -576,6 +574,7 @@ function FileTreeItem({
               ) : (
                 onAddToPrograms && (
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAddToPrograms();
@@ -605,7 +604,7 @@ function FileTreeItem({
 
       {hasChildren && isExpanded && (
         <div>
-          {file.children!.map((child) => (
+          {file.children?.map((child) => (
             <FileTreeItem
               key={child.relativePath}
               file={child}
@@ -666,6 +665,7 @@ export function FileBrowser({
           {error.message}
         </p>
         <button
+          type="button"
           onClick={onRefresh}
           className="mt-2 px-3 py-1 text-sm bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200 rounded-md hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
         >
@@ -703,6 +703,7 @@ export function FileBrowser({
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={onRefresh}
               disabled={isLoading}
               className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors disabled:opacity-50"
@@ -712,6 +713,7 @@ export function FileBrowser({
             </button>
 
             <button
+              type="button"
               onClick={onCreateFile}
               className="px-3 py-1 text-sm bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-md hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
               title="Create new Python file"
@@ -720,6 +722,7 @@ export function FileBrowser({
             </button>
 
             <button
+              type="button"
               onClick={onUnmount}
               className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               title="Unmount directory"

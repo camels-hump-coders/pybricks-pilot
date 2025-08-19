@@ -191,7 +191,7 @@ class MultiModuleCompiler extends EventTarget {
 
     const cString = (str: string): Uint8Array => {
       const encoder = new TextEncoder();
-      return encoder.encode(str + "\x00");
+      return encoder.encode(`${str}\x00`);
     };
 
     // Each file is encoded as: size, module name (null-terminated), and mpy binary

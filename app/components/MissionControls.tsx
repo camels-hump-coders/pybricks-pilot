@@ -4,7 +4,6 @@ import { useMissionEditing } from "../hooks/useMissionEditing";
 import { useMissionExecution } from "../hooks/useMissionExecution";
 import { useMissionManager } from "../hooks/useMissionManager";
 import { usePositionManager } from "../hooks/usePositionManager";
-import { coordinateUtilsAtom } from "../store/atoms/canvasState";
 import { robotTypeAtom } from "../store/atoms/robotConnection";
 import type {
   ActionPoint,
@@ -28,8 +27,6 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
     selectedMission,
     editingMission,
     isEditingMission,
-    isMissionManagementOpen,
-    isAddMissionDialogOpen,
     canCreateMissions,
     setIsMissionManagementOpen,
     setIsAddMissionDialogOpen,
@@ -37,7 +34,6 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
     startEditingMission,
     saveEditingMission,
     cancelEditingMission,
-    insertPointAfter,
     removePoint,
     updatePoint,
   } = useMissionManager();
@@ -50,7 +46,6 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
   } = useMissionEditing();
 
   const { positions } = usePositionManager();
-  const coordinateUtils = useAtomValue(coordinateUtilsAtom);
   const robotType = useAtomValue(robotTypeAtom);
 
   const [selectedMissionId, setSelectedMissionId] = useState<string>("");
@@ -64,7 +59,6 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
     executeMission,
     stopExecution,
     clearState,
-    canExecute,
   } = useMissionExecution();
 
   const handleMissionSelect = (missionId: string) => {
@@ -122,7 +116,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
         arcApproximationSegments: 6,
         actionPauseDuration: 2000, // 2 seconds
       });
-    } catch (error) {
+    } catch (_error) {
       // Error handling is done in the hook
     }
   }, [selectedMission, executeMission]);
@@ -176,12 +170,14 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button
+                type="button"
                 onClick={handleCreateMission}
                 className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               >
                 ➕ New Mission
               </button>
               <button
+                type="button"
                 onClick={handleManageMissions}
                 className="px-3 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
               >
@@ -192,6 +188,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
             {selectedMissionId && !isEditingMission && (
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  type="button"
                   onClick={handleEditMission}
                   className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
@@ -199,6 +196,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                 </button>
                 {!isExecuting ? (
                   <button
+                    type="button"
                     onClick={handleRunMission}
                     disabled={
                       !selectedMission ||
@@ -219,6 +217,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={handleStopMission}
                     className="px-3 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors animate-pulse"
                   >
@@ -239,6 +238,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                     {executionError}
                   </div>
                   <button
+                    type="button"
                     onClick={clearState}
                     className="mt-2 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                   >
@@ -273,12 +273,14 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                 </h4>
                 <div className="flex gap-1">
                   <button
+                    type="button"
                     onClick={saveEditingMission}
                     className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                   >
                     💾
                   </button>
                   <button
+                    type="button"
                     onClick={cancelEditingMission}
                     className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
                   >
@@ -306,7 +308,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                         max="180"
                         value={actionPointHeading}
                         onChange={(e) =>
-                          setActionPointHeading(parseInt(e.target.value))
+                          setActionPointHeading(parseInt(e.target.value, 10))
                         }
                         className="flex-1 h-1 bg-blue-200 rounded-lg appearance-none cursor-pointer dark:bg-blue-700"
                       />
@@ -316,6 +318,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                     </div>
                   )}
                   <button
+                    type="button"
                     onClick={handleCancelPlacement}
                     className="mt-2 px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
                   >
@@ -377,6 +380,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                               {point.type !== "start" &&
                                 point.type !== "end" && (
                                   <button
+                                    type="button"
                                     onClick={() => removePoint(point.id)}
                                     className="text-red-500 hover:text-red-700 p-1 text-xs"
                                     title="Delete point"
@@ -430,6 +434,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                         {point.type !== "end" && (
                           <div className="flex gap-1 pl-8">
                             <button
+                              type="button"
                               onClick={() => handleAddWaypoint(point.id)}
                               disabled={pointPlacementMode !== null}
                               className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -437,6 +442,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                               + Waypoint
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleAddAction(point.id)}
                               disabled={pointPlacementMode !== null}
                               className="px-2 py-1 text-xs bg-violet-500 text-white rounded hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

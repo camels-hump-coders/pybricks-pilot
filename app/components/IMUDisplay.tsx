@@ -45,7 +45,7 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
     unit: string,
     decimals = 1,
   ) => {
-    if (value === undefined || value === null || isNaN(value)) {
+    if (value === undefined || value === null || Number.isNaN(value)) {
       return `--${unit}`;
     }
     return `${value.toFixed(decimals)}${unit}`;

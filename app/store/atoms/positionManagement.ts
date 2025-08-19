@@ -65,7 +65,7 @@ export const isPositionManagementOpenAtom = atom<boolean>(false);
 export const isAddPositionDialogOpenAtom = atom<boolean>(false);
 
 // Atom for the temporary position being added
-const tempPositionAtom = atom<Partial<NamedPosition>>({});
+const _tempPositionAtom = atom<Partial<NamedPosition>>({});
 
 // Actions for position management
 
@@ -148,7 +148,7 @@ export const updateCustomPositionAtom = atom(
 // Action to update default position coordinates (when mat dimensions change)
 export const updateDefaultPositionCoordinatesAtom = atom(
   null,
-  (get, set, matWidthMm: number, matHeightMm: number) => {
+  (get, set, matWidthMm: number, _matHeightMm: number) => {
     const positions = get(positionsAtom);
     const updatedPositions = positions.map((pos) => {
       if (pos.id === "bottom-right") {
@@ -161,6 +161,6 @@ export const updateDefaultPositionCoordinatesAtom = atom(
 );
 
 // Action to reset the position selection to bottom-right
-export const clearPositionSelectionAtom = atom(null, (get, set) => {
+export const clearPositionSelectionAtom = atom(null, (_get, set) => {
   set(selectedPositionIdAtom, "bottom-right");
 });

@@ -1,7 +1,6 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
-import { usePositionManager } from "../hooks/usePositionManager";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { setRobotPositionAtom } from "../store/atoms/gameMat";
 import type {
@@ -14,7 +13,6 @@ import { calculateRobotPositionFromEdges } from "../utils/robotPosition.js";
 import { AddPositionDialog } from "./AddPositionDialog";
 import { PositionManagementDialog } from "./PositionManagementDialog";
 import { PositionSelector } from "./PositionSelector";
-import { RadialHeadingSelector } from "./RadialHeadingSelector.js";
 
 interface PositionControlsProps {
   onResetTelemetry?: (startNewPath?: boolean) => Promise<void>;
@@ -25,9 +23,6 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
   const { customMatConfig } = useJotaiGameMat();
   const setRobotPosition = useSetAtom(setRobotPositionAtom);
 
-  // Position management hook
-  const positionManager = usePositionManager();
-
   const [isSettingPosition, setIsSettingPosition] = useState(false);
   const [edgePositionSettings, setEdgePositionSettings] = useState({
     side: "right" as "left" | "right",
@@ -36,7 +31,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
     heading: 0, // degrees (0 = north/forward, 90 = east/right, 180 = south/backward, 270 = west/left)
   });
 
-  const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(
+  const [_positionPreview, setPositionPreview] = useState<RobotPosition | null>(
     null,
   );
 
@@ -161,6 +156,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
             />
           </div>
           <button
+            type="button"
             onClick={async () => {
               try {
                 if (onResetTelemetry) {

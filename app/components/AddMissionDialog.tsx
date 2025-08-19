@@ -60,7 +60,7 @@ export function AddMissionDialog() {
       } else {
         setError("Failed to create mission");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to create mission");
     } finally {
       setIsLoading(false);
@@ -83,6 +83,7 @@ export function AddMissionDialog() {
               Please mount a folder to enable mission management.
             </p>
             <button
+              type="button"
               onClick={handleClose}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
@@ -102,6 +103,7 @@ export function AddMissionDialog() {
             Create New Mission
           </h3>
           <button
+            type="button"
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
@@ -162,6 +164,7 @@ export function AddMissionDialog() {
           {/* Action Buttons */}
           <div className="flex space-x-3 pt-4">
             <button
+              type="button"
               onClick={handleClose}
               disabled={isLoading}
               className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md disabled:opacity-50"
@@ -169,6 +172,7 @@ export function AddMissionDialog() {
               Cancel
             </button>
             <button
+              type="submit"
               onClick={handleSave}
               disabled={isLoading || !name.trim()}
               className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center"

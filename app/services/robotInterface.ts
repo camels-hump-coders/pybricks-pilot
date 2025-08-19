@@ -168,7 +168,7 @@ class RobotConnectionManager {
         document.dispatchEvent(globalEvent);
       };
 
-      this.currentRobot!.addEventListener(eventType, listener);
+      this.currentRobot?.addEventListener(eventType, listener);
     });
   }
 
@@ -226,7 +226,7 @@ class RobotConnectionManager {
     if (!this.eventListeners.has(type)) {
       this.eventListeners.set(type, new Set());
     }
-    this.eventListeners.get(type)!.add(listener);
+    this.eventListeners.get(type)?.add(listener);
   }
 
   removeEventListener(type: string, listener: EventListener): void {
@@ -286,4 +286,4 @@ class RobotConnectionManager {
 }
 
 // Export singleton instance
-const robotConnectionManager = new RobotConnectionManager();
+const _robotConnectionManager = new RobotConnectionManager();

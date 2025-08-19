@@ -1,7 +1,6 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 import { usePositionManager } from "../hooks/usePositionManager";
-import { coordinateUtilsAtom } from "../store/atoms/canvasState";
 import { customMatConfigAtom } from "../store/atoms/gameMat";
 import type { EdgeBasedPosition } from "../store/atoms/positionManagement";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
@@ -24,7 +23,6 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
     canCreateCustomPositions,
   } = usePositionManager();
 
-  const coordinateUtils = useAtomValue(coordinateUtilsAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
   const customMatConfig = useAtomValue(customMatConfigAtom);
 
@@ -145,7 +143,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
       } else {
         setError("Failed to create position");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to create position");
     } finally {
       setIsLoading(false);
@@ -168,6 +166,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
               files. Please mount a folder to enable custom position management.
             </p>
             <button
+              type="button"
               onClick={handleClose}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
@@ -187,6 +186,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
             Add New Position
           </h3>
           <button
+            type="button"
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
@@ -196,6 +196,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
+              <title>Close</title>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -231,6 +232,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
             {/* Side Selection */}
             <div className="grid grid-cols-2 gap-2">
               <button
+                type="button"
                 onClick={() =>
                   setEdgePositionSettings((prev) => ({
                     ...prev,
@@ -247,6 +249,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
                 ← Left Side
               </button>
               <button
+                type="button"
                 onClick={() =>
                   setEdgePositionSettings((prev) => ({
                     ...prev,
@@ -278,7 +281,10 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
                   onChange={(e) =>
                     setEdgePositionSettings((prev) => ({
                       ...prev,
-                      fromBottom: Math.max(0, parseInt(e.target.value) || 0),
+                      fromBottom: Math.max(
+                        0,
+                        parseInt(e.target.value, 10) || 0,
+                      ),
                     }))
                   }
                   disabled={isLoading}
@@ -298,7 +304,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
                   onChange={(e) =>
                     setEdgePositionSettings((prev) => ({
                       ...prev,
-                      fromSide: Math.max(0, parseInt(e.target.value) || 0),
+                      fromSide: Math.max(0, parseInt(e.target.value, 10) || 0),
                     }))
                   }
                   disabled={isLoading}
@@ -341,6 +347,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
           {/* Action Buttons */}
           <div className="flex space-x-3 pt-4">
             <button
+              type="button"
               onClick={handleClose}
               disabled={isLoading}
               className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md disabled:opacity-50"
@@ -348,6 +355,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={isLoading || !positionPreview}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
@@ -359,6 +367,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
                     fill="none"
                     viewBox="0 0 24 24"
                   >
+                    <title>Saving...</title>
                     <circle
                       cx="12"
                       cy="12"

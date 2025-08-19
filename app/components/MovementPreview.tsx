@@ -13,7 +13,7 @@ export function calculatePreviewPosition(
   angle: number,
   previewType: "drive" | "turn",
   direction: "forward" | "backward" | "left" | "right",
-  robotConfig?: RobotConfig,
+  _robotConfig?: RobotConfig,
 ): RobotPosition {
   let newX = currentPosition.x;
   let newY = currentPosition.y;

@@ -61,36 +61,30 @@ export function TelemetryTooltip({
         )}
         {hoveredPoint.data.motors &&
           Object.keys(hoveredPoint.data.motors).length > 0 && (
-            <>
-              <div className="border-t border-gray-600 pt-2 mt-2">
-                <div className="text-gray-300 font-medium mb-1">Motors:</div>
-                {Object.entries(hoveredPoint.data.motors)
-                  .filter(
-                    ([name]) => !["left", "right"].includes(name.toLowerCase()),
-                  )
-                  .map(([name, motor]) => (
-                    <MotorEntry key={name} name={name} motor={motor} />
-                  ))}
-              </div>
-            </>
+            <div className="border-t border-gray-600 pt-2 mt-2">
+              <div className="text-gray-300 font-medium mb-1">Motors:</div>
+              {Object.entries(hoveredPoint.data.motors)
+                .filter(
+                  ([name]) => !["left", "right"].includes(name.toLowerCase()),
+                )
+                .map(([name, motor]) => (
+                  <MotorEntry key={name} name={name} motor={motor} />
+                ))}
+            </div>
           )}
         {hoveredPoint.data.sensors &&
           Object.keys(hoveredPoint.data.sensors).length > 0 && (
-            <>
-              <div className="border-t border-gray-600 pt-2 mt-2">
-                <div className="text-gray-300 font-medium mb-1">Sensors:</div>
-                {Object.entries(hoveredPoint.data.sensors).map(
-                  ([name, data]) => (
-                    <SensorEntry
-                      key={name}
-                      name={name}
-                      data={data}
-                      hoveredPoint={hoveredPoint}
-                    />
-                  ),
-                )}
-              </div>
-            </>
+            <div className="border-t border-gray-600 pt-2 mt-2">
+              <div className="text-gray-300 font-medium mb-1">Sensors:</div>
+              {Object.entries(hoveredPoint.data.sensors).map(([name, data]) => (
+                <SensorEntry
+                  key={name}
+                  name={name}
+                  data={data}
+                  hoveredPoint={hoveredPoint}
+                />
+              ))}
+            </div>
           )}
       </div>
     </div>

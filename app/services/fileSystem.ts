@@ -126,7 +126,7 @@ class WebFileSystemService implements FileSystemService {
         );
 
         // Only add directory if it contains Python files
-        if (dirEntry.children!.length > 0) {
+        if (dirEntry.children?.length > 0) {
           pythonFiles.push(dirEntry);
         }
       }

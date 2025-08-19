@@ -202,14 +202,14 @@ class WebBluetoothService implements BluetoothService {
   }
 
   addEventListener(
-    event: "disconnected",
+    _event: "disconnected",
     callback: (device: BluetoothDevice) => void,
   ): void {
     this.disconnectListeners.add(callback);
   }
 
   removeEventListener(
-    event: "disconnected",
+    _event: "disconnected",
     callback: (device: BluetoothDevice) => void,
   ): void {
     this.disconnectListeners.delete(callback);
@@ -219,7 +219,7 @@ class WebBluetoothService implements BluetoothService {
     const target = event.target;
     if (target && typeof target === "object" && "device" in target) {
       const device = (target as any).device;
-      if (device && device.id) {
+      if (device?.id) {
         this.connectedDevices.delete(device);
         // Notify all disconnect listeners
         this.disconnectListeners.forEach((listener) => listener(device));

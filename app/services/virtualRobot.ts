@@ -52,7 +52,6 @@ class VirtualRobotService extends EventTarget {
   private telemetryInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
   private _isConnected = false;
-  private programRunning = false;
   private lastTelemetryTime = 0;
   private abortController: AbortController = new AbortController();
 
@@ -588,7 +587,7 @@ class VirtualRobotService extends EventTarget {
 
     // Simulate motor movement to target angle
     while (Date.now() - startTime < duration) {
-      const progress = (Date.now() - startTime) / duration;
+      const _progress = (Date.now() - startTime) / duration;
       // Only update the visual progress, don't change the actual angle until final
       this.state.motors[motorName].speed = speed;
 

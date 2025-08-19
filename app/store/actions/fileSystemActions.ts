@@ -51,7 +51,7 @@ async function enrichFileRecursively(
 }
 
 // Request directory access action
-export const requestDirectoryAccessAtom = atom(null, async (get, set) => {
+export const requestDirectoryAccessAtom = atom(null, async (_get, set) => {
   set(isRequestingDirectoryAtom, true);
 
   try {

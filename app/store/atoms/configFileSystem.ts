@@ -319,7 +319,7 @@ export const createRobotConfigAtom = atom(
 );
 
 // Delete mat configuration
-const deleteMatConfigAtom = atom(null, async (get, set, matId: string) => {
+const _deleteMatConfigAtom = atom(null, async (get, set, matId: string) => {
   const directoryHandle = get(directoryHandleAtom);
   if (!directoryHandle) throw new Error("No directory selected");
 

@@ -34,7 +34,7 @@ import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 
 export function useJotaiPybricksHub() {
   // Get current robot type to conditionally set up event listeners
-  const robotType = useAtomValue(robotTypeAtom);
+  const _robotType = useAtomValue(robotTypeAtom);
 
   // Connection state
   const [isConnected, setIsConnected] = useAtom(isConnectedAtom);

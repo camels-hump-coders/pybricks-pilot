@@ -83,7 +83,7 @@ class IndexedDBFileSystemService {
       fileCount,
     };
 
-    const transaction = this.db!.transaction(["directories"], "readwrite");
+    const transaction = this.db?.transaction(["directories"], "readwrite");
     const store = transaction.objectStore("directories");
 
     await new Promise<void>((resolve, reject) => {
@@ -99,7 +99,7 @@ class IndexedDBFileSystemService {
   async getStoredDirectories(): Promise<StoredDirectoryInfo[]> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(["directories"], "readonly");
+    const transaction = this.db?.transaction(["directories"], "readonly");
     const store = transaction.objectStore("directories");
     const index = store.index("lastAccessed");
 
@@ -129,14 +129,14 @@ class IndexedDBFileSystemService {
       // Verify the handle is still valid by trying to access it
       try {
         // Try to read the directory to verify access - just iterate once to test access
-        for await (const entry of lastDir.handle.entries()) {
+        for await (const _entry of lastDir.handle.entries()) {
           // We only need to verify we can access the directory, so break immediately
           break;
         }
         // Update last accessed time
         await this.storeDirectoryHandle(lastDir.handle, lastDir.fileCount);
         return lastDir.handle;
-      } catch (error) {
+      } catch (_error) {
         // Handle is no longer valid, remove it
         await this.removeDirectory(lastDir.name);
         return null;
@@ -157,7 +157,7 @@ class IndexedDBFileSystemService {
   ): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(["files"], "readwrite");
+    const transaction = this.db?.transaction(["files"], "readwrite");
     const store = transaction.objectStore("files");
 
     // Clear existing files for this directory
@@ -207,7 +207,7 @@ class IndexedDBFileSystemService {
   async getStoredFiles(directoryName: string): Promise<StoredFileInfo[]> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(["files"], "readonly");
+    const transaction = this.db?.transaction(["files"], "readonly");
     const store = transaction.objectStore("files");
     const index = store.index("directoryName");
 
@@ -239,7 +239,7 @@ class IndexedDBFileSystemService {
   async removeDirectory(name: string): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(
+    const transaction = this.db?.transaction(
       ["directories", "files"],
       "readwrite",
     );
@@ -286,7 +286,7 @@ class IndexedDBFileSystemService {
   async removeFile(directoryName: string, fileName: string): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(["files"], "readwrite");
+    const transaction = this.db?.transaction(["files"], "readwrite");
     const store = transaction.objectStore("files");
 
     await new Promise<void>((resolve, reject) => {
@@ -299,7 +299,7 @@ class IndexedDBFileSystemService {
   async setPreference(key: string, value: any): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(["preferences"], "readwrite");
+    const transaction = this.db?.transaction(["preferences"], "readwrite");
     const store = transaction.objectStore("preferences");
 
     await new Promise<void>((resolve, reject) => {
@@ -312,7 +312,7 @@ class IndexedDBFileSystemService {
   async getPreference(key: string): Promise<any> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(["preferences"], "readonly");
+    const transaction = this.db?.transaction(["preferences"], "readonly");
     const store = transaction.objectStore("preferences");
 
     return new Promise((resolve, reject) => {
@@ -327,7 +327,7 @@ class IndexedDBFileSystemService {
   async clearAll(): Promise<void> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(
+    const transaction = this.db?.transaction(
       ["directories", "files", "preferences"],
       "readwrite",
     );
@@ -358,7 +358,7 @@ class IndexedDBFileSystemService {
   }> {
     if (!this.db) await this.initialize();
 
-    const transaction = this.db!.transaction(
+    const transaction = this.db?.transaction(
       ["directories", "files"],
       "readonly",
     );

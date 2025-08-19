@@ -181,7 +181,7 @@ export function RobotConnectionSelector({
   >(robotType); // Use robotType directly, which can be null
 
   const [showInstructions, setShowInstructions] = useState(false);
-  const [pendingConnection, setPendingConnection] = useState<
+  const [_pendingConnection, setPendingConnection] = useState<
     "real" | "virtual" | null
   >(null);
 

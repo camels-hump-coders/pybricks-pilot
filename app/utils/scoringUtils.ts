@@ -15,22 +15,6 @@ export interface ScoringState {
 }
 
 /**
- * Calculate total points for a mission state
- */
-function getTotalPointsForMissionState(
-  state: { objectives: { [key: string]: ObjectiveState } } | undefined,
-): number {
-  if (!state?.objectives) return 0;
-
-  return Object.values(state.objectives).reduce((sum, objState) => {
-    if (objState.completed) {
-      return sum + objState.points;
-    }
-    return sum;
-  }, 0);
-}
-
-/**
  * Get maximum possible points for a mission
  */
 export function getMaxPointsForMission(mission: Mission): number {

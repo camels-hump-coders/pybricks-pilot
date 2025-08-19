@@ -23,14 +23,14 @@ export const editingMissionAtom = atom<Mission | null>(null);
 export const selectedPointIdAtom = atom<string | null>(null);
 
 // Mission execution state
-const missionExecutionAtom = atom<MissionExecution | null>(null);
-const missionStatusAtom = atom<MissionStatus>("idle");
+const _missionExecutionAtom = atom<MissionExecution | null>(null);
+const _missionStatusAtom = atom<MissionStatus>("idle");
 
 // UI state atoms
 export const isMissionManagementOpenAtom = atom<boolean>(false);
 export const isAddMissionDialogOpenAtom = atom<boolean>(false);
 export const isMissionEditorOpenAtom = atom<boolean>(false);
-const showMissionValidationAtom = atom<boolean>(false);
+const _showMissionValidationAtom = atom<boolean>(false);
 
 // Mission editing state atoms
 export const pointPlacementModeAtom = atom<
@@ -180,7 +180,7 @@ export const saveEditingMissionAtom = atom(null, (get, set) => {
 });
 
 // Cancel editing changes
-export const cancelEditingMissionAtom = atom(null, (get, set) => {
+export const cancelEditingMissionAtom = atom(null, (_get, set) => {
   set(isEditingMissionAtom, false);
   set(editingMissionAtom, null);
   set(isMissionEditorOpenAtom, false);
@@ -324,13 +324,13 @@ export const updatePointInMissionAtom = atom(
 // Select a point for editing
 export const selectPointAtom = atom(
   null,
-  (get, set, pointId: string | null) => {
+  (_get, set, pointId: string | null) => {
     set(selectedPointIdAtom, pointId);
   },
 );
 
 // Clear mission selection
-export const clearMissionSelectionAtom = atom(null, (get, set) => {
+export const clearMissionSelectionAtom = atom(null, (_get, set) => {
   set(selectedMissionIdAtom, null);
   set(editingMissionAtom, null);
   set(isEditingMissionAtom, false);

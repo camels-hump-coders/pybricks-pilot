@@ -1,7 +1,6 @@
 import { useAtomValue } from "jotai";
 import { useEffect } from "react";
 import { coordinateUtilsAtom } from "../store/atoms/canvasState";
-import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import type { RobotPosition } from "../utils/robotPosition";
 import { useJotaiGameMat } from "./useJotaiGameMat";
 

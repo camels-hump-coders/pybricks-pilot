@@ -184,7 +184,7 @@ export function useMissionExecution() {
           } else {
             await virtualRobotService.stop();
           }
-        } catch (stopError) {
+        } catch (_stopError) {
           // Ignore stop errors
         }
 
@@ -239,7 +239,7 @@ export function useMissionExecution() {
       } else {
         await virtualRobotService.stop();
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore stop errors
     }
 

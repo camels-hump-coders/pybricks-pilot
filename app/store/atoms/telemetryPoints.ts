@@ -49,7 +49,7 @@ export const telemetryTotalDurationAtom = atom((get) => {
 });
 
 // Derived atom for statistics
-const telemetryStatisticsAtom = atom((get) => {
+const _telemetryStatisticsAtom = atom((get) => {
   const allPoints = get(allTelemetryPointsAtom);
   const paths = get(telemetryPathsAtom);
   const currentPath = get(currentTelemetryPathAtom);
@@ -78,7 +78,7 @@ const telemetryStatisticsAtom = atom((get) => {
 export const updateTelemetryDataAtom = atom(
   null,
   (
-    get,
+    _get,
     set,
     update: { paths: TelemetryPath[]; currentPath: TelemetryPath | null },
   ) => {
@@ -105,7 +105,7 @@ export const updateTelemetryDataAtom = atom(
 );
 
 // Atom for clearing all telemetry history
-export const clearTelemetryHistoryAtom = atom(null, (get, set) => {
+export const clearTelemetryHistoryAtom = atom(null, (_get, set) => {
   set(allTelemetryPointsAtom, []);
   set(telemetryPathsAtom, []);
   set(currentTelemetryPathAtom, null);
@@ -113,7 +113,7 @@ export const clearTelemetryHistoryAtom = atom(null, (get, set) => {
 });
 
 // Atom for starting a new telemetry path (keeps old paths)
-const startNewTelemetryPathAtom = atom(null, (get, set) => {
+const _startNewTelemetryPathAtom = atom(null, (_get, _set) => {
   // This will be handled by the telemetryHistory service
   // The atoms will be updated via useTelemetryDataSync
 });

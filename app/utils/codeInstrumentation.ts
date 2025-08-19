@@ -271,7 +271,7 @@ function generateInstrumentationCode(
  */
 function wrapWithInstrumentation(
   code: string,
-  options: InstrumentationOptions = {},
+  _options: InstrumentationOptions = {},
 ): string {
   // Check if the user code already has a main() function (sync or async)
   const hasMainFunction = /(async\s+)?def\s+main\s*\(/.test(code);
@@ -344,7 +344,7 @@ function wrapWithInstrumentation(
     const asyncMainCode = mainFunctionLines
       .map((line) => {
         if (line.trim() === "") return line;
-        const indented = "    " + line; // Add async function indentation
+        const indented = `    ${line}`; // Add async function indentation
         if (isMainAsync) {
           // Function is already async, don't modify wait() calls
           return indented;
@@ -406,7 +406,7 @@ function wrapWithInstrumentation(
 
     // Add main program logic, properly indented
     const indentedMainCode = mainLines
-      .map((line) => (line.trim() === "" ? line : "    " + line))
+      .map((line) => (line.trim() === "" ? line : `    ${line}`))
       .join("\n");
 
     wrappedCode += indentedMainCode;
@@ -421,7 +421,7 @@ function wrapWithInstrumentation(
     const asyncMainCode = mainLines
       .map((line) => {
         if (line.trim() === "") return line;
-        const indented = "    " + line;
+        const indented = `    ${line}`;
         // Convert wait() to await wait()
         // Be very specific: only convert standalone wait() calls, not method calls or parameters
         return indented.replace(/(\s|^)wait\s*\(\s*(\d+)/g, "$1await wait($2");
@@ -470,8 +470,7 @@ export function instrumentUserCode(
   const processedUserCode = wrapWithInstrumentation(userCode, options);
 
   // Combine everything
-  const instrumentedCode =
-    pybricksPilotCode + "\n\n" + instrumentationCode + processedUserCode;
+  const instrumentedCode = `${pybricksPilotCode}\n\n${instrumentationCode}${processedUserCode}`;
 
   return {
     instrumentedCode,

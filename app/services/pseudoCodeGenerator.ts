@@ -55,7 +55,7 @@ class PseudoCodeGeneratorService {
    */
   generateFromPath(
     path: TelemetryPath,
-    isCmdKeyPressed: boolean = false,
+    _isCmdKeyPressed: boolean = false,
   ): GeneratedProgram {
     if (!path.points || path.points.length < 2) {
       return {
@@ -478,7 +478,7 @@ class PseudoCodeGeneratorService {
     code += `// Start position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.startPosition.heading).toFixed(1)}°\n`;
     code += `// End position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.endPosition.heading).toFixed(1)}°\n\n`;
 
-    program.commands.forEach((command, index) => {
+    program.commands.forEach((command, _index) => {
       const directionComment =
         command.direction === "backward" ? " // Backward" : "";
 
@@ -501,7 +501,7 @@ class PseudoCodeGeneratorService {
    * Determine the type of movement based on raw telemetry deltas
    */
   private determineMovementType(
-    deltaDistance: number,
+    _deltaDistance: number,
     deltaHeading: number,
   ): "drive" | "turn" {
     // If heading change is significant, it's a turn

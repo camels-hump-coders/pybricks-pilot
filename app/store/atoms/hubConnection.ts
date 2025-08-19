@@ -7,9 +7,9 @@ import type {
 } from "../../services/pybricksHub";
 
 // Connection state atoms
-const hubInfoAtom = atom<HubInfo | null>(null);
-const isConnectedAtom = atom<boolean>(false);
-const connectionErrorAtom = atom<Error | null>(null);
+const _hubInfoAtom = atom<HubInfo | null>(null);
+const _isConnectedAtom = atom<boolean>(false);
+const _connectionErrorAtom = atom<Error | null>(null);
 
 // Telemetry atoms
 const telemetryDataAtom = atom<TelemetryData | null>(null);
@@ -23,18 +23,18 @@ const programOutputLogAtom = atom<string[]>([]);
 const debugEventsAtom = atom<DebugEvent[]>([]);
 
 // Connection status atoms
-const isConnectingAtom = atom<boolean>(false);
-const isDisconnectingAtom = atom<boolean>(false);
+const _isConnectingAtom = atom<boolean>(false);
+const _isDisconnectingAtom = atom<boolean>(false);
 
 // Program operation status atoms
 export const isUploadingProgramAtom = atom<boolean>(false);
-const isRunningProgramAtom = atom<boolean>(false);
-const isStoppingProgramAtom = atom<boolean>(false);
-const isSendingCommandAtom = atom<boolean>(false);
+const _isRunningProgramAtom = atom<boolean>(false);
+const _isStoppingProgramAtom = atom<boolean>(false);
+const _isSendingCommandAtom = atom<boolean>(false);
 
 // Instrumentation options atoms
-const instrumentationEnabledAtom = atom<boolean>(true);
-const instrumentationOptionsAtom = atom<{
+const _instrumentationEnabledAtom = atom<boolean>(true);
+const _instrumentationOptionsAtom = atom<{
   enableTelemetry: boolean;
   enableCommands: boolean;
   telemetryInterval: number;
@@ -45,21 +45,21 @@ const instrumentationOptionsAtom = atom<{
 });
 
 // Derived atoms for convenience
-const batteryLevelAtom = atom((get) => get(telemetryDataAtom)?.hub?.battery);
-const motorDataAtom = atom((get) => get(telemetryDataAtom)?.motors);
-const sensorDataAtom = atom((get) => get(telemetryDataAtom)?.sensors);
-const imuDataAtom = atom((get) => get(telemetryDataAtom)?.hub?.imu);
+const _batteryLevelAtom = atom((get) => get(telemetryDataAtom)?.hub?.battery);
+const _motorDataAtom = atom((get) => get(telemetryDataAtom)?.motors);
+const _sensorDataAtom = atom((get) => get(telemetryDataAtom)?.sensors);
+const _imuDataAtom = atom((get) => get(telemetryDataAtom)?.hub?.imu);
 
 // Action atoms for clearing data
-const clearDebugEventsAtom = atom(null, (get, set) => {
+const _clearDebugEventsAtom = atom(null, (_get, set) => {
   set(debugEventsAtom, []);
 });
 
-const clearProgramOutputLogAtom = atom(null, (get, set) => {
+const _clearProgramOutputLogAtom = atom(null, (_get, set) => {
   set(programOutputLogAtom, []);
 });
 
-const resetTelemetryAtom = atom(null, (get, set) => {
+const _resetTelemetryAtom = atom(null, (_get, set) => {
   set(telemetryDataAtom, null);
   set(telemetryHistoryAtom, []);
   set(programStatusAtom, { running: false });

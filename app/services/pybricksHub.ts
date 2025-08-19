@@ -130,11 +130,9 @@ class PybricksHubService extends EventTarget {
   private server: BluetoothRemoteGATTServer | null = null;
   private txCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
   private rxCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
-  private messageBuffer = "";
   private outputLineBuffer = ""; // Buffer for accumulating complete output lines
   private responseCallbacks = new Map<string, (response: any) => void>();
   private currentSelectedSlot: number = 0;
-  private currentRunningProgId: number = 0;
   private maxBleWriteSize: number = 20; // Default minimum BLE size, will be updated from hub capabilities
   private maxUserProgramSize: number = 0; // Will be updated from hub capabilities
   // Note: Pybricks uses writeValueWithoutResponse, so we rely on BLE write completion
@@ -358,7 +356,7 @@ class PybricksHubService extends EventTarget {
       this.emitDebugEvent("program", "Stopped existing program");
       // Wait for the program to stop and clear any cache
       // await new Promise((resolve) => setTimeout(resolve, 1500));
-    } catch (error) {
+    } catch (_error) {
       // Ignore - program may not be running
     }
 
@@ -475,7 +473,7 @@ class PybricksHubService extends EventTarget {
 
   async sendControlCommand(commandData: string): Promise<void> {
     // Send data to stdin for program interaction
-    const data = new TextEncoder().encode(commandData + "\n");
+    const data = new TextEncoder().encode(`${commandData}\n`);
     await this.writeStdin(data);
   }
 
@@ -539,18 +537,10 @@ class PybricksHubService extends EventTarget {
 
   private async sendCommandWithConfirmation(
     payload: Uint8Array,
-    timeoutMs: number = 5000,
+    _timeoutMs: number = 5000,
   ): Promise<void> {
-    try {
-      // Send the command and wait for BLE write to complete
-      await this.sendRawData(payload);
-
-      // For critical commands, add a small processing delay
-      // This ensures proper command sequencing like Pybricks does
-      // await new Promise((resolve) => setTimeout(resolve, 100));
-    } catch (error) {
-      throw error;
-    }
+    // Send the command and wait for BLE write to complete
+    await this.sendRawData(payload);
   }
 
   // Command acknowledgments are not explicitly used in this implementation
@@ -731,7 +721,7 @@ class PybricksHubService extends EventTarget {
     }
 
     const status = data.getUint8(1);
-    const fullStatusFlags = data.getUint32(1, true); // Status is actually 4 bytes (flags)
+    const _fullStatusFlags = data.getUint32(1, true); // Status is actually 4 bytes (flags)
     const runningProgId = data.byteLength > 5 ? data.getUint8(5) : 0;
     const selectedSlot = data.byteLength > 6 ? data.getUint8(6) : 0;
     const timestamp = Date.now();
@@ -841,7 +831,7 @@ class PybricksHubService extends EventTarget {
           this.dispatchEvent(telemetryEvent);
           return; // Don't treat as regular output
         }
-      } catch (e) {
+      } catch (_e) {
         // Not valid JSON, will be treated as regular output below
       }
     }

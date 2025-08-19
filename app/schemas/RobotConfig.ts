@@ -127,34 +127,34 @@ export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
 
 // LEGO stud size constants
 export const LEGO_STUD_SIZE_MM = 8; // 1 stud = 8mm
-const LEGO_PLATE_HEIGHT_MM = 3.2; // 1 plate = 3.2mm
-const LEGO_BRICK_HEIGHT_MM = 9.6; // 1 brick = 9.6mm
+const _LEGO_PLATE_HEIGHT_MM = 3.2; // 1 plate = 3.2mm
+const _LEGO_BRICK_HEIGHT_MM = 9.6; // 1 brick = 9.6mm
 
 // Convert studs to mm
 export const studsToMm = (studs: number): number => studs * LEGO_STUD_SIZE_MM;
 
 // Convert mm to studs
-const mmToStuds = (mm: number): number => mm / LEGO_STUD_SIZE_MM;
+const _mmToStuds = (mm: number): number => mm / LEGO_STUD_SIZE_MM;
 
 // Helper functions for stud-based positioning
 const getWheelbaseStuds = (config: RobotConfig): number => {
   return config.dimensions.width - config.wheels.left.distanceFromEdge * 2;
 };
 
-const getWheelbaseMm = (config: RobotConfig): number => {
+const _getWheelbaseMm = (config: RobotConfig): number => {
   return getWheelbaseStuds(config) * LEGO_STUD_SIZE_MM;
 };
 
-const getRobotCenterX = (config: RobotConfig): number => {
+const _getRobotCenterX = (config: RobotConfig): number => {
   return config.dimensions.width / 2;
 };
 
-const getRobotCenterY = (config: RobotConfig): number => {
+const _getRobotCenterY = (config: RobotConfig): number => {
   return config.dimensions.length / 2;
 };
 
 // Convert edge-based positioning to center-based for calculations
-const getWheelPositionFromCenter = (config: RobotConfig) => {
+const _getWheelPositionFromCenter = (config: RobotConfig) => {
   const centerX = config.dimensions.width / 2;
   const centerY = config.dimensions.length / 2;
 
@@ -192,33 +192,3 @@ export const calculateCenterOfRotation = (config: RobotConfig) => {
     distanceFromTop: centerOfRotationY,
   };
 };
-
-// Validate robot configuration
-function validateRobotConfig(config: RobotConfig): string[] {
-  const errors: string[] = [];
-
-  if (config.dimensions.width < 4 || config.dimensions.length < 4) {
-    errors.push("Robot must be at least 4 studs wide and 4 studs long");
-  }
-
-  if (config.dimensions.width > 50 || config.dimensions.length > 50) {
-    errors.push("Robot dimensions are too large (max 50 studs)");
-  }
-
-  // Wheels are symmetric, so this validation is no longer needed
-  // if (config.wheels.left.x === config.wheels.right.x) {
-  //   errors.push("Left and right wheels cannot be at the same X position");
-  // }
-
-  if (config.wheels.left.distanceFromEdge < 1) {
-    errors.push("Wheels must be at least 1 stud from the edge");
-  }
-
-  if (config.wheels.left.distanceFromEdge * 2 >= config.dimensions.width) {
-    errors.push(
-      "Wheels are too close together - not enough space between them",
-    );
-  }
-
-  return errors;
-}

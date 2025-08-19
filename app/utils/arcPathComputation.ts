@@ -1,9 +1,5 @@
 import type { NamedPosition } from "../store/atoms/positionManagement";
-import type {
-  Mission,
-  MissionPointType,
-  ResolvedMissionPoint,
-} from "../types/missionPlanner";
+import type { Mission, ResolvedMissionPoint } from "../types/missionPlanner";
 import { resolveMissionPoints } from "./missionPointResolver";
 
 /**
@@ -50,27 +46,6 @@ function calculateAngle(
   y2: number,
 ): number {
   return (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
-}
-
-/**
- * Convert canvas coordinates and heading to robot coordinates and heading
- * Canvas: Y+ down, 0° = East
- * Robot: Y+ up (North), 0° = North
- */
-function canvasToRobotCoords(
-  x: number,
-  y: number,
-  heading: number,
-): {
-  x: number;
-  y: number;
-  heading: number;
-} {
-  return {
-    x: x,
-    y: -y, // Flip Y axis: Canvas Y+ down → Robot Y+ up
-    heading: normalizeAngle(90 - heading), // Convert: Canvas 0°=East → Robot 0°=North
-  };
 }
 
 /**
@@ -242,7 +217,7 @@ function calculateRollingTriarc(
             arcCandidates.set(middleIndex, []);
           }
 
-          arcCandidates.get(middleIndex)!.push({
+          arcCandidates.get(middleIndex)?.push({
             arc: triarc.arc,
             energy: triarc.energy,
             source: `triarc-${i}-${i + 1}-${i + 2}`,
@@ -631,46 +606,4 @@ export function generateArcPathPoints(
   }
 
   return points;
-}
-
-/**
- * Get the total path length for a mission
- */
-function calculateMissionPathLength(
-  mission: Mission,
-  positions: NamedPosition[],
-): number {
-  const segments = computeArcPath(mission, positions);
-  return segments.reduce((total, segment) => total + segment.pathLength, 0);
-}
-
-/**
- * Get estimated time to complete mission based on arc path
- */
-function estimateMissionTime(
-  mission: Mission,
-  positions: NamedPosition[],
-  averageSpeed: number = 200, // mm/s
-): number {
-  const pathLength = calculateMissionPathLength(mission, positions);
-
-  // Add extra time for action points (1 second each)
-  const actionPoints = mission.points.filter((p) => p.type === "action").length;
-  const actionTime = actionPoints * 1000; // ms
-
-  // Add extra time for turns (based on heading changes)
-  const segments = computeArcPath(mission, positions);
-  const turnTime = segments.reduce((total, segment) => {
-    if (segment.pathType === "arc") {
-      const headingChange = Math.abs(
-        normalizeAngle(segment.endHeading - segment.startHeading),
-      );
-      return total + (headingChange / 90) * 500; // 500ms per 90° turn
-    }
-    return total;
-  }, 0);
-
-  const travelTime = (pathLength / averageSpeed) * 1000; // Convert to ms
-
-  return Math.ceil((travelTime + actionTime + turnTime) / 1000); // Return in seconds
 }

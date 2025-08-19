@@ -67,7 +67,7 @@ export function usePybricksHubEventManager() {
       setProgramStatus(status);
 
       // If there's program output, add it to the log
-      if (status.output && status.output.trim()) {
+      if (status.output?.trim()) {
         const timestamp = new Date().toLocaleTimeString();
         const logEntry = `[${timestamp}] ${status.output.trim()}`;
         setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
@@ -84,15 +84,15 @@ export function usePybricksHubEventManager() {
               const [, selectedProgram, totalPrograms, menuState] = match;
               const hubMenuEvent = new CustomEvent("hubMenuStatus", {
                 detail: {
-                  selectedProgram: parseInt(selectedProgram),
-                  totalPrograms: parseInt(totalPrograms),
+                  selectedProgram: parseInt(selectedProgram, 10),
+                  totalPrograms: parseInt(totalPrograms, 10),
                   state: menuState,
                   timestamp: Date.now(),
                 },
               });
               document.dispatchEvent(hubMenuEvent);
             }
-          } catch (e) {
+          } catch (_e) {
             console.warn("Failed to parse hub menu status:", output);
           }
         }
@@ -163,7 +163,7 @@ export function usePybricksHubEventManager() {
       }
     };
 
-    const handleClearProgramOutput = (event: CustomEvent) => {
+    const handleClearProgramOutput = (_event: CustomEvent) => {
       console.log("[PybricksHub] Clearing program output log");
       clearProgramOutputLog();
     };

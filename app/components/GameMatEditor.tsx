@@ -19,7 +19,6 @@ interface GameMatEditorProps {
 const MAT_WIDTH_MM = 2356; // Official FLL mat width
 const MAT_HEIGHT_MM = 1137; // Official FLL mat height
 const MAGNIFIER_SIZE = 150;
-const MAGNIFIER_ZOOM = 3;
 
 type EditorMode = "upload" | "corners" | "calibration" | "objects" | "preview";
 
@@ -117,7 +116,7 @@ export function GameMatEditor({
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith("image/")) {
+    if (file?.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
@@ -578,9 +577,6 @@ export function GameMatEditor({
     // Get canvas scaling information
     const canvas = canvasRef.current;
     if (!canvas) return null;
-
-    const imgWidth = parseFloat(canvas.dataset.imgWidth || "0");
-    const imgHeight = parseFloat(canvas.dataset.imgHeight || "0");
 
     // Get the de-skewed image dimensions
     const img = imageRef.current;
@@ -1880,7 +1876,8 @@ ${new Date().toISOString()}
                                             updatedChoices[choiceIndex] = {
                                               ...choice,
                                               points:
-                                                parseInt(e.target.value) || 0,
+                                                parseInt(e.target.value, 10) ||
+                                                0,
                                             };
                                             updateObjectiveInSelected(
                                               objective.id,

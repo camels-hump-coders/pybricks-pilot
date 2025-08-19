@@ -64,9 +64,9 @@ export function useJotaiFileSystem() {
   const allPrograms = useAtomValue(allProgramsAtom);
 
   // Operation status
-  const isReadingFile = useAtomValue(isReadingFileAtom);
-  const isWritingFile = useAtomValue(isWritingFileAtom);
-  const isCreatingFile = useAtomValue(isCreatingFileAtom);
+  const _isReadingFile = useAtomValue(isReadingFileAtom);
+  const _isWritingFile = useAtomValue(isWritingFileAtom);
+  const _isCreatingFile = useAtomValue(isCreatingFileAtom);
 
   // File content cache
   const fileContentCache = useAtomValue(fileContentCacheAtom);
@@ -83,7 +83,7 @@ export function useJotaiFileSystem() {
   const createFile = useSetAtom(createFileAtom);
   const createExampleProject = useSetAtom(createExampleProjectAtom);
   const unmountDirectory = useSetAtom(unmountDirectoryAtom);
-  const clearPersistedData = useSetAtom(clearPersistedDataAtom);
+  const _clearPersistedData = useSetAtom(clearPersistedDataAtom);
   const getFileContentAction = useSetAtom(getFileContentAtom);
 
   // Program metadata actions

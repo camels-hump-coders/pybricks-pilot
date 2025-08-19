@@ -27,7 +27,7 @@ export const ghostRobotAtom = atom((get) => {
 export const updateGhostRobotAtom = atom(
   null,
   (
-    get,
+    _get,
     set,
     update: { position: GhostPosition | null; isVisible?: boolean },
   ) => {
@@ -44,7 +44,7 @@ export const updateGhostRobotAtom = atom(
 );
 
 // Write-only atom to hide the ghost robot
-export const hideGhostRobotAtom = atom(null, (get, set) => {
+export const hideGhostRobotAtom = atom(null, (_get, set) => {
   set(ghostPositionAtom, null);
   set(ghostVisibilityAtom, false);
 });

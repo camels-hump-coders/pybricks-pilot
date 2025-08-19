@@ -69,8 +69,8 @@ export function drawMissions(
   } = matDimensions;
 
   const matOffset = borderWallThickness * scale;
-  const matX = matOffset + (tableWidth * scale - matWidthMm * scale) / 2;
-  const matY = matOffset + (tableHeight * scale - matHeightMm * scale);
+  const _matX = matOffset + (tableWidth * scale - matWidthMm * scale) / 2;
+  const _matY = matOffset + (tableHeight * scale - matHeightMm * scale);
 
   // Store bounding boxes for accurate hit detection
   const newBounds = new Map<
@@ -600,7 +600,7 @@ function drawMissionArcPaths(
   ctx.lineJoin = "round";
 
   // Draw each path segment with different styles for turn/straight/arc
-  segments.forEach((segment, index) => {
+  segments.forEach((segment, _index) => {
     const pathPoints = generateArcPathPoints(segment, 15); // Higher resolution for smooth curves
 
     if (pathPoints.length < 2) return;
@@ -617,7 +617,6 @@ function drawMissionArcPaths(
         ctx.lineWidth = (strokeWidth + 2) * scale; // Thicker line for arcs
         ctx.setLineDash([]); // SOLID line for now to ensure visibility
         break;
-      case "straight":
       default:
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = strokeWidth * scale;

@@ -254,8 +254,8 @@ function drawWheels(
   ctx: CanvasRenderingContext2D,
   robotConfig: RobotConfig,
   scale: number,
-  robotWidth: number,
-  robotLength: number,
+  _robotWidth: number,
+  _robotLength: number,
   wheelColor: string,
 ) {
   // Wheels - match Robot Builder sizing
