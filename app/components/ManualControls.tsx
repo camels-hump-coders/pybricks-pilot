@@ -179,6 +179,7 @@ export function ManualControls({
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
+                <title>Grid</title>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -208,6 +209,7 @@ export function ManualControls({
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
+                <title>Ghosts</title>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -232,6 +234,7 @@ export function ManualControls({
           executingCommand?.direction === "forward" ? (
             <button
               onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
               title={`Stop forward movement (${executingCommand.originalParams?.distance}mm)`}
             >
@@ -272,6 +275,7 @@ export function ManualControls({
           executingCommand?.direction === "left" ? (
             <button
               onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
               title={`Stop left turn (${executingCommand.originalParams?.angle}°)`}
             >
@@ -318,6 +322,7 @@ export function ManualControls({
           executingCommand?.direction === "right" ? (
             <button
               onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
               title={`Stop right turn (${executingCommand.originalParams?.angle}°)`}
             >
@@ -358,6 +363,7 @@ export function ManualControls({
           executingCommand?.direction === "backward" ? (
             <button
               onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
               title={`Stop backward movement (${executingCommand.originalParams?.distance}mm)`}
             >

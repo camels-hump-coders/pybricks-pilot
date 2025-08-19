@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { calculateTrajectoryProjection } from "../components/MovementPreview";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
@@ -71,7 +71,7 @@ interface UseCanvasDrawingProps {
 }
 
 /**
- * Custom hook for managing canvas drawing operations
+ * Custom hook for managing canvas drawing operations with continuous rendering
  */
 export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   const {
@@ -96,7 +96,46 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     actionPointHeading = 0,
   } = props;
 
-  // Get state from atoms
+  // Store refs for always-current data access
+  const dataRefs = useRef({
+    canvasSize: { width: 0, height: 0 },
+    scale: 1,
+    coordinateUtils: null as any,
+    customMatConfig: null as any,
+    controlMode: "program" as any,
+    robotConfig: null as any,
+    showGridOverlay: false,
+    hoveredObject: null as string | null,
+    missionBounds: new Map(),
+    pathOptions: null as any,
+    selectedPathPoints: [] as any[],
+    ghostRobot: null as any,
+    editingMission: null as any,
+    selectedMission: null as any,
+    selectedPointId: null as string | null,
+    positions: [] as any[],
+    atomMousePosition: null as any,
+    // Props that change frequently
+    currentPosition,
+    mousePosition,
+    scoringState,
+    showScoring,
+    movementPreview,
+    perpendicularPreview,
+    isSplinePathMode,
+    currentSplinePath,
+    splinePaths,
+    selectedSplinePointId,
+    hoveredSplinePointId,
+    hoveredCurvatureHandlePointId,
+    hoveredPoint,
+    hoveredPointIndexValue,
+    setMissionBounds,
+    pointPlacementMode,
+    actionPointHeading,
+  });
+
+  // Get current state from atoms (but don't trigger re-renders)
   const canvasSize = useAtomValue(canvasSizeAtom);
   const scale = useAtomValue(canvasScaleAtom);
   const coordinateUtils = useAtomValue(coordinateUtilsAtom);
@@ -113,18 +152,64 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   const selectedMission = useAtomValue(selectedMissionAtom);
   const selectedPointId = useAtomValue(selectedPointIdAtom);
   const positions = useAtomValue(positionsAtom) || [];
-
-  // Get mouse position directly from atom instead of prop
   const atomMousePosition = useAtomValue(mousePositionAtom);
 
-  // Extract coordinate utilities
-  const { canvasToMm, mmToCanvas } = coordinateUtils;
-  const ghostPosition = ghostRobot.isVisible ? ghostRobot.position : null;
+  // Update refs with latest data
+  dataRefs.current.canvasSize = canvasSize;
+  dataRefs.current.scale = scale;
+  dataRefs.current.coordinateUtils = coordinateUtils;
+  dataRefs.current.customMatConfig = customMatConfig;
+  dataRefs.current.controlMode = controlMode;
+  dataRefs.current.robotConfig = robotConfig;
+  dataRefs.current.showGridOverlay = showGridOverlay;
+  dataRefs.current.hoveredObject = hoveredObject;
+  dataRefs.current.missionBounds = missionBounds;
+  dataRefs.current.pathOptions = pathOptions;
+  dataRefs.current.selectedPathPoints = selectedPathPoints;
+  dataRefs.current.ghostRobot = ghostRobot;
+  dataRefs.current.editingMission = editingMission;
+  dataRefs.current.selectedMission = selectedMission;
+  dataRefs.current.selectedPointId = selectedPointId;
+  dataRefs.current.positions = positions;
+  dataRefs.current.atomMousePosition = atomMousePosition;
+  dataRefs.current.currentPosition = currentPosition;
+  dataRefs.current.mousePosition = mousePosition;
+  dataRefs.current.scoringState = scoringState;
+  dataRefs.current.showScoring = showScoring;
+  dataRefs.current.movementPreview = movementPreview;
+  dataRefs.current.perpendicularPreview = perpendicularPreview;
+  dataRefs.current.isSplinePathMode = isSplinePathMode;
+  dataRefs.current.currentSplinePath = currentSplinePath;
+  dataRefs.current.splinePaths = splinePaths;
+  dataRefs.current.selectedSplinePointId = selectedSplinePointId;
+  dataRefs.current.hoveredSplinePointId = hoveredSplinePointId;
+  dataRefs.current.hoveredCurvatureHandlePointId =
+    hoveredCurvatureHandlePointId;
+  dataRefs.current.hoveredPoint = hoveredPoint;
+  dataRefs.current.hoveredPointIndexValue = hoveredPointIndexValue;
+  dataRefs.current.setMissionBounds = setMissionBounds;
+  dataRefs.current.pointPlacementMode = pointPlacementMode;
+  dataRefs.current.actionPointHeading = actionPointHeading;
 
+  // Animation loop control
+  const animationFrameRef = useRef<number | null>(null);
+  const isRunningRef = useRef(false);
+
+  // Main drawing function that uses refs for always-current data
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+
+    // Get current data from refs (always up-to-date)
+    const data = dataRefs.current;
+    const { canvasToMm, mmToCanvas } = data.coordinateUtils || {
+      canvasToMm: () => ({ x: 0, y: 0 }),
+      mmToCanvas: () => ({ x: 0, y: 0 }),
+    };
+    const ghostPosition = data.ghostRobot?.isVisible
+      ? data.ghostRobot.position
+      : null;
 
     // Clear canvas with a neutral background
     ctx.fillStyle = "#e5e5e5";
@@ -146,118 +231,127 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     ctx.fillStyle = glossGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw border walls (3D effect)
-    drawBorderWalls(
-      ctx,
-      { scale },
-      coordinateUtils.matDimensions.borderWallThickness,
-      coordinateUtils.matDimensions.tableWidth,
-      coordinateUtils.matDimensions.tableHeight,
-    );
+    // Draw border walls (3D effect) - only if coordinateUtils is available
+    if (data.coordinateUtils) {
+      drawBorderWalls(
+        ctx,
+        { scale: data.scale },
+        data.coordinateUtils.matDimensions.borderWallThickness,
+        data.coordinateUtils.matDimensions.tableWidth,
+        data.coordinateUtils.matDimensions.tableHeight,
+      );
 
-    // Calculate mat position - centered horizontally, flush with bottom edge of table surface
-    const borderOffset =
-      coordinateUtils.matDimensions.borderWallThickness * scale;
-    const matWidth =
-      (customMatConfig?.dimensions?.widthMm ||
-        coordinateUtils.matDimensions.matWidthMm) * scale;
-    const matHeight =
-      (customMatConfig?.dimensions?.heightMm ||
-        coordinateUtils.matDimensions.matHeightMm) * scale;
-    const tableWidth = coordinateUtils.matDimensions.tableWidth * scale;
-    const tableHeight = coordinateUtils.matDimensions.tableHeight * scale;
+      // Calculate mat position - centered horizontally, flush with bottom edge of table surface
+      const borderOffset =
+        data.coordinateUtils.matDimensions.borderWallThickness * data.scale;
+      const matWidth =
+        (data.customMatConfig?.dimensions?.widthMm ||
+          data.coordinateUtils.matDimensions.matWidthMm) * data.scale;
+      const matHeight =
+        (data.customMatConfig?.dimensions?.heightMm ||
+          data.coordinateUtils.matDimensions.matHeightMm) * data.scale;
+      const tableWidth =
+        data.coordinateUtils.matDimensions.tableWidth * data.scale;
+      const tableHeight =
+        data.coordinateUtils.matDimensions.tableHeight * data.scale;
 
-    // Mat is centered horizontally within the table surface (3mm gap on each side)
-    const matX = borderOffset + (tableWidth - matWidth) / 2;
-    // Mat is flush with the bottom edge of the table surface (6mm gap at top, 0mm at bottom)
-    const matY = borderOffset + (tableHeight - matHeight);
+      // Mat is centered horizontally within the table surface (3mm gap on each side)
+      const matX = borderOffset + (tableWidth - matWidth) / 2;
+      // Mat is flush with the bottom edge of the table surface (6mm gap at top, 0mm at bottom)
+      const matY = borderOffset + (tableHeight - matHeight);
 
-    // Draw a subtle shadow under the mat for depth
-    ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-    ctx.shadowBlur = 10 * scale;
-    ctx.shadowOffsetX = 2 * scale;
-    ctx.shadowOffsetY = 2 * scale;
+      // Draw a subtle shadow under the mat for depth
+      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+      ctx.shadowBlur = 10 * data.scale;
+      ctx.shadowOffsetX = 2 * data.scale;
+      ctx.shadowOffsetY = 2 * data.scale;
 
-    // Draw mat background or image
-    if (matImageRef.current) {
-      // Draw the de-skewed mat image using configured dimensions
-      ctx.drawImage(matImageRef.current, matX, matY, matWidth, matHeight);
-    } else {
-      // Fallback: plain mat with grid
-      ctx.fillStyle = "#f8f9fa";
-      ctx.fillRect(matX, matY, matWidth, matHeight);
-      drawGrid(ctx, canvasSize.width, canvasSize.height);
+      // Draw mat background or image
+      if (matImageRef.current) {
+        // Draw the de-skewed mat image using configured dimensions
+        ctx.drawImage(matImageRef.current, matX, matY, matWidth, matHeight);
+      } else {
+        // Fallback: plain mat with grid
+        ctx.fillStyle = "#f8f9fa";
+        ctx.fillRect(matX, matY, matWidth, matHeight);
+        drawGrid(ctx, data.canvasSize.width, data.canvasSize.height);
+      }
+
+      // Reset shadow
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
     }
 
-    // Reset shadow
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
     // Draw missions if custom mat and in program mode
-    if (customMatConfig && showScoring && controlMode === "program") {
+    if (
+      data.customMatConfig &&
+      data.showScoring &&
+      data.controlMode === "program" &&
+      data.coordinateUtils
+    ) {
       drawMissions(
         ctx,
-        customMatConfig,
-        scoringState,
-        hoveredObject,
-        { mmToCanvas, canvasToMm, scale },
+        data.customMatConfig,
+        data.scoringState,
+        data.hoveredObject,
+        { mmToCanvas, canvasToMm, scale: data.scale },
         {
           matWidthMm:
-            customMatConfig?.dimensions?.widthMm ||
-            coordinateUtils.matDimensions.matWidthMm,
+            data.customMatConfig?.dimensions?.widthMm ||
+            data.coordinateUtils.matDimensions.matWidthMm,
           matHeightMm:
-            customMatConfig?.dimensions?.heightMm ||
-            coordinateUtils.matDimensions.matHeightMm,
+            data.customMatConfig?.dimensions?.heightMm ||
+            data.coordinateUtils.matDimensions.matHeightMm,
           borderWallThickness:
-            coordinateUtils.matDimensions.borderWallThickness,
-          tableWidth: coordinateUtils.matDimensions.tableWidth,
-          tableHeight: coordinateUtils.matDimensions.tableHeight,
+            data.coordinateUtils.matDimensions.borderWallThickness,
+          tableWidth: data.coordinateUtils.matDimensions.tableWidth,
+          tableHeight: data.coordinateUtils.matDimensions.tableHeight,
         },
-        setMissionBounds,
+        data.setMissionBounds,
       );
     }
 
     // Draw telemetry path
-    if (pathOptions.showPath) {
+    if (data.pathOptions?.showPath) {
       drawTelemetryPath(
         ctx,
-        selectedPathPoints,
+        data.selectedPathPoints,
         {
-          ...pathOptions,
+          ...data.pathOptions,
           colorMode:
-            pathOptions.colorMode === "none"
+            data.pathOptions.colorMode === "none"
               ? "time"
-              : (pathOptions.colorMode as "time" | "speed" | "heading"),
+              : (data.pathOptions.colorMode as "time" | "speed" | "heading"),
         },
         {
           getColorForPoint: (point: any, colorMode: string) =>
             telemetryHistory.getColorForPoint(point, colorMode as any),
         },
         { mmToCanvas },
-        hoveredPointIndexValue,
+        data.hoveredPointIndexValue,
       );
     }
 
     // Draw robot
-    if (currentPosition) {
+    if (data.currentPosition && data.robotConfig) {
       drawRobot(
         ctx,
-        currentPosition,
-        robotConfig,
-        { mmToCanvas, scale },
+        data.currentPosition,
+        data.robotConfig,
+        { mmToCanvas, scale: data.scale },
         false,
       );
     }
 
     // Draw ghost robot from telemetry playback
-    if (ghostPosition) {
+    if (ghostPosition && data.robotConfig) {
       drawRobot(
         ctx,
         ghostPosition,
-        robotConfig,
-        { mmToCanvas, scale },
+        data.robotConfig,
+        { mmToCanvas, scale: data.scale },
         true,
         "playback",
       );
@@ -265,32 +359,42 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
 
     // Draw robot-oriented grid overlay BEFORE ghosts so ghosts appear on top
     // Only show grid overlay when in Step mode (incremental) AND the toggle is enabled
-    if (showGridOverlay && controlMode === "incremental" && currentPosition) {
-      drawRobotOrientedGrid(ctx, currentPosition, { mmToCanvas, scale });
+    if (
+      data.showGridOverlay &&
+      data.controlMode === "incremental" &&
+      data.currentPosition
+    ) {
+      drawRobotOrientedGrid(ctx, data.currentPosition, {
+        mmToCanvas,
+        scale: data.scale,
+      });
     }
 
     // Draw movement preview robots (dual previews)
-    drawMovementPreview(
-      ctx,
-      movementPreview,
-      currentPosition,
-      controlMode === "mission" || controlMode === "program"
-        ? "incremental"
-        : controlMode, // Fallback to incremental for mission and program modes
-      robotConfig,
-      { mmToCanvas, scale },
-    );
+    if (data.robotConfig) {
+      drawMovementPreview(
+        ctx,
+        data.movementPreview,
+        data.currentPosition,
+        data.controlMode === "mission" || data.controlMode === "program"
+          ? "incremental"
+          : data.controlMode,
+        data.robotConfig,
+        { mmToCanvas, scale: data.scale },
+      );
+    }
 
     // Draw perpendicular preview ghosts - show robot ghosts at all 4 possible movement positions
     if (
-      perpendicularPreview.show &&
-      perpendicularPreview.ghosts.length > 0 &&
-      currentPosition &&
-      currentPosition.x > 0 &&
-      currentPosition.y > 0
+      data.perpendicularPreview?.show &&
+      data.perpendicularPreview.ghosts?.length > 0 &&
+      data.currentPosition &&
+      data.currentPosition.x > 0 &&
+      data.currentPosition.y > 0 &&
+      data.robotConfig
     ) {
       // Draw each ghost robot with its appropriate color
-      perpendicularPreview.ghosts.forEach((ghost: any) => {
+      data.perpendicularPreview.ghosts.forEach((ghost: any) => {
         // Set custom color for this ghost
         ctx.save();
         // Set opacity based on ghost type:
@@ -312,8 +416,8 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         drawRobot(
           ctx,
           ghost.position,
-          robotConfig,
-          { mmToCanvas, scale },
+          data.robotConfig,
+          { mmToCanvas, scale: data.scale },
           true, // isGhost
           "perpendicular", // previewType
           ghost.direction, // direction
@@ -322,66 +426,76 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         ctx.restore();
 
         // Calculate trajectory for this ghost to show path
-        const trajectory = calculateTrajectoryProjection(
-          currentPosition,
-          perpendicularPreview.distance,
-          perpendicularPreview.angle,
-          ghost.type,
-          ghost.direction,
-          2356,
-          1137,
-          robotConfig,
-        );
+        if (data.currentPosition) {
+          const trajectory = calculateTrajectoryProjection(
+            data.currentPosition,
+            data.perpendicularPreview.distance,
+            data.perpendicularPreview.angle,
+            ghost.type,
+            ghost.direction,
+            2356,
+            1137,
+            data.robotConfig,
+          );
 
-        // Draw trajectory path
-        drawPerpendicularTrajectoryProjection(
-          ctx,
-          trajectory.trajectoryPath,
-          ghost.direction,
-          { mmToCanvas, scale },
-        );
+          // Draw trajectory path
+          drawPerpendicularTrajectoryProjection(
+            ctx,
+            trajectory.trajectoryPath,
+            ghost.direction,
+            { mmToCanvas, scale: data.scale },
+          );
+        }
       });
     }
 
     // Draw spline paths
     if (
-      isSplinePathMode &&
-      currentSplinePath &&
-      currentSplinePath.points.length > 0
+      data.isSplinePathMode &&
+      data.currentSplinePath &&
+      data.currentSplinePath.points.length > 0
     ) {
       drawSplinePath(
         ctx,
-        currentSplinePath,
-        selectedSplinePointId,
-        { mmToCanvas, scale },
-        hoveredSplinePointId,
-        hoveredCurvatureHandlePointId,
+        data.currentSplinePath,
+        data.selectedSplinePointId,
+        { mmToCanvas, scale: data.scale },
+        data.hoveredSplinePointId,
+        data.hoveredCurvatureHandlePointId,
       );
     }
 
     // Draw completed spline paths
-    for (const splinePath of splinePaths) {
-      if (splinePath.isComplete && splinePath.id !== currentSplinePath?.id) {
-        drawSplinePath(ctx, splinePath, null, { mmToCanvas, scale });
+    if (data.splinePaths) {
+      for (const splinePath of data.splinePaths) {
+        if (
+          splinePath.isComplete &&
+          splinePath.id !== data.currentSplinePath?.id
+        ) {
+          drawSplinePath(ctx, splinePath, null, {
+            mmToCanvas,
+            scale: data.scale,
+          });
+        }
       }
     }
 
     // Draw mission planner points and connections - ALWAYS show in mission mode
-    if (controlMode === "mission") {
+    if (data.controlMode === "mission" && data.robotConfig) {
       // Show the editing mission if available, otherwise show the selected mission
-      const missionToShow = editingMission || selectedMission;
+      const missionToShow = data.editingMission || data.selectedMission;
 
       if (missionToShow) {
         drawMissionPlanner(
           ctx,
           missionToShow,
-          positions,
-          { mmToCanvas, canvasToMm, scale },
+          data.positions,
+          { mmToCanvas, canvasToMm, scale: data.scale },
           {
             showConnections: true,
-            selectedPointId: selectedPointId,
+            selectedPointId: data.selectedPointId,
             showRobotGhosts: true,
-            robotConfig: robotConfig,
+            robotConfig: data.robotConfig,
           },
         );
       }
@@ -389,37 +503,38 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
 
     // Draw mission point placement preview with arc path preview
     // Use atom mouse position instead of prop, and convert from mat coordinates to canvas coordinates
-    const mousePositionForPreview = atomMousePosition
-      ? mmToCanvas(atomMousePosition.x, atomMousePosition.y)
+    const mousePositionForPreview = data.atomMousePosition
+      ? mmToCanvas(data.atomMousePosition.x, data.atomMousePosition.y)
       : null;
 
     if (
-      controlMode === "mission" &&
-      pointPlacementMode &&
+      data.controlMode === "mission" &&
+      data.pointPlacementMode &&
       mousePositionForPreview &&
-      editingMission
+      data.editingMission &&
+      data.robotConfig
     ) {
       console.log("Drawing mission point preview:", {
-        controlMode,
-        pointPlacementMode,
-        atomMousePosition,
+        controlMode: data.controlMode,
+        pointPlacementMode: data.pointPlacementMode,
+        atomMousePosition: data.atomMousePosition,
         mousePositionForPreview,
-        actionPointHeading,
+        actionPointHeading: data.actionPointHeading,
       });
 
       // Draw the smooth path preview showing how the new point will connect
       if (
-        pointPlacementMode === "waypoint" ||
-        pointPlacementMode === "action"
+        data.pointPlacementMode === "waypoint" ||
+        data.pointPlacementMode === "action"
       ) {
         drawMissionPathPreview(
           ctx,
-          editingMission,
-          positions,
+          data.editingMission,
+          data.positions,
           mousePositionForPreview,
-          pointPlacementMode,
-          actionPointHeading,
-          { mmToCanvas, canvasToMm, scale },
+          data.pointPlacementMode,
+          data.actionPointHeading,
+          { mmToCanvas, canvasToMm, scale: data.scale },
         );
       }
 
@@ -427,68 +542,31 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       drawMissionPointPreview(
         ctx,
         mousePositionForPreview,
-        pointPlacementMode,
-        actionPointHeading,
-        { mmToCanvas, canvasToMm, scale },
-        robotConfig,
+        data.pointPlacementMode,
+        data.actionPointHeading,
+        { mmToCanvas, canvasToMm, scale: data.scale },
+        data.robotConfig,
       );
-    } else if (controlMode === "mission" && pointPlacementMode) {
+    } else if (data.controlMode === "mission" && data.pointPlacementMode) {
       console.log("Preview conditions not met:", {
-        controlMode,
-        pointPlacementMode,
-        hasAtomMousePosition: !!atomMousePosition,
+        controlMode: data.controlMode,
+        pointPlacementMode: data.pointPlacementMode,
+        hasAtomMousePosition: !!data.atomMousePosition,
         hasMousePositionForPreview: !!mousePositionForPreview,
-        hasEditingMission: !!editingMission,
+        hasEditingMission: !!data.editingMission,
       });
     }
-  }, [
-    scale,
-    currentPosition,
-    mousePosition,
-    movementPreview,
-    perpendicularPreview,
-    pathOptions,
-    hoveredObject,
-    hoveredPoint,
-    customMatConfig,
-    scoringState,
-    showScoring,
-    controlMode,
-    robotConfig,
-    matImageRef,
-    showGridOverlay,
-    // Spline path state
-    isSplinePathMode,
-    currentSplinePath,
-    splinePaths,
-    selectedSplinePointId,
-    mmToCanvas,
-    canvasToMm,
-    canvasSize,
-    coordinateUtils,
-    hoveredSplinePointId,
-    hoveredCurvatureHandlePointId,
-    hoveredPointIndexValue,
-    selectedPathPoints,
-    ghostPosition,
-    // Mission planner state
-    editingMission,
-    selectedMission,
-    selectedPointId,
-    missionBounds,
-    pointPlacementMode,
-    actionPointHeading,
-    atomMousePosition,
-    coordinateUtils,
-  ]);
+  }, []); // No dependencies - uses refs for always-current data
 
-  const updateCanvas = useCallback(() => {
+  // Main render loop - continuous frame-rate rendering
+  const renderLoop = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !isRunningRef.current) return;
 
     // Set canvas size if needed (canvasSize is already rounded)
-    const targetWidth = Math.round(canvasSize.width);
-    const targetHeight = Math.round(canvasSize.height);
+    const data = dataRefs.current;
+    const targetWidth = Math.round(data.canvasSize.width);
+    const targetHeight = Math.round(data.canvasSize.height);
 
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
       canvas.width = targetWidth;
@@ -497,35 +575,39 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
 
     // Draw the canvas
     drawCanvas();
-  }, [canvasSize, drawCanvas]);
 
-  // Single useEffect that triggers canvas updates for all changes
+    // Schedule next frame
+    animationFrameRef.current = requestAnimationFrame(renderLoop);
+  }, [drawCanvas]);
+
+  // Start/stop continuous rendering
+  const startRenderLoop = useCallback(() => {
+    if (isRunningRef.current || !canvasRef.current) return;
+
+    isRunningRef.current = true;
+    animationFrameRef.current = requestAnimationFrame(renderLoop);
+  }, [renderLoop]);
+
+  const stopRenderLoop = useCallback(() => {
+    isRunningRef.current = false;
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  // Start render loop on mount, stop on unmount
   useEffect(() => {
-    const rafId = requestAnimationFrame(updateCanvas);
-    return () => cancelAnimationFrame(rafId);
-  }, [
-    canvasSize,
-    scale,
-    currentPosition,
-    mousePosition,
-    movementPreview,
-    hoveredObject,
-    hoveredPoint,
-    customMatConfig?.name,
-    scoringState,
-    showScoring,
-    controlMode,
-    ghostPosition,
-    pointPlacementMode,
-    actionPointHeading,
-    atomMousePosition,
-    selectedMission,
-    coordinateUtils,
-    updateCanvas,
-  ]);
+    startRenderLoop();
+
+    return () => {
+      stopRenderLoop();
+    };
+  }, [startRenderLoop, stopRenderLoop]);
 
   return {
     drawCanvas,
-    updateCanvas,
+    startRenderLoop,
+    stopRenderLoop,
   };
 }
