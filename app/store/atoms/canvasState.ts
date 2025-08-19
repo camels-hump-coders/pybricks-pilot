@@ -15,9 +15,6 @@ export const missionBoundsAtom = atom<
   Map<string, { x: number; y: number; width: number; height: number }>
 >(new Map());
 
-// Canvas update trigger
-const updateCanvasAtom = atom<number>(0);
-
 // Derived coordinate transformation functions atom
 export const coordinateUtilsAtom = atom((get) => {
   const scale = get(canvasScaleAtom);

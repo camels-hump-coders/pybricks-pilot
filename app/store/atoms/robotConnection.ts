@@ -14,7 +14,6 @@ export const connectionErrorAtom = atom<Error | null>(null);
 
 // Telemetry atoms
 export const telemetryDataAtom = atom<TelemetryData | null>(null);
-const telemetryHistoryAtom = atom<TelemetryData[]>([]);
 
 // Program state atoms
 export const programStatusAtom = atom<ProgramStatus>({ running: false });

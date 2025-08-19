@@ -32,7 +32,8 @@
       "Bash(mv:*)",
       "Bash(npm run lint)",
       "Bash(npx @biomejs/biome check:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(npm run fmt:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

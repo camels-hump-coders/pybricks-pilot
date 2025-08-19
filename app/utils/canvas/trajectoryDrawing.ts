@@ -24,7 +24,7 @@ export function drawTrajectoryProjection(
   ctx.save();
 
   // Set line style based on direction
-  let lineColor, lineWidth;
+  let lineColor: string, lineWidth: number;
   if (direction === "forward") {
     lineColor = "rgba(0, 255, 0, 0.6)"; // More visible green
     lineWidth = 4; // Thicker line
@@ -97,7 +97,7 @@ export function drawPerpendicularTrajectoryProjection(
   ctx.save();
 
   // Subtle but visible line style for perpendicular previews
-  let lineColor, lineWidth;
+  let lineColor: string, lineWidth: number;
   if (direction === "forward") {
     lineColor = "rgba(0, 255, 0, 0.4)"; // More visible green
     lineWidth = 3; // Thicker line for better visibility
@@ -154,7 +154,7 @@ export function drawNextMoveEndIndicator(
   ctx.save();
 
   // Set more visible styling based on direction
-  let indicatorColor;
+  let indicatorColor: string;
   if (direction === "forward") {
     indicatorColor = "rgba(0, 255, 0, 0.3)"; // More visible green
   } else if (direction === "backward") {

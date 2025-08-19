@@ -80,6 +80,8 @@ export function RobotBuilder({
     config.dimensions.length,
     config.wheels.left.distanceFromEdge,
     config.wheels.left.distanceFromTop,
+    config.centerOfRotation.distanceFromLeftEdge,
+    config,
   ]);
 
   // loadSavedConfigs and loadFromWorkingDirectory are no longer needed

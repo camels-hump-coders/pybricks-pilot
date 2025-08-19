@@ -41,27 +41,6 @@ export function useMissionEditing() {
     insertAfterPointIdAtom,
   );
 
-  // Resolve position reference to actual coordinates
-  const resolvePositionCoordinates = useCallback(
-    (referenceId: string): { x: number; y: number; heading: number } => {
-      // Find the position by ID
-      const position = positions.find((p) => p.id === referenceId);
-      if (!position) {
-        console.warn(`Position ${referenceId} not found`);
-        return { x: 0, y: 0, heading: 0 };
-      }
-
-      // NamedPosition already contains the resolved coordinates
-      const resolved = {
-        x: position.x,
-        y: position.y,
-        heading: position.heading,
-      };
-      return resolved;
-    },
-    [positions],
-  );
-
   // Handle point placement mode changes
   const handleSetPlacementMode = useCallback(
     (mode: PointPlacementMode, afterPointId?: string | null) => {
@@ -147,7 +126,6 @@ export function useMissionEditing() {
       actionPointHeading,
       selectedStartEndRef,
       editingMission,
-      resolvePositionCoordinates,
     ],
   );
 

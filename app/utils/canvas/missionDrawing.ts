@@ -733,7 +733,7 @@ function distanceToSegment(
 
   const param = dot / lenSq;
 
-  let xx, yy;
+  let xx: number, yy: number;
 
   if (param < 0) {
     xx = segStart.x;

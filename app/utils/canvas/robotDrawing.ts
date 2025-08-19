@@ -98,7 +98,7 @@ function drawGhostRobot(
   }
 
   // Different colors for different movement directions
-  let bodyColor, borderColor;
+  let bodyColor: string, borderColor: string;
   if (previewType === "playback") {
     // Playback ghost - purple/magenta theme
     bodyColor = "rgba(147, 51, 234, 0.2)";
@@ -163,7 +163,7 @@ function drawGhostRobot(
   );
 
   // Direction indicator for preview - different colors for different directions
-  let indicatorColor;
+  let indicatorColor: string;
   if (direction === "forward") {
     indicatorColor = "#00ff00"; // Bright green (matching forward button)
   } else if (direction === "backward") {

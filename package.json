@@ -12,7 +12,7 @@
     "lint:biome": "npx @biomejs/biome check",
     "lint:knip": "npx knip",
     "fmt": "npm run fmt:biome && npm run fmt:knip",
-    "fmt:biome": "npx @biomejs/biome check --write",
+    "fmt:biome": "npx @biomejs/biome check --write --diagnostic-level=error",
     "fmt:knip": "npx knip --fix"
   },
   "dependencies": {

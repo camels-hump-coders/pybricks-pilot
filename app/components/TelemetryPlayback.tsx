@@ -28,7 +28,7 @@ interface TimeWindow {
   end: number; // End time in ms (relative to first point)
 }
 
-export function TelemetryPlayback({}: TelemetryPlaybackProps) {
+export function TelemetryPlayback(_props: TelemetryPlaybackProps) {
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);

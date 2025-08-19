@@ -68,7 +68,7 @@ export function useCanvasSize(
         height: newHeight,
       };
     });
-  }, [coordinateUtils, setScale, setCanvasSize]);
+  }, [coordinateUtils, setScale, setCanvasSize, canvasRef.current]);
 
   // Handle resize events
   useEffect(() => {
@@ -98,7 +98,7 @@ export function useCanvasSize(
         resizeObserver.disconnect();
       }
     };
-  }, [updateCanvasSize]);
+  }, [updateCanvasSize, canvasRef.current?.parentElement]);
 
   // Additional canvas size update when component becomes visible
   useEffect(() => {
