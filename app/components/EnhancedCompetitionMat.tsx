@@ -268,6 +268,7 @@ export function EnhancedCompetitionMat({
 
   // Canvas event handlers hook
   const {
+    handleCanvasMouseDown,
     handleCanvasClick: originalHandleCanvasClick,
     handleCanvasMouseMove,
     handleCanvasMouseUp,
@@ -407,7 +408,7 @@ export function EnhancedCompetitionMat({
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
-          onMouseDown={handleCanvasClick}
+          onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseLeave}

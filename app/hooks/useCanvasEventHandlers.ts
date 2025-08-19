@@ -2,8 +2,9 @@ import { useCallback } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { controlModeAtom } from "../store/atoms/gameMat";
 import { hoveredObjectAtom } from "../store/atoms/canvasState";
-import { stopAllDraggingAtom, isDraggingPointAtom, draggedPointIdAtom, isDraggingControlPointAtom, draggedControlPointAtom, isDraggingTangencyHandleAtom, draggedTangencyHandleAtom } from "../store/atoms/matUIState";
+import { stopAllDraggingAtom, isDraggingPointAtom, draggedPointIdAtom, isDraggingControlPointAtom, draggedControlPointAtom, isDraggingTangencyHandleAtom, draggedTangencyHandleAtom, isDraggingMissionPointAtom } from "../store/atoms/matUIState";
 import { useMissionInteractions } from "./useMissionInteractions";
+import { useMissionPointInteractions } from "./useMissionPointInteractions";
 import { useSplineInteractions } from "./useSplineInteractions";
 import { useTelemetryInteractions } from "./useTelemetryInteractions";
 
@@ -66,9 +67,11 @@ export function useCanvasEventHandlers({
   const draggedControlPoint = useAtomValue(draggedControlPointAtom);
   const isDraggingTangencyHandle = useAtomValue(isDraggingTangencyHandleAtom);
   const draggedTangencyHandle = useAtomValue(draggedTangencyHandleAtom);
+  const isDraggingMissionPoint = useAtomValue(isDraggingMissionPointAtom);
 
   // Import interaction hooks
   const { handleMissionClick, checkMissionClick, createToggleObjective } = useMissionInteractions();
+  const missionPointInteractions = useMissionPointInteractions();
   
   const splineInteractions = useSplineInteractions({
     currentSplinePath,
@@ -95,6 +98,34 @@ export function useCanvasEventHandlers({
     setTooltipPosition,
   });
 
+  const handleCanvasMouseDown = useCallback((
+    event: React.MouseEvent<HTMLCanvasElement>
+  ) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    // Account for canvas scaling: convert display coordinates to actual canvas coordinates
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (event.clientX - rect.left) * scaleX;
+    const canvasY = (event.clientY - rect.top) * scaleY;
+
+    // Handle mission point dragging in mission mode
+    if (controlMode === "mission") {
+      const handled = missionPointInteractions.handleMissionMouseDown(canvasX, canvasY, coordinateUtils);
+      if (handled) {
+        event.preventDefault();
+        return;
+      }
+    }
+  }, [
+    canvasRef,
+    controlMode,
+    coordinateUtils,
+    missionPointInteractions,
+  ]);
+
   const handleCanvasClick = useCallback(async (
     event: React.MouseEvent<HTMLCanvasElement>
   ) => {
@@ -108,6 +139,15 @@ export function useCanvasEventHandlers({
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
 
+    // Don't handle clicks if we're dragging
+    if (isDraggingMissionPoint) return;
+
+    // Handle mission point placement in mission mode
+    if (controlMode === "mission") {
+      const handled = missionPointInteractions.handleMissionClick(canvasX, canvasY, coordinateUtils);
+      if (handled) return;
+    }
+
     // Handle spline path mode clicks
     if (isSplinePathMode) {
       const handled = splineInteractions.handleSplineClick(canvasX, canvasY);
@@ -120,11 +160,14 @@ export function useCanvasEventHandlers({
 
   }, [
     canvasRef,
+    controlMode,
+    isDraggingMissionPoint,
+    coordinateUtils,
+    missionPointInteractions,
     isSplinePathMode,
     splineInteractions,
     handleMissionClick,
     showScoring,
-    controlMode,
   ]);
 
   const handleCanvasMouseMove = useCallback((
@@ -148,6 +191,11 @@ export function useCanvasEventHandlers({
       y: matPosition.y,
       heading: 0 // Default heading, not used for mouse position
     });
+
+    // Handle mission point interactions in mission mode
+    if (controlMode === "mission") {
+      missionPointInteractions.handleMissionMouseMove(canvasX, canvasY, coordinateUtils, canvasRef);
+    }
 
     // Handle spline interactions
     splineInteractions.handleSplineMouseMove(
@@ -176,6 +224,8 @@ export function useCanvasEventHandlers({
     canvasRef,
     coordinateUtils,
     setMousePosition,
+    controlMode,
+    missionPointInteractions,
     splineInteractions,
     isDraggingPoint,
     draggedPointId,
@@ -185,19 +235,24 @@ export function useCanvasEventHandlers({
     draggedTangencyHandle,
     handleTelemetryMouseMove,
     showScoring,
-    controlMode,
     checkMissionClick,
     setHoveredObject,
   ]);
 
   const handleCanvasMouseUp = useCallback(() => {
+    // Handle mission point mouse up
+    missionPointInteractions.handleMissionMouseUp();
+    
     // Stop all dragging when mouse is released
     stopAllDragging();
-  }, [stopAllDragging]);
+  }, [missionPointInteractions, stopAllDragging]);
 
   const handleCanvasMouseLeave = useCallback(() => {
     setMousePosition(null);
     setHoveredObject(null);
+    
+    // Handle mission point mouse leave
+    missionPointInteractions.handleMissionMouseLeave(canvasRef);
     
     // Stop all dragging when mouse leaves
     stopAllDragging();
@@ -210,6 +265,7 @@ export function useCanvasEventHandlers({
   }, [
     setMousePosition,
     setHoveredObject,
+    missionPointInteractions,
     stopAllDragging,
     splineInteractions,
     canvasRef,
@@ -220,6 +276,7 @@ export function useCanvasEventHandlers({
   const toggleObjective = createToggleObjective(setScoringState, showScoring);
 
   return {
+    handleCanvasMouseDown,
     handleCanvasClick,
     handleCanvasMouseMove,
     handleCanvasMouseUp,

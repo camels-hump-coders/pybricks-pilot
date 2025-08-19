@@ -26,6 +26,11 @@ export const isDraggingPointAtom = atom<boolean>(false);
 export const draggedPointIdAtom = atom<string | null>(null);
 export const justFinishedDraggingAtom = atom<boolean>(false);
 
+// Mission point dragging state
+export const isDraggingMissionPointAtom = atom<boolean>(false);
+export const draggedMissionPointIdAtom = atom<string | null>(null);
+export const missionPointDragOffsetAtom = atom<{ x: number; y: number }>({ x: 0, y: 0 });
+
 // Control point dragging state
 export const isDraggingControlPointAtom = atom<boolean>(false);
 export const draggedControlPointAtom = atom<{
@@ -182,7 +187,8 @@ export const stopAllDraggingAtom = atom(
   (get, set) => {
     const wasDragging = get(isDraggingPointAtom) || 
                        get(isDraggingControlPointAtom) || 
-                       get(isDraggingTangencyHandleAtom);
+                       get(isDraggingTangencyHandleAtom) ||
+                       get(isDraggingMissionPointAtom);
     
     set(isDraggingPointAtom, false);
     set(draggedPointIdAtom, null);
@@ -190,6 +196,9 @@ export const stopAllDraggingAtom = atom(
     set(draggedControlPointAtom, null);
     set(isDraggingTangencyHandleAtom, false);
     set(draggedTangencyHandleAtom, null);
+    set(isDraggingMissionPointAtom, false);
+    set(draggedMissionPointIdAtom, null);
+    set(missionPointDragOffsetAtom, { x: 0, y: 0 });
     
     if (wasDragging) {
       set(justFinishedDraggingAtom, true);
