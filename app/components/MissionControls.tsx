@@ -11,6 +11,7 @@ import type {
   EndPoint,
   StartPoint,
 } from "../types/missionPlanner";
+import { hasCoordinates } from "../utils/canvas/missionDrawing";
 import { AddMissionDialog } from "./AddMissionDialog";
 import { MissionManagementDialog } from "./MissionManagementDialog";
 
@@ -360,7 +361,16 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                                   )}
                                 </div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                  ({Math.round(point.x)}, {Math.round(point.y)})
+                                  {hasCoordinates(point) ? (
+                                    <>
+                                      ({Math.round(point.x)},{" "}
+                                      {Math.round(point.y)})
+                                    </>
+                                  ) : (
+                                    <span className="italic">
+                                      Referenced position
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               {/* Delete button (not for start/end points) */}

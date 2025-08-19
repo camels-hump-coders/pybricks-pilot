@@ -10,8 +10,8 @@ import { resolveMissionPoints } from "./missionPointResolver";
  * Arc path segment representing a smooth curved path between two points
  */
 export interface ArcPathSegment {
-  fromPoint: MissionPointType;
-  toPoint: MissionPointType;
+  fromPoint: ResolvedMissionPoint;
+  toPoint: ResolvedMissionPoint;
   startX: number;
   startY: number;
   endX: number;

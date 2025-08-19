@@ -2,7 +2,9 @@ import type {
   MissionPointType, 
   ResolvedMissionPoint, 
   StartPoint, 
-  EndPoint 
+  EndPoint,
+  Waypoint,
+  ActionPoint
 } from "../types/missionPlanner";
 import type { NamedPosition } from "../store/atoms/positionManagement";
 
@@ -84,6 +86,6 @@ function isReferencedPoint(point: MissionPointType): point is StartPoint | EndPo
 /**
  * Check if a point has explicit coordinates (is a waypoint/action)
  */
-function hasExplicitCoordinates(point: MissionPointType): point is { x: number; y: number } {
+function hasExplicitCoordinates(point: MissionPointType): point is Waypoint | ActionPoint {
   return point.type === "waypoint" || point.type === "action";
 }

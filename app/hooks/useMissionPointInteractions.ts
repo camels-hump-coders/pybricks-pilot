@@ -93,7 +93,7 @@ export function useMissionPointInteractions() {
     canvasX: number,
     canvasY: number,
     coordinateUtils: any,
-    canvasRef: React.RefObject<HTMLCanvasElement>
+    canvasRef: React.RefObject<HTMLCanvasElement | null>
   ): void => {
     if (isDraggingMissionPoint && draggedMissionPointId && editingMission) {
       // Update the point position
@@ -132,7 +132,7 @@ export function useMissionPointInteractions() {
   
   // Handle mouse leave - cancel dragging
   const handleMissionMouseLeave = useCallback((
-    canvasRef: React.RefObject<HTMLCanvasElement>
+    canvasRef: React.RefObject<HTMLCanvasElement | null>
   ): void => {
     if (isDraggingMissionPoint) {
       setIsDraggingMissionPoint(false);

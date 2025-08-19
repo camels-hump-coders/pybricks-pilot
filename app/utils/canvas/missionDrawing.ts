@@ -1,13 +1,16 @@
 import type { GameMatConfig } from "../../schemas/GameMatConfig";
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { LEGO_STUD_SIZE_MM } from "../../schemas/RobotConfig";
+import type { NamedPosition } from "../../store/atoms/positionManagement";
 import type {
   ActionPoint,
   Mission as MissionPlannerMission,
   MissionPointType,
+  ResolvedMissionPoint,
+  Waypoint,
 } from "../../types/missionPlanner";
 import { computeArcPath, generateArcPathPoints } from "../arcPathComputation";
-import type { NamedPosition } from "../../store/atoms/positionManagement";
+import { resolveMissionPoints } from "../missionPointResolver";
 
 interface MissionDrawingUtils {
   mmToCanvas: (x: number, y: number) => { x: number; y: number };
@@ -21,6 +24,15 @@ import {
   isMissionScored,
   type ScoringState,
 } from "../../utils/scoringUtils";
+
+/**
+ * Type guard to check if a mission point has explicit coordinates
+ */
+export function hasCoordinates(
+  point: MissionPointType
+): point is Waypoint | ActionPoint {
+  return point.type === "waypoint" || point.type === "action";
+}
 
 /**
  * Draw missions on the canvas
@@ -199,8 +211,11 @@ export function drawMissionPlanner(
     });
   }
 
+  // Resolve points to get coordinates for start/end points
+  const resolvedPoints = resolveMissionPoints(mission.points, positions);
+
   // Draw each point
-  mission.points.forEach((point, index) => {
+  resolvedPoints.forEach((point, index) => {
     drawMissionPoint(ctx, point, index, utils, {
       isHighlighted: point.id === highlightedPointId,
       isSelected: point.id === selectedPointId,
@@ -215,7 +230,7 @@ export function drawMissionPlanner(
  */
 function drawMissionPoint(
   ctx: CanvasRenderingContext2D,
-  point: MissionPointType,
+  point: ResolvedMissionPoint,
   index: number,
   utils: MissionDrawingUtils,
   options: {
@@ -383,15 +398,17 @@ function drawRobotGhost(
     // Convert from studs to mm, then to canvas pixels
     robotWidth = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM * scale;
     robotLength = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM * scale;
-    
+
     // Calculate offset from center of rotation to geometric center
     // Center of rotation is at centerOfRotation.distanceFromLeftEdge, centerOfRotation.distanceFromTop
     // Geometric center is at dimensions.width/2, dimensions.length/2
-    const corX = robotConfig.centerOfRotation.distanceFromLeftEdge * LEGO_STUD_SIZE_MM;
-    const corY = robotConfig.centerOfRotation.distanceFromTop * LEGO_STUD_SIZE_MM;
+    const corX =
+      robotConfig.centerOfRotation.distanceFromLeftEdge * LEGO_STUD_SIZE_MM;
+    const corY =
+      robotConfig.centerOfRotation.distanceFromTop * LEGO_STUD_SIZE_MM;
     const geoCenterX = (robotConfig.dimensions.width / 2) * LEGO_STUD_SIZE_MM;
     const geoCenterY = (robotConfig.dimensions.length / 2) * LEGO_STUD_SIZE_MM;
-    
+
     // Offset from COR to geometric center (in canvas pixels)
     robotBodyOffsetX = (geoCenterX - corX) * scale;
     robotBodyOffsetY = (geoCenterY - corY) * scale;
@@ -426,7 +443,7 @@ function drawRobotGhost(
     frontIndicatorWidth,
     frontIndicatorHeight
   );
-  
+
   // Draw center of rotation indicator (small red dot at the actual point position)
   ctx.fillStyle = "rgba(255, 0, 0, 0.8)";
   ctx.beginPath();
@@ -683,6 +700,11 @@ function findBestInsertionPoint(
   for (let i = 0; i < points.length - 1; i++) {
     const p1 = points[i];
     const p2 = points[i + 1];
+
+    // Skip segments where either point doesn't have coordinates
+    if (!hasCoordinates(p1) || !hasCoordinates(p2)) {
+      continue;
+    }
 
     // Calculate distance from mouse to this segment
     const distance = distanceToSegment(mousePos, p1, p2);
