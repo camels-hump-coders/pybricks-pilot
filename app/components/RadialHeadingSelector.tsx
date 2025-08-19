@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Radial Heading Selector Component
 interface HeadingSelectorProps {
@@ -23,26 +23,25 @@ export function RadialHeadingSelector({
   const indicatorX = centerX + radius * 0.7 * Math.cos(radians);
   const indicatorY = centerY + radius * 0.7 * Math.sin(radians);
 
-  const calculateAngleFromMouse = (
-    clientX: number,
-    clientY: number,
-    rect: DOMRect,
-  ) => {
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const mouseX = clientX - centerX;
-    const mouseY = clientY - centerY;
+  const calculateAngleFromMouse = useCallback(
+    (clientX: number, clientY: number, rect: DOMRect) => {
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const mouseX = clientX - centerX;
+      const mouseY = clientY - centerY;
 
-    // Calculate angle from center (0° = north/up, clockwise)
-    let angle = Math.atan2(mouseY, mouseX) * (180 / Math.PI);
-    angle = angle + 90; // Convert to our heading system
+      // Calculate angle from center (0° = north/up, clockwise)
+      let angle = Math.atan2(mouseY, mouseX) * (180 / Math.PI);
+      angle = angle + 90; // Convert to our heading system
 
-    // Normalize to -180 to 180 range
-    if (angle > 180) angle -= 360;
-    if (angle < -180) angle += 360;
+      // Normalize to -180 to 180 range
+      if (angle > 180) angle -= 360;
+      if (angle < -180) angle += 360;
 
-    return Math.round(angle);
-  };
+      return Math.round(angle);
+    },
+    [],
+  );
 
   const handleMouseDown = (event: React.MouseEvent) => {
     setIsDragging(true);
@@ -92,7 +91,7 @@ export function RadialHeadingSelector({
         document.removeEventListener("mouseup", handleGlobalMouseUp);
       };
     }
-  }, [isDragging, onChange]);
+  }, [isDragging, onChange, calculateAngleFromMouse]);
 
   // Common direction markers
   const directions = [

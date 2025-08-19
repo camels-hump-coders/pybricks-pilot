@@ -146,7 +146,6 @@ export default function Home() {
     removeNotification,
     showSuccess,
     showError,
-    showWarning,
     showInfo,
   } = useNotifications();
 
@@ -161,16 +160,17 @@ export default function Home() {
     }
   }, [isConnected]);
 
+  const { stableDirectoryAccess } = fileSystem;
+
   // Discover robot configurations when directory changes
   useEffect(() => {
-    const { stableDirectoryAccess } = fileSystem;
     if (stableDirectoryAccess) {
       console.log("Directory changed, discovering robot configurations...");
       discoverRobotConfigs().catch((error) => {
         console.warn("Robot discovery failed on directory change:", error);
       });
     }
-  }, [fileSystem.stableDirectoryAccess, discoverRobotConfigs]);
+  }, [discoverRobotConfigs, stableDirectoryAccess]);
 
   // Enhanced error handling with notifications
   const handleConnect = async (options: any) => {

@@ -25,6 +25,9 @@
         "noStaticElementInteractions": "warn",
         "noSvgWithoutTitle": "warn"
       },
+      "correctness": {
+        "useUniqueElementIds": "warn"
+      },
       "suspicious": {
         "noArrayIndexKey": "warn"
       }

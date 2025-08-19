@@ -222,7 +222,9 @@ class WebBluetoothService implements BluetoothService {
       if (device?.id) {
         this.connectedDevices.delete(device);
         // Notify all disconnect listeners
-        this.disconnectListeners.forEach((listener) => listener(device));
+        this.disconnectListeners.forEach((listener) => {
+          listener(device);
+        });
       }
     }
   };

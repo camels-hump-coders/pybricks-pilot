@@ -25,6 +25,94 @@ interface RobotBuilderProps {
   initialConfig?: RobotConfig;
 }
 
+// Simple robot preview component
+const RobotPreview = ({ config }: { config: RobotConfig }) => {
+  const scale = 3; // pixels per stud
+  const robotWidth = config.dimensions.width * scale;
+  const robotHeight = config.dimensions.length * scale;
+
+  return (
+    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+        Robot Preview
+      </h4>
+      <div
+        className="relative"
+        style={{ width: robotWidth, height: robotHeight }}
+      >
+        {/* Robot body */}
+        <div
+          className="absolute border-2 border-gray-600 bg-white dark:bg-gray-700"
+          style={{
+            width: robotWidth,
+            height: robotHeight,
+            backgroundColor: config.appearance.primaryColor,
+          }}
+        />
+
+        {/* Direction arrow */}
+        <div
+          className="absolute top-2 left-1/2 transform -translate-x-1/2"
+          style={{ color: config.appearance.secondaryColor }}
+        >
+          ▲
+        </div>
+
+        {/* Left wheel */}
+        <div
+          className="absolute bg-gray-800 rounded-full border-2 border-gray-600"
+          style={{
+            width: (config.wheels.left.width * scale) / 4,
+            height: (config.wheels.left.width * scale) / 4,
+            left: config.wheels.left.distanceFromEdge * scale,
+            top: config.wheels.left.distanceFromTop * scale, // Y=0 at top, Y+ down
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+
+        {/* Right wheel */}
+        <div
+          className="absolute bg-gray-800 rounded-full border-2 border-gray-600"
+          style={{
+            width: (config.wheels.right.width * scale) / 4,
+            height: (config.wheels.right.width * scale) / 4,
+            left:
+              (config.dimensions.width - config.wheels.right.distanceFromEdge) *
+              scale,
+            top: config.wheels.right.distanceFromTop * scale, // Y=0 at top, Y+ down
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+
+        {/* Center of rotation indicator (auto-calculated) */}
+        <div
+          className="absolute w-2 h-2 bg-red-500 rounded-full"
+          style={{
+            left: (config.dimensions.width / 2) * scale,
+            top: config.wheels.left.distanceFromTop * scale, // Y=0 at top, Y+ down
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      </div>
+
+      {/* Measurements */}
+      <div className="mt-3 text-xs text-gray-600 dark:text-gray-400 space-y-1">
+        <div>
+          Width: {config.dimensions.width} studs (
+          {studsToMm(config.dimensions.width)}mm)
+        </div>
+        <div>
+          Length: {config.dimensions.length} studs (
+          {studsToMm(config.dimensions.length)}mm)
+        </div>
+        <div>
+          Wheel distance from top: {config.wheels.left.distanceFromTop} studs
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export function RobotBuilder({
   isOpen,
   onClose,
@@ -247,95 +335,6 @@ export function RobotBuilder({
         [property]: value,
       },
     }));
-  };
-
-  // Simple robot preview component
-  const RobotPreview = () => {
-    const scale = 3; // pixels per stud
-    const robotWidth = config.dimensions.width * scale;
-    const robotHeight = config.dimensions.length * scale;
-
-    return (
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-          Robot Preview
-        </h4>
-        <div
-          className="relative"
-          style={{ width: robotWidth, height: robotHeight }}
-        >
-          {/* Robot body */}
-          <div
-            className="absolute border-2 border-gray-600 bg-white dark:bg-gray-700"
-            style={{
-              width: robotWidth,
-              height: robotHeight,
-              backgroundColor: config.appearance.primaryColor,
-            }}
-          />
-
-          {/* Direction arrow */}
-          <div
-            className="absolute top-2 left-1/2 transform -translate-x-1/2"
-            style={{ color: config.appearance.secondaryColor }}
-          >
-            ▲
-          </div>
-
-          {/* Left wheel */}
-          <div
-            className="absolute bg-gray-800 rounded-full border-2 border-gray-600"
-            style={{
-              width: (config.wheels.left.width * scale) / 4,
-              height: (config.wheels.left.width * scale) / 4,
-              left: config.wheels.left.distanceFromEdge * scale,
-              top: config.wheels.left.distanceFromTop * scale, // Y=0 at top, Y+ down
-              transform: "translate(-50%, -50%)",
-            }}
-          />
-
-          {/* Right wheel */}
-          <div
-            className="absolute bg-gray-800 rounded-full border-2 border-gray-600"
-            style={{
-              width: (config.wheels.right.width * scale) / 4,
-              height: (config.wheels.right.width * scale) / 4,
-              left:
-                (config.dimensions.width -
-                  config.wheels.right.distanceFromEdge) *
-                scale,
-              top: config.wheels.right.distanceFromTop * scale, // Y=0 at top, Y+ down
-              transform: "translate(-50%, -50%)",
-            }}
-          />
-
-          {/* Center of rotation indicator (auto-calculated) */}
-          <div
-            className="absolute w-2 h-2 bg-red-500 rounded-full"
-            style={{
-              left: (config.dimensions.width / 2) * scale,
-              top: config.wheels.left.distanceFromTop * scale, // Y=0 at top, Y+ down
-              transform: "translate(-50%, -50%)",
-            }}
-          />
-        </div>
-
-        {/* Measurements */}
-        <div className="mt-3 text-xs text-gray-600 dark:text-gray-400 space-y-1">
-          <div>
-            Width: {config.dimensions.width} studs (
-            {studsToMm(config.dimensions.width)}mm)
-          </div>
-          <div>
-            Length: {config.dimensions.length} studs (
-            {studsToMm(config.dimensions.length)}mm)
-          </div>
-          <div>
-            Wheel distance from top: {config.wheels.left.distanceFromTop} studs
-          </div>
-        </div>
-      </div>
-    );
   };
 
   if (!isOpen) return null;
@@ -595,7 +594,7 @@ export function RobotBuilder({
               </div>
             </div>
 
-            <RobotPreview />
+            <RobotPreview config={config} />
           </div>
 
           {/* Right Panel - Saved Configurations */}

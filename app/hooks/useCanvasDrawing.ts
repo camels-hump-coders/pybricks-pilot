@@ -578,7 +578,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
 
     // Schedule next frame
     animationFrameRef.current = requestAnimationFrame(renderLoop);
-  }, [drawCanvas]);
+  }, [drawCanvas, canvasRef.current]);
 
   // Start/stop continuous rendering
   const startRenderLoop = useCallback(() => {
@@ -586,7 +586,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
 
     isRunningRef.current = true;
     animationFrameRef.current = requestAnimationFrame(renderLoop);
-  }, [renderLoop]);
+  }, [renderLoop, canvasRef.current]);
 
   const stopRenderLoop = useCallback(() => {
     isRunningRef.current = false;

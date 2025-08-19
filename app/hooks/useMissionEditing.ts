@@ -149,7 +149,14 @@ export function useMissionEditing() {
       }
       return null;
     },
-    [createPoint, insertPointAfter, insertAfterPointId, pointPlacementMode],
+    [
+      createPoint,
+      insertPointAfter,
+      insertAfterPointId,
+      pointPlacementMode,
+      setPointPlacementMode,
+      setInsertAfterPointId,
+    ],
   );
 
   // Get preview data for rendering

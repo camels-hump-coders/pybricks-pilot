@@ -176,7 +176,7 @@ export function usePositionManager() {
 
       return prevPositions; // No changes, return previous state
     });
-  }, [calculateDefaultPositions, customPositions]);
+  }, [calculateDefaultPositions, customPositions, setPositions]);
 
   // Load custom positions on mount
   useEffect(() => {
