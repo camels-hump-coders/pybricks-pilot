@@ -1,3 +1,4 @@
+import { normalizeHeading } from "../utils/headingUtils";
 import type { TelemetryPath, TelemetryPoint } from "./telemetryHistory";
 
 export interface MovementCommand {
@@ -312,10 +313,10 @@ class PseudoCodeGeneratorService {
         } else {
           newCommand.angle = updatedHeading;
           if (endPosition.hub?.imu?.heading !== undefined) {
-            newCommand.targetHeading = this.normalizeHeading(
+            newCommand.targetHeading = normalizeHeading(
               endPosition.hub.imu.heading
             );
-            newCommand.startHeading = this.normalizeHeading(
+            newCommand.startHeading = normalizeHeading(
               endPosition.hub.imu.heading - updatedHeading
             );
           }
@@ -336,12 +337,12 @@ class PseudoCodeGeneratorService {
       startPosition: {
         x: 0, // We don't have x,y from raw telemetry
         y: 0,
-        heading: this.normalizeHeading(startPosition.hub?.imu?.heading || 0),
+        heading: normalizeHeading(startPosition.hub?.imu?.heading || 0),
       },
       endPosition: {
         x: 0, // We don't have x,y from raw telemetry
         y: 0,
-        heading: this.normalizeHeading(endPosition.hub?.imu?.heading || 0),
+        heading: normalizeHeading(endPosition.hub?.imu?.heading || 0),
       },
     };
   }
@@ -411,11 +412,11 @@ class PseudoCodeGeneratorService {
                 currentCommand.targetHeading! - currentCommand.startHeading;
 
               // Normalize both heading changes to -180 to 180 range for proper comparison
-              const normalizedPreviousChange = this.normalizeHeading(
+              const normalizedPreviousChange = normalizeHeading(
                 previousHeadingChange
               );
               const normalizedCurrentChange =
-                this.normalizeHeading(currentHeadingChange);
+                normalizeHeading(currentHeadingChange);
 
               // Check if both changes are in the same direction (same sign)
               sameSignedValue =
@@ -441,7 +442,7 @@ class PseudoCodeGeneratorService {
               if (previousCommand.startHeading !== undefined) {
                 // Since we're now using IMU headings directly, we need to recalculate
                 // the target heading based on the accumulated angle change
-                previousCommand.targetHeading = this.normalizeHeading(
+                previousCommand.targetHeading = normalizeHeading(
                   previousCommand.startHeading + newTotalAngle
                 );
               }
@@ -464,21 +465,6 @@ class PseudoCodeGeneratorService {
   }
 
   /**
-   * Normalize heading to -180 to 180 degrees range
-   */
-  private normalizeHeading(heading: number): number {
-    // Normalize to 0-360 range first
-    let normalized = ((heading % 360) + 360) % 360;
-
-    // Convert to -180 to 180 range
-    if (normalized > 180) {
-      normalized -= 360;
-    }
-
-    return normalized;
-  }
-
-  /**
    * Convert generated program to readable pseudo code
    */
   generateReadableCode(program: GeneratedProgram): string {
@@ -489,8 +475,8 @@ class PseudoCodeGeneratorService {
     let code = `// Generated pseudo code from robot movements\n`;
     code += `// Total distance: ${program.totalDistance.toFixed(1)}mm\n`;
     code += `// Total time: ${(program.totalTime / 1000).toFixed(1)}s\n`;
-    code += `// Start position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${this.normalizeHeading(program.startPosition.heading).toFixed(1)}°\n`;
-    code += `// End position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${this.normalizeHeading(program.endPosition.heading).toFixed(1)}°\n\n`;
+    code += `// Start position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.startPosition.heading).toFixed(1)}°\n`;
+    code += `// End position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.endPosition.heading).toFixed(1)}°\n\n`;
 
     program.commands.forEach((command, index) => {
       const directionComment =
@@ -504,7 +490,7 @@ class PseudoCodeGeneratorService {
       } else {
         // For turn commands, show the target heading
         const targetHeading = command.targetHeading || 0;
-        code += `turn_to_heading(${this.normalizeHeading(targetHeading).toFixed(1)})\n`;
+        code += `turn_to_heading(${normalizeHeading(targetHeading).toFixed(1)})\n`;
       }
     });
 
@@ -606,13 +592,11 @@ class PseudoCodeGeneratorService {
       // For turn commands, we can directly use the current IMU heading as the target
       // since we're now tracking actual orientation changes rather than motor encoder data
       if (currentPoint.hub?.imu?.heading !== undefined) {
-        command.targetHeading = this.normalizeHeading(
-          currentPoint.hub.imu.heading
-        );
+        command.targetHeading = normalizeHeading(currentPoint.hub.imu.heading);
 
         // Set start heading for the first turn command in a sequence
         if (command.startHeading === undefined) {
-          command.startHeading = this.normalizeHeading(
+          command.startHeading = normalizeHeading(
             currentPoint.hub.imu.heading - deltaHeading
           );
         }
@@ -678,7 +662,7 @@ class PseudoCodeGeneratorService {
 
       // Recalculate target heading based on accumulated angle change
       if (lastCommand.startHeading !== undefined) {
-        lastCommand.targetHeading = this.normalizeHeading(
+        lastCommand.targetHeading = normalizeHeading(
           lastCommand.startHeading + newTotalAngle
         );
       }

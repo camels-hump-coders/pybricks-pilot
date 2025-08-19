@@ -4,6 +4,7 @@ import {
   type GeneratedProgram,
 } from "../services/pseudoCodeGenerator.js";
 import type { TelemetryPoint } from "../services/telemetryHistory.js";
+import { normalizeHeading } from "../utils/headingUtils";
 
 // Python syntax highlighting component
 function PythonCodeBlock({ code }: { code: string }) {
@@ -104,21 +105,6 @@ export function PseudoCodePanel({
   const [generatedProgram, setGeneratedProgram] =
     useState<GeneratedProgram | null>(null);
   const [readableCode, setReadableCode] = useState<string>("");
-
-  /**
-   * Normalize heading to -180 to 180 degrees range
-   */
-  const normalizeHeading = (heading: number): number => {
-    // Normalize to 0-360 range first
-    let normalized = ((heading % 360) + 360) % 360;
-    
-    // Convert to -180 to 180 range
-    if (normalized > 180) {
-      normalized -= 360;
-    }
-    
-    return normalized;
-  };
 
   // Generate pseudo code when telemetry points change
   useEffect(() => {
@@ -245,12 +231,19 @@ export function PseudoCodePanel({
                           Distance: {command.distance?.toFixed(1)}mm
                           {command.targetHeading !== undefined && (
                             <span className="ml-2">
-                              → Heading: {normalizeHeading(command.targetHeading).toFixed(1)}°
+                              → Heading:{" "}
+                              {normalizeHeading(command.targetHeading).toFixed(
+                                1
+                              )}
+                              °
                             </span>
                           )}
                         </>
                       ) : (
-                        <>Target: {normalizeHeading(command.targetHeading!).toFixed(1)}°</>
+                        <>
+                          Target:{" "}
+                          {normalizeHeading(command.targetHeading!).toFixed(1)}°
+                        </>
                       )}
                     </div>
                     {command.duration && (
