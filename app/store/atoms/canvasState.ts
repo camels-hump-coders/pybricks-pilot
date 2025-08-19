@@ -20,7 +20,6 @@ const updateCanvasAtom = atom<number>(0);
 
 // Derived coordinate transformation functions atom
 export const coordinateUtilsAtom = atom((get) => {
-  const _canvasSize = get(canvasSizeAtom);
   const scale = get(canvasScaleAtom);
   const customMatConfig = get(customMatConfigAtom);
 
@@ -68,48 +67,4 @@ export const coordinateUtilsAtom = atom((get) => {
       tableHeight: TABLE_HEIGHT_MM,
     },
   };
-});
-
-// Actions for canvas state
-const _setCanvasSizeAtom = atom(
-  null,
-  (_get, set, size: { width: number; height: number }) => {
-    set(canvasSizeAtom, size);
-  },
-);
-
-const _setCanvasScaleAtom = atom(null, (_get, set, scale: number) => {
-  set(canvasScaleAtom, scale);
-});
-
-const _setHoveredObjectAtom = atom(
-  null,
-  (_get, set, objectId: string | null) => {
-    set(hoveredObjectAtom, objectId);
-  },
-);
-
-const _setHoveredPointAtom = atom(
-  null,
-  (_get, set, pointIndex: number | null) => {
-    set(hoveredPointAtom, pointIndex);
-  },
-);
-
-const _setMissionBoundsAtom = atom(
-  null,
-  (
-    _get,
-    set,
-    bounds: Map<
-      string,
-      { x: number; y: number; width: number; height: number }
-    >,
-  ) => {
-    set(missionBoundsAtom, bounds);
-  },
-);
-
-const _triggerCanvasUpdateAtom = atom(null, (_get, set) => {
-  set(updateCanvasAtom, Date.now());
 });

@@ -3,7 +3,6 @@ import type { GameMatConfig } from "../../schemas/GameMatConfig";
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import { DEFAULT_ROBOT_CONFIG, studsToMm } from "../../schemas/RobotConfig";
 import type { RobotPosition } from "../../utils/robotPosition";
-import { robotConfigAtom } from "./robotConfigSimplified";
 
 export interface MovementPreview {
   type: "drive" | "turn" | null;
@@ -122,23 +121,6 @@ export const robotPositionAtom = atom<RobotPosition>(
   // Initial value using default dimensions
   calculateRobotPosition(DEFAULT_ROBOT_CONFIG, "bottom-right"),
 );
-
-// Derived atom that recalculates initial position when mat or robot config changes
-const _initialRobotPositionAtom = atom((get) => {
-  const robotConfig = get(robotConfigAtom);
-  const matConfig = get(customMatConfigAtom);
-
-  // Use mat dimensions from config if available, otherwise use defaults
-  const matWidthMm = matConfig?.dimensions?.widthMm || MAT_WIDTH_MM;
-  const matHeightMm = matConfig?.dimensions?.heightMm || MAT_HEIGHT_MM;
-
-  return calculateRobotPositionWithDimensions(
-    robotConfig,
-    "bottom-right",
-    matWidthMm,
-    matHeightMm,
-  );
-});
 
 export const isSettingPositionAtom = atom<boolean>(false);
 export const mousePositionAtom = atom<RobotPosition | null>(null);

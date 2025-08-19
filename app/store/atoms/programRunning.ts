@@ -30,7 +30,6 @@ export const updateTelemetryTimestampAtom = atom(
 let timeoutId: NodeJS.Timeout | null = null;
 
 export const checkProgramRunningTimeoutAtom = atom(null, (get, set) => {
-  const _lastTimestamp = get(lastTelemetryTimestampAtom);
   const isProgramRunning = get(isProgramRunningAtom);
 
   if (isProgramRunning) {
@@ -52,18 +51,5 @@ export const checkProgramRunningTimeoutAtom = atom(null, (get, set) => {
         set(lastTelemetryTimestampAtom, 0);
       }
     }, 1000);
-  }
-});
-
-// Helper atom to manually stop the program (for manual stop button)
-const _stopProgramAtom = atom(null, (_get, set) => {
-  console.log("[ProgramRunning] Program manually stopped");
-  set(isProgramRunningAtom, false);
-  set(lastTelemetryTimestampAtom, 0);
-
-  // Clear timeout
-  if (timeoutId) {
-    clearTimeout(timeoutId);
-    timeoutId = null;
   }
 });

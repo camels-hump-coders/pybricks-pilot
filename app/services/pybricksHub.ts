@@ -721,7 +721,6 @@ class PybricksHubService extends EventTarget {
     }
 
     const status = data.getUint8(1);
-    const _fullStatusFlags = data.getUint32(1, true); // Status is actually 4 bytes (flags)
     const runningProgId = data.byteLength > 5 ? data.getUint8(5) : 0;
     const selectedSlot = data.byteLength > 6 ? data.getUint8(6) : 0;
     const timestamp = Date.now();

@@ -59,23 +59,6 @@ export const stableDirectoryAccessAtom = atom((get) => {
   return hasAccess && directoryName ? directoryName : null;
 });
 
-// Memoized directory handle atom that's stable based on directory name
-const _stableDirectoryHandleAtom = atom((get) => {
-  const directoryHandle = get(directoryHandleAtom);
-  const directoryName = get(directoryNameAtom);
-
-  // Return a stable object that includes both handle and name for comparison
-  if (directoryHandle && directoryName) {
-    return {
-      handle: directoryHandle,
-      name: directoryName,
-      // Create a stable key for memoization
-      key: directoryName,
-    };
-  }
-  return null;
-});
-
 // Derived atom for program count
 export const programCountAtom = atom((get) => {
   const programsManifest = get(programsManifestAtom);
@@ -134,19 +117,4 @@ export const unmountDirectoryAtom = atom(null, (_get, set) => {
   set(pythonFilesAtom, []);
   set(fileContentCacheAtom, new Map());
   set(pythonFilesErrorAtom, null);
-});
-
-const _refreshFilesAtom = atom(null, async (get, set) => {
-  const handle = get(directoryHandleAtom);
-  if (!handle) return;
-
-  set(isPythonFilesLoadingAtom, true);
-  try {
-    // This will be implemented with the actual file system service
-    // For now, just reset the loading state
-    set(isPythonFilesLoadingAtom, false);
-  } catch (error) {
-    set(pythonFilesErrorAtom, error as Error);
-    set(isPythonFilesLoadingAtom, false);
-  }
 });

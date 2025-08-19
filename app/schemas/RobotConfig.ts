@@ -127,51 +127,9 @@ export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
 
 // LEGO stud size constants
 export const LEGO_STUD_SIZE_MM = 8; // 1 stud = 8mm
-const _LEGO_PLATE_HEIGHT_MM = 3.2; // 1 plate = 3.2mm
-const _LEGO_BRICK_HEIGHT_MM = 9.6; // 1 brick = 9.6mm
 
 // Convert studs to mm
 export const studsToMm = (studs: number): number => studs * LEGO_STUD_SIZE_MM;
-
-// Convert mm to studs
-const _mmToStuds = (mm: number): number => mm / LEGO_STUD_SIZE_MM;
-
-// Helper functions for stud-based positioning
-const getWheelbaseStuds = (config: RobotConfig): number => {
-  return config.dimensions.width - config.wheels.left.distanceFromEdge * 2;
-};
-
-const _getWheelbaseMm = (config: RobotConfig): number => {
-  return getWheelbaseStuds(config) * LEGO_STUD_SIZE_MM;
-};
-
-const _getRobotCenterX = (config: RobotConfig): number => {
-  return config.dimensions.width / 2;
-};
-
-const _getRobotCenterY = (config: RobotConfig): number => {
-  return config.dimensions.length / 2;
-};
-
-// Convert edge-based positioning to center-based for calculations
-const _getWheelPositionFromCenter = (config: RobotConfig) => {
-  const centerX = config.dimensions.width / 2;
-  const centerY = config.dimensions.length / 2;
-
-  return {
-    left: {
-      x: config.wheels.left.distanceFromEdge - centerX,
-      y: config.wheels.left.distanceFromTop - centerY,
-    },
-    right: {
-      x:
-        config.dimensions.width -
-        config.wheels.right.distanceFromEdge -
-        centerX,
-      y: config.wheels.right.distanceFromTop - centerY,
-    },
-  };
-};
 
 // Automatically calculate center of rotation from wheel positions
 export const calculateCenterOfRotation = (config: RobotConfig) => {

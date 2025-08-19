@@ -1,6 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
-import { coordinateUtilsAtom } from "../store/atoms/canvasState";
 import { customMatConfigAtom } from "../store/atoms/gameMat";
 import {
   addCustomPositionAtom,
@@ -15,13 +14,10 @@ import {
   selectedPositionAtom,
   selectedPositionIdAtom,
   updateCustomPositionAtom,
-  updateDefaultPositionCoordinatesAtom,
 } from "../store/atoms/positionManagement";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { calculateRobotPositionFromEdges } from "../utils/robotPosition";
 import { useJotaiFileSystem } from "./useJotaiFileSystem";
-
-const _POSITIONS_CONFIG_FILE = "config/positions.json";
 
 interface PositionsFileData {
   version: string;
@@ -34,7 +30,6 @@ interface PositionsFileData {
 export function usePositionManager() {
   const { hasDirectoryAccess, stableDirectoryHandle, stableDirectoryAccess } =
     useJotaiFileSystem();
-  const _coordinateUtils = useAtomValue(coordinateUtilsAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
   const customMatConfig = useAtomValue(customMatConfigAtom);
 
@@ -58,9 +53,6 @@ export function usePositionManager() {
   const addCustomPosition = useSetAtom(addCustomPositionAtom);
   const removeCustomPosition = useSetAtom(removeCustomPositionAtom);
   const updateCustomPosition = useSetAtom(updateCustomPositionAtom);
-  const _updateDefaultPositionCoordinates = useSetAtom(
-    updateDefaultPositionCoordinatesAtom,
-  );
   const clearPositionSelection = useSetAtom(clearPositionSelectionAtom);
 
   // Load custom positions from config/positions.json on mount

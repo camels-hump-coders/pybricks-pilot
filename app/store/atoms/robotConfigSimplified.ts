@@ -14,10 +14,6 @@ export const robotConfigAtom = atom<RobotConfig>(DEFAULT_ROBOT_CONFIG);
 // Robot builder open state
 export const robotBuilderOpenAtom = atom<boolean>(false);
 
-// Loading/error states for robot operations
-const _robotConfigLoadingAtom = atom<boolean>(false);
-const _robotConfigErrorAtom = atom<string | null>(null);
-
 // Action to set the current robot config and persist the selection
 export const setActiveRobotAtom = atom(
   null,
@@ -59,67 +55,5 @@ export const initializeActiveRobotAtom = atom(
 
     // Set the active robot
     set(setActiveRobotAtom, activeRobot);
-  },
-);
-
-// Derived atoms
-const _robotDimensionsAtom = atom((get) => {
-  const config = get(robotConfigAtom);
-  return {
-    widthMm: config.dimensions.width * 8, // Convert studs to mm
-    lengthMm: config.dimensions.length * 8,
-    widthStuds: config.dimensions.width,
-    lengthStuds: config.dimensions.length,
-  };
-});
-
-const _robotWheelbaseAtom = atom((get) => {
-  const config = get(robotConfigAtom);
-  return {
-    leftWheel: config.wheels.left,
-    rightWheel: config.wheels.right,
-    wheelbase:
-      config.dimensions.width - config.wheels.left.distanceFromEdge * 2,
-    centerOffset: config.centerOfRotation,
-  };
-});
-
-const _robotAppearanceAtom = atom((get) => {
-  const config = get(robotConfigAtom);
-  return config.appearance;
-});
-
-// Robot builder state atoms (UI state, not persisted)
-const robotBuilderStateAtom = atom({
-  selectedTool: "select" as
-    | "select"
-    | "fill"
-    | "wheel"
-    | "sensor"
-    | "motor"
-    | "eraser",
-  selectedColor: "#007bff",
-  showGrid: true,
-  showStuds: true,
-  zoom: 1,
-  pan: { x: 0, y: 0 },
-});
-
-const _updateRobotBuilderStateAtom = atom(
-  null,
-  (
-    get,
-    set,
-    updates: Partial<{
-      selectedTool: "select" | "fill" | "wheel" | "sensor" | "motor" | "eraser";
-      selectedColor: string;
-      showGrid: boolean;
-      showStuds: boolean;
-      zoom: number;
-      pan: { x: number; y: number };
-    }>,
-  ) => {
-    const currentState = get(robotBuilderStateAtom);
-    set(robotBuilderStateAtom, { ...currentState, ...updates });
   },
 );

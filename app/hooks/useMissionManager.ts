@@ -26,8 +26,6 @@ import {
 import type { Mission, MissionPointType } from "../types/missionPlanner";
 import { useJotaiFileSystem } from "./useJotaiFileSystem";
 
-const _MISSIONS_CONFIG_FILE = "config/missions.json";
-
 interface MissionsFileDataV1 {
   version: string;
   missions: Mission[];

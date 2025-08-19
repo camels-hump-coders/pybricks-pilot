@@ -1,10 +1,5 @@
 import { atom } from "jotai";
-import type {
-  Mission,
-  MissionExecution,
-  MissionPointType,
-  MissionStatus,
-} from "../../types/missionPlanner";
+import type { Mission, MissionPointType } from "../../types/missionPlanner";
 
 // Base atoms for mission data
 export const missionsAtom = atom<Mission[]>([]);
@@ -22,15 +17,10 @@ export const selectedMissionAtom = atom((get) => {
 export const editingMissionAtom = atom<Mission | null>(null);
 export const selectedPointIdAtom = atom<string | null>(null);
 
-// Mission execution state
-const _missionExecutionAtom = atom<MissionExecution | null>(null);
-const _missionStatusAtom = atom<MissionStatus>("idle");
-
 // UI state atoms
 export const isMissionManagementOpenAtom = atom<boolean>(false);
 export const isAddMissionDialogOpenAtom = atom<boolean>(false);
 export const isMissionEditorOpenAtom = atom<boolean>(false);
-const _showMissionValidationAtom = atom<boolean>(false);
 
 // Mission editing state atoms
 export const pointPlacementModeAtom = atom<

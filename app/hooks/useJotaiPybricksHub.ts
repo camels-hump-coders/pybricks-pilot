@@ -23,7 +23,6 @@ import {
   motorDataAtom,
   programOutputLogAtom,
   programStatusAtom,
-  robotTypeAtom,
   sensorDataAtom,
   telemetryDataAtom,
 } from "../store/atoms/robotConnection"; // Use shared robot connection atoms
@@ -33,9 +32,6 @@ import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 // This provides cleaner separation from the generic robot interface
 
 export function useJotaiPybricksHub() {
-  // Get current robot type to conditionally set up event listeners
-  const _robotType = useAtomValue(robotTypeAtom);
-
   // Connection state
   const [isConnected, setIsConnected] = useAtom(isConnectedAtom);
   const [hubInfo, setHubInfo] = useAtom(hubInfoAtom);

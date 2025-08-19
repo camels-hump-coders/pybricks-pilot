@@ -48,32 +48,6 @@ export const telemetryTotalDurationAtom = atom((get) => {
   return lastTime - firstTime;
 });
 
-// Derived atom for statistics
-const _telemetryStatisticsAtom = atom((get) => {
-  const allPoints = get(allTelemetryPointsAtom);
-  const paths = get(telemetryPathsAtom);
-  const currentPath = get(currentTelemetryPathAtom);
-
-  const totalPoints = allPoints.length;
-  const totalPaths = paths.length + (currentPath ? 1 : 0);
-  const currentPathPoints = currentPath?.points.length || 0;
-
-  // Rough memory estimate (each point is roughly 350 bytes)
-  const avgBytesPerPoint = 350;
-  const estimatedBytes = totalPoints * avgBytesPerPoint;
-  const memoryUsageEstimate =
-    estimatedBytes > 1024 * 1024
-      ? `${(estimatedBytes / (1024 * 1024)).toFixed(1)} MB`
-      : `${(estimatedBytes / 1024).toFixed(1)} KB`;
-
-  return {
-    totalPoints,
-    totalPaths,
-    currentPathPoints,
-    memoryUsageEstimate,
-  };
-});
-
 // Write atom to update all telemetry data at once
 export const updateTelemetryDataAtom = atom(
   null,
@@ -110,12 +84,6 @@ export const clearTelemetryHistoryAtom = atom(null, (_get, set) => {
   set(telemetryPathsAtom, []);
   set(currentTelemetryPathAtom, null);
   set(selectedTelemetryPathAtom, null);
-});
-
-// Atom for starting a new telemetry path (keeps old paths)
-const _startNewTelemetryPathAtom = atom(null, (_get, _set) => {
-  // This will be handled by the telemetryHistory service
-  // The atoms will be updated via useTelemetryDataSync
 });
 
 // Path visualization options atom

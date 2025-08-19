@@ -318,30 +318,6 @@ export const createRobotConfigAtom = atom(
   },
 );
 
-// Delete mat configuration
-const _deleteMatConfigAtom = atom(null, async (get, set, matId: string) => {
-  const directoryHandle = get(directoryHandleAtom);
-  if (!directoryHandle) throw new Error("No directory selected");
-
-  try {
-    await matConfigFileSystem.deleteMatConfig(directoryHandle, matId);
-
-    // Refresh the available configurations
-    await set(discoverMatConfigsAtom);
-
-    // Clear current config if it was the deleted one
-    const currentMatId = get(selectedMatIdAtom);
-    if (currentMatId === matId) {
-      set(currentMatConfigAtom, null);
-      set(selectedMatIdAtom, null);
-    }
-  } catch (error) {
-    console.error(`Failed to delete mat configuration ${matId}:`, error);
-    throw error;
-  }
-});
-
-// Delete robot configuration
 export const deleteRobotConfigAtom = atom(
   null,
   async (get, set, robotId: string) => {

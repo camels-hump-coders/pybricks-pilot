@@ -178,7 +178,6 @@ export function useJotaiGameMat() {
       const currentTelemetryReference = telemetryReferenceRef.current;
       const currentRobotPosition = robotPositionRef.current;
       const currentManualHeadingAdjustment = manualHeadingAdjustmentRef.current;
-      const _currentRobotConfig = robotConfigRef.current;
 
       // Initialize reference if needed
       if (!currentTelemetryReference) {

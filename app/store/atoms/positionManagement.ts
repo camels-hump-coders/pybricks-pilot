@@ -64,11 +64,6 @@ export const isPositionManagementOpenAtom = atom<boolean>(false);
 // Atom for tracking if add position dialog is open
 export const isAddPositionDialogOpenAtom = atom<boolean>(false);
 
-// Atom for the temporary position being added
-const _tempPositionAtom = atom<Partial<NamedPosition>>({});
-
-// Actions for position management
-
 // Action to add a new custom position
 export const addCustomPositionAtom = atom(
   null,

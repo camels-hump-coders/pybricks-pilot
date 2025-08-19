@@ -60,17 +60,7 @@ export function drawMissions(
   if (!customMatConfig) return;
 
   const { mmToCanvas, scale } = utils;
-  const {
-    matWidthMm,
-    matHeightMm,
-    borderWallThickness,
-    tableWidth,
-    tableHeight,
-  } = matDimensions;
-
-  const matOffset = borderWallThickness * scale;
-  const _matX = matOffset + (tableWidth * scale - matWidthMm * scale) / 2;
-  const _matY = matOffset + (tableHeight * scale - matHeightMm * scale);
+  const { matWidthMm, matHeightMm } = matDimensions;
 
   // Store bounding boxes for accurate hit detection
   const newBounds = new Map<

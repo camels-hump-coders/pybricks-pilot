@@ -2,7 +2,6 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import {
   addToProgramsAtom,
-  clearPersistedDataAtom,
   createExampleProjectAtom,
   createFileAtom,
   getAllProgramsAtom,
@@ -25,13 +24,10 @@ import {
   directoryNameAtom,
   fileContentCacheAtom,
   hasDirectoryAccessAtom,
-  isCreatingFileAtom,
   isFileSystemSupportedAtom,
   isPythonFilesLoadingAtom,
-  isReadingFileAtom,
   isRequestingDirectoryAtom,
   isRestoringDirectoryAtom,
-  isWritingFileAtom,
   programCountAtom,
   pythonFilesAtom,
   pythonFilesErrorAtom,
@@ -50,6 +46,7 @@ export function useJotaiFileSystem() {
 
   // Memoize directory handle to prevent re-renders when the handle object reference changes
   // but the actual directory (identified by name) hasn't changed
+  // biome-ignore lint/correctness/useExhaustiveDependencies: we actually want to force stability of the handle, which directoryName is it's stable proxy
   const stableDirectoryHandle = useMemo(() => {
     return directoryHandle;
   }, [directoryName]); // Only re-memoize when directory name changes, not when handle object changes
@@ -62,11 +59,6 @@ export function useJotaiFileSystem() {
   // Program state (derived from file state)
   const programCount = useAtomValue(programCountAtom);
   const allPrograms = useAtomValue(allProgramsAtom);
-
-  // Operation status
-  const _isReadingFile = useAtomValue(isReadingFileAtom);
-  const _isWritingFile = useAtomValue(isWritingFileAtom);
-  const _isCreatingFile = useAtomValue(isCreatingFileAtom);
 
   // File content cache
   const fileContentCache = useAtomValue(fileContentCacheAtom);
@@ -83,7 +75,6 @@ export function useJotaiFileSystem() {
   const createFile = useSetAtom(createFileAtom);
   const createExampleProject = useSetAtom(createExampleProjectAtom);
   const unmountDirectory = useSetAtom(unmountDirectoryAtom);
-  const _clearPersistedData = useSetAtom(clearPersistedDataAtom);
   const getFileContentAction = useSetAtom(getFileContentAtom);
 
   // Program metadata actions
@@ -98,6 +89,7 @@ export function useJotaiFileSystem() {
 
   // Auto-restore directory on component mount
   // The atom itself has guards to prevent multiple restoration attempts
+  // biome-ignore lint/correctness/useExhaustiveDependencies: we want to force only do this once per mount
   useEffect(() => {
     restoreLastDirectory();
   }, []); // Empty deps - only run once per component mount

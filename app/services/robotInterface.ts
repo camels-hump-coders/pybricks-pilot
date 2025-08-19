@@ -284,6 +284,3 @@ class RobotConnectionManager {
     return null;
   }
 }
-
-// Export singleton instance
-const _robotConnectionManager = new RobotConnectionManager();

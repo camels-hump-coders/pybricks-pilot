@@ -158,9 +158,6 @@ class DependencyResolver {
   ): PythonFile | null {
     const possiblePaths = this.moduleNameToFilePaths(moduleName);
 
-    // Get flattened files for debugging
-    const _flatFiles = this.flattenFileTree(files);
-
     for (const path of possiblePaths) {
       const file = this.findFileByPath(files, path);
       if (file) {

@@ -587,7 +587,6 @@ class VirtualRobotService extends EventTarget {
 
     // Simulate motor movement to target angle
     while (Date.now() - startTime < duration) {
-      const _progress = (Date.now() - startTime) / duration;
       // Only update the visual progress, don't change the actual angle until final
       this.state.motors[motorName].speed = speed;
 
