@@ -12,12 +12,12 @@ import {
 import {
   allTelemetryPointsAtom,
   clearTelemetryHistoryAtom,
+  colorModeAtom,
   currentTelemetryPathAtom,
   selectedPathPointsAtom,
   selectedTelemetryPathAtom,
   telemetryPathsAtom,
   telemetryTotalDurationAtom,
-  colorModeAtom,
   updateTelemetryDataAtom,
 } from "../store/atoms/telemetryPoints";
 import { TelemetryTooltip } from "./TelemetryTooltip";
@@ -79,7 +79,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
     const syncTelemetryData = () => {
       const paths = telemetryHistory.getAllPaths();
       const currentPath = telemetryHistory.getCurrentPath();
-      
+
       updateTelemetryData({ paths, currentPath });
     };
 
@@ -353,13 +353,48 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
 
   return (
     <div className="p-4 space-y-4">
+      {/* Path Visualization Settings */}
+      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2">
+        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          Path Visualization
+        </h4>
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          Choose how to color the robot's path on the competition mat. Colors
+          represent different sensor data or robot states over time.
+        </p>
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="color-mode"
+            className="text-sm text-gray-600 dark:text-gray-400"
+          >
+            Color Mode:
+          </label>
+          <select
+            id="color-mode"
+            value={colorMode}
+            onChange={(e) => setColorMode(e.target.value as ColorMode)}
+            className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+          >
+            <option value="none">Solid Blue</option>
+            <option value="speed">Speed (Green → Red)</option>
+            <option value="motorLoad">Motor Load (Blue → Red)</option>
+            <option value="colorSensor">Color Sensor (Actual Colors)</option>
+            <option value="distanceSensor">
+              Distance (Red=Close, Green=Far)
+            </option>
+            <option value="reflectionSensor">Reflection (Black → White)</option>
+            <option value="forceSensor">Force (Light → Dark)</option>
+          </select>
+        </div>
+      </div>
+
       {/* Path Selection */}
       {(allPaths.length > 0 || currentPath) && (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2">
           <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
             Recorded Paths
           </h4>
-          
+
           {/* All Paths Combined Option */}
           <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border">
             <div className="flex items-center gap-2">
@@ -376,7 +411,10 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
                 }}
                 className="text-blue-600"
               />
-              <label htmlFor="all-paths" className="text-sm text-gray-800 dark:text-gray-200">
+              <label
+                htmlFor="all-paths"
+                className="text-sm text-gray-800 dark:text-gray-200"
+              >
                 All Paths Combined ({allPoints.length} total pts)
               </label>
             </div>
@@ -385,11 +423,16 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
           {/* Individual Paths */}
           {allPaths.map((path) => {
             const pathDate = new Date(path.startTime).toLocaleTimeString();
-            const duration = ((path.endTime - path.startTime) / 1000).toFixed(1);
+            const duration = ((path.endTime - path.startTime) / 1000).toFixed(
+              1
+            );
             const isSelected = selectedPathId === path.id;
-            
+
             return (
-              <div key={path.id} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border">
+              <div
+                key={path.id}
+                className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border"
+              >
                 <div className="flex items-center gap-2">
                   <input
                     type="radio"
@@ -404,7 +447,10 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
                     }}
                     className="text-blue-600"
                   />
-                  <label htmlFor={`path-${path.id}`} className="text-sm text-gray-800 dark:text-gray-200">
+                  <label
+                    htmlFor={`path-${path.id}`}
+                    className="text-sm text-gray-800 dark:text-gray-200"
+                  >
                     Path {pathDate} ({duration}s, {path.points.length} pts)
                   </label>
                 </div>
@@ -445,7 +491,10 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
                   }}
                   className="text-blue-600"
                 />
-                <label htmlFor="current-path" className="text-sm text-gray-800 dark:text-gray-200">
+                <label
+                  htmlFor="current-path"
+                  className="text-sm text-gray-800 dark:text-gray-200"
+                >
                   Current Path ({currentPath.points.length} pts) ⚡
                 </label>
               </div>
@@ -694,35 +743,6 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
         <div className="bg-gray-50 dark:bg-gray-900 rounded p-2">
           <div className="text-gray-500 dark:text-gray-400">Window Size</div>
           <div className="font-mono text-lg">{formatTime(windowDuration)}</div>
-        </div>
-      </div>
-
-      {/* Path Visualization Settings */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2">
-        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-          Path Visualization
-        </h4>
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          Choose how to color the robot's path on the competition mat. Colors represent different sensor data or robot states over time.
-        </p>
-        <div className="flex items-center gap-2">
-          <label htmlFor="color-mode" className="text-sm text-gray-600 dark:text-gray-400">
-            Color Mode:
-          </label>
-          <select
-            id="color-mode"
-            value={colorMode}
-            onChange={(e) => setColorMode(e.target.value as ColorMode)}
-            className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-          >
-            <option value="none">Solid Blue</option>
-            <option value="speed">Speed (Green → Red)</option>
-            <option value="motorLoad">Motor Load (Blue → Red)</option>
-            <option value="colorSensor">Color Sensor (Actual Colors)</option>
-            <option value="distanceSensor">Distance (Red=Close, Green=Far)</option>
-            <option value="reflectionSensor">Reflection (Black → White)</option>
-            <option value="forceSensor">Force (Light → Dark)</option>
-          </select>
         </div>
       </div>
 
