@@ -1,0 +1,4 @@
+{
+  "ignore": ["public/spa-github-pages.js"],
+  "ignoreDependencies": ["isbot", "@react-router/node"]
+}
