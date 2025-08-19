@@ -376,16 +376,34 @@ function drawRobotGhost(
   // Use robot config dimensions if available, otherwise fallback to approximate FLL robot size
   let robotWidth = 40 * scale;
   let robotLength = 50 * scale;
+  let robotBodyOffsetX = 0;
+  let robotBodyOffsetY = 0;
 
   if (robotConfig) {
     // Convert from studs to mm, then to canvas pixels
     robotWidth = robotConfig.dimensions.width * LEGO_STUD_SIZE_MM * scale;
     robotLength = robotConfig.dimensions.length * LEGO_STUD_SIZE_MM * scale;
+    
+    // Calculate offset from center of rotation to geometric center
+    // Center of rotation is at centerOfRotation.distanceFromLeftEdge, centerOfRotation.distanceFromTop
+    // Geometric center is at dimensions.width/2, dimensions.length/2
+    const corX = robotConfig.centerOfRotation.distanceFromLeftEdge * LEGO_STUD_SIZE_MM;
+    const corY = robotConfig.centerOfRotation.distanceFromTop * LEGO_STUD_SIZE_MM;
+    const geoCenterX = (robotConfig.dimensions.width / 2) * LEGO_STUD_SIZE_MM;
+    const geoCenterY = (robotConfig.dimensions.length / 2) * LEGO_STUD_SIZE_MM;
+    
+    // Offset from COR to geometric center (in canvas pixels)
+    robotBodyOffsetX = (geoCenterX - corX) * scale;
+    robotBodyOffsetY = (geoCenterY - corY) * scale;
   }
 
   ctx.save();
+  // Translate to center of rotation position (the waypoint/action point)
   ctx.translate(pos.x, pos.y);
+  // Rotate around center of rotation
   ctx.rotate(headingRadians);
+  // Translate to robot body center for drawing
+  ctx.translate(robotBodyOffsetX, robotBodyOffsetY);
 
   // Draw ghost robot outline (semi-transparent)
   ctx.fillStyle = "rgba(139, 92, 246, 0.2)"; // violet-500 with low opacity (matches action point color)
@@ -408,6 +426,13 @@ function drawRobotGhost(
     frontIndicatorWidth,
     frontIndicatorHeight
   );
+  
+  // Draw center of rotation indicator (small red dot at the actual point position)
+  ctx.fillStyle = "rgba(255, 0, 0, 0.8)";
+  ctx.beginPath();
+  // Go back to center of rotation position (undo the robot body offset)
+  ctx.arc(-robotBodyOffsetX, -robotBodyOffsetY, 3 * scale, 0, 2 * Math.PI);
+  ctx.fill();
 
   ctx.restore();
 }

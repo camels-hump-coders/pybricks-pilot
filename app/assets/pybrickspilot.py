@@ -521,6 +521,42 @@ async def _execute_single_command(command):
             await _drivebase.drive(speed, turn_rate)
             print("[PILOT] Continuous drive:", speed, "mm/s, turn:", turn_rate, "°/s")
 
+        elif action == "turn_and_drive" and _drivebase:
+            # Turn and drive command: {"action": "turn_and_drive", "angle": 90, "distance": 100, "speed": 200}
+            angle = command.get("angle", 0)
+            distance = command.get("distance", 0)
+            speed = command.get("speed", 100)
+
+            # Convert stop behavior string to Pybricks Stop parameter
+            stop_param = Stop.HOLD  # Default
+            stop_behavior = command.get("stop_behavior", "hold")
+            if stop_behavior == "coast_smart":
+                stop_param = Stop.COAST_SMART
+            elif stop_behavior == "coast":
+                stop_param = Stop.COAST
+            elif stop_behavior == "brake":
+                stop_param = Stop.BRAKE
+
+            # Execute turn first, then drive
+            if angle != 0:
+                _drivebase.settings(turn_rate=speed)
+                await _drivebase.turn(angle, then=Stop.COAST_SMART, wait=True)
+                
+            if distance != 0:
+                _drivebase.settings(straight_speed=speed)
+                await _drivebase.straight(distance, then=stop_param, wait=True)
+                
+            print(
+                "[PILOT] Executed turn_and_drive:",
+                angle,
+                "° then",
+                distance,
+                "mm at",
+                speed,
+                "units/s with",
+                stop_behavior,
+            )
+
         elif action == "arc" and _drivebase:
             # Arc command: {"action": "arc", "radius": 100, "angle": 90, "speed": 200}
             # Use Pybricks drivebase arc method for smooth curved movement

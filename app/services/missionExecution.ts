@@ -133,37 +133,31 @@ export class MissionExecutionService {
         }
       }
 
-      // Add heading alignment and pause at action points
+      // When arriving at an action point, immediately turn to the action's heading
       if (segment.toPoint.type === "action") {
         const actionPoint = segment.toPoint as any;
 
-        // Add heading alignment for action points
+        // ALWAYS add heading alignment as the next command after arriving at action point
         if (actionPoint.heading !== undefined) {
-          console.log(`[Action Point] Raw heading: ${actionPoint.heading}°`);
+          console.log(`[Action Point] Arrived at action, turning to heading: ${actionPoint.heading}°`);
           const requiredRobotHeading = actionPoint.heading;
           console.log(
-            `[Action Point] Required robot heading: ${requiredRobotHeading}°`,
-            actionPoint
-          );
-          console.log(
-            `[Action Point] Current robot heading: ${currentRobotHeading}°`
+            `[Action Point] Current robot heading: ${currentRobotHeading}°, Required: ${requiredRobotHeading}°`
           );
 
           const relativeTurn = normalizeAngle(
             requiredRobotHeading - currentRobotHeading
           );
-          console.log(`[Action Point] Relative turn needed: ${relativeTurn}°`);
+          console.log(`[Action Point] Executing turn of ${relativeTurn}° to face action heading`);
 
-          if (Math.abs(relativeTurn) > 2) {
-            // Only turn if significant
-            commands.push({
-              action: "turn",
-              angle: relativeTurn,
-              speed: opts.defaultTurnSpeed,
-              description: `Turn ${relativeTurn.toFixed(1)}° for action heading`,
-            });
-            currentRobotHeading = requiredRobotHeading;
-          }
+          // Always add the turn command, even for small angles, to ensure precise action heading
+          commands.push({
+            action: "turn",
+            angle: relativeTurn,
+            speed: opts.defaultTurnSpeed,
+            description: `Turn to action heading ${requiredRobotHeading.toFixed(1)}°`,
+          });
+          currentRobotHeading = requiredRobotHeading;
         }
       }
     }

@@ -1,6 +1,10 @@
-import type { Mission, MissionPointType, ActionPoint, ResolvedMissionPoint } from "../types/missionPlanner";
-import { resolveMissionPoints } from "./missionPointResolver";
 import type { NamedPosition } from "../store/atoms/positionManagement";
+import type {
+  Mission,
+  MissionPointType,
+  ResolvedMissionPoint,
+} from "../types/missionPlanner";
+import { resolveMissionPoints } from "./missionPointResolver";
 
 /**
  * Arc path segment representing a smooth curved path between two points
@@ -39,8 +43,13 @@ export function normalizeAngle(angle: number): number {
  * Calculate the angle between two points in canvas coordinates
  * Returns angle in degrees, 0° = East, 90° = South (canvas Y+ down)
  */
-function calculateAngle(x1: number, y1: number, x2: number, y2: number): number {
-  return Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+function calculateAngle(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
+  return (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
 }
 
 /**
@@ -48,13 +57,19 @@ function calculateAngle(x1: number, y1: number, x2: number, y2: number): number 
  * Canvas: Y+ down, 0° = East
  * Robot: Y+ up (North), 0° = North
  */
-function canvasToRobotCoords(x: number, y: number, heading: number): {
-  x: number; y: number; heading: number;
+function canvasToRobotCoords(
+  x: number,
+  y: number,
+  heading: number
+): {
+  x: number;
+  y: number;
+  heading: number;
 } {
   return {
     x: x,
     y: -y, // Flip Y axis: Canvas Y+ down → Robot Y+ up
-    heading: normalizeAngle(90 - heading) // Convert: Canvas 0°=East → Robot 0°=North
+    heading: normalizeAngle(90 - heading), // Convert: Canvas 0°=East → Robot 0°=North
   };
 }
 
@@ -63,25 +78,30 @@ function canvasToRobotCoords(x: number, y: number, heading: number): {
  * For a circle with center (cx, cy), the tangent at point (px, py) is perpendicular to the radius
  */
 function calculateArcTangent(
-  pointX: number, 
-  pointY: number, 
-  centerX: number, 
+  pointX: number,
+  pointY: number,
+  centerX: number,
   centerY: number,
   clockwise: boolean = false
 ): number {
   // Calculate radius direction (from center to point)
   const radiusAngle = Math.atan2(pointY - centerY, pointX - centerX);
-  
+
   // Tangent is perpendicular to radius (±90°)
-  const tangentAngle = radiusAngle + (clockwise ? -Math.PI/2 : Math.PI/2);
-  
-  return normalizeAngle(tangentAngle * 180 / Math.PI);
+  const tangentAngle = radiusAngle + (clockwise ? -Math.PI / 2 : Math.PI / 2);
+
+  return normalizeAngle((tangentAngle * 180) / Math.PI);
 }
 
 /**
  * Calculate distance between two points
  */
-function calculateDistance(x1: number, y1: number, x2: number, y2: number): number {
+function calculateDistance(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
   const dx = x2 - x1;
   const dy = y2 - y1;
   return Math.sqrt(dx * dx + dy * dy);
@@ -102,11 +122,11 @@ function findCircleThroughThreePoints(
   const dx2 = p3.x - p1.x;
   const dy2 = p3.y - p1.y;
   const cross = dx1 * dy2 - dy1 * dx2;
-  
+
   if (Math.abs(cross) < 0.001) {
     return null;
   }
-  
+
   // Using the formula for circumcenter
   const ax = p1.x;
   const ay = p1.y;
@@ -114,19 +134,27 @@ function findCircleThroughThreePoints(
   const by = p2.y;
   const cx = p3.x;
   const cy = p3.y;
-  
+
   const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
-  
+
   if (Math.abs(d) < 0.001) {
     return null;
   }
-  
-  const ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
-  const uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
-  
+
+  const ux =
+    ((ax * ax + ay * ay) * (by - cy) +
+      (bx * bx + by * by) * (cy - ay) +
+      (cx * cx + cy * cy) * (ay - by)) /
+    d;
+  const uy =
+    ((ax * ax + ay * ay) * (cx - bx) +
+      (bx * bx + by * by) * (ax - cx) +
+      (cx * cx + cy * cy) * (bx - ax)) /
+    d;
+
   const center = { x: ux, y: uy };
   const radius = calculateDistance(center.x, center.y, p1.x, p1.y);
-  
+
   return { center, radius };
 }
 
@@ -134,30 +162,32 @@ function findCircleThroughThreePoints(
  * Identify optimization segments between action points
  * Action points create breaks where we don't optimize across them
  */
-function identifyOptimizationSegments(points: ResolvedMissionPoint[]): Array<{startIndex: number, endIndex: number}> {
-  const segments: Array<{startIndex: number, endIndex: number}> = [];
+function identifyOptimizationSegments(
+  points: ResolvedMissionPoint[]
+): Array<{ startIndex: number; endIndex: number }> {
+  const segments: Array<{ startIndex: number; endIndex: number }> = [];
   let segmentStart = 0;
-  
+
   for (let i = 0; i < points.length; i++) {
     const point = points[i];
-    
+
     // Action points create optimization breaks
     if (point.type === "action" || i === points.length - 1) {
       // End current segment if it has at least 3 points (needed for triarc)
       if (i - segmentStart >= 2) {
         segments.push({
           startIndex: segmentStart,
-          endIndex: i
+          endIndex: i,
         });
       }
-      
+
       // Start new segment after action point
       if (point.type === "action" && i < points.length - 1) {
         segmentStart = i;
       }
     }
   }
-  
+
   return segments;
 }
 
@@ -169,35 +199,41 @@ function calculateRollingTriarc(
   points: ResolvedMissionPoint[],
   startIndex: number,
   endIndex: number
-): Map<number, {
-  center: { x: number; y: number };
-  radius: number;
-  startAngle: number;
-  endAngle: number;
-  startPoint: { x: number; y: number };
-  endPoint: { x: number; y: number };
-  energy: number;
-}> {
+): Map<
+  number,
+  {
+    center: { x: number; y: number };
+    radius: number;
+    startAngle: number;
+    endAngle: number;
+    startPoint: { x: number; y: number };
+    endPoint: { x: number; y: number };
+    energy: number;
+  }
+> {
   const arcs = new Map();
-  
+
   // If segment is too short for triarc optimization, use simple waypoint arcs
   if (endIndex - startIndex < 2) {
     return arcs;
   }
-  
+
   // Calculate energy for different arc configurations
-  const arcCandidates = new Map<number, Array<{
-    arc: any;
-    energy: number;
-    source: string; // Which triarc generated this arc
-  }>>();
-  
+  const arcCandidates = new Map<
+    number,
+    Array<{
+      arc: any;
+      energy: number;
+      source: string; // Which triarc generated this arc
+    }>
+  >();
+
   // Generate arc candidates from overlapping triplets
   for (let i = startIndex; i <= endIndex - 2; i++) {
     const triplet = points.slice(i, i + 3);
     if (triplet.length === 3) {
       const triarc = calculateTriarcForTriplet(triplet, i);
-      
+
       if (triarc) {
         // Add arc candidates for the middle waypoint
         const middleIndex = i + 1;
@@ -205,31 +241,31 @@ function calculateRollingTriarc(
           if (!arcCandidates.has(middleIndex)) {
             arcCandidates.set(middleIndex, []);
           }
-          
+
           arcCandidates.get(middleIndex)!.push({
             arc: triarc.arc,
             energy: triarc.energy,
-            source: `triarc-${i}-${i+1}-${i+2}`
+            source: `triarc-${i}-${i + 1}-${i + 2}`,
           });
         }
       }
     }
   }
-  
+
   // Select best arc for each waypoint based on minimum energy
   for (const [waypointIndex, candidates] of arcCandidates) {
     if (candidates.length > 0) {
-      const bestCandidate = candidates.reduce((best, current) => 
+      const bestCandidate = candidates.reduce((best, current) =>
         current.energy < best.energy ? current : best
       );
-      
+
       arcs.set(waypointIndex, {
         ...bestCandidate.arc,
-        energy: bestCandidate.energy
+        energy: bestCandidate.energy,
       });
     }
   }
-  
+
   return arcs;
 }
 
@@ -251,23 +287,25 @@ function calculateTriarcForTriplet(
   energy: number;
 } | null {
   const [p1, p2, p3] = triplet;
-  
+
   // Try to create an arc through all three points
   const arcResult = calculateWaypointArc(p1, p2, p3);
-  
+
   if (!arcResult) {
     return null;
   }
-  
+
   // Calculate energy cost (curvature squared * arc length)
   const curvature = 1 / arcResult.radius; // Higher curvature = sharper turn
-  const arcAngle = Math.abs(normalizeAngle(arcResult.endAngle - arcResult.startAngle));
-  const arcLength = arcResult.radius * arcAngle * Math.PI / 180;
+  const arcAngle = Math.abs(
+    normalizeAngle(arcResult.endAngle - arcResult.startAngle)
+  );
+  const arcLength = (arcResult.radius * arcAngle * Math.PI) / 180;
   const energy = curvature * curvature * arcLength; // Energy = curvature² × length
-  
+
   return {
     arc: arcResult,
-    energy
+    energy,
   };
 }
 
@@ -288,34 +326,40 @@ function calculateWaypointArc(
   endPoint: { x: number; y: number };
 } | null {
   // Use the three-point circle calculation to ensure arc passes through waypoint
-  const circleResult = findCircleThroughThreePoints(prevPoint, waypoint, nextPoint);
-  
+  const circleResult = findCircleThroughThreePoints(
+    prevPoint,
+    waypoint,
+    nextPoint
+  );
+
   if (!circleResult) {
     return null;
   }
-  
+
   const { center, radius } = circleResult;
-  
+
   // Check for reasonable radius
   if (radius < 10 || radius > 2000) {
     return null;
   }
-  
+
   // Calculate angles
-  const startAngle = Math.atan2(prevPoint.y - center.y, prevPoint.x - center.x) * 180 / Math.PI;
-  const endAngle = Math.atan2(nextPoint.y - center.y, nextPoint.x - center.x) * 180 / Math.PI;
-  
+  const startAngle =
+    (Math.atan2(prevPoint.y - center.y, prevPoint.x - center.x) * 180) /
+    Math.PI;
+  const endAngle =
+    (Math.atan2(nextPoint.y - center.y, nextPoint.x - center.x) * 180) /
+    Math.PI;
+
   return {
     center,
     radius,
     startAngle,
     endAngle,
     startPoint: prevPoint,
-    endPoint: nextPoint
+    endPoint: nextPoint,
   };
 }
-
-
 
 /**
  * Path segment types for optimal robot movement
@@ -341,66 +385,78 @@ function calculateSmoothPathSegments(
   _defaultRadius: number
 ): ArcPathSegment[] {
   if (points.length < 2) return [];
-  
+
   // First, identify optimization segments (between action points)
   const optimizationSegments = identifyOptimizationSegments(points);
-  
+
   // Calculate optimized arcs for each segment using rolling triarc approach
-  const optimizedArcs = new Map<number, {
-    center: { x: number; y: number };
-    radius: number;
-    startAngle: number;
-    endAngle: number;
-    startPoint: { x: number; y: number };
-    endPoint: { x: number; y: number };
-    energy: number; // Energy cost for optimization
-  }>();
-  
+  const optimizedArcs = new Map<
+    number,
+    {
+      center: { x: number; y: number };
+      radius: number;
+      startAngle: number;
+      endAngle: number;
+      startPoint: { x: number; y: number };
+      endPoint: { x: number; y: number };
+      energy: number; // Energy cost for optimization
+    }
+  >();
+
   for (const segment of optimizationSegments) {
-    const segmentArcs = calculateRollingTriarc(points, segment.startIndex, segment.endIndex);
-    
+    const segmentArcs = calculateRollingTriarc(
+      points,
+      segment.startIndex,
+      segment.endIndex
+    );
+
     // Merge the calculated arcs into our map
     for (const [index, arc] of segmentArcs) {
       optimizedArcs.set(index, arc);
     }
   }
-  
+
   // Second pass: Generate path segments using optimized arcs
   const segments: ArcPathSegment[] = [];
-  
+
   for (let i = 0; i < points.length - 1; i++) {
     const currentPoint = points[i];
-    const nextPoint = points[i + 1];
-    
+
     // Check if next point is a waypoint with an optimized arc
     const nextArc = optimizedArcs.get(i + 1);
-    
+
     if (nextArc) {
+      // Skip the next iteration since this arc already covers the path to the point after nextPoint
+      i++;
+
+      const nextPoint = points[i + 1];
+
       // For optimized arcs, we create one arc segment that covers the entire path from prevPoint to nextPoint through the waypoint
-      const arcAngle = Math.abs(normalizeAngle(nextArc.endAngle - nextArc.startAngle));
-      const arcLength = nextArc.radius * arcAngle * Math.PI / 180;
-      
-      
+      const arcAngle = Math.abs(
+        normalizeAngle(nextArc.endAngle - nextArc.startAngle)
+      );
+      const arcLength = (nextArc.radius * arcAngle * Math.PI) / 180;
+
       // Calculate proper tangent directions for the arc
       const arcSweep = normalizeAngle(nextArc.endAngle - nextArc.startAngle);
       const clockwise = arcSweep < 0;
-      
+
       const startTangent = calculateArcTangent(
-        nextArc.startPoint.x, 
-        nextArc.startPoint.y, 
-        nextArc.center.x, 
-        nextArc.center.y, 
+        nextArc.startPoint.x,
+        nextArc.startPoint.y,
+        nextArc.center.x,
+        nextArc.center.y,
         clockwise
       );
-      
+
       const endTangent = calculateArcTangent(
-        nextArc.endPoint.x, 
-        nextArc.endPoint.y, 
-        nextArc.center.x, 
-        nextArc.center.y, 
+        nextArc.endPoint.x,
+        nextArc.endPoint.y,
+        nextArc.center.x,
+        nextArc.center.y,
         clockwise
       );
-      
+
       segments.push({
         fromPoint: currentPoint,
         toPoint: nextPoint,
@@ -415,19 +471,26 @@ function calculateSmoothPathSegments(
         arcCenter: nextArc.center,
         arcRadius: nextArc.radius,
         arcStartAngle: nextArc.startAngle,
-        arcEndAngle: nextArc.endAngle
+        arcEndAngle: nextArc.endAngle,
       });
-      
-      // Skip the next iteration since this arc already covers the path to the point after nextPoint
-      i++;
-      
     } else {
+      const nextPoint = points[i + 1];
       // No arc - create simple straight line segment
-      const segmentDistance = calculateDistance(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-      
+      const segmentDistance = calculateDistance(
+        currentPoint.x,
+        currentPoint.y,
+        nextPoint.x,
+        nextPoint.y
+      );
+
       if (segmentDistance > 1) {
-        const segmentAngle = calculateAngle(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-        
+        const segmentAngle = calculateAngle(
+          currentPoint.x,
+          currentPoint.y,
+          nextPoint.x,
+          nextPoint.y
+        );
+
         segments.push({
           fromPoint: currentPoint,
           toPoint: nextPoint,
@@ -438,28 +501,39 @@ function calculateSmoothPathSegments(
           startHeading: segmentAngle,
           endHeading: segmentAngle,
           pathType: "straight",
-          pathLength: segmentDistance
+          pathLength: segmentDistance,
         });
       }
     }
   }
-  
+
   return segments;
 }
-
 
 /**
  * Create simple straight line segments between all mission points as fallback
  */
-function createFallbackStraightSegments(points: ResolvedMissionPoint[]): ArcPathSegment[] {
+function createFallbackStraightSegments(
+  points: ResolvedMissionPoint[]
+): ArcPathSegment[] {
   const segments: ArcPathSegment[] = [];
-  
+
   for (let i = 0; i < points.length - 1; i++) {
     const fromPoint = points[i];
     const toPoint = points[i + 1];
-    const distance = calculateDistance(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
-    const angle = calculateAngle(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
-    
+    const distance = calculateDistance(
+      fromPoint.x,
+      fromPoint.y,
+      toPoint.x,
+      toPoint.y
+    );
+    const angle = calculateAngle(
+      fromPoint.x,
+      fromPoint.y,
+      toPoint.x,
+      toPoint.y
+    );
+
     segments.push({
       fromPoint,
       toPoint,
@@ -470,10 +544,10 @@ function createFallbackStraightSegments(points: ResolvedMissionPoint[]): ArcPath
       startHeading: angle,
       endHeading: angle,
       pathType: "straight",
-      pathLength: distance
+      pathLength: distance,
     });
   }
-  
+
   return segments;
 }
 
@@ -481,22 +555,25 @@ function createFallbackStraightSegments(points: ResolvedMissionPoint[]): ArcPath
  * Compute arc-based path segments that pass through waypoints for smooth motion
  * Falls back to straight line connections if arc calculation fails
  */
-export function computeArcPath(mission: Mission, positions: NamedPosition[]): ArcPathSegment[] {
+export function computeArcPath(
+  mission: Mission,
+  positions: NamedPosition[]
+): ArcPathSegment[] {
   if (!mission || mission.points.length < 2) {
     return [];
   }
-  
+
   // Resolve all points to include computed coordinates
   const resolvedPoints = resolveMissionPoints(mission.points, positions);
-  
+
   const defaultRadius = mission.defaultArcRadius || 100; // mm
   const segments = calculateSmoothPathSegments(resolvedPoints, defaultRadius);
-  
+
   // If no segments were generated, create fallback straight line segments
   if (segments.length === 0) {
     return createFallbackStraightSegments(resolvedPoints);
   }
-  
+
   return segments;
 }
 
@@ -508,52 +585,61 @@ export function generateArcPathPoints(
   resolution: number = 10 // points per 100mm of path
 ): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = [];
-  
+
   if (segment.pathType === "straight") {
     // Simple straight line
     points.push({ x: segment.startX, y: segment.startY });
     points.push({ x: segment.endX, y: segment.endY });
     return points;
   }
-  
-  if (!segment.arcCenter || !segment.arcRadius || segment.arcStartAngle === undefined || segment.arcEndAngle === undefined) {
+
+  if (
+    !segment.arcCenter ||
+    !segment.arcRadius ||
+    segment.arcStartAngle === undefined ||
+    segment.arcEndAngle === undefined
+  ) {
     // Fallback to straight line
     points.push({ x: segment.startX, y: segment.startY });
     points.push({ x: segment.endX, y: segment.endY });
     return points;
   }
-  
+
   // Generate arc points
-  const numPoints = Math.max(3, Math.ceil(segment.pathLength * resolution / 100));
-  const startAngle = segment.arcStartAngle * Math.PI / 180;
-  
-  
+  const numPoints = Math.max(
+    3,
+    Math.ceil((segment.pathLength * resolution) / 100)
+  );
+  const startAngle = (segment.arcStartAngle * Math.PI) / 180;
+
   // Calculate the angle difference
   let angleDiff = segment.arcEndAngle - segment.arcStartAngle;
-  
+
   // Normalize to [-180, 180] range
   while (angleDiff > 180) angleDiff -= 360;
   while (angleDiff < -180) angleDiff += 360;
-  
+
   // Convert to radians for interpolation
-  const angleDiffRad = angleDiff * Math.PI / 180;
+  const angleDiffRad = (angleDiff * Math.PI) / 180;
   const angleStep = angleDiffRad / (numPoints - 1);
-  
+
   for (let i = 0; i < numPoints; i++) {
     const angle = startAngle + angleStep * i;
     const x = segment.arcCenter.x + segment.arcRadius * Math.cos(angle);
     const y = segment.arcCenter.y + segment.arcRadius * Math.sin(angle);
     points.push({ x, y });
   }
-  
-  
+
   return points;
 }
 
 /**
  * Get the total path length for a mission
  */
-export function calculateMissionPathLength(mission: Mission, positions: NamedPosition[]): number {
+export function calculateMissionPathLength(
+  mission: Mission,
+  positions: NamedPosition[]
+): number {
   const segments = computeArcPath(mission, positions);
   return segments.reduce((total, segment) => total + segment.pathLength, 0);
 }
@@ -567,22 +653,24 @@ export function estimateMissionTime(
   averageSpeed: number = 200 // mm/s
 ): number {
   const pathLength = calculateMissionPathLength(mission, positions);
-  
+
   // Add extra time for action points (1 second each)
-  const actionPoints = mission.points.filter(p => p.type === "action").length;
+  const actionPoints = mission.points.filter((p) => p.type === "action").length;
   const actionTime = actionPoints * 1000; // ms
-  
+
   // Add extra time for turns (based on heading changes)
   const segments = computeArcPath(mission, positions);
   const turnTime = segments.reduce((total, segment) => {
     if (segment.pathType === "arc") {
-      const headingChange = Math.abs(normalizeAngle(segment.endHeading - segment.startHeading));
+      const headingChange = Math.abs(
+        normalizeAngle(segment.endHeading - segment.startHeading)
+      );
       return total + (headingChange / 90) * 500; // 500ms per 90° turn
     }
     return total;
   }, 0);
-  
+
   const travelTime = (pathLength / averageSpeed) * 1000; // Convert to ms
-  
+
   return Math.ceil((travelTime + actionTime + turnTime) / 1000); // Return in seconds
 }
