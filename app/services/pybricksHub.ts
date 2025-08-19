@@ -973,30 +973,18 @@ class PybricksHubService extends EventTarget {
 
   // Arc command implementation using Pybricks native arc support
   async arc(
-    centerX: number,
-    centerY: number,
     radius: number,
-    startAngle: number,
-    endAngle: number,
+    angle: number,
     speed: number = 100
   ): Promise<void> {
-    // Calculate arc sweep angle
-    let sweepAngle = endAngle - startAngle;
-    
-    // Normalize to [-180, 180] range for shortest path
-    while (sweepAngle > 180) sweepAngle -= 360;
-    while (sweepAngle < -180) sweepAngle += 360;
-    
-    console.log(`[Pybricks Hub] Executing arc: radius ${radius.toFixed(1)}mm, angle ${sweepAngle.toFixed(1)}°, speed ${speed}mm/s`);
+    console.log(`[Pybricks Hub] Executing arc: radius ${radius.toFixed(1)}mm, angle ${angle.toFixed(1)}°, speed ${speed}mm/s`);
     
     // Send arc command to firmware using Pybricks native arc method
     await this.executeCommandSequence([{
       action: "arc",
-      radius: radius,
-      startAngle: startAngle,
-      endAngle: endAngle,
-      angle: sweepAngle, // Also send computed angle for firmware convenience
-      speed: speed,
+      radius,
+      angle,
+      speed
     }]);
   }
 

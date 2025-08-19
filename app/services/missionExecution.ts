@@ -1,8 +1,8 @@
 import type { RobotConfig } from "../schemas/RobotConfig";
+import type { NamedPosition } from "../store/atoms/positionManagement";
 import type { Mission } from "../types/missionPlanner";
 import type { ArcPathSegment } from "../utils/arcPathComputation";
 import { computeArcPath, normalizeAngle } from "../utils/arcPathComputation";
-import type { NamedPosition } from "../store/atoms/positionManagement";
 
 /**
  * Convert canvas heading to robot heading
@@ -36,11 +36,7 @@ export interface RobotCommand {
   motor?: string;
   duration?: number; // ms for pause
   // Arc-specific parameters
-  centerX?: number; // Arc center X coordinate
-  centerY?: number; // Arc center Y coordinate
-  radius?: number; // Arc radius
-  startAngle?: number; // Arc start angle
-  endAngle?: number; // Arc end angle
+  radius?: number; // Arc radius (mm)
   description?: string; // Human readable description
 }
 
@@ -79,11 +75,16 @@ class MissionExecutionService {
 
     // Generate optimized arc path segments with resolved coordinates
     const segments = computeArcPath(mission, positions);
-    
+
     // Debug: Log all generated segments
-    console.log(`[Command Generation] Generated ${segments.length} path segments for mission "${mission.name}":`);
+    console.log(
+      `[Command Generation] Generated ${segments.length} path segments for mission "${mission.name}":`
+    );
     segments.forEach((segment, i) => {
-      console.log(`  Segment ${i + 1}: ${segment.pathType} from (${segment.startX.toFixed(1)}, ${segment.startY.toFixed(1)}) to (${segment.endX.toFixed(1)}, ${segment.endY.toFixed(1)}) - From ${segment.fromPoint.type} to ${segment.toPoint.type}`, segment);
+      console.log(
+        `  Segment ${i + 1}: ${segment.pathType} from (${segment.startX.toFixed(1)}, ${segment.startY.toFixed(1)}) to (${segment.endX.toFixed(1)}, ${segment.endY.toFixed(1)}) - From ${segment.fromPoint.type} to ${segment.toPoint.type}`,
+        segment
+      );
     });
 
     if (segments.length === 0) {
@@ -113,22 +114,15 @@ class MissionExecutionService {
             );
           }
         } else if (cmd.action === "arc") {
-          // Arc changes heading to the tangent direction at the end of the arc
-          if (cmd.startAngle !== undefined && cmd.endAngle !== undefined) {
-            const arcStartAngle = cmd.startAngle;
-            const arcEndAngle = cmd.endAngle;
-            
-            // Determine arc direction
-            let arcDirection = arcEndAngle - arcStartAngle;
-            while (arcDirection > 180) arcDirection -= 360;
-            while (arcDirection < -180) arcDirection += 360;
-            
-            // Calculate tangent direction at end of arc in canvas coordinates
-            const canvasTangentAtEnd = arcEndAngle + (arcDirection > 0 ? 90 : -90);
-            // Convert to robot heading
-            currentRobotHeading = canvasToRobotHeading(canvasTangentAtEnd);
-            
-            console.log(`[Heading Update] Arc completed, robot now facing: ${currentRobotHeading.toFixed(1)}°`);
+          // Arc changes heading by the sweep angle
+          if (cmd.angle !== undefined) {
+            // For Pybricks arcs: positive angle = left turn, negative angle = right turn
+            // This matches our robot heading convention where turns are relative
+            currentRobotHeading = normalizeAngle(currentRobotHeading + cmd.angle);
+
+            console.log(
+              `[Heading Update] Arc completed, robot now facing: ${currentRobotHeading.toFixed(1)}°`
+            );
           }
         }
       }
@@ -139,7 +133,9 @@ class MissionExecutionService {
 
         // ALWAYS add heading alignment as the next command after arriving at action point
         if (actionPoint.heading !== undefined) {
-          console.log(`[Action Point] Arrived at action, turning to heading: ${actionPoint.heading}°`);
+          console.log(
+            `[Action Point] Arrived at action, turning to heading: ${actionPoint.heading}°`
+          );
           const requiredRobotHeading = actionPoint.heading;
           console.log(
             `[Action Point] Current robot heading: ${currentRobotHeading}°, Required: ${requiredRobotHeading}°`
@@ -148,7 +144,9 @@ class MissionExecutionService {
           const relativeTurn = normalizeAngle(
             requiredRobotHeading - currentRobotHeading
           );
-          console.log(`[Action Point] Executing turn of ${relativeTurn}° to face action heading`);
+          console.log(
+            `[Action Point] Executing turn of ${relativeTurn}° to face action heading`
+          );
 
           // Always add the turn command, even for small angles, to ensure precise action heading
           commands.push({
@@ -178,7 +176,6 @@ class MissionExecutionService {
 
     return commands;
   }
-
 
   /**
    * Convert a single path segment to robot commands
@@ -238,57 +235,72 @@ class MissionExecutionService {
       segment.arcRadius
     ) {
       // Arc movement - first turn to arc starting direction, then execute arc
-      
+
       // Calculate the tangent direction at the start of the arc
       const arcStartAngle = segment.arcStartAngle!;
       const arcEndAngle = segment.arcEndAngle!;
-      
+
       // Determine arc direction (clockwise or counterclockwise)
       let arcDirection = arcEndAngle - arcStartAngle;
       // Normalize to [-180, 180] range for shortest path
       while (arcDirection > 180) arcDirection -= 360;
       while (arcDirection < -180) arcDirection += 360;
-      
+
       // Calculate tangent direction at start of arc
       // The arc angles are in canvas coordinates where 0°=East, 90°=South
       // For a circle, tangent is perpendicular to radius
       // In canvas coordinates: If arc goes counterclockwise, tangent is +90° from radius
       // If arc goes clockwise, tangent is -90° from radius
-      const canvasTangentAtStart = arcStartAngle + (arcDirection > 0 ? 90 : -90);
-      
+      const canvasTangentAtStart =
+        arcStartAngle + (arcDirection > 0 ? 90 : -90);
+
       // Convert canvas tangent to robot heading
       const requiredHeading = canvasToRobotHeading(canvasTangentAtStart);
-      
+
       // Calculate turn needed to face the arc starting direction
-      const relativeTurn = normalizeAngle(requiredHeading - currentRobotHeading);
-      
-      console.log(`[Arc Segment ${segmentIndex + 1}] Arc start angle (canvas): ${arcStartAngle.toFixed(1)}°`);
-      console.log(`[Arc Segment ${segmentIndex + 1}] Arc direction: ${arcDirection > 0 ? 'CCW' : 'CW'} (${arcDirection.toFixed(1)}°)`);
-      console.log(`[Arc Segment ${segmentIndex + 1}] Canvas tangent at start: ${canvasTangentAtStart.toFixed(1)}°`);
-      console.log(`[Arc Segment ${segmentIndex + 1}] Required robot heading: ${requiredHeading.toFixed(1)}°`);
-      console.log(`[Arc Segment ${segmentIndex + 1}] Current robot heading: ${currentRobotHeading.toFixed(1)}°`);
-      console.log(`[Arc Segment ${segmentIndex + 1}] Turn needed before arc: ${relativeTurn.toFixed(1)}°`);
-      
-      // Add turn command if significant turn is needed
-      if (Math.abs(relativeTurn) > 2) {
-        commands.push({
-          action: "turn",
-          angle: relativeTurn,
-          speed: options.defaultTurnSpeed,
-          description: `Turn ${relativeTurn.toFixed(1)}° to face arc start direction`,
-        });
-      }
+      const relativeTurn = normalizeAngle(
+        requiredHeading - currentRobotHeading
+      );
+
+      console.log(
+        `[Arc Segment ${segmentIndex + 1}] Arc start angle (canvas): ${arcStartAngle.toFixed(1)}°`
+      );
+      console.log(
+        `[Arc Segment ${segmentIndex + 1}] Arc direction: ${arcDirection > 0 ? "CCW" : "CW"} (${arcDirection.toFixed(1)}°)`
+      );
+      console.log(
+        `[Arc Segment ${segmentIndex + 1}] Canvas tangent at start: ${canvasTangentAtStart.toFixed(1)}°`
+      );
+      console.log(
+        `[Arc Segment ${segmentIndex + 1}] Required robot heading: ${requiredHeading.toFixed(1)}°`
+      );
+      console.log(
+        `[Arc Segment ${segmentIndex + 1}] Current robot heading: ${currentRobotHeading.toFixed(1)}°`
+      );
+      console.log(
+        `[Arc Segment ${segmentIndex + 1}] Turn needed before arc: ${relativeTurn.toFixed(1)}°`
+      );
+
+      // Always add turn command for precise arc alignment, even for small angles
+      // Small heading errors accumulate over the arc path and cause significant drift
+      commands.push({
+        action: "turn",
+        angle: relativeTurn,
+        speed: options.defaultTurnSpeed,
+        description: `Turn ${relativeTurn.toFixed(1)}° to face arc start direction`,
+      });
+
+      // Calculate sweep angle for the arc command
+      // Pybricks expects: arc(radius, angle) where angle is the total sweep
+      const sweepAngle = arcDirection; // This is already normalized to [-180, 180]
       
       // Add the arc command
       commands.push({
         action: "arc",
-        centerX: segment.arcCenter.x,
-        centerY: segment.arcCenter.y,
         radius: segment.arcRadius,
-        startAngle: segment.arcStartAngle,
-        endAngle: segment.arcEndAngle,
+        angle: sweepAngle,
         speed: options.defaultSpeed,
-        description: `Arc segment (radius: ${segment.arcRadius.toFixed(1)}mm, ${arcStartAngle.toFixed(1)}° to ${arcEndAngle.toFixed(1)}°)`,
+        description: `Arc segment (radius: ${segment.arcRadius.toFixed(1)}mm, sweep: ${sweepAngle.toFixed(1)}°)`,
       });
     }
 
@@ -316,11 +328,8 @@ class MissionExecutionService {
         speed: number
       ) => Promise<void>;
       arc?: (
-        centerX: number,
-        centerY: number,
         radius: number,
-        startAngle: number,
-        endAngle: number,
+        angle: number,
         speed: number
       ) => Promise<void>;
     }
@@ -337,12 +346,7 @@ class MissionExecutionService {
           speed: cmd.speed,
           turn_rate: cmd.turn_rate,
           motor: cmd.motor,
-          // Arc-specific parameters
-          centerX: cmd.centerX,
-          centerY: cmd.centerY,
           radius: cmd.radius,
-          startAngle: cmd.startAngle,
-          endAngle: cmd.endAngle,
         }));
 
       await robotInterface.executeCommandSequence(robotCommands);
@@ -412,17 +416,13 @@ class MissionExecutionService {
           case "arc":
             if (
               command.radius !== undefined &&
-              command.startAngle !== undefined &&
-              command.endAngle !== undefined &&
+              command.angle !== undefined &&
               command.speed !== undefined
             ) {
               if (robotInterface.arc) {
                 await robotInterface.arc(
-                  command.centerX || 0,
-                  command.centerY || 0,
                   command.radius,
-                  command.startAngle,
-                  command.endAngle,
+                  command.angle,
                   command.speed
                 );
               } else {
@@ -463,10 +463,10 @@ class MissionExecutionService {
           default:
             break;
         }
-        
+
         // Small delay between commands to prevent overwhelming the BLE connection
         if (i < commands.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 50));
         }
       }
     }

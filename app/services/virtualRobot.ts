@@ -799,10 +799,8 @@ class VirtualRobotService extends EventTarget {
           }
           break;
         case "arc":
-          if (cmd.centerX !== undefined && cmd.centerY !== undefined && 
-              cmd.radius !== undefined && cmd.startAngle !== undefined && 
-              cmd.endAngle !== undefined && cmd.speed !== undefined) {
-            await this.arc(cmd.centerX, cmd.centerY, cmd.radius, cmd.startAngle, cmd.endAngle, cmd.speed);
+          if (cmd.radius !== undefined && cmd.angle !== undefined && cmd.speed !== undefined) {
+            await this.arc(cmd.radius, cmd.angle, cmd.speed);
           }
           break;
       }
@@ -834,24 +832,34 @@ class VirtualRobotService extends EventTarget {
   }
 
   async arc(
-    centerX: number,
-    centerY: number,
     radius: number,
-    startAngle: number,
-    endAngle: number,
+    angle: number,
     speed: number
   ): Promise<void> {
     if (!this._isConnected) return;
 
-    console.log(`[VirtualRobot] Arc command: center(${centerX}, ${centerY}), radius=${radius}mm, ${startAngle}° to ${endAngle}° at ${speed}mm/s`);
-    console.log(`[VirtualRobot] Starting position:`, this.getCurrentPosition());
-
-    // Calculate arc length and duration
-    let arcAngle = endAngle - startAngle;
+    // Calculate arc center and angles from current robot state
+    // The robot should arc from its current position and heading
+    const currentPos = this.getCurrentPosition();
+    const currentHeadingRad = (currentPos.heading * Math.PI) / 180;
     
-    // Normalize to [-180, 180] range for shortest path
-    while (arcAngle > 180) arcAngle -= 360;
-    while (arcAngle < -180) arcAngle += 360;
+    // Calculate arc center perpendicular to current heading
+    // For positive angle (left turn): center is to the left of robot
+    // For negative angle (right turn): center is to the right of robot
+    const centerOffsetAngle = currentHeadingRad + (angle > 0 ? Math.PI / 2 : -Math.PI / 2);
+    const centerX = currentPos.x + radius * Math.cos(centerOffsetAngle);
+    const centerY = currentPos.y + radius * Math.sin(centerOffsetAngle);
+    
+    // Calculate start and end angles relative to center
+    const startAngle = Math.atan2(currentPos.y - centerY, currentPos.x - centerX) * (180 / Math.PI);
+    const endAngle = startAngle + angle;
+
+    console.log(`[VirtualRobot] Arc command: radius=${radius}mm, sweep=${angle}°, speed=${speed}mm/s`);
+    console.log(`[VirtualRobot] Calculated center(${centerX.toFixed(1)}, ${centerY.toFixed(1)}), ${startAngle.toFixed(1)}° to ${endAngle.toFixed(1)}°`);
+    console.log(`[VirtualRobot] Starting position:`, currentPos);
+
+    // Use the provided sweep angle directly
+    const arcAngle = angle;
     
     const arcLength = Math.abs(arcAngle) * Math.PI * radius / 180;
     const duration = (arcLength / speed) * 1000; // Convert to milliseconds
