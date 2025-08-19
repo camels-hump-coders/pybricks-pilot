@@ -1,9 +1,9 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  telemetryHistory,
   type ColorMode,
   type TelemetryPoint,
+  telemetryHistory,
 } from "../services/telemetryHistory";
 import {
   hideGhostRobotAtom,
@@ -22,7 +22,7 @@ import {
 } from "../store/atoms/telemetryPoints";
 import { TelemetryTooltip } from "./TelemetryTooltip";
 
-interface TelemetryPlaybackProps {}
+type TelemetryPlaybackProps = {};
 
 interface TimeWindow {
   start: number; // Start time in ms (relative to first point)
@@ -135,7 +135,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
 
     const windowed = pointsToUse.filter(
       (point) =>
-        point.timestamp >= windowStartTime && point.timestamp <= windowEndTime
+        point.timestamp >= windowStartTime && point.timestamp <= windowEndTime,
     );
 
     setWindowedPoints(windowed);
@@ -171,7 +171,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
 
         return closestPoint;
       },
-    [windowedPoints, timeWindow, selectedPoints, allPoints]
+    [windowedPoints, timeWindow, selectedPoints, allPoints],
   );
 
   // Update ghost position based on current time (only if playback has started)
@@ -250,7 +250,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
   // Timeline mouse handlers
   const handleTimelineMouseDown = (
     e: React.MouseEvent,
-    target: "timeline" | "windowStart" | "windowEnd"
+    target: "timeline" | "windowStart" | "windowEnd",
   ) => {
     e.preventDefault();
 
@@ -424,7 +424,7 @@ export function TelemetryPlayback({}: TelemetryPlaybackProps) {
           {allPaths.map((path) => {
             const pathDate = new Date(path.startTime).toLocaleTimeString();
             const duration = ((path.endTime - path.startTime) / 1000).toFixed(
-              1
+              1,
             );
             const isSelected = selectedPathId === path.id;
 

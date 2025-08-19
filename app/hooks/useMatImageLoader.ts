@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { GameMatConfig } from "../schemas/GameMatConfig";
 
 interface UseMatImageLoaderReturn {
-  matImageRef: React.MutableRefObject<HTMLCanvasElement | HTMLImageElement | null>;
+  matImageRef: React.MutableRefObject<
+    HTMLCanvasElement | HTMLImageElement | null
+  >;
   loadedImage: string | null;
 }
 
@@ -11,7 +13,7 @@ interface UseMatImageLoaderReturn {
  */
 export function useMatImageLoader(
   customMatConfig: GameMatConfig | null,
-  onImageLoad?: () => void
+  onImageLoad?: () => void,
 ): UseMatImageLoaderReturn {
   const matImageRef = useRef<HTMLCanvasElement | HTMLImageElement | null>(null);
   const [loadedImage, setLoadedImage] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export function useMatImageLoader(
       if (!imageUrl) {
         console.warn(
           "No image URL provided for mat config:",
-          customMatConfig.name
+          customMatConfig.name,
         );
         return;
       }

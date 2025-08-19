@@ -190,7 +190,7 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
                   const options = getInstrumentationOptions?.();
                   if (options && setInstrumentationEnabled) {
                     setInstrumentationEnabled(
-                      !(options.enableTelemetry && options.enableRemoteControl)
+                      !(options.enableTelemetry && options.enableRemoteControl),
                     );
                   }
                 }}
@@ -317,7 +317,7 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
                                   : value}
                               </div>
                             </div>
-                          )
+                          ),
                         )}
                       </div>
                     </div>

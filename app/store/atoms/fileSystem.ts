@@ -32,7 +32,7 @@ export const programsManifestAtom = atom<
 // Helper function to find a file by relative path recursively
 const findFileByPath = (
   files: PythonFile[],
-  relativePath: string
+  relativePath: string,
 ): PythonFile | null => {
   for (const file of files) {
     if (file.relativePath === relativePath && !file.isDirectory) {
@@ -49,7 +49,7 @@ const findFileByPath = (
 // Derived atoms
 export const hasDirectoryAccessAtom = atom((get) => !!get(directoryHandleAtom));
 export const isFileSystemSupportedAtom = atom(
-  () => "showDirectoryPicker" in window
+  () => "showDirectoryPicker" in window,
 );
 
 // Stable directory access atom - only depends on directory name, not the handle object
@@ -63,14 +63,14 @@ export const stableDirectoryAccessAtom = atom((get) => {
 const stableDirectoryHandleAtom = atom((get) => {
   const directoryHandle = get(directoryHandleAtom);
   const directoryName = get(directoryNameAtom);
-  
+
   // Return a stable object that includes both handle and name for comparison
   if (directoryHandle && directoryName) {
     return {
       handle: directoryHandle,
       name: directoryName,
       // Create a stable key for memoization
-      key: directoryName
+      key: directoryName,
     };
   }
   return null;
@@ -108,7 +108,7 @@ export const getProgramInfoAtom = atom((get) => {
   return (relativePath: string) => {
     const programsManifest = get(programsManifestAtom);
     const index = programsManifest.findIndex(
-      (p) => p.relativePath === relativePath
+      (p) => p.relativePath === relativePath,
     );
 
     if (index >= 0) {

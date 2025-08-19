@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import { type TelemetryPoint } from "../../services/telemetryHistory";
+import type { TelemetryPoint } from "../../services/telemetryHistory";
 
 // ============================================
 // UI State Atoms
@@ -29,7 +29,10 @@ export const justFinishedDraggingAtom = atom<boolean>(false);
 // Mission point dragging state
 export const isDraggingMissionPointAtom = atom<boolean>(false);
 export const draggedMissionPointIdAtom = atom<string | null>(null);
-export const missionPointDragOffsetAtom = atom<{ x: number; y: number }>({ x: 0, y: 0 });
+export const missionPointDragOffsetAtom = atom<{ x: number; y: number }>({
+  x: 0,
+  y: 0,
+});
 
 // Control point dragging state
 export const isDraggingControlPointAtom = atom<boolean>(false);
@@ -58,32 +61,23 @@ export const draggedTangencyHandleAtom = atom<{
 // ============================================
 
 // UI State Actions
-const setPopoverObjectAtom = atom(
-  null,
-  (get, set, objectId: string | null) => {
-    set(popoverObjectAtom, objectId);
-  }
-);
+const setPopoverObjectAtom = atom(null, (get, set, objectId: string | null) => {
+  set(popoverObjectAtom, objectId);
+});
 
-const toggleMissionsExpandedAtom = atom(
-  null,
-  (get, set) => {
-    set(missionsExpandedAtom, !get(missionsExpandedAtom));
-  }
-);
+const toggleMissionsExpandedAtom = atom(null, (get, set) => {
+  set(missionsExpandedAtom, !get(missionsExpandedAtom));
+});
 
-const setPseudoCodeExpandedAtom = atom(
-  null,
-  (get, set, expanded: boolean) => {
-    set(isPseudoCodeExpandedAtom, expanded);
-  }
-);
+const setPseudoCodeExpandedAtom = atom(null, (get, set, expanded: boolean) => {
+  set(isPseudoCodeExpandedAtom, expanded);
+});
 
 const setTelemetryPlaybackExpandedAtom = atom(
   null,
   (get, set, expanded: boolean) => {
     set(isTelemetryPlaybackExpandedAtom, expanded);
-  }
+  },
 );
 
 // Canvas Interaction Actions
@@ -91,38 +85,32 @@ const setHoveredTelemetryPointAtom = atom(
   null,
   (get, set, point: TelemetryPoint | null) => {
     set(hoveredTelemetryPointAtom, point);
-  }
+  },
 );
 
 const setTooltipPositionAtom = atom(
   null,
   (get, set, position: { x: number; y: number } | null) => {
     set(tooltipPositionAtom, position);
-  }
+  },
 );
 
 // Spline dragging actions
-const startDraggingPointAtom = atom(
-  null,
-  (get, set, pointId: string) => {
-    set(isDraggingPointAtom, true);
-    set(draggedPointIdAtom, pointId);
-  }
-);
+const startDraggingPointAtom = atom(null, (get, set, pointId: string) => {
+  set(isDraggingPointAtom, true);
+  set(draggedPointIdAtom, pointId);
+});
 
-const stopDraggingPointAtom = atom(
-  null,
-  (get, set) => {
-    const wasDragging = get(isDraggingPointAtom);
-    set(isDraggingPointAtom, false);
-    set(draggedPointIdAtom, null);
-    if (wasDragging) {
-      set(justFinishedDraggingAtom, true);
-      // Clear the flag after a short delay
-      setTimeout(() => set(justFinishedDraggingAtom, false), 100);
-    }
+const stopDraggingPointAtom = atom(null, (get, set) => {
+  const wasDragging = get(isDraggingPointAtom);
+  set(isDraggingPointAtom, false);
+  set(draggedPointIdAtom, null);
+  if (wasDragging) {
+    set(justFinishedDraggingAtom, true);
+    // Clear the flag after a short delay
+    setTimeout(() => set(justFinishedDraggingAtom, false), 100);
   }
-);
+});
 
 // Control point dragging actions
 const startDraggingControlPointAtom = atom(
@@ -130,80 +118,76 @@ const startDraggingControlPointAtom = atom(
   (get, set, pointId: string, controlType: "before" | "after") => {
     set(isDraggingControlPointAtom, true);
     set(draggedControlPointAtom, { pointId, controlType });
-  }
+  },
 );
 
-const stopDraggingControlPointAtom = atom(
-  null,
-  (get, set) => {
-    const wasDragging = get(isDraggingControlPointAtom);
-    set(isDraggingControlPointAtom, false);
-    set(draggedControlPointAtom, null);
-    if (wasDragging) {
-      set(justFinishedDraggingAtom, true);
-      // Clear the flag after a short delay
-      setTimeout(() => set(justFinishedDraggingAtom, false), 100);
-    }
+const stopDraggingControlPointAtom = atom(null, (get, set) => {
+  const wasDragging = get(isDraggingControlPointAtom);
+  set(isDraggingControlPointAtom, false);
+  set(draggedControlPointAtom, null);
+  if (wasDragging) {
+    set(justFinishedDraggingAtom, true);
+    // Clear the flag after a short delay
+    setTimeout(() => set(justFinishedDraggingAtom, false), 100);
   }
-);
+});
 
 // Tangency handle dragging actions
 const startDraggingTangencyHandleAtom = atom(
   null,
-  (get, set, handle: {
-    pointId: string;
-    gripType: "diamond" | "arrow" | "endpoint";
-    initialHandle: {
-      x: number;
-      y: number;
-      strength: number;
-      isEdited: boolean;
-      isTangentDriving: boolean;
-    };
-    initialMousePos: { x: number; y: number };
-  }) => {
+  (
+    get,
+    set,
+    handle: {
+      pointId: string;
+      gripType: "diamond" | "arrow" | "endpoint";
+      initialHandle: {
+        x: number;
+        y: number;
+        strength: number;
+        isEdited: boolean;
+        isTangentDriving: boolean;
+      };
+      initialMousePos: { x: number; y: number };
+    },
+  ) => {
     set(isDraggingTangencyHandleAtom, true);
     set(draggedTangencyHandleAtom, handle);
-  }
+  },
 );
 
-const stopDraggingTangencyHandleAtom = atom(
-  null,
-  (get, set) => {
-    const wasDragging = get(isDraggingTangencyHandleAtom);
-    set(isDraggingTangencyHandleAtom, false);
-    set(draggedTangencyHandleAtom, null);
-    if (wasDragging) {
-      set(justFinishedDraggingAtom, true);
-      // Clear the flag after a short delay
-      setTimeout(() => set(justFinishedDraggingAtom, false), 100);
-    }
+const stopDraggingTangencyHandleAtom = atom(null, (get, set) => {
+  const wasDragging = get(isDraggingTangencyHandleAtom);
+  set(isDraggingTangencyHandleAtom, false);
+  set(draggedTangencyHandleAtom, null);
+  if (wasDragging) {
+    set(justFinishedDraggingAtom, true);
+    // Clear the flag after a short delay
+    setTimeout(() => set(justFinishedDraggingAtom, false), 100);
   }
-);
+});
 
 // Combined stop all dragging action
-export const stopAllDraggingAtom = atom(
-  null,
-  (get, set) => {
-    const wasDragging = get(isDraggingPointAtom) || 
-                       get(isDraggingControlPointAtom) || 
-                       get(isDraggingTangencyHandleAtom) ||
-                       get(isDraggingMissionPointAtom);
-    
-    set(isDraggingPointAtom, false);
-    set(draggedPointIdAtom, null);
-    set(isDraggingControlPointAtom, false);
-    set(draggedControlPointAtom, null);
-    set(isDraggingTangencyHandleAtom, false);
-    set(draggedTangencyHandleAtom, null);
-    set(isDraggingMissionPointAtom, false);
-    set(draggedMissionPointIdAtom, null);
-    set(missionPointDragOffsetAtom, { x: 0, y: 0 });
-    
-    if (wasDragging) {
-      set(justFinishedDraggingAtom, true);
-      // Clear the flag after a short delay
-      setTimeout(() => set(justFinishedDraggingAtom, false), 100);
-    }
+export const stopAllDraggingAtom = atom(null, (get, set) => {
+  const wasDragging =
+    get(isDraggingPointAtom) ||
+    get(isDraggingControlPointAtom) ||
+    get(isDraggingTangencyHandleAtom) ||
+    get(isDraggingMissionPointAtom);
+
+  set(isDraggingPointAtom, false);
+  set(draggedPointIdAtom, null);
+  set(isDraggingControlPointAtom, false);
+  set(draggedControlPointAtom, null);
+  set(isDraggingTangencyHandleAtom, false);
+  set(draggedTangencyHandleAtom, null);
+  set(isDraggingMissionPointAtom, false);
+  set(draggedMissionPointIdAtom, null);
+  set(missionPointDragOffsetAtom, { x: 0, y: 0 });
+
+  if (wasDragging) {
+    set(justFinishedDraggingAtom, true);
+    // Clear the flag after a short delay
+    setTimeout(() => set(justFinishedDraggingAtom, false), 100);
   }
-);
+});

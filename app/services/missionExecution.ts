@@ -68,7 +68,7 @@ class MissionExecutionService {
     mission: Mission,
     positions: NamedPosition[],
     _robotConfig?: RobotConfig,
-    options: Partial<MissionExecutionOptions> = {}
+    options: Partial<MissionExecutionOptions> = {},
   ): RobotCommand[] {
     const opts = { ...this.defaultOptions, ...options };
     const commands: RobotCommand[] = [];
@@ -78,12 +78,12 @@ class MissionExecutionService {
 
     // Debug: Log all generated segments
     console.log(
-      `[Command Generation] Generated ${segments.length} path segments for mission "${mission.name}":`
+      `[Command Generation] Generated ${segments.length} path segments for mission "${mission.name}":`,
     );
     segments.forEach((segment, i) => {
       console.log(
         `  Segment ${i + 1}: ${segment.pathType} from (${segment.startX.toFixed(1)}, ${segment.startY.toFixed(1)}) to (${segment.endX.toFixed(1)}, ${segment.endY.toFixed(1)}) - From ${segment.fromPoint.type} to ${segment.toPoint.type}`,
-        segment
+        segment,
       );
     });
 
@@ -101,7 +101,7 @@ class MissionExecutionService {
         segment,
         opts,
         i,
-        currentRobotHeading
+        currentRobotHeading,
       );
       commands.push(...segmentCommands);
 
@@ -110,7 +110,7 @@ class MissionExecutionService {
         if (cmd.action === "turn" || cmd.action === "turn_and_drive") {
           if (cmd.angle !== undefined) {
             currentRobotHeading = normalizeAngle(
-              currentRobotHeading + cmd.angle
+              currentRobotHeading + cmd.angle,
             );
           }
         } else if (cmd.action === "arc") {
@@ -118,10 +118,12 @@ class MissionExecutionService {
           if (cmd.angle !== undefined) {
             // For Pybricks arcs: positive angle = left turn, negative angle = right turn
             // This matches our robot heading convention where turns are relative
-            currentRobotHeading = normalizeAngle(currentRobotHeading + cmd.angle);
+            currentRobotHeading = normalizeAngle(
+              currentRobotHeading + cmd.angle,
+            );
 
             console.log(
-              `[Heading Update] Arc completed, robot now facing: ${currentRobotHeading.toFixed(1)}°`
+              `[Heading Update] Arc completed, robot now facing: ${currentRobotHeading.toFixed(1)}°`,
             );
           }
         }
@@ -134,18 +136,18 @@ class MissionExecutionService {
         // ALWAYS add heading alignment as the next command after arriving at action point
         if (actionPoint.heading !== undefined) {
           console.log(
-            `[Action Point] Arrived at action, turning to heading: ${actionPoint.heading}°`
+            `[Action Point] Arrived at action, turning to heading: ${actionPoint.heading}°`,
           );
           const requiredRobotHeading = actionPoint.heading;
           console.log(
-            `[Action Point] Current robot heading: ${currentRobotHeading}°, Required: ${requiredRobotHeading}°`
+            `[Action Point] Current robot heading: ${currentRobotHeading}°, Required: ${requiredRobotHeading}°`,
           );
 
           const relativeTurn = normalizeAngle(
-            requiredRobotHeading - currentRobotHeading
+            requiredRobotHeading - currentRobotHeading,
           );
           console.log(
-            `[Action Point] Executing turn of ${relativeTurn}° to face action heading`
+            `[Action Point] Executing turn of ${relativeTurn}° to face action heading`,
           );
 
           // Always add the turn command, even for small angles, to ensure precise action heading
@@ -168,7 +170,7 @@ class MissionExecutionService {
 
     // Debug: Log the generated command sequence
     console.log(
-      `[Command Generation] Generated ${commands.length} commands for mission "${mission.name}":`
+      `[Command Generation] Generated ${commands.length} commands for mission "${mission.name}":`,
     );
     commands.forEach((cmd, i) => {
       console.log(`  ${i + 1}. ${cmd.action}:`, cmd);
@@ -184,15 +186,15 @@ class MissionExecutionService {
     segment: ArcPathSegment,
     options: MissionExecutionOptions,
     segmentIndex: number,
-    currentRobotHeading: number = 0
+    currentRobotHeading: number = 0,
   ): RobotCommand[] {
     const commands: RobotCommand[] = [];
 
     if (segment.pathType === "straight") {
       // Simple straight line movement
       const distance = Math.sqrt(
-        Math.pow(segment.endX - segment.startX, 2) +
-          Math.pow(segment.endY - segment.startY, 2)
+        (segment.endX - segment.startX) ** 2 +
+          (segment.endY - segment.startY) ** 2,
       );
 
       if (distance > 1) {
@@ -211,13 +213,13 @@ class MissionExecutionService {
         const relativeTurn = normalizeAngle(robotHeading - currentRobotHeading);
 
         console.log(
-          `[Segment ${segmentIndex + 1}] Target heading: ${robotHeading.toFixed(1)}°`
+          `[Segment ${segmentIndex + 1}] Target heading: ${robotHeading.toFixed(1)}°`,
         );
         console.log(
-          `[Segment ${segmentIndex + 1}] Current heading: ${currentRobotHeading.toFixed(1)}°`
+          `[Segment ${segmentIndex + 1}] Current heading: ${currentRobotHeading.toFixed(1)}°`,
         );
         console.log(
-          `[Segment ${segmentIndex + 1}] Relative turn: ${relativeTurn.toFixed(1)}°`
+          `[Segment ${segmentIndex + 1}] Relative turn: ${relativeTurn.toFixed(1)}°`,
         );
 
         // Use turnAndDrive with relative turn angle
@@ -259,26 +261,26 @@ class MissionExecutionService {
 
       // Calculate turn needed to face the arc starting direction
       const relativeTurn = normalizeAngle(
-        requiredHeading - currentRobotHeading
+        requiredHeading - currentRobotHeading,
       );
 
       console.log(
-        `[Arc Segment ${segmentIndex + 1}] Arc start angle (canvas): ${arcStartAngle.toFixed(1)}°`
+        `[Arc Segment ${segmentIndex + 1}] Arc start angle (canvas): ${arcStartAngle.toFixed(1)}°`,
       );
       console.log(
-        `[Arc Segment ${segmentIndex + 1}] Arc direction: ${arcDirection > 0 ? "CCW" : "CW"} (${arcDirection.toFixed(1)}°)`
+        `[Arc Segment ${segmentIndex + 1}] Arc direction: ${arcDirection > 0 ? "CCW" : "CW"} (${arcDirection.toFixed(1)}°)`,
       );
       console.log(
-        `[Arc Segment ${segmentIndex + 1}] Canvas tangent at start: ${canvasTangentAtStart.toFixed(1)}°`
+        `[Arc Segment ${segmentIndex + 1}] Canvas tangent at start: ${canvasTangentAtStart.toFixed(1)}°`,
       );
       console.log(
-        `[Arc Segment ${segmentIndex + 1}] Required robot heading: ${requiredHeading.toFixed(1)}°`
+        `[Arc Segment ${segmentIndex + 1}] Required robot heading: ${requiredHeading.toFixed(1)}°`,
       );
       console.log(
-        `[Arc Segment ${segmentIndex + 1}] Current robot heading: ${currentRobotHeading.toFixed(1)}°`
+        `[Arc Segment ${segmentIndex + 1}] Current robot heading: ${currentRobotHeading.toFixed(1)}°`,
       );
       console.log(
-        `[Arc Segment ${segmentIndex + 1}] Turn needed before arc: ${relativeTurn.toFixed(1)}°`
+        `[Arc Segment ${segmentIndex + 1}] Turn needed before arc: ${relativeTurn.toFixed(1)}°`,
       );
 
       // Always add turn command for precise arc alignment, even for small angles
@@ -293,7 +295,7 @@ class MissionExecutionService {
       // Calculate sweep angle for the arc command
       // Pybricks expects: arc(radius, angle) where angle is the total sweep
       const sweepAngle = arcDirection; // This is already normalized to [-180, 180]
-      
+
       // Add the arc command
       commands.push({
         action: "arc",
@@ -320,19 +322,15 @@ class MissionExecutionService {
       sendMotorCommand?: (
         motor: string,
         angle: number,
-        speed: number
+        speed: number,
       ) => Promise<void>;
       turnAndDrive?: (
         heading: number,
         distance: number,
-        speed: number
+        speed: number,
       ) => Promise<void>;
-      arc?: (
-        radius: number,
-        angle: number,
-        speed: number
-      ) => Promise<void>;
-    }
+      arc?: (radius: number, angle: number, speed: number) => Promise<void>;
+    },
   ): Promise<void> {
     // Check if robot supports command sequences (more efficient)
     if (robotInterface.executeCommandSequence) {
@@ -365,7 +363,7 @@ class MissionExecutionService {
             ) {
               await robotInterface.sendDriveCommand(
                 command.distance,
-                command.speed
+                command.speed,
               );
             }
             break;
@@ -378,7 +376,7 @@ class MissionExecutionService {
             ) {
               await robotInterface.sendTurnCommand(
                 command.angle,
-                command.speed
+                command.speed,
               );
             }
             break;
@@ -393,20 +391,20 @@ class MissionExecutionService {
                 await robotInterface.turnAndDrive(
                   command.angle,
                   command.distance,
-                  command.speed
+                  command.speed,
                 );
               } else {
                 // Fallback: separate turn and drive commands
                 if (robotInterface.sendTurnCommand) {
                   await robotInterface.sendTurnCommand(
                     command.angle,
-                    command.speed
+                    command.speed,
                   );
                 }
                 if (robotInterface.sendDriveCommand) {
                   await robotInterface.sendDriveCommand(
                     command.distance,
-                    command.speed
+                    command.speed,
                   );
                 }
               }
@@ -423,7 +421,7 @@ class MissionExecutionService {
                 await robotInterface.arc(
                   command.radius,
                   command.angle,
-                  command.speed
+                  command.speed,
                 );
               } else {
                 console.warn("Robot does not support arc commands");
@@ -447,7 +445,7 @@ class MissionExecutionService {
               await robotInterface.sendMotorCommand(
                 command.motor,
                 command.angle,
-                command.speed
+                command.speed,
               );
             }
             break;
@@ -455,7 +453,7 @@ class MissionExecutionService {
           case "pause":
             if (command.duration) {
               await new Promise((resolve) =>
-                setTimeout(resolve, command.duration)
+                setTimeout(resolve, command.duration),
               );
             }
             break;

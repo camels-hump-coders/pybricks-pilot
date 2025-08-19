@@ -55,7 +55,7 @@ class PseudoCodeGeneratorService {
    */
   generateFromPath(
     path: TelemetryPath,
-    isCmdKeyPressed: boolean = false
+    isCmdKeyPressed: boolean = false,
   ): GeneratedProgram {
     if (!path.points || path.points.length < 2) {
       return {
@@ -74,7 +74,7 @@ class PseudoCodeGeneratorService {
         drivebase: point.data.drivebase,
         isCmdKeyPressed: point.isCmdKeyPressed,
         hub: point.data.hub,
-      })
+      }),
     );
 
     return this.generateFromRawTelemetry(rawTelemetryPoints);
@@ -135,7 +135,7 @@ class PseudoCodeGeneratorService {
    * Generate pseudo code from raw telemetry data
    */
   generateFromRawTelemetry(
-    telemetryPoints: RawTelemetryPoint[]
+    telemetryPoints: RawTelemetryPoint[],
   ): GeneratedProgram {
     if (!telemetryPoints || telemetryPoints.length < 2) {
       return {
@@ -150,8 +150,8 @@ class PseudoCodeGeneratorService {
     const commands: MovementCommand[] = [];
     let currentCommand: MovementCommand | null = null;
     let totalDistance = 0;
-    let startPosition = telemetryPoints[0];
-    let endPosition = telemetryPoints[telemetryPoints.length - 1];
+    const startPosition = telemetryPoints[0];
+    const endPosition = telemetryPoints[telemetryPoints.length - 1];
 
     // Track accumulated deltas that don't meet thresholds
     let accumulatedDistance = 0;
@@ -213,13 +213,13 @@ class PseudoCodeGeneratorService {
         const movementType = this.determineMovementTypeForSwitch(
           accumulatedDistance,
           accumulatedHeading,
-          lastCommandType
+          lastCommandType,
         );
 
         // Check if we're switching command types
         const isSwitching = this.isCommandTypeSwitching(
           movementType,
-          lastCommandType
+          lastCommandType,
         );
 
         // Apply accumulated deltas to the previous command if we're switching command types
@@ -232,7 +232,7 @@ class PseudoCodeGeneratorService {
             commands,
             accumulatedDistance,
             accumulatedHeading,
-            currentPoint.timestamp
+            currentPoint.timestamp,
           );
           deltasToUse = {
             distance: updatedDeltas.updatedDistance,
@@ -243,7 +243,7 @@ class PseudoCodeGeneratorService {
         // Start new command with the remaining deltas
         const initialDirection = this.determineDirectionFromRaw(
           deltasToUse.distance,
-          deltasToUse.heading
+          deltasToUse.heading,
         );
 
         currentCommand = {
@@ -260,7 +260,7 @@ class PseudoCodeGeneratorService {
           deltasToUse.distance,
           deltasToUse.heading,
           timeDelta,
-          currentPoint
+          currentPoint,
         );
 
         totalDistance += Math.abs(deltasToUse.distance);
@@ -286,7 +286,7 @@ class PseudoCodeGeneratorService {
           commands,
           accumulatedDistance,
           accumulatedHeading,
-          endPosition.timestamp
+          endPosition.timestamp,
         );
 
       // If there are still remaining deltas after applying to the previous command,
@@ -294,7 +294,7 @@ class PseudoCodeGeneratorService {
       if (Math.abs(updatedDistance) > 0 || Math.abs(updatedHeading) > 0) {
         const accumulatedMovementType = this.determineMovementType(
           updatedDistance,
-          updatedHeading
+          updatedHeading,
         );
 
         const newCommand: MovementCommand = {
@@ -303,7 +303,7 @@ class PseudoCodeGeneratorService {
           isCmdKeyPressed: false, // These are typically small corrections
           direction: this.determineDirectionFromRaw(
             updatedDistance,
-            updatedHeading
+            updatedHeading,
           ),
         };
 
@@ -314,10 +314,10 @@ class PseudoCodeGeneratorService {
           newCommand.angle = updatedHeading;
           if (endPosition.hub?.imu?.heading !== undefined) {
             newCommand.targetHeading = normalizeHeading(
-              endPosition.hub.imu.heading
+              endPosition.hub.imu.heading,
             );
             newCommand.startHeading = normalizeHeading(
-              endPosition.hub.imu.heading - updatedHeading
+              endPosition.hub.imu.heading - updatedHeading,
             );
           }
         }
@@ -413,7 +413,7 @@ class PseudoCodeGeneratorService {
 
               // Normalize both heading changes to -180 to 180 range for proper comparison
               const normalizedPreviousChange = normalizeHeading(
-                previousHeadingChange
+                previousHeadingChange,
               );
               const normalizedCurrentChange =
                 normalizeHeading(currentHeadingChange);
@@ -443,7 +443,7 @@ class PseudoCodeGeneratorService {
                 // Since we're now using IMU headings directly, we need to recalculate
                 // the target heading based on the accumulated angle change
                 previousCommand.targetHeading = normalizeHeading(
-                  previousCommand.startHeading + newTotalAngle
+                  previousCommand.startHeading + newTotalAngle,
                 );
               }
               previousCommand.duration =
@@ -502,7 +502,7 @@ class PseudoCodeGeneratorService {
    */
   private determineMovementType(
     deltaDistance: number,
-    deltaHeading: number
+    deltaHeading: number,
   ): "drive" | "turn" {
     // If heading change is significant, it's a turn
     if (Math.abs(deltaHeading) >= this.MIN_HEADING_THRESHOLD) {
@@ -519,7 +519,7 @@ class PseudoCodeGeneratorService {
   private determineMovementTypeForSwitch(
     deltaDistance: number,
     deltaHeading: number,
-    lastCommandType?: "drive" | "turn"
+    lastCommandType?: "drive" | "turn",
   ): "drive" | "turn" {
     const distanceMagnitude = Math.abs(deltaDistance);
     const headingMagnitude = Math.abs(deltaHeading);
@@ -557,7 +557,7 @@ class PseudoCodeGeneratorService {
    */
   private determineDirectionFromRaw(
     deltaDistance: number,
-    deltaHeading: number
+    deltaHeading: number,
   ): "forward" | "backward" {
     // For turns, direction is based on heading change
     if (Math.abs(deltaHeading) >= this.MIN_HEADING_THRESHOLD) {
@@ -576,7 +576,7 @@ class PseudoCodeGeneratorService {
     deltaDistance: number,
     deltaHeading: number,
     timeDelta: number,
-    currentPoint: RawTelemetryPoint
+    currentPoint: RawTelemetryPoint,
   ): void {
     if (command.type === "drive") {
       // For drive commands, set the distance to the current delta
@@ -597,7 +597,7 @@ class PseudoCodeGeneratorService {
         // Set start heading for the first turn command in a sequence
         if (command.startHeading === undefined) {
           command.startHeading = normalizeHeading(
-            currentPoint.hub.imu.heading - deltaHeading
+            currentPoint.hub.imu.heading - deltaHeading,
           );
         }
       }
@@ -611,7 +611,7 @@ class PseudoCodeGeneratorService {
    */
   private isCommandTypeSwitching(
     currentType: "drive" | "turn",
-    lastCommandType?: "drive" | "turn"
+    lastCommandType?: "drive" | "turn",
   ): boolean {
     return lastCommandType !== undefined && lastCommandType !== currentType;
   }
@@ -624,7 +624,7 @@ class PseudoCodeGeneratorService {
     commands: MovementCommand[],
     accumulatedDistance: number,
     accumulatedHeading: number,
-    currentTimestamp: number
+    currentTimestamp: number,
   ): { updatedDistance: number; updatedHeading: number } {
     if (commands.length === 0) {
       return {
@@ -663,7 +663,7 @@ class PseudoCodeGeneratorService {
       // Recalculate target heading based on accumulated angle change
       if (lastCommand.startHeading !== undefined) {
         lastCommand.targetHeading = normalizeHeading(
-          lastCommand.startHeading + newTotalAngle
+          lastCommand.startHeading + newTotalAngle,
         );
       }
 

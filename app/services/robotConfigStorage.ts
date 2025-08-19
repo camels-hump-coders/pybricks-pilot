@@ -41,7 +41,7 @@ class RobotConfigStorage {
           "IndexedDB upgrade needed, old version:",
           event.oldVersion,
           "new version:",
-          db.version
+          db.version,
         );
 
         // Delete existing stores if upgrading from old version
@@ -92,7 +92,7 @@ class RobotConfigStorage {
         "Database opened, version:",
         db.version,
         "stores:",
-        Array.from(db.objectStoreNames)
+        Array.from(db.objectStoreNames),
       );
 
       // Verify the object store exists
@@ -101,7 +101,7 @@ class RobotConfigStorage {
         console.log("Available stores:", Array.from(db.objectStoreNames));
         console.log("Database version:", db.version);
         throw new Error(
-          `Object store '${ROBOT_CONFIG_STORE}' not found. Available stores: ${Array.from(db.objectStoreNames).join(", ")}. Database version: ${db.version}`
+          `Object store '${ROBOT_CONFIG_STORE}' not found. Available stores: ${Array.from(db.objectStoreNames).join(", ")}. Database version: ${db.version}`,
         );
       }
 
@@ -136,8 +136,8 @@ class RobotConfigStorage {
           clearTimeout(timeoutId);
           reject(
             new Error(
-              `Failed to save robot configuration: ${request.error?.message || "Unknown error"}`
-            )
+              `Failed to save robot configuration: ${request.error?.message || "Unknown error"}`,
+            ),
           );
         };
 
@@ -146,8 +146,8 @@ class RobotConfigStorage {
           clearTimeout(timeoutId);
           reject(
             new Error(
-              `Transaction error: ${transaction.error?.message || "Unknown error"}`
-            )
+              `Transaction error: ${transaction.error?.message || "Unknown error"}`,
+            ),
           );
         };
 
@@ -308,7 +308,7 @@ class RobotConfigStorage {
 
   // Try to load robot configuration from working directory
   async loadFromWorkingDirectory(
-    dirHandle: FileSystemDirectoryHandle
+    dirHandle: FileSystemDirectoryHandle,
   ): Promise<RobotConfig | null> {
     try {
       const robotFileHandle = await dirHandle.getFileHandle("robot.json");
@@ -359,7 +359,7 @@ class RobotConfigStorage {
   // Save robot configuration to working directory
   async saveToWorkingDirectory(
     dirHandle: FileSystemDirectoryHandle,
-    config: RobotConfig
+    config: RobotConfig,
   ): Promise<void> {
     try {
       const robotFileHandle = await dirHandle.getFileHandle("robot.json", {
@@ -371,7 +371,7 @@ class RobotConfigStorage {
       await writable.close();
     } catch (error) {
       throw new Error(
-        `Failed to save robot configuration to working directory: ${error}`
+        `Failed to save robot configuration to working directory: ${error}`,
       );
     }
   }
@@ -423,14 +423,14 @@ class RobotConfigStorage {
       (config) =>
         config.name.toLowerCase().includes(lowerQuery) ||
         config.description?.toLowerCase().includes(lowerQuery) ||
-        config.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
+        config.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)),
     );
   }
 
   // Duplicate a robot configuration
   async duplicateConfig(
     originalId: string,
-    newName: string
+    newName: string,
   ): Promise<RobotConfig> {
     const original = await this.loadConfig(originalId);
     if (!original) {
@@ -647,7 +647,7 @@ class RobotConfigStorage {
         await new Promise((resolve, reject) => {
           const timeoutId = setTimeout(
             () => reject(new Error("Read test timed out")),
-            5000
+            5000,
           );
 
           request.onsuccess = () => {

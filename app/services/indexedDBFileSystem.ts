@@ -14,7 +14,6 @@ interface StoredFileInfo {
   lastAccessed: number;
 }
 
-
 class IndexedDBFileSystemService {
   private dbName = "PybricksFileSystem";
   private dbVersion = 2;
@@ -67,14 +66,13 @@ class IndexedDBFileSystemService {
           store.createIndex("tags", "tags", { unique: false });
           store.createIndex("isDefault", "isDefault", { unique: false });
         }
-
       };
     });
   }
 
   async storeDirectoryHandle(
     handle: FileSystemDirectoryHandle,
-    fileCount: number
+    fileCount: number,
   ): Promise<void> {
     if (!this.db) await this.initialize();
 
@@ -110,7 +108,7 @@ class IndexedDBFileSystemService {
       request.onsuccess = () => {
         const directories = request.result.sort(
           (a: StoredDirectoryInfo, b: StoredDirectoryInfo) =>
-            b.lastAccessed - a.lastAccessed
+            b.lastAccessed - a.lastAccessed,
         );
         resolve(directories);
       };
@@ -155,7 +153,7 @@ class IndexedDBFileSystemService {
       handle: FileSystemFileHandle;
       size: number;
       lastModified: number;
-    }>
+    }>,
   ): Promise<void> {
     if (!this.db) await this.initialize();
 
@@ -175,7 +173,7 @@ class IndexedDBFileSystemService {
               const delReq = store.delete([file.directoryName, file.name]);
               delReq.onsuccess = () => res();
               delReq.onerror = () => rej(delReq.error);
-            })
+            }),
         );
 
         Promise.all(deletePromises)
@@ -243,7 +241,7 @@ class IndexedDBFileSystemService {
 
     const transaction = this.db!.transaction(
       ["directories", "files"],
-      "readwrite"
+      "readwrite",
     );
 
     // Remove directory
@@ -268,7 +266,7 @@ class IndexedDBFileSystemService {
               const delReq = fileStore.delete([file.directoryName, file.name]);
               delReq.onsuccess = () => res();
               delReq.onerror = () => rej(delReq.error);
-            })
+            }),
         );
 
         Promise.all(deletePromises)
@@ -331,7 +329,7 @@ class IndexedDBFileSystemService {
 
     const transaction = this.db!.transaction(
       ["directories", "files", "preferences"],
-      "readwrite"
+      "readwrite",
     );
 
     await Promise.all([
@@ -362,7 +360,7 @@ class IndexedDBFileSystemService {
 
     const transaction = this.db!.transaction(
       ["directories", "files"],
-      "readonly"
+      "readonly",
     );
 
     const [directories, files] = await Promise.all([

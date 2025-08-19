@@ -6,14 +6,18 @@ interface TelemetryTooltipProps {
   timestamp?: number;
 }
 
-export function TelemetryTooltip({ telemetry, position, timestamp }: TelemetryTooltipProps) {
+export function TelemetryTooltip({
+  telemetry,
+  position,
+  timestamp,
+}: TelemetryTooltipProps) {
   const formatTime = (ms: number): string => {
     const date = new Date(ms);
     return date.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-      fractionalSecondDigits: 3
+      fractionalSecondDigits: 3,
     });
   };
 
@@ -23,7 +27,7 @@ export function TelemetryTooltip({ telemetry, position, timestamp }: TelemetryTo
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        transform: "translate(-50%, -120%)"
+        transform: "translate(-50%, -120%)",
       }}
     >
       {timestamp && (
@@ -43,8 +47,12 @@ export function TelemetryTooltip({ telemetry, position, timestamp }: TelemetryTo
             <div>Angle: {telemetry.drivebase.angle?.toFixed(1)}°</div>
             {telemetry.drivebase.state && (
               <>
-                <div>Speed: {telemetry.drivebase.state.drive_speed?.toFixed(0)}mm/s</div>
-                <div>Turn: {telemetry.drivebase.state.turn_rate?.toFixed(0)}°/s</div>
+                <div>
+                  Speed: {telemetry.drivebase.state.drive_speed?.toFixed(0)}mm/s
+                </div>
+                <div>
+                  Turn: {telemetry.drivebase.state.turn_rate?.toFixed(0)}°/s
+                </div>
               </>
             )}
           </div>
@@ -81,7 +89,8 @@ export function TelemetryTooltip({ telemetry, position, timestamp }: TelemetryTo
                     <span className="text-gray-400">{name}:</span>
                     <span>
                       {sensor.color}
-                      {sensor.reflection !== undefined && ` (${sensor.reflection}%)`}
+                      {sensor.reflection !== undefined &&
+                        ` (${sensor.reflection}%)`}
                     </span>
                   </div>
                 );
@@ -116,8 +125,12 @@ export function TelemetryTooltip({ telemetry, position, timestamp }: TelemetryTo
           <div className="grid grid-cols-2 gap-x-3 gap-y-1">
             {telemetry.hub.battery && (
               <>
-                <div>Battery: {(telemetry.hub.battery.voltage / 1000).toFixed(1)}V</div>
-                <div>Current: {telemetry.hub.battery.current?.toFixed(0)}mA</div>
+                <div>
+                  Battery: {(telemetry.hub.battery.voltage / 1000).toFixed(1)}V
+                </div>
+                <div>
+                  Current: {telemetry.hub.battery.current?.toFixed(0)}mA
+                </div>
               </>
             )}
             {telemetry.hub.imu && (

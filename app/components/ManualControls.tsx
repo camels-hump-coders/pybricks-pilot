@@ -18,12 +18,12 @@ interface ManualControlsProps {
   isFullyConnected: boolean;
   onUpdatePreview: (
     type: "drive" | "turn" | null,
-    direction: "forward" | "backward" | "left" | "right" | null
+    direction: "forward" | "backward" | "left" | "right" | null,
   ) => void;
   onUpdateDualPreview?: (
     type: "drive" | "turn",
     distance?: number,
-    angle?: number
+    angle?: number,
   ) => void;
   onSendStepDrive: (distance: number, speed: number) => void;
   onSendStepTurn: (angle: number, speed: number) => void;
@@ -89,7 +89,7 @@ export function ManualControls({
                   // Update preview in real-time as slider is dragged
                   if (onUpdateDualPreview) {
                     const currentValue = Number(
-                      (e.target as HTMLInputElement).value
+                      (e.target as HTMLInputElement).value,
                     );
                     onUpdateDualPreview("drive", currentValue, angle);
                   }
@@ -122,7 +122,7 @@ export function ManualControls({
                   // Update preview in real-time as slider is dragged
                   if (onUpdateDualPreview) {
                     const currentValue = Number(
-                      (e.target as HTMLInputElement).value
+                      (e.target as HTMLInputElement).value,
                     );
                     onUpdateDualPreview("turn", distance, currentValue);
                   }

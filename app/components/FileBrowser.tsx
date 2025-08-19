@@ -4,25 +4,28 @@ import { getProgramInfoAtom } from "../store/atoms/fileSystem";
 import type { PythonFile, RobotStartPosition } from "../types/fileSystem";
 
 // Helper function to recursively check if a directory contains any programs
-const directoryContainsPrograms = (file: PythonFile, getProgramInfo: (relativePath: string) => { isProgram: boolean }): boolean => {
+const directoryContainsPrograms = (
+  file: PythonFile,
+  getProgramInfo: (relativePath: string) => { isProgram: boolean },
+): boolean => {
   if (!file.isDirectory || !file.children) {
     return false;
   }
-  
+
   // Check if any direct child files are programs
   for (const child of file.children) {
     if (!child.isDirectory && getProgramInfo(child.relativePath).isProgram) {
       return true;
     }
   }
-  
+
   // Recursively check subdirectories
   for (const child of file.children) {
     if (child.isDirectory && directoryContainsPrograms(child, getProgramInfo)) {
       return true;
     }
   }
-  
+
   return false;
 };
 
@@ -33,37 +36,41 @@ interface CompactHeadingSelectorProps {
   size?: number;
 }
 
-function CompactHeadingSelector({ heading, onChange, size = 40 }: CompactHeadingSelectorProps) {
+function CompactHeadingSelector({
+  heading,
+  onChange,
+  size = 40,
+}: CompactHeadingSelectorProps) {
   const radius = size / 2 - 4;
   const centerX = size / 2;
   const centerY = size / 2;
-  
+
   // Convert heading to angle for display (0° = north/up, clockwise)
   const displayAngle = heading - 90; // Offset so 0° points up
   const radians = (displayAngle * Math.PI) / 180;
   const indicatorX = centerX + radius * 0.6 * Math.cos(radians);
   const indicatorY = centerY + radius * 0.6 * Math.sin(radians);
-  
+
   const handleClick = (event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     const mouseX = event.clientX - centerX;
     const mouseY = event.clientY - centerY;
-    
+
     // Calculate angle from center (0° = north/up, clockwise)
     let angle = Math.atan2(mouseY, mouseX) * (180 / Math.PI);
     angle = angle + 90; // Convert to our heading system
-    
+
     // Normalize to -180 to 180 range
     if (angle > 180) angle -= 360;
     if (angle < -180) angle += 360;
-    
+
     onChange(Math.round(angle));
   };
-  
+
   return (
-    <div 
+    <div
       className="relative cursor-pointer bg-gray-100 dark:bg-gray-700 rounded-full border border-gray-300 dark:border-gray-600 hover:border-blue-400 transition-colors select-none"
       style={{ width: size, height: size }}
       onClick={handleClick}
@@ -77,7 +84,7 @@ function CompactHeadingSelector({ heading, onChange, size = 40 }: CompactHeading
           top: indicatorY - 3,
         }}
       />
-      
+
       {/* Center dot */}
       <div
         className="absolute w-1 h-1 bg-gray-400 rounded-full"
@@ -100,33 +107,37 @@ function HeadingDisplay({ heading, size = 20 }: HeadingDisplayProps) {
   const radius = size / 2 - 2;
   const centerX = size / 2;
   const centerY = size / 2;
-  
+
   // Convert heading to angle for display (0° = north/up, clockwise)
   const displayAngle = heading - 90; // Offset so 0° points up
   const radians = (displayAngle * Math.PI) / 180;
-  
+
   // Calculate arrow points
   const arrowLength = radius * 0.7;
   const arrowEndX = centerX + arrowLength * Math.cos(radians);
   const arrowEndY = centerY + arrowLength * Math.sin(radians);
-  
+
   // Calculate arrow head points
   const arrowHeadLength = 3;
   const arrowHeadAngle = Math.PI / 6; // 30 degrees
-  const leftHeadX = arrowEndX - arrowHeadLength * Math.cos(radians - arrowHeadAngle);
-  const leftHeadY = arrowEndY - arrowHeadLength * Math.sin(radians - arrowHeadAngle);
-  const rightHeadX = arrowEndX - arrowHeadLength * Math.cos(radians + arrowHeadAngle);
-  const rightHeadY = arrowEndY - arrowHeadLength * Math.sin(radians + arrowHeadAngle);
-  
+  const leftHeadX =
+    arrowEndX - arrowHeadLength * Math.cos(radians - arrowHeadAngle);
+  const leftHeadY =
+    arrowEndY - arrowHeadLength * Math.sin(radians - arrowHeadAngle);
+  const rightHeadX =
+    arrowEndX - arrowHeadLength * Math.cos(radians + arrowHeadAngle);
+  const rightHeadY =
+    arrowEndY - arrowHeadLength * Math.sin(radians + arrowHeadAngle);
+
   return (
-    <div 
+    <div
       className="relative bg-gray-100 dark:bg-gray-700 rounded-full border border-gray-300 dark:border-gray-600"
       style={{ width: size, height: size }}
       title={`Robot heading: ${heading}°`}
     >
-      <svg 
-        className="absolute inset-0" 
-        width={size} 
+      <svg
+        className="absolute inset-0"
+        width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
       >
@@ -147,12 +158,7 @@ function HeadingDisplay({ heading, size = 20 }: HeadingDisplayProps) {
           fill="none"
         />
         {/* Center dot */}
-        <circle
-          cx={centerX}
-          cy={centerY}
-          r="1"
-          fill="#9CA3AF"
-        />
+        <circle cx={centerX} cy={centerY} r="1" fill="#9CA3AF" />
       </svg>
     </div>
   );
@@ -166,11 +172,11 @@ interface ProgramPositionConfigProps {
   onToggle: () => void;
 }
 
-function ProgramPositionConfig({ 
-  position, 
-  onPositionChange, 
-  isExpanded, 
-  onToggle 
+function ProgramPositionConfig({
+  position,
+  onPositionChange,
+  isExpanded,
+  onToggle,
 }: ProgramPositionConfigProps) {
   const currentPosition: RobotStartPosition = position || {
     side: "right",
@@ -192,10 +198,7 @@ function ProgramPositionConfig({
       >
         <span className="font-mono">📍</span>
         <span>{currentPosition.side[0].toUpperCase()}</span>
-        <HeadingDisplay 
-          heading={currentPosition.heading}
-          size={20}
-        />
+        <HeadingDisplay heading={currentPosition.heading} size={20} />
         <span>{isExpanded ? "▲" : "▼"}</span>
       </button>
 
@@ -205,7 +208,7 @@ function ProgramPositionConfig({
           <div className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">
             🎯 Robot Starting Position
           </div>
-          
+
           {/* Side Selection */}
           <div className="grid grid-cols-2 gap-1">
             <button
@@ -249,9 +252,9 @@ function ProgramPositionConfig({
                 value={currentPosition.fromBottom}
                 onChange={(e) => {
                   e.stopPropagation();
-                  onPositionChange({ 
-                    ...currentPosition, 
-                    fromBottom: Math.max(0, parseInt(e.target.value) || 0) 
+                  onPositionChange({
+                    ...currentPosition,
+                    fromBottom: Math.max(0, parseInt(e.target.value) || 0),
                   });
                 }}
                 className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -268,9 +271,9 @@ function ProgramPositionConfig({
                 value={currentPosition.fromSide}
                 onChange={(e) => {
                   e.stopPropagation();
-                  onPositionChange({ 
-                    ...currentPosition, 
-                    fromSide: Math.max(0, parseInt(e.target.value) || 0) 
+                  onPositionChange({
+                    ...currentPosition,
+                    fromSide: Math.max(0, parseInt(e.target.value) || 0),
                   });
                 }}
                 className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -292,9 +295,9 @@ function ProgramPositionConfig({
                 e.stopPropagation();
                 const value = parseInt(e.target.value) || 0;
                 const clampedValue = Math.max(-180, Math.min(180, value));
-                onPositionChange({ 
-                  ...currentPosition, 
-                  heading: clampedValue 
+                onPositionChange({
+                  ...currentPosition,
+                  heading: clampedValue,
                 });
               }}
               className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -318,8 +321,16 @@ interface FileBrowserProps {
   onCreateFile: () => void;
   className?: string;
   // Program metadata handlers
-  onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
-  onSetProgramStartPosition?: (relativePath: string, programStartPosition: import("../types/fileSystem").RobotStartPosition | undefined) => Promise<void>;
+  onSetProgramSide?: (
+    relativePath: string,
+    programSide: "left" | "right" | undefined,
+  ) => Promise<void>;
+  onSetProgramStartPosition?: (
+    relativePath: string,
+    programStartPosition:
+      | import("../types/fileSystem").RobotStartPosition
+      | undefined,
+  ) => Promise<void>;
   onMoveProgramUp?: (relativePath: string) => Promise<void>;
   onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
@@ -331,8 +342,16 @@ interface FileTreeItemProps {
   file: PythonFile;
   level: number;
   // Program metadata handlers
-  onSetProgramSide?: (relativePath: string, programSide: "left" | "right" | undefined) => Promise<void>;
-  onSetProgramStartPosition?: (relativePath: string, programStartPosition: import("../types/fileSystem").RobotStartPosition | undefined) => Promise<void>;
+  onSetProgramSide?: (
+    relativePath: string,
+    programSide: "left" | "right" | undefined,
+  ) => Promise<void>;
+  onSetProgramStartPosition?: (
+    relativePath: string,
+    programStartPosition:
+      | import("../types/fileSystem").RobotStartPosition
+      | undefined,
+  ) => Promise<void>;
   onMoveProgramUp?: (relativePath: string) => Promise<void>;
   onMoveProgramDown?: (relativePath: string) => Promise<void>;
   // Atomic program operations
@@ -340,26 +359,29 @@ interface FileTreeItemProps {
   onRemoveFromPrograms?: (relativePath: string) => Promise<void>;
 }
 
-function FileTreeItem({ 
-  file, 
-  level, 
+function FileTreeItem({
+  file,
+  level,
   onSetProgramSide,
   onSetProgramStartPosition,
   onMoveProgramUp,
   onMoveProgramDown,
   onAddToPrograms,
-  onRemoveFromPrograms
+  onRemoveFromPrograms,
 }: FileTreeItemProps) {
   const getProgramInfo = useAtomValue(getProgramInfoAtom);
-  
+
   // Auto-expand directories that contain programs (either directly or in subdirectories)
-  const shouldAutoExpand = level === 0 || (file.isDirectory && directoryContainsPrograms(file, getProgramInfo));
+  const shouldAutoExpand =
+    level === 0 ||
+    (file.isDirectory && directoryContainsPrograms(file, getProgramInfo));
   const [isExpanded, setIsExpanded] = useState(shouldAutoExpand);
-  
+
   const programInfo = getProgramInfo(file.relativePath);
   const [isSettingNumber, setIsSettingNumber] = useState(false);
   const [isPositionExpanded, setIsPositionExpanded] = useState(false);
-  const hasChildren = file.isDirectory && file.children && file.children.length > 0;
+  const hasChildren =
+    file.isDirectory && file.children && file.children.length > 0;
 
   const handleClick = () => {
     if (file.isDirectory) {
@@ -373,7 +395,7 @@ function FileTreeItem({
     const k = 1024;
     const sizes = ["B", "KB", "MB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+    return parseFloat((bytes / k ** i).toFixed(1)) + " " + sizes[i];
   };
 
   const formatLastModified = (timestamp: number) => {
@@ -398,7 +420,7 @@ function FileTreeItem({
 
   const handleAddToPrograms = async () => {
     if (!onAddToPrograms) return;
-    
+
     setIsSettingNumber(true);
     try {
       await onAddToPrograms(file.relativePath);
@@ -411,7 +433,7 @@ function FileTreeItem({
 
   const handleRemoveFromPrograms = async () => {
     if (!onRemoveFromPrograms) return;
-    
+
     try {
       await onRemoveFromPrograms(file.relativePath);
     } catch (error) {
@@ -421,7 +443,7 @@ function FileTreeItem({
 
   const handleSetProgramSide = async (side: "left" | "right") => {
     if (!onSetProgramSide) return;
-    
+
     try {
       await onSetProgramSide(file.relativePath, side);
     } catch (error) {
@@ -431,7 +453,7 @@ function FileTreeItem({
 
   const handleMoveProgramUp = async () => {
     if (!onMoveProgramUp) return;
-    
+
     try {
       await onMoveProgramUp(file.relativePath);
     } catch (error) {
@@ -441,7 +463,7 @@ function FileTreeItem({
 
   const handleMoveProgramDown = async () => {
     if (!onMoveProgramDown) return;
-    
+
     try {
       await onMoveProgramDown(file.relativePath);
     } catch (error) {
@@ -449,7 +471,9 @@ function FileTreeItem({
     }
   };
 
-  const handleSetProgramStartPosition = async (position: RobotStartPosition) => {
+  const handleSetProgramStartPosition = async (
+    position: RobotStartPosition,
+  ) => {
     if (!onSetProgramStartPosition) return;
     try {
       await onSetProgramStartPosition(file.relativePath, position);
@@ -477,7 +501,7 @@ function FileTreeItem({
             ) : (
               <span className="text-blue-600">🐍</span>
             )}
-            
+
             <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {file.name}
             </span>
@@ -503,22 +527,24 @@ function FileTreeItem({
                       ↑
                     </button>
                   )}
-                  
+
                   {/* 2) Position Configuration */}
                   {onSetProgramStartPosition && (
                     <ProgramPositionConfig
                       position={programInfo.programStartPosition}
                       onPositionChange={handleSetProgramStartPosition}
                       isExpanded={isPositionExpanded}
-                      onToggle={() => setIsPositionExpanded(!isPositionExpanded)}
+                      onToggle={() =>
+                        setIsPositionExpanded(!isPositionExpanded)
+                      }
                     />
                   )}
-                  
+
                   {/* 3) #x program number */}
                   <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-mono border border-purple-200 dark:border-purple-700">
                     #{programInfo.programNumber}
                   </span>
-                  
+
                   {/* 5) Down arrow to move program down */}
                   {onMoveProgramDown && (
                     <button
@@ -532,7 +558,7 @@ function FileTreeItem({
                       ↓
                     </button>
                   )}
-                  
+
                   {/* 6) X to remove from program list */}
                   {onRemoveFromPrograms && (
                     <button
@@ -617,7 +643,7 @@ export function FileBrowser({
 }: FileBrowserProps) {
   const countPythonFiles = (files: PythonFile[]): number => {
     let count = 0;
-    files.forEach(file => {
+    files.forEach((file) => {
       if (file.isDirectory && file.children) {
         count += countPythonFiles(file.children);
       } else if (!file.isDirectory) {

@@ -1,11 +1,11 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect } from "react";
 import type { DebugEvent } from "../services/pybricksHub";
-import { 
-  uploadProgressAtom, 
-  updateUploadProgressAtom, 
+import {
   resetUploadProgressAtom,
-  type UploadProgressData 
+  type UploadProgressData,
+  updateUploadProgressAtom,
+  uploadProgressAtom,
 } from "../store/atoms/uploadProgress";
 
 /**

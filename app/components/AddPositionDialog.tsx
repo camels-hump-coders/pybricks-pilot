@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { usePositionManager } from "../hooks/usePositionManager";
 import { useAtomValue } from "jotai";
+import { useEffect, useState } from "react";
+import { usePositionManager } from "../hooks/usePositionManager";
 import { coordinateUtilsAtom } from "../store/atoms/canvasState";
-import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { customMatConfigAtom } from "../store/atoms/gameMat";
+import type { EdgeBasedPosition } from "../store/atoms/positionManagement";
+import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import type { RobotPosition } from "../utils/robotPosition";
 import { calculateRobotPositionFromEdges } from "../utils/robotPosition";
 import { RadialHeadingSelector } from "./RadialHeadingSelector";
-import type { EdgeBasedPosition } from "../store/atoms/positionManagement";
-import type { RobotPosition } from "../utils/robotPosition";
 
 interface AddPositionDialogProps {
   initialPosition?: EdgeBasedPosition;
@@ -29,14 +29,17 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
   const customMatConfig = useAtomValue(customMatConfigAtom);
 
   const [name, setName] = useState("");
-  const [edgePositionSettings, setEdgePositionSettings] = useState<EdgeBasedPosition>({
-    side: initialPosition?.side ?? "left",
-    fromBottom: initialPosition?.fromBottom ?? 100,
-    fromSide: initialPosition?.fromSide ?? 50,
-    heading: initialPosition?.heading ?? 0,
-  });
+  const [edgePositionSettings, setEdgePositionSettings] =
+    useState<EdgeBasedPosition>({
+      side: initialPosition?.side ?? "left",
+      fromBottom: initialPosition?.fromBottom ?? 100,
+      fromSide: initialPosition?.fromSide ?? 50,
+      heading: initialPosition?.heading ?? 0,
+    });
 
-  const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(null);
+  const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -64,13 +67,18 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
         edgePositionSettings.fromSide,
         edgePositionSettings.heading,
         robotConfig,
-        customMatConfig
+        customMatConfig,
       );
       setPositionPreview(preview);
     } else {
       setPositionPreview(null);
     }
-  }, [isAddPositionDialogOpen, edgePositionSettings, robotConfig, customMatConfig]);
+  }, [
+    isAddPositionDialogOpen,
+    edgePositionSettings,
+    robotConfig,
+    customMatConfig,
+  ]);
 
   const handleClose = () => {
     setIsAddPositionDialogOpen(false);
@@ -85,15 +93,24 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
       return "Position name must be at least 2 characters";
     }
 
-    if (edgePositionSettings.fromBottom < 0 || edgePositionSettings.fromBottom > 1000) {
+    if (
+      edgePositionSettings.fromBottom < 0 ||
+      edgePositionSettings.fromBottom > 1000
+    ) {
       return "Distance from bottom must be between 0 and 1000mm";
     }
 
-    if (edgePositionSettings.fromSide < 0 || edgePositionSettings.fromSide > 2000) {
+    if (
+      edgePositionSettings.fromSide < 0 ||
+      edgePositionSettings.fromSide > 2000
+    ) {
       return "Distance from side must be between 0 and 2000mm";
     }
 
-    if (edgePositionSettings.heading < -180 || edgePositionSettings.heading > 180) {
+    if (
+      edgePositionSettings.heading < -180 ||
+      edgePositionSettings.heading > 180
+    ) {
       return "Heading must be between -180 and 180 degrees";
     }
 
@@ -120,7 +137,7 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
         name.trim(),
         positionPreview.x,
         positionPreview.y,
-        positionPreview.heading
+        positionPreview.heading,
       );
 
       if (newPosition) {
@@ -147,8 +164,8 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
               Folder Not Mounted
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Custom positions require a mounted folder to save configuration files. 
-              Please mount a folder to enable custom position management.
+              Custom positions require a mounted folder to save configuration
+              files. Please mount a folder to enable custom position management.
             </p>
             <button
               onClick={handleClose}
@@ -173,8 +190,18 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -260,7 +287,8 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  From {edgePositionSettings.side === "left" ? "Left" : "Right"} (mm)
+                  From {edgePositionSettings.side === "left" ? "Left" : "Right"}{" "}
+                  (mm)
                 </label>
                 <input
                   type="number"
@@ -296,7 +324,9 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
             {/* Position Preview */}
             {positionPreview && (
               <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2 p-2 bg-gray-100 dark:bg-gray-700 rounded">
-                Preview: ({Math.round(positionPreview.x)}mm, {Math.round(positionPreview.y)}mm, {Math.round(positionPreview.heading)}°)
+                Preview: ({Math.round(positionPreview.x)}mm,{" "}
+                {Math.round(positionPreview.y)}mm,{" "}
+                {Math.round(positionPreview.heading)}°)
               </div>
             )}
           </div>
@@ -324,9 +354,24 @@ export function AddPositionDialog({ initialPosition }: AddPositionDialogProps) {
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
-                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      className="opacity-25"
+                    ></circle>
+                    <path
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      className="opacity-75"
+                    ></path>
                   </svg>
                   Saving...
                 </>

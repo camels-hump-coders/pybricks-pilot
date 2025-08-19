@@ -1,8 +1,8 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback } from "react";
 import { pybricksHubService } from "../services/pybricksHub";
+import { telemetryHistory } from "../services/telemetryHistory";
 import { pybricksHubCapabilitiesAtom } from "../store/atoms/pybricksHub";
-import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 
 // Import Pybricks hub specific atoms
 import {
@@ -27,8 +27,7 @@ import {
   sensorDataAtom,
   telemetryDataAtom,
 } from "../store/atoms/robotConnection"; // Use shared robot connection atoms
-
-import { telemetryHistory } from "../services/telemetryHistory";
+import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 
 // Use the pybricksHubService directly for Pybricks-specific operations
 // This provides cleaner separation from the generic robot interface
@@ -122,30 +121,34 @@ export function useJotaiPybricksHub() {
     async (allPrograms: any[], availableFiles: any[]) => {
       await pybricksHubService.uploadAndRunHubMenu(allPrograms, availableFiles);
     },
-    []
+    [],
   );
 
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
     async (distance: number, speed: number) => {
       // Send as command sequence for proper stop behavior handling
-      const commands = [{
-        action: "drive",
-        distance,
-        speed,
-      }];
+      const commands = [
+        {
+          action: "drive",
+          distance,
+          speed,
+        },
+      ];
       await pybricksHubService.sendControlCommand(JSON.stringify(commands));
     },
-    []
+    [],
   );
 
   const sendTurnCommand = useCallback(async (angle: number, speed: number) => {
     // Send as command sequence for proper stop behavior handling
-    const commands = [{
-      action: "turn",
-      angle,
-      speed,
-    }];
+    const commands = [
+      {
+        action: "turn",
+        angle,
+        speed,
+      },
+    ];
     await pybricksHubService.sendControlCommand(JSON.stringify(commands));
   }, []);
 
@@ -163,34 +166,38 @@ export function useJotaiPybricksHub() {
       });
       await pybricksHubService.sendControlCommand(command);
     },
-    []
+    [],
   );
 
   const sendMotorCommand = useCallback(
     async (motor: string, angle: number, speed: number) => {
       // Send as command sequence for consistency
-      const commands = [{
-        action: "motor",
-        motor,
-        angle,
-        speed,
-      }];
+      const commands = [
+        {
+          action: "motor",
+          motor,
+          angle,
+          speed,
+        },
+      ];
       await pybricksHubService.sendControlCommand(JSON.stringify(commands));
     },
-    []
+    [],
   );
 
   const sendContinuousMotorCommand = useCallback(
     async (motor: string, speed: number) => {
       // Send as command sequence for consistency
-      const commands = [{
-        action: "motor",
-        motor,
-        speed,
-      }];
+      const commands = [
+        {
+          action: "motor",
+          motor,
+          speed,
+        },
+      ];
       await pybricksHubService.sendControlCommand(JSON.stringify(commands));
     },
-    []
+    [],
   );
 
   const sendMotorStopCommand = useCallback(async (motor: string) => {
@@ -221,18 +228,18 @@ export function useJotaiPybricksHub() {
   // Instrumentation settings (still using service directly for now)
   const setInstrumentationEnabled = useCallback(
     (enabled: boolean) => pybricksHubService.setInstrumentationEnabled(enabled),
-    []
+    [],
   );
 
   const setInstrumentationOptions = useCallback(
     (options: Partial<InstrumentationOptions>) =>
       pybricksHubService.setInstrumentationOptions(options),
-    []
+    [],
   );
 
   const getInstrumentationOptions = useCallback(
     () => pybricksHubService.getInstrumentationOptions(),
-    []
+    [],
   );
 
   // Make isConnected a function for consistency with virtual robot
@@ -285,7 +292,8 @@ export function useJotaiPybricksHub() {
     isSendingCommand,
 
     // Command sequences and compound movements
-    executeCommandSequence: pybricksHubService.executeCommandSequence.bind(pybricksHubService),
+    executeCommandSequence:
+      pybricksHubService.executeCommandSequence.bind(pybricksHubService),
     turnAndDrive: pybricksHubService.turnAndDrive.bind(pybricksHubService),
     arc: pybricksHubService.arc.bind(pybricksHubService),
 

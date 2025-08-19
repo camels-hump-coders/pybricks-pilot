@@ -56,15 +56,15 @@ export const calculateRobotPositionWithDimensions = (
   robotConfig: RobotConfig,
   position: "bottom-right" | "bottom-left" | "center",
   matWidthMm: number = MAT_WIDTH_MM,
-  matHeightMm: number = MAT_HEIGHT_MM
+  matHeightMm: number = MAT_HEIGHT_MM,
 ): RobotPosition => {
   const robotWidthMm = studsToMm(robotConfig.dimensions.width);
   const robotLengthMm = studsToMm(robotConfig.dimensions.length);
   const centerOfRotationFromLeftMm = studsToMm(
-    robotConfig.centerOfRotation.distanceFromLeftEdge
+    robotConfig.centerOfRotation.distanceFromLeftEdge,
   );
   const centerOfRotationFromTopMm = studsToMm(
-    robotConfig.centerOfRotation.distanceFromTop
+    robotConfig.centerOfRotation.distanceFromTop,
   );
 
   // SIMPLIFIED MODEL: Position represents the center of rotation, not robot body center
@@ -107,20 +107,20 @@ export const calculateRobotPositionWithDimensions = (
 // Backward compatibility function using hardcoded dimensions
 export const calculateRobotPosition = (
   robotConfig: RobotConfig,
-  position: "bottom-right" | "bottom-left" | "center"
+  position: "bottom-right" | "bottom-left" | "center",
 ): RobotPosition => {
   return calculateRobotPositionWithDimensions(
     robotConfig,
     position,
     MAT_WIDTH_MM,
-    MAT_HEIGHT_MM
+    MAT_HEIGHT_MM,
   );
 };
 
 // Robot position atoms - derived atom that uses current mat and robot config
 export const robotPositionAtom = atom<RobotPosition>(
   // Initial value using default dimensions
-  calculateRobotPosition(DEFAULT_ROBOT_CONFIG, "bottom-right")
+  calculateRobotPosition(DEFAULT_ROBOT_CONFIG, "bottom-right"),
 );
 
 // Derived atom that recalculates initial position when mat or robot config changes
@@ -136,7 +136,7 @@ const initialRobotPositionAtom = atom((get) => {
     robotConfig,
     "bottom-right",
     matWidthMm,
-    matHeightMm
+    matHeightMm,
   );
 });
 
@@ -222,7 +222,7 @@ export const setRobotPositionAtom = atom(
       angle: 0,
       position,
     });
-  }
+  },
 );
 
 export const updateScoringAtom = atom(
@@ -230,7 +230,7 @@ export const updateScoringAtom = atom(
   (
     get,
     set,
-    update: { missionId: string; objectiveId: string; state: ObjectiveState }
+    update: { missionId: string; objectiveId: string; state: ObjectiveState },
   ) => {
     const currentState = get(scoringStateAtom);
     set(scoringStateAtom, {
@@ -243,7 +243,7 @@ export const updateScoringAtom = atom(
         },
       },
     });
-  }
+  },
 );
 
 export const resetScoringAtom = atom(null, (get, set) => {
@@ -309,7 +309,7 @@ export const addSplinePointAtom = atom(
     }
 
     return newPoint.id;
-  }
+  },
 );
 
 export const updateSplinePointAtom = atom(
@@ -339,7 +339,7 @@ export const updateSplinePointAtom = atom(
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
     }
-  }
+  },
 );
 
 export const deleteSplinePointAtom = atom(null, (get, set, pointId: string) => {
@@ -354,7 +354,7 @@ export const deleteSplinePointAtom = atom(null, (get, set, pointId: string) => {
   if (pointIndex === 0) {
     // Cannot delete the first point - it's the robot's starting position
     console.warn(
-      "Cannot delete the first spline point (robot starting position)"
+      "Cannot delete the first spline point (robot starting position)",
     );
     return;
   }
@@ -414,7 +414,7 @@ export const cancelSplinePathAtom = atom(null, (get, set) => {
     const paths = get(splinePathsAtom);
     set(
       splinePathsAtom,
-      paths.filter((p) => p.id !== currentPath.id)
+      paths.filter((p) => p.id !== currentPath.id),
     );
   }
 
@@ -431,7 +431,7 @@ export const addControlPointAtom = atom(
     set,
     pointId: string,
     controlType: "before" | "after",
-    controlPoint: { x: number; y: number }
+    controlPoint: { x: number; y: number },
   ) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
@@ -465,7 +465,7 @@ export const addControlPointAtom = atom(
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
     }
-  }
+  },
 );
 
 export const updateControlPointAtom = atom(
@@ -475,7 +475,7 @@ export const updateControlPointAtom = atom(
     set,
     pointId: string,
     controlType: "before" | "after",
-    controlPoint: { x: number; y: number }
+    controlPoint: { x: number; y: number },
   ) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
@@ -511,7 +511,7 @@ export const updateControlPointAtom = atom(
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
     }
-  }
+  },
 );
 
 export const removeControlPointAtom = atom(
@@ -554,7 +554,7 @@ export const removeControlPointAtom = atom(
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
     }
-  }
+  },
 );
 
 // Tangency handle management atoms
@@ -564,7 +564,13 @@ export const updateTangencyHandleAtom = atom(
     get,
     set,
     pointId: string,
-    tangencyHandle: { x: number; y: number; strength: number; isEdited: boolean; isTangentDriving: boolean }
+    tangencyHandle: {
+      x: number;
+      y: number;
+      strength: number;
+      isEdited: boolean;
+      isTangentDriving: boolean;
+    },
   ) => {
     const currentPath = get(currentSplinePathAtom);
     if (!currentPath) return;
@@ -595,7 +601,7 @@ export const updateTangencyHandleAtom = atom(
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
     }
-  }
+  },
 );
 
 // Automatically add tangency handles to intermediate points
@@ -632,7 +638,7 @@ export const addTangencyHandlesToIntermediatePointsAtom = atom(
 
         // Normalize and scale to create default handle
         const length = Math.sqrt(
-          avgDirection.x * avgDirection.x + avgDirection.y * avgDirection.y
+          avgDirection.x * avgDirection.x + avgDirection.y * avgDirection.y,
         );
         const defaultHandleLength = 30; // 30mm default
 
@@ -668,7 +674,7 @@ export const addTangencyHandlesToIntermediatePointsAtom = atom(
       paths[pathIndex] = updatedPath;
       set(splinePathsAtom, [...paths]);
     }
-  }
+  },
 );
 
 // Spline path planning atoms
@@ -685,14 +691,14 @@ export interface SplinePathPoint {
     x: number; // Offset from point position (end-point position)
     y: number; // Offset from point position (end-point position)
     strength: number; // 0-1, how much curvature to apply
-    
+
     // SolidWorks-style state
     isEdited: boolean; // True if handle has been manually modified (blue vs gray)
     isTangentDriving: boolean; // True if this handle is "tangent driving"
-    
+
     // Computed grip positions (calculated from x, y, strength)
     // Diamond grip: Controls angle only (at 50% of handle length)
-    // Arrow grip: Controls magnitude only (at 80% of handle length) 
+    // Arrow grip: Controls magnitude only (at 80% of handle length)
     // End-point grip: Controls both angle and magnitude (at 100% of handle length)
   };
   timestamp: number;

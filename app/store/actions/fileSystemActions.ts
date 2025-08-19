@@ -20,13 +20,13 @@ import {
 // Helper function to recursively enrich file metadata at any depth
 async function enrichFileRecursively(
   file: PythonFile,
-  directoryHandle: FileSystemDirectoryHandle
+  directoryHandle: FileSystemDirectoryHandle,
 ): Promise<PythonFile> {
   if (!file.isDirectory) {
     // For files, get metadata and return enriched file
     const metadata = await programMetadataStorage.getProgramMetadata(
       directoryHandle,
-      file.relativePath
+      file.relativePath,
     );
     return {
       ...file,
@@ -39,7 +39,7 @@ async function enrichFileRecursively(
       for (const child of file.children) {
         // Recursively enrich each child (file or directory)
         enrichedChildren.push(
-          await enrichFileRecursively(child, directoryHandle)
+          await enrichFileRecursively(child, directoryHandle),
         );
       }
     }
@@ -158,7 +158,7 @@ export const readFileAtom = atom(
     } finally {
       set(isReadingFileAtom, false);
     }
-  }
+  },
 );
 
 // Write file action
@@ -167,7 +167,7 @@ export const writeFileAtom = atom(
   async (
     get,
     set,
-    params: { handle: FileSystemFileHandle; content: string }
+    params: { handle: FileSystemFileHandle; content: string },
   ) => {
     set(isWritingFileAtom, true);
 
@@ -184,7 +184,7 @@ export const writeFileAtom = atom(
     } finally {
       set(isWritingFileAtom, false);
     }
-  }
+  },
 );
 
 // Create file action
@@ -200,7 +200,7 @@ export const createFileAtom = atom(
       const fileHandle = await fileSystemService.createFile(
         directoryHandle,
         params.name,
-        params.content
+        params.content,
       );
 
       // Refresh file list
@@ -210,7 +210,7 @@ export const createFileAtom = atom(
     } finally {
       set(isCreatingFileAtom, false);
     }
-  }
+  },
 );
 
 // Create example project action
@@ -259,7 +259,7 @@ export const getFileContentAtom = atom(
     }
 
     return await set(readFileAtom, file.handle);
-  }
+  },
 );
 
 // Program metadata actions
@@ -274,12 +274,12 @@ export const addToProgramsAtom = atom(
     await programMetadataStorage.addProgram(
       directoryHandle,
       relativePath,
-      "right" // Default to right side
+      "right", // Default to right side
     );
 
     // Refresh to get the latest state from filesystem
     await set(refreshPythonFilesAtom);
-  }
+  },
 );
 
 // Set program side for a file
@@ -288,7 +288,7 @@ export const setProgramSideAtom = atom(
   async (
     get,
     set,
-    params: { relativePath: string; programSide: "left" | "right" | undefined }
+    params: { relativePath: string; programSide: "left" | "right" | undefined },
   ) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
@@ -296,12 +296,12 @@ export const setProgramSideAtom = atom(
     await programMetadataStorage.setProgramSide(
       directoryHandle,
       params.relativePath,
-      params.programSide
+      params.programSide,
     );
 
     // Refresh to get the latest state from filesystem
     await set(refreshPythonFilesAtom);
-  }
+  },
 );
 
 // Get program metadata for a file
@@ -313,9 +313,9 @@ export const getProgramMetadataAtom = atom(
 
     return await programMetadataStorage.getProgramMetadata(
       directoryHandle,
-      relativePath
+      relativePath,
     );
-  }
+  },
 );
 
 // Get all programs in order
@@ -336,12 +336,12 @@ export const removeFromProgramsAtom = atom(
     // Remove program from the array (automatically fixes numbering)
     await programMetadataStorage.removeProgramMetadata(
       directoryHandle,
-      relativePath
+      relativePath,
     );
 
     // Refresh to get the latest state from filesystem
     await set(refreshPythonFilesAtom);
-  }
+  },
 );
 
 // Move program up in order
@@ -355,7 +355,7 @@ export const moveProgramUpAtom = atom(
 
     // Full refresh needed for reordering since we need to reload metadata for all files
     await set(refreshPythonFilesAtom);
-  }
+  },
 );
 
 // Move program down in order
@@ -369,7 +369,7 @@ export const moveProgramDownAtom = atom(
 
     // Full refresh needed for reordering since we need to reload metadata for all files
     await set(refreshPythonFilesAtom);
-  }
+  },
 );
 
 // Set program start position for a file
@@ -381,7 +381,7 @@ export const setProgramStartPositionAtom = atom(
     params: {
       relativePath: string;
       programStartPosition: RobotStartPosition | undefined;
-    }
+    },
   ) => {
     const directoryHandle = get(directoryHandleAtom);
     if (!directoryHandle) throw new Error("No directory selected");
@@ -389,10 +389,10 @@ export const setProgramStartPositionAtom = atom(
     await programMetadataStorage.setProgramStartPosition(
       directoryHandle,
       params.relativePath,
-      params.programStartPosition
+      params.programStartPosition,
     );
 
     // Refresh to get the latest state from filesystem
     await set(refreshPythonFilesAtom);
-  }
+  },
 );

@@ -83,14 +83,14 @@ export function MissionManagementDialog() {
 
   const handleDelete = async (missionId: string) => {
     if (!missionId) return;
-    
+
     setIsDeleting(missionId);
     const success = await removeMission(missionId);
-    
+
     if (!success) {
       setError("Failed to delete mission");
     }
-    
+
     setIsDeleting(null);
   };
 
@@ -106,8 +106,8 @@ export function MissionManagementDialog() {
               Folder Not Mounted
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Mission management requires a mounted folder to save mission files. 
-              Please mount a folder to enable mission management.
+              Mission management requires a mounted folder to save mission
+              files. Please mount a folder to enable mission management.
             </p>
             <button
               onClick={handleClose}
@@ -132,8 +132,18 @@ export function MissionManagementDialog() {
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -146,7 +156,7 @@ export function MissionManagementDialog() {
             </div>
           ) : (
             <div className="space-y-3">
-              {missions.map(mission => (
+              {missions.map((mission) => (
                 <div
                   key={mission.id}
                   className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700"
@@ -189,7 +199,11 @@ export function MissionManagementDialog() {
                           min="10"
                           max="1000"
                           value={editArcRadius}
-                          onChange={(e) => setEditArcRadius(Math.max(10, parseInt(e.target.value) || 10))}
+                          onChange={(e) =>
+                            setEditArcRadius(
+                              Math.max(10, parseInt(e.target.value) || 10),
+                            )
+                          }
                           className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         />
                       </div>
@@ -228,7 +242,7 @@ export function MissionManagementDialog() {
                               Mission
                             </span>
                           </div>
-                          
+
                           {mission.description && (
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                               {mission.description}
@@ -239,10 +253,13 @@ export function MissionManagementDialog() {
                             <div className="flex flex-wrap gap-4">
                               <span>Points: {mission.points.length}</span>
                               <span>Segments: {mission.segments.length}</span>
-                              <span>Arc Radius: {mission.defaultArcRadius}mm</span>
+                              <span>
+                                Arc Radius: {mission.defaultArcRadius}mm
+                              </span>
                             </div>
                             <div>
-                              Modified: {new Date(mission.modified).toLocaleDateString()}
+                              Modified:{" "}
+                              {new Date(mission.modified).toLocaleDateString()}
                             </div>
                           </div>
                         </div>
@@ -253,8 +270,18 @@ export function MissionManagementDialog() {
                             className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                             title="Edit mission"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
                             </svg>
                           </button>
                           <button
@@ -264,13 +291,38 @@ export function MissionManagementDialog() {
                             title="Delete mission"
                           >
                             {isDeleting === mission.id ? (
-                              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
-                                <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                              <svg
+                                className="w-4 h-4 animate-spin"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  className="opacity-25"
+                                ></circle>
+                                <path
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                  className="opacity-75"
+                                ></path>
                               </svg>
                             ) : (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
                               </svg>
                             )}
                           </button>

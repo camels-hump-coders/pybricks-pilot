@@ -60,7 +60,7 @@
           "id": "reach-corner",
           "choices": [
             {
-              "id": "reach-corner", 
+              "id": "reach-corner",
               "description": "Navigate to far corner",
               "points": 15,
               "type": "primary"

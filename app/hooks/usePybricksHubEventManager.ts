@@ -1,22 +1,25 @@
 import { useSetAtom } from "jotai";
 import { useEffect, useRef } from "react";
-import type { ProgramStatus, TelemetryData, DebugEvent } from "../services/pybricksHub";
+import type {
+  DebugEvent,
+  ProgramStatus,
+  TelemetryData,
+} from "../services/pybricksHub";
 import { pybricksHubService } from "../services/pybricksHub";
-import { transformTelemetryData } from "../utils/coordinateTransformations";
 import {
+  checkProgramRunningTimeoutAtom,
+  updateTelemetryTimestampAtom,
+} from "../store/atoms/programRunning";
+import {
+  clearProgramOutputLogAtom,
   debugEventsAtom,
   hubInfoAtom,
   isConnectedAtom,
   programOutputLogAtom,
   programStatusAtom,
   telemetryDataAtom,
-  clearProgramOutputLogAtom,
 } from "../store/atoms/robotConnection";
-import {
-  updateTelemetryTimestampAtom,
-  checkProgramRunningTimeoutAtom,
-} from "../store/atoms/programRunning";
-
+import { transformTelemetryData } from "../utils/coordinateTransformations";
 
 /**
  * Hook that manages Pybricks hub event listeners centrally.
@@ -37,7 +40,9 @@ export function usePybricksHubEventManager() {
   useEffect(() => {
     // Prevent multiple registrations using ref
     if (hasRegisteredListeners.current) {
-      console.warn("[PybricksHubEventManager] Event listeners already registered for this component, skipping");
+      console.warn(
+        "[PybricksHubEventManager] Event listeners already registered for this component, skipping",
+      );
       return;
     }
 
@@ -69,24 +74,26 @@ export function usePybricksHubEventManager() {
 
         // Check for hub menu status messages
         const output = status.output.trim();
-        if (output.includes('[PILOT:MENU_STATUS]')) {
+        if (output.includes("[PILOT:MENU_STATUS]")) {
           try {
             // Parse hub menu status: [PILOT:MENU_STATUS] selected=1 total=3 state=menu
-            const match = output.match(/\[PILOT:MENU_STATUS\]\s+selected=(\d+)\s+total=(\d+)\s+state=(\w+)/);
+            const match = output.match(
+              /\[PILOT:MENU_STATUS\]\s+selected=(\d+)\s+total=(\d+)\s+state=(\w+)/,
+            );
             if (match) {
               const [, selectedProgram, totalPrograms, menuState] = match;
-              const hubMenuEvent = new CustomEvent('hubMenuStatus', {
+              const hubMenuEvent = new CustomEvent("hubMenuStatus", {
                 detail: {
                   selectedProgram: parseInt(selectedProgram),
                   totalPrograms: parseInt(totalPrograms),
                   state: menuState,
-                  timestamp: Date.now()
-                }
+                  timestamp: Date.now(),
+                },
               });
               document.dispatchEvent(hubMenuEvent);
             }
           } catch (e) {
-            console.warn('Failed to parse hub menu status:', output);
+            console.warn("Failed to parse hub menu status:", output);
           }
         }
       }
@@ -106,7 +113,7 @@ export function usePybricksHubEventManager() {
         console.log("[PybricksHub] Position reset command received");
         // Dispatch a custom event for position reset
         const resetEvent = new CustomEvent("positionReset", {
-          detail: { timestamp: Date.now() }
+          detail: { timestamp: Date.now() },
         });
         document.dispatchEvent(resetEvent);
       }
@@ -118,17 +125,22 @@ export function usePybricksHubEventManager() {
       ) {
         try {
           // Extract position data from message
-          const match = debugEvent.message.match(/\[PILOT:SET_POSITION\]\s*({.*})/);
+          const match = debugEvent.message.match(
+            /\[PILOT:SET_POSITION\]\s*({.*})/,
+          );
           if (match) {
             const positionData = JSON.parse(match[1]);
-            console.log("[PybricksHub] Position set command received:", positionData);
-            
+            console.log(
+              "[PybricksHub] Position set command received:",
+              positionData,
+            );
+
             // Dispatch a custom event for position setting
             const setPositionEvent = new CustomEvent("setPosition", {
-              detail: { 
+              detail: {
                 position: positionData,
-                timestamp: Date.now() 
-              }
+                timestamp: Date.now(),
+              },
             });
             document.dispatchEvent(setPositionEvent);
           }
@@ -157,22 +169,46 @@ export function usePybricksHubEventManager() {
     };
 
     // Register event listeners directly
-    pybricksHubService.addEventListener("telemetry", handleTelemetry as EventListener);
-    pybricksHubService.addEventListener("statusChange", handleStatusChange as EventListener);
-    pybricksHubService.addEventListener("debugEvent", handleDebugEvent as EventListener);
-    pybricksHubService.addEventListener("clearProgramOutput", handleClearProgramOutput as EventListener);
-    
+    pybricksHubService.addEventListener(
+      "telemetry",
+      handleTelemetry as EventListener,
+    );
+    pybricksHubService.addEventListener(
+      "statusChange",
+      handleStatusChange as EventListener,
+    );
+    pybricksHubService.addEventListener(
+      "debugEvent",
+      handleDebugEvent as EventListener,
+    );
+    pybricksHubService.addEventListener(
+      "clearProgramOutput",
+      handleClearProgramOutput as EventListener,
+    );
+
     hasRegisteredListeners.current = true;
     console.log("[PybricksHubEventManager] Event listeners registered");
 
     return () => {
       // Cleanup event listeners
       if (hasRegisteredListeners.current) {
-        pybricksHubService.removeEventListener("telemetry", handleTelemetry as EventListener);
-        pybricksHubService.removeEventListener("statusChange", handleStatusChange as EventListener);
-        pybricksHubService.removeEventListener("debugEvent", handleDebugEvent as EventListener);
-        pybricksHubService.removeEventListener("clearProgramOutput", handleClearProgramOutput as EventListener);
-        
+        pybricksHubService.removeEventListener(
+          "telemetry",
+          handleTelemetry as EventListener,
+        );
+        pybricksHubService.removeEventListener(
+          "statusChange",
+          handleStatusChange as EventListener,
+        );
+        pybricksHubService.removeEventListener(
+          "debugEvent",
+          handleDebugEvent as EventListener,
+        );
+        pybricksHubService.removeEventListener(
+          "clearProgramOutput",
+          handleClearProgramOutput as EventListener,
+        );
+
         hasRegisteredListeners.current = false;
         console.log("[PybricksHubEventManager] Event listeners removed");
       }

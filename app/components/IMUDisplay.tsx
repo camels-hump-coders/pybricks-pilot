@@ -43,7 +43,7 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
   const formatValue = (
     value: number | undefined | null,
     unit: string,
-    decimals = 1
+    decimals = 1,
   ) => {
     if (value === undefined || value === null || isNaN(value)) {
       return `--${unit}`;
@@ -71,7 +71,7 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
       return Math.round(
         ((voltageMillivolts - CRITICAL_VOLTAGE) /
           (MIN_SAFE_VOLTAGE - CRITICAL_VOLTAGE)) *
-          10
+          10,
       );
     }
 
@@ -134,7 +134,7 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
             ? hubData.battery.voltage / 1000
             : 0;
           const batteryPercentage = calculateBatteryPercentage(
-            hubData.battery.voltage || 0
+            hubData.battery.voltage || 0,
           );
           const batteryStatus = getBatteryStatus(batteryPercentage);
 
@@ -264,7 +264,7 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
                   hubData.imu.acceleration?.[0]
                     ? hubData.imu.acceleration[0] / 1000
                     : undefined,
-                  "g"
+                  "g",
                 )}
               </div>
             </div>
@@ -279,7 +279,7 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
                   hubData.imu.acceleration?.[1]
                     ? hubData.imu.acceleration[1] / 1000
                     : undefined,
-                  "g"
+                  "g",
                 )}
               </div>
             </div>
@@ -294,7 +294,7 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
                   hubData.imu.acceleration?.[2]
                     ? hubData.imu.acceleration[2] / 1000
                     : undefined,
-                  "g"
+                  "g",
                 )}
               </div>
             </div>
@@ -310,12 +310,12 @@ export function IMUDisplay({ hubData, className = "" }: IMUDisplayProps) {
                 {formatValue(
                   hubData.imu.acceleration?.length === 3
                     ? Math.sqrt(
-                        Math.pow(hubData.imu.acceleration[0], 2) +
-                          Math.pow(hubData.imu.acceleration[1], 2) +
-                          Math.pow(hubData.imu.acceleration[2], 2)
+                        hubData.imu.acceleration[0] ** 2 +
+                          hubData.imu.acceleration[1] ** 2 +
+                          hubData.imu.acceleration[2] ** 2,
                       ) / 1000
                     : undefined,
-                  "g"
+                  "g",
                 )}
               </div>
             </div>

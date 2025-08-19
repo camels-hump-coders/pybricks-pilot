@@ -5,8 +5,8 @@ import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import {
-  GameMatConfigSchema,
   type GameMatConfig,
+  GameMatConfigSchema,
 } from "../schemas/GameMatConfig";
 import { matConfigFileSystem } from "../services/matConfigFileSystem";
 import type { ProgramStatus } from "../services/pybricksHub";
@@ -240,7 +240,7 @@ interface RobotControlsSectionProps {
   onMotorCommand: (
     motor: string,
     angle: number,
-    speed: number
+    speed: number,
   ) => Promise<void>;
   onContinuousMotorCommand: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand: (motor: string) => Promise<void>;
@@ -252,7 +252,7 @@ interface RobotControlsSectionProps {
   onUploadAndRunFile?: (
     file: any,
     content: string,
-    availableFiles: any[]
+    availableFiles: any[],
   ) => Promise<void>;
   onRobotBuilderOpen: () => void;
   onResetTelemetry?: () => Promise<void>; // Add reset telemetry function
@@ -538,7 +538,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const handleUploadAndRun = async (
     file: any,
     content: string,
-    availableFiles: any[]
+    availableFiles: any[],
   ) => {
     // allPrograms already contains numbered programs with programNumber
     // No need to filter since allPrograms is already the numbered programs list
@@ -547,7 +547,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       console.log(
         "[TelemetryDashboard] Using hub menu upload for",
         allPrograms.length,
-        "programs"
+        "programs",
       );
       await uploadAndRunHubMenu(allPrograms, pythonFiles);
     } else {
@@ -601,7 +601,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         currentRobotConfig,
         "bottom-right",
         customMatConfig.dimensions?.widthMm || 2356,
-        customMatConfig.dimensions?.heightMm || 1137
+        customMatConfig.dimensions?.heightMm || 1137,
       );
       setRobotPosition(initialPosition);
     }
@@ -609,7 +609,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
   const handleSaveMatConfig = async (
     config: GameMatConfig,
-    imageFile?: File
+    imageFile?: File,
   ) => {
     if (!hasDirectoryAccess) {
       console.error("No directory mounted - cannot save mat configuration");
@@ -633,13 +633,13 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             await matConfigFileSystem.saveMatImage(
               stableDirectoryHandle,
               matId,
-              imageFile
+              imageFile,
             );
             console.log(`Saved mat image for mat: ${matId}`);
           } catch (imageError) {
             console.warn(
               "Failed to save mat image, but config was saved:",
-              imageError
+              imageError,
             );
           }
         }
@@ -657,13 +657,13 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             await matConfigFileSystem.saveMatImage(
               stableDirectoryHandle,
               matId,
-              imageFile
+              imageFile,
             );
             console.log(`Updated mat image for mat: ${matId}`);
           } catch (imageError) {
             console.warn(
               "Failed to update mat image, but config was saved:",
-              imageError
+              imageError,
             );
           }
         }
@@ -707,7 +707,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         currentRobotConfig,
         "bottom-right",
         config.dimensions?.widthMm || 2356,
-        config.dimensions?.heightMm || 1137
+        config.dimensions?.heightMm || 1137,
       );
       setRobotPosition(initialPosition);
     } else {
@@ -735,7 +735,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         currentRobotConfig,
         "bottom-right",
         defaultMap.dimensions?.widthMm || 2356,
-        defaultMap.dimensions?.heightMm || 1137
+        defaultMap.dimensions?.heightMm || 1137,
       );
       setRobotPosition(initialPosition);
     } else {

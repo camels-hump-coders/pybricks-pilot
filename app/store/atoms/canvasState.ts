@@ -2,13 +2,18 @@ import { atom } from "jotai";
 import { customMatConfigAtom } from "./gameMat";
 
 // Canvas dimensions and scaling
-export const canvasSizeAtom = atom<{ width: number; height: number }>({ width: 800, height: 600 });
+export const canvasSizeAtom = atom<{ width: number; height: number }>({
+  width: 800,
+  height: 600,
+});
 export const canvasScaleAtom = atom<number>(1);
 
 // Mission interaction state
 export const hoveredObjectAtom = atom<string | null>(null);
 export const hoveredPointAtom = atom<number | null>(null);
-export const missionBoundsAtom = atom<Map<string, { x: number; y: number; width: number; height: number }>>(new Map());
+export const missionBoundsAtom = atom<
+  Map<string, { x: number; y: number; width: number; height: number }>
+>(new Map());
 
 // Canvas update trigger
 const updateCanvasAtom = atom<number>(0);
@@ -18,19 +23,21 @@ export const coordinateUtilsAtom = atom((get) => {
   const canvasSize = get(canvasSizeAtom);
   const scale = get(canvasScaleAtom);
   const customMatConfig = get(customMatConfigAtom);
-  
+
   // Default FLL mat dimensions (2024 season)
   const DEFAULT_MAT_WIDTH_MM = 2356;
   const DEFAULT_MAT_HEIGHT_MM = 1137;
   const DEFAULT_TABLE_WIDTH_MM = 2786;
   const DEFAULT_TABLE_HEIGHT_MM = 1140;
   const DEFAULT_BORDER_WALL_THICKNESS_MM = 36;
-  
+
   // Get mat dimensions from current mat configuration with fallbacks
-  const MAT_WIDTH_MM = customMatConfig?.dimensions?.widthMm || DEFAULT_MAT_WIDTH_MM;
-  const MAT_HEIGHT_MM = customMatConfig?.dimensions?.heightMm || DEFAULT_MAT_HEIGHT_MM;
+  const MAT_WIDTH_MM =
+    customMatConfig?.dimensions?.widthMm || DEFAULT_MAT_WIDTH_MM;
+  const MAT_HEIGHT_MM =
+    customMatConfig?.dimensions?.heightMm || DEFAULT_MAT_HEIGHT_MM;
   const TABLE_WIDTH_MM = DEFAULT_TABLE_WIDTH_MM; // Table dimensions are constant
-  const TABLE_HEIGHT_MM = DEFAULT_TABLE_HEIGHT_MM; // Table dimensions are constant  
+  const TABLE_HEIGHT_MM = DEFAULT_TABLE_HEIGHT_MM; // Table dimensions are constant
   const BORDER_WALL_THICKNESS_MM = DEFAULT_BORDER_WALL_THICKNESS_MM; // Border wall thickness is constant
 
   const matOffset = BORDER_WALL_THICKNESS_MM * scale;
@@ -68,40 +75,38 @@ const setCanvasSizeAtom = atom(
   null,
   (get, set, size: { width: number; height: number }) => {
     set(canvasSizeAtom, size);
-  }
+  },
 );
 
-const setCanvasScaleAtom = atom(
-  null,
-  (get, set, scale: number) => {
-    set(canvasScaleAtom, scale);
-  }
-);
+const setCanvasScaleAtom = atom(null, (get, set, scale: number) => {
+  set(canvasScaleAtom, scale);
+});
 
-const setHoveredObjectAtom = atom(
-  null,
-  (get, set, objectId: string | null) => {
-    set(hoveredObjectAtom, objectId);
-  }
-);
+const setHoveredObjectAtom = atom(null, (get, set, objectId: string | null) => {
+  set(hoveredObjectAtom, objectId);
+});
 
 const setHoveredPointAtom = atom(
   null,
   (get, set, pointIndex: number | null) => {
     set(hoveredPointAtom, pointIndex);
-  }
+  },
 );
 
 const setMissionBoundsAtom = atom(
   null,
-  (get, set, bounds: Map<string, { x: number; y: number; width: number; height: number }>) => {
+  (
+    get,
+    set,
+    bounds: Map<
+      string,
+      { x: number; y: number; width: number; height: number }
+    >,
+  ) => {
     set(missionBoundsAtom, bounds);
-  }
+  },
 );
 
-const triggerCanvasUpdateAtom = atom(
-  null,
-  (get, set) => {
-    set(updateCanvasAtom, Date.now());
-  }
-);
+const triggerCanvasUpdateAtom = atom(null, (get, set) => {
+  set(updateCanvasAtom, Date.now());
+});

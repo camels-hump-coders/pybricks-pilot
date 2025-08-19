@@ -26,7 +26,7 @@ export function drawRobot(
   utils: RobotDrawingUtils,
   isGhost = false,
   previewType?: RobotPreviewType,
-  direction?: MovementDirection
+  direction?: MovementDirection,
 ) {
   const { mmToCanvas, scale } = utils;
 
@@ -54,7 +54,7 @@ export function drawRobot(
       bounds.robotBodyOffsetX,
       bounds.robotBodyOffsetY,
       previewType,
-      direction
+      direction,
     );
   } else {
     drawRegularRobot(
@@ -64,7 +64,7 @@ export function drawRobot(
       bounds.robotWidth,
       bounds.robotLength,
       bounds.robotBodyOffsetX,
-      bounds.robotBodyOffsetY
+      bounds.robotBodyOffsetY,
     );
   }
 
@@ -80,7 +80,7 @@ function drawGhostRobot(
   robotBodyOffsetX: number,
   robotBodyOffsetY: number,
   previewType?: RobotPreviewType,
-  direction?: MovementDirection
+  direction?: MovementDirection,
 ) {
   // Different opacity and styling based on preview type
   if (previewType === "perpendicular") {
@@ -159,7 +159,7 @@ function drawGhostRobot(
     scale,
     robotWidth,
     robotLength,
-    "rgba(255, 255, 255, 0.9)"
+    "rgba(255, 255, 255, 0.9)",
   );
 
   // Direction indicator for preview - different colors for different directions
@@ -208,7 +208,7 @@ function drawRegularRobot(
   robotWidth: number,
   robotLength: number,
   robotBodyOffsetX: number,
-  robotBodyOffsetY: number
+  robotBodyOffsetY: number,
 ) {
   // Regular robot - use robot configuration colors
   ctx.globalAlpha = 0.75;
@@ -228,7 +228,7 @@ function drawRegularRobot(
     scale,
     robotWidth,
     robotLength,
-    robotConfig.appearance.wheelColor
+    robotConfig.appearance.wheelColor,
   );
 
   // Direction indicator for regular robot
@@ -256,7 +256,7 @@ function drawWheels(
   scale: number,
   robotWidth: number,
   robotLength: number,
-  wheelColor: string
+  wheelColor: string,
 ) {
   // Wheels - match Robot Builder sizing
   const wheelWidth = (robotConfig.wheels.left.width * scale) / 4; // Match Robot Builder scale
@@ -289,12 +289,12 @@ function drawWheels(
     leftWheelX - wheelWidth / 2,
     wheelY - wheelDiameter / 2,
     wheelWidth,
-    wheelDiameter
+    wheelDiameter,
   );
   ctx.fillRect(
     rightWheelX - wheelWidth / 2,
     wheelY - wheelDiameter / 2,
     wheelWidth,
-    wheelDiameter
+    wheelDiameter,
   );
 }

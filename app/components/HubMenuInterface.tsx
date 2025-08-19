@@ -11,7 +11,7 @@ interface HubMenuStatus {
 
 export function HubMenuInterface() {
   const [hubMenuStatus, setHubMenuStatus] = useState<HubMenuStatus | null>(
-    null
+    null,
   );
   const [lastUpdate, setLastUpdate] = useState<number>(0);
   const [pendingSelection, setPendingSelection] = useState<number | null>(null);
@@ -79,7 +79,7 @@ export function HubMenuInterface() {
       ? pendingSelection
       : hubMenuStatus?.selectedProgram;
   const currentProgram = numberedPrograms.find(
-    (p) => p.programNumber === displayedSelection
+    (p) => p.programNumber === displayedSelection,
   );
 
   return (

@@ -15,7 +15,7 @@ export function drawTrajectoryProjection(
   ctx: CanvasRenderingContext2D,
   trajectoryPath: RobotPosition[],
   direction: MovementDirection,
-  utils: TrajectoryDrawingUtils
+  utils: TrajectoryDrawingUtils,
 ) {
   if (trajectoryPath.length < 2) return;
 
@@ -88,7 +88,7 @@ export function drawPerpendicularTrajectoryProjection(
   ctx: CanvasRenderingContext2D,
   trajectoryPath: RobotPosition[],
   direction: MovementDirection,
-  utils: TrajectoryDrawingUtils
+  utils: TrajectoryDrawingUtils,
 ) {
   if (trajectoryPath.length < 2) return;
 
@@ -146,7 +146,7 @@ export function drawNextMoveEndIndicator(
   nextMoveEnd: RobotPosition,
   direction: MovementDirection,
   robotConfig: RobotConfig,
-  utils: TrajectoryDrawingUtils
+  utils: TrajectoryDrawingUtils,
 ) {
   const { mmToCanvas, scale } = utils;
   const pos = mmToCanvas(nextMoveEnd.x, nextMoveEnd.y);
@@ -179,7 +179,7 @@ export function drawNextMoveEndIndicator(
     pos.x - robotWidth / 2,
     pos.y - robotLength / 2,
     robotWidth,
-    robotLength
+    robotLength,
   );
 
   ctx.setLineDash([]); // Reset line dash

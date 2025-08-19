@@ -1,16 +1,15 @@
+import type { PythonFile } from "../types/fileSystem";
 import {
-  instrumentUserCode,
   type InstrumentationOptions,
+  instrumentUserCode,
 } from "../utils/codeInstrumentation";
 import {
   bluetoothService,
+  type HubInfo,
   PYBRICKS_COMMAND_EVENT_CHAR_UUID,
   PYBRICKS_HUB_CAPABILITIES_CHAR_UUID,
   PYBRICKS_SERVICE_UUID,
-  type HubInfo,
 } from "./bluetooth";
-
-import type { PythonFile } from "../types/fileSystem";
 import { mpyCrossCompiler } from "./mpyCrossCompiler";
 import { multiModuleCompiler } from "./multiModuleCompiler";
 
@@ -158,14 +157,14 @@ class PybricksHubService extends EventTarget {
     multiModuleCompiler.addEventListener("debugEvent", (event: Event) => {
       const customEvent = event as CustomEvent;
       this.dispatchEvent(
-        new CustomEvent("debugEvent", { detail: customEvent.detail })
+        new CustomEvent("debugEvent", { detail: customEvent.detail }),
       );
     });
 
     mpyCrossCompiler.addEventListener("debugEvent", (event: Event) => {
       const customEvent = event as CustomEvent;
       this.dispatchEvent(
-        new CustomEvent("debugEvent", { detail: customEvent.detail })
+        new CustomEvent("debugEvent", { detail: customEvent.detail }),
       );
     });
   }
@@ -209,7 +208,7 @@ class PybricksHubService extends EventTarget {
       this.emitDebugEvent(
         "connection",
         "Failed to stop program before disconnect",
-        { error: error instanceof Error ? error.message : String(error) }
+        { error: error instanceof Error ? error.message : String(error) },
       );
     }
 
@@ -235,7 +234,7 @@ class PybricksHubService extends EventTarget {
     this.instrumentationEnabled = enabled;
     this.emitDebugEvent(
       "status",
-      `Instrumentation ${enabled ? "enabled" : "disabled"}`
+      `Instrumentation ${enabled ? "enabled" : "disabled"}`,
     );
   }
 
@@ -247,7 +246,7 @@ class PybricksHubService extends EventTarget {
     this.emitDebugEvent(
       "status",
       "Instrumentation options updated",
-      this.instrumentationOptions
+      this.instrumentationOptions,
     );
   }
 
@@ -267,11 +266,11 @@ class PybricksHubService extends EventTarget {
     if (this.instrumentationEnabled) {
       this.emitDebugEvent(
         "upload",
-        "Instrumenting user code with PybricksPilot"
+        "Instrumenting user code with PybricksPilot",
       );
       const instrumentation = instrumentUserCode(
         pythonCode,
-        this.instrumentationOptions
+        this.instrumentationOptions,
       );
       codeToCompile = instrumentation.instrumentedCode;
 
@@ -287,7 +286,7 @@ class PybricksHubService extends EventTarget {
     // Use 'test.py' as filename to match Pybricks exactly
     const compilationResult = await mpyCrossCompiler.compileToBytecode(
       "test.py",
-      codeToCompile
+      codeToCompile,
     );
 
     if (!compilationResult.success || !compilationResult.file) {
@@ -296,7 +295,7 @@ class PybricksHubService extends EventTarget {
       });
       console.error("MPy Cross Compiler Bytecode failed:", codeToCompile);
       throw new Error(
-        `Compilation failed: ${compilationResult.error || "Unknown error"}`
+        `Compilation failed: ${compilationResult.error || "Unknown error"}`,
       );
     }
 
@@ -309,7 +308,7 @@ class PybricksHubService extends EventTarget {
 
   async uploadAndRunHubMenu(
     allPrograms: (PythonFile & { programNumber: number })[],
-    availableFiles: PythonFile[]
+    availableFiles: PythonFile[],
   ): Promise<void> {
     // Clear program output at the start of uploading and running a program
     this.emitClearProgramOutputEvent();
@@ -321,12 +320,12 @@ class PybricksHubService extends EventTarget {
     // Use multi-module compiler to compile all numbered programs into a menu system
     const compilationResult = await multiModuleCompiler.compileHubMenu(
       allPrograms,
-      availableFiles
+      availableFiles,
     );
 
     if (!compilationResult.success || !compilationResult.multiFileBlob) {
       throw new Error(
-        `Hub menu compilation failed: ${compilationResult.error || "Unknown error"}`
+        `Hub menu compilation failed: ${compilationResult.error || "Unknown error"}`,
       );
     }
 
@@ -339,18 +338,18 @@ class PybricksHubService extends EventTarget {
     // Upload and immediately run the hub menu
     await this.uploadCompiledProgramPybricksFlow(
       compilationResult.multiFileBlob,
-      true
+      true,
     );
   }
 
   private async uploadCompiledProgramPybricksFlow(
     programBlob: Blob,
-    shouldRun: boolean = false
+    shouldRun: boolean = false,
   ): Promise<void> {
     this.emitDebugEvent(
       "upload",
       `Starting upload (${programBlob.size} bytes)`,
-      { shouldRun }
+      { shouldRun },
     );
 
     // Step 0: Stop any running program first
@@ -407,7 +406,7 @@ class PybricksHubService extends EventTarget {
           this.emitDebugEvent(
             "upload",
             `Progress: chunk ${chunkIndex}/${totalChunks}`,
-            { bytesUploaded: totalUploaded }
+            { bytesUploaded: totalUploaded },
           );
         }
       } catch (error) {
@@ -482,7 +481,7 @@ class PybricksHubService extends EventTarget {
 
   private async writeUserProgramMetadataWithConfirmation(
     size: number,
-    _checksum?: number // Keep for compatibility but don't use
+    _checksum?: number, // Keep for compatibility but don't use
   ): Promise<void> {
     // Match Pybricks Code exactly: only send command + size (5 bytes total)
     const payload = new Uint8Array(5);
@@ -496,7 +495,7 @@ class PybricksHubService extends EventTarget {
 
   private async writeUserRAMAtOffsetWithConfirmation(
     data: Uint8Array,
-    offset: number
+    offset: number,
   ): Promise<void> {
     // Write data to user RAM at specific offset with confirmation like Pybricks
     const payload = new Uint8Array(5 + data.length);
@@ -540,7 +539,7 @@ class PybricksHubService extends EventTarget {
 
   private async sendCommandWithConfirmation(
     payload: Uint8Array,
-    timeoutMs: number = 5000
+    timeoutMs: number = 5000,
   ): Promise<void> {
     try {
       // Send the command and wait for BLE write to complete
@@ -567,7 +566,7 @@ class PybricksHubService extends EventTarget {
   }
 
   private async sendStartUserProgramCommandWithConfirmation(
-    programId: number
+    programId: number,
   ): Promise<void> {
     // Create START_USER_PROGRAM command with program ID
     // Format: [CommandType, ProgramId]
@@ -585,7 +584,7 @@ class PybricksHubService extends EventTarget {
   private emitDebugEvent(
     type: DebugEvent["type"],
     message: string,
-    details?: Record<string, any>
+    details?: Record<string, any>,
   ): void {
     const debugEvent: DebugEvent = {
       timestamp: Date.now(),
@@ -612,22 +611,22 @@ class PybricksHubService extends EventTarget {
 
     this.emitDebugEvent(
       "connection",
-      "Setting up Pybricks service communication"
+      "Setting up Pybricks service communication",
     );
 
     const pybricksService = await this.server.getPrimaryService(
-      PYBRICKS_SERVICE_UUID
+      PYBRICKS_SERVICE_UUID,
     );
     this.emitDebugEvent("connection", "Pybricks service found");
 
     this.txCharacteristic = await bluetoothService.getCharacteristic(
       pybricksService,
-      PYBRICKS_COMMAND_EVENT_CHAR_UUID
+      PYBRICKS_COMMAND_EVENT_CHAR_UUID,
     );
 
     this.rxCharacteristic = await bluetoothService.getCharacteristic(
       pybricksService,
-      PYBRICKS_COMMAND_EVENT_CHAR_UUID
+      PYBRICKS_COMMAND_EVENT_CHAR_UUID,
     );
 
     // Debug: Log characteristic properties
@@ -643,14 +642,14 @@ class PybricksHubService extends EventTarget {
     this.emitDebugEvent(
       "connection",
       "Command/Event characteristic configured",
-      { properties: charProps }
+      { properties: charProps },
     );
 
     // Read hub capabilities to get max write size and max program size
     try {
       const hubCapabilitiesChar = await bluetoothService.getCharacteristic(
         pybricksService,
-        PYBRICKS_HUB_CAPABILITIES_CHAR_UUID
+        PYBRICKS_HUB_CAPABILITIES_CHAR_UUID,
       );
 
       const capabilitiesData =
@@ -669,7 +668,7 @@ class PybricksHubService extends EventTarget {
     } catch (error) {
       console.warn(
         "Failed to read hub capabilities (hub may be running older firmware):",
-        error
+        error,
       );
       // Fall back to safe defaults for older firmware
       this.maxBleWriteSize = 20;
@@ -678,7 +677,7 @@ class PybricksHubService extends EventTarget {
 
     await bluetoothService.subscribeToNotifications(
       this.rxCharacteristic,
-      this.handleIncomingData.bind(this)
+      this.handleIncomingData.bind(this),
     );
   }
 
@@ -689,7 +688,7 @@ class PybricksHubService extends EventTarget {
 
     await bluetoothService.writeData(
       this.txCharacteristic,
-      data as BufferSource
+      data as BufferSource,
     );
   }
 
@@ -712,7 +711,7 @@ class PybricksHubService extends EventTarget {
           "Unknown Pybricks event type:",
           eventType,
           "data length:",
-          data.byteLength
+          data.byteLength,
         );
 
         // Try to decode as stdout in case the event types are different
@@ -726,7 +725,7 @@ class PybricksHubService extends EventTarget {
   private handleStatusReport(data: DataView): void {
     if (data.byteLength < 2) {
       console.warn(
-        "Status report too short, need at least 2 bytes (event + status)"
+        "Status report too short, need at least 2 bytes (event + status)",
       );
       return;
     }
@@ -798,7 +797,7 @@ class PybricksHubService extends EventTarget {
     const stdoutBytes = new Uint8Array(
       data.buffer,
       data.byteOffset + 1,
-      data.byteLength - 1
+      data.byteLength - 1,
     );
     const chunkText = new TextDecoder().decode(stdoutBytes);
 
@@ -900,7 +899,7 @@ class PybricksHubService extends EventTarget {
       speed?: number;
       motor?: string;
       [key: string]: any;
-    }>
+    }>,
   ): Promise<void> {
     const commandSequence = JSON.stringify(commands);
     await this.sendControlCommand(commandSequence);
@@ -910,7 +909,7 @@ class PybricksHubService extends EventTarget {
   async turnAndDrive(
     turnAngle: number,
     driveDistance: number,
-    speed: number = 100
+    speed: number = 100,
   ): Promise<void> {
     await this.executeCommandSequence([
       {
@@ -939,7 +938,7 @@ class PybricksHubService extends EventTarget {
   async setMotorAngle(
     motorName: string,
     angle: number,
-    speed: number
+    speed: number,
   ): Promise<void> {
     await this.executeCommandSequence([
       {
@@ -972,20 +971,20 @@ class PybricksHubService extends EventTarget {
   }
 
   // Arc command implementation using Pybricks native arc support
-  async arc(
-    radius: number,
-    angle: number,
-    speed: number = 100
-  ): Promise<void> {
-    console.log(`[Pybricks Hub] Executing arc: radius ${radius.toFixed(1)}mm, angle ${angle.toFixed(1)}°, speed ${speed}mm/s`);
-    
+  async arc(radius: number, angle: number, speed: number = 100): Promise<void> {
+    console.log(
+      `[Pybricks Hub] Executing arc: radius ${radius.toFixed(1)}mm, angle ${angle.toFixed(1)}°, speed ${speed}mm/s`,
+    );
+
     // Send arc command to firmware using Pybricks native arc method
-    await this.executeCommandSequence([{
-      action: "arc",
-      radius,
-      angle,
-      speed
-    }]);
+    await this.executeCommandSequence([
+      {
+        action: "arc",
+        radius,
+        angle,
+        speed,
+      },
+    ]);
   }
 
   // RobotInterface compatibility methods

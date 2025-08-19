@@ -30,7 +30,7 @@ export function calculateRobotPositionFromEdges(
   fromSideMm: number,
   heading: number = 0,
   robotConfig: RobotConfig,
-  matConfig?: MatConfig | null
+  matConfig?: MatConfig | null,
 ): RobotPosition {
   if (!robotConfig) {
     return { x: 0, y: 0, heading: 0 };

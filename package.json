@@ -7,7 +7,12 @@
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
-    "knip": "knip"
+    "lint": "npm run lint:biome && npm run lint:knip",
+    "lint:biome": "npx @biomejs/biome check",
+    "lint:knip": "npx knip",
+    "fmt": "npm run fmt:biome && npm run fmt:knip",
+    "fmt:biome": "npx @biomejs/biome check --write",
+    "fmt:knip": "npx knip --fix"
   },
   "dependencies": {
     "@gera2ld/tarjs": "^0.3.1",
@@ -23,6 +28,7 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
     "@react-router/dev": "^7.7.1",
     "@tailwindcss/vite": "^4.1.4",
     "@types/node": "^20.19.10",

@@ -40,7 +40,7 @@ import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import { drawSplinePath } from "../utils/canvas/splinePathDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing";
-import { type RobotPosition } from "../utils/robotPosition";
+import type { RobotPosition } from "../utils/robotPosition";
 
 interface UseCanvasDrawingProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -60,7 +60,10 @@ interface UseCanvasDrawingProps {
   hoveredPoint: any; // TODO: Add proper typing
   hoveredPointIndexValue: number;
   setMissionBounds: (
-    bounds: Map<string, { x: number; y: number; width: number; height: number }>
+    bounds: Map<
+      string,
+      { x: number; y: number; width: number; height: number }
+    >,
   ) => void;
   // Mission editing props
   pointPlacementMode?: "waypoint" | "action" | "start" | "end" | null;
@@ -149,7 +152,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       { scale },
       coordinateUtils.matDimensions.borderWallThickness,
       coordinateUtils.matDimensions.tableWidth,
-      coordinateUtils.matDimensions.tableHeight
+      coordinateUtils.matDimensions.tableHeight,
     );
 
     // Calculate mat position - centered horizontally, flush with bottom edge of table surface
@@ -212,7 +215,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
           tableWidth: coordinateUtils.matDimensions.tableWidth,
           tableHeight: coordinateUtils.matDimensions.tableHeight,
         },
-        setMissionBounds
+        setMissionBounds,
       );
     }
 
@@ -233,7 +236,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
             telemetryHistory.getColorForPoint(point, colorMode as any),
         },
         { mmToCanvas },
-        hoveredPointIndexValue
+        hoveredPointIndexValue,
       );
     }
 
@@ -244,7 +247,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         currentPosition,
         robotConfig,
         { mmToCanvas, scale },
-        false
+        false,
       );
     }
 
@@ -256,7 +259,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         robotConfig,
         { mmToCanvas, scale },
         true,
-        "playback"
+        "playback",
       );
     }
 
@@ -275,7 +278,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         ? "incremental"
         : controlMode, // Fallback to incremental for mission and program modes
       robotConfig,
-      { mmToCanvas, scale }
+      { mmToCanvas, scale },
     );
 
     // Draw perpendicular preview ghosts - show robot ghosts at all 4 possible movement positions
@@ -313,7 +316,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
           { mmToCanvas, scale },
           true, // isGhost
           "perpendicular", // previewType
-          ghost.direction // direction
+          ghost.direction, // direction
         );
 
         ctx.restore();
@@ -327,7 +330,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
           ghost.direction,
           2356,
           1137,
-          robotConfig
+          robotConfig,
         );
 
         // Draw trajectory path
@@ -335,7 +338,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
           ctx,
           trajectory.trajectoryPath,
           ghost.direction,
-          { mmToCanvas, scale }
+          { mmToCanvas, scale },
         );
       });
     }
@@ -352,7 +355,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         selectedSplinePointId,
         { mmToCanvas, scale },
         hoveredSplinePointId,
-        hoveredCurvatureHandlePointId
+        hoveredCurvatureHandlePointId,
       );
     }
 
@@ -366,7 +369,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     // Draw mission planner points and connections - ALWAYS show in mission mode
     if (controlMode === "mission") {
       // Show the editing mission if available, otherwise show the selected mission
-      let missionToShow = editingMission || selectedMission;
+      const missionToShow = editingMission || selectedMission;
 
       if (missionToShow) {
         drawMissionPlanner(
@@ -379,7 +382,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
             selectedPointId: selectedPointId,
             showRobotGhosts: true,
             robotConfig: robotConfig,
-          }
+          },
         );
       }
     }
@@ -416,7 +419,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
           mousePositionForPreview,
           pointPlacementMode,
           actionPointHeading,
-          { mmToCanvas, canvasToMm, scale }
+          { mmToCanvas, canvasToMm, scale },
         );
       }
 
@@ -427,7 +430,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         pointPlacementMode,
         actionPointHeading,
         { mmToCanvas, canvasToMm, scale },
-        robotConfig
+        robotConfig,
       );
     } else if (controlMode === "mission" && pointPlacementMode) {
       console.log("Preview conditions not met:", {

@@ -1,26 +1,26 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
-import { useJotaiFileSystem } from "./useJotaiFileSystem";
+import { coordinateUtilsAtom } from "../store/atoms/canvasState";
+import { customMatConfigAtom } from "../store/atoms/gameMat";
 import {
-  type NamedPosition,
-  type EdgeBasedPosition,
-  positionsAtom,
-  customPositionsAtom,
-  selectedPositionIdAtom,
-  selectedPositionAtom,
-  isPositionManagementOpenAtom,
-  isAddPositionDialogOpenAtom,
   addCustomPositionAtom,
+  clearPositionSelectionAtom,
+  customPositionsAtom,
+  DEFAULT_EDGE_POSITIONS,
+  type EdgeBasedPosition,
+  isAddPositionDialogOpenAtom,
+  isPositionManagementOpenAtom,
+  type NamedPosition,
+  positionsAtom,
   removeCustomPositionAtom,
+  selectedPositionAtom,
+  selectedPositionIdAtom,
   updateCustomPositionAtom,
   updateDefaultPositionCoordinatesAtom,
-  clearPositionSelectionAtom,
-  DEFAULT_EDGE_POSITIONS,
 } from "../store/atoms/positionManagement";
-import { coordinateUtilsAtom } from "../store/atoms/canvasState";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import { customMatConfigAtom } from "../store/atoms/gameMat";
 import { calculateRobotPositionFromEdges } from "../utils/robotPosition";
+import { useJotaiFileSystem } from "./useJotaiFileSystem";
 
 const POSITIONS_CONFIG_FILE = "config/positions.json";
 
@@ -33,7 +33,8 @@ interface PositionsFileData {
  * Custom hook for managing robot positions (default and custom)
  */
 export function usePositionManager() {
-  const { hasDirectoryAccess, stableDirectoryHandle, stableDirectoryAccess } = useJotaiFileSystem();
+  const { hasDirectoryAccess, stableDirectoryHandle, stableDirectoryAccess } =
+    useJotaiFileSystem();
   const coordinateUtils = useAtomValue(coordinateUtilsAtom);
   const robotConfig = useAtomValue(robotConfigAtom);
   const customMatConfig = useAtomValue(customMatConfigAtom);
@@ -41,18 +42,26 @@ export function usePositionManager() {
   // Position atoms
   const [positions, setPositions] = useAtom(positionsAtom);
   const [customPositions, setCustomPositions] = useAtom(customPositionsAtom);
-  const [selectedPositionId, setSelectedPositionId] = useAtom(selectedPositionIdAtom);
+  const [selectedPositionId, setSelectedPositionId] = useAtom(
+    selectedPositionIdAtom,
+  );
   const selectedPosition = useAtomValue(selectedPositionAtom);
 
   // UI state atoms
-  const [isPositionManagementOpen, setIsPositionManagementOpen] = useAtom(isPositionManagementOpenAtom);
-  const [isAddPositionDialogOpen, setIsAddPositionDialogOpen] = useAtom(isAddPositionDialogOpenAtom);
+  const [isPositionManagementOpen, setIsPositionManagementOpen] = useAtom(
+    isPositionManagementOpenAtom,
+  );
+  const [isAddPositionDialogOpen, setIsAddPositionDialogOpen] = useAtom(
+    isAddPositionDialogOpenAtom,
+  );
 
   // Action atoms
   const addCustomPosition = useSetAtom(addCustomPositionAtom);
   const removeCustomPosition = useSetAtom(removeCustomPositionAtom);
   const updateCustomPosition = useSetAtom(updateCustomPositionAtom);
-  const updateDefaultPositionCoordinates = useSetAtom(updateDefaultPositionCoordinatesAtom);
+  const updateDefaultPositionCoordinates = useSetAtom(
+    updateDefaultPositionCoordinatesAtom,
+  );
   const clearPositionSelection = useSetAtom(clearPositionSelectionAtom);
 
   // Load custom positions from config/positions.json on mount
@@ -61,11 +70,13 @@ export function usePositionManager() {
 
     try {
       // Get config directory and positions file
-      const configHandle = await stableDirectoryHandle.getDirectoryHandle("config");
-      const positionsFileHandle = await configHandle.getFileHandle("positions.json");
+      const configHandle =
+        await stableDirectoryHandle.getDirectoryHandle("config");
+      const positionsFileHandle =
+        await configHandle.getFileHandle("positions.json");
       const positionsFile = await positionsFileHandle.getFile();
       const fileContent = await positionsFile.text();
-      
+
       if (fileContent) {
         const data: PositionsFileData = JSON.parse(fileContent);
         if (data.customPositions && Array.isArray(data.customPositions)) {
@@ -73,7 +84,9 @@ export function usePositionManager() {
         }
       }
     } catch (error) {
-      console.log("No existing positions config file found, starting with defaults");
+      console.log(
+        "No existing positions config file found, starting with defaults",
+      );
     }
   }, [stableDirectoryAccess, stableDirectoryHandle, setCustomPositions]);
 
@@ -88,8 +101,14 @@ export function usePositionManager() {
       };
 
       // Ensure config directory exists
-      const configHandle = await stableDirectoryHandle.getDirectoryHandle("config", { create: true });
-      const positionsFileHandle = await configHandle.getFileHandle("positions.json", { create: true });
+      const configHandle = await stableDirectoryHandle.getDirectoryHandle(
+        "config",
+        { create: true },
+      );
+      const positionsFileHandle = await configHandle.getFileHandle(
+        "positions.json",
+        { create: true },
+      );
       const writable = await positionsFileHandle.createWritable();
       await writable.write(JSON.stringify(data, null, 2));
       await writable.close();
@@ -108,9 +127,9 @@ export function usePositionManager() {
   // Calculate default positions from edge-based settings
   const calculateDefaultPositions = useCallback((): NamedPosition[] => {
     if (!robotConfig) return [];
-    
+
     const defaultPositions: NamedPosition[] = [];
-    
+
     for (const [id, edgePos] of Object.entries(DEFAULT_EDGE_POSITIONS)) {
       const calculatedPos = calculateRobotPositionFromEdges(
         edgePos.side,
@@ -118,11 +137,11 @@ export function usePositionManager() {
         edgePos.fromSide,
         edgePos.heading,
         robotConfig,
-        customMatConfig
+        customMatConfig,
       );
-      
+
       const name = id === "bottom-left" ? "Bottom Left" : "Bottom Right";
-      
+
       defaultPositions.push({
         id,
         name,
@@ -133,33 +152,37 @@ export function usePositionManager() {
         isCustom: false,
       });
     }
-    
+
     return defaultPositions;
   }, [robotConfig, customMatConfig]);
 
   // Update positions when robot config or mat config changes
   useEffect(() => {
     const defaultPositions = calculateDefaultPositions();
-    setPositions(prevPositions => {
+    setPositions((prevPositions) => {
       // Only update if the positions have actually changed to prevent infinite loops
       const newAllPositions = [...defaultPositions, ...customPositions];
-      
+
       // Simple comparison - check if lengths are different or if any position changed
       if (prevPositions.length !== newAllPositions.length) {
         return newAllPositions;
       }
-      
+
       // Check if any default positions changed
       for (let i = 0; i < defaultPositions.length; i++) {
-        const prevPos = prevPositions.find(p => p.id === defaultPositions[i].id);
-        if (!prevPos || 
-            prevPos.x !== defaultPositions[i].x || 
-            prevPos.y !== defaultPositions[i].y || 
-            prevPos.heading !== defaultPositions[i].heading) {
+        const prevPos = prevPositions.find(
+          (p) => p.id === defaultPositions[i].id,
+        );
+        if (
+          !prevPos ||
+          prevPos.x !== defaultPositions[i].x ||
+          prevPos.y !== defaultPositions[i].y ||
+          prevPos.heading !== defaultPositions[i].heading
+        ) {
           return newAllPositions;
         }
       }
-      
+
       return prevPositions; // No changes, return previous state
     });
   }, [calculateDefaultPositions, customPositions]);
@@ -173,7 +196,7 @@ export function usePositionManager() {
   useEffect(() => {
     if (positions.length > 0 && !selectedPositionId) {
       // Default to bottom-right if no position is selected
-      const bottomRight = positions.find(pos => pos.id === "bottom-right");
+      const bottomRight = positions.find((pos) => pos.id === "bottom-right");
       if (bottomRight) {
         setSelectedPositionId("bottom-right");
       }
@@ -181,45 +204,60 @@ export function usePositionManager() {
   }, [positions, selectedPositionId, setSelectedPositionId]);
 
   // Add a new custom position
-  const handleAddCustomPosition = useCallback(async (
-    name: string,
-    x: number,
-    y: number,
-    heading: number
-  ): Promise<NamedPosition | null> => {
-    try {
-      const newPosition = addCustomPosition({ name, x, y, heading });
-      return newPosition;
-    } catch (error) {
-      console.error("Failed to add custom position:", error);
-      return null;
-    }
-  }, [addCustomPosition]);
+  const handleAddCustomPosition = useCallback(
+    async (
+      name: string,
+      x: number,
+      y: number,
+      heading: number,
+    ): Promise<NamedPosition | null> => {
+      try {
+        const newPosition = addCustomPosition({ name, x, y, heading });
+        return newPosition;
+      } catch (error) {
+        console.error("Failed to add custom position:", error);
+        return null;
+      }
+    },
+    [addCustomPosition],
+  );
 
   // Remove a custom position (cannot remove defaults)
-  const handleRemoveCustomPosition = useCallback(async (positionId: string): Promise<boolean> => {
-    const success = removeCustomPosition(positionId);
-    return success;
-  }, [removeCustomPosition]);
+  const handleRemoveCustomPosition = useCallback(
+    async (positionId: string): Promise<boolean> => {
+      const success = removeCustomPosition(positionId);
+      return success;
+    },
+    [removeCustomPosition],
+  );
 
   // Update a custom position (cannot update defaults)
-  const handleUpdateCustomPosition = useCallback(async (
-    positionId: string,
-    updates: Partial<Omit<NamedPosition, "id" | "isDefault" | "isCustom">>
-  ): Promise<boolean> => {
-    const success = updateCustomPosition(positionId, updates);
-    return success;
-  }, [updateCustomPosition]);
+  const handleUpdateCustomPosition = useCallback(
+    async (
+      positionId: string,
+      updates: Partial<Omit<NamedPosition, "id" | "isDefault" | "isCustom">>,
+    ): Promise<boolean> => {
+      const success = updateCustomPosition(positionId, updates);
+      return success;
+    },
+    [updateCustomPosition],
+  );
 
   // Select a position by ID
-  const handleSelectPosition = useCallback((positionId: string | null) => {
-    setSelectedPositionId(positionId);
-  }, [setSelectedPositionId]);
+  const handleSelectPosition = useCallback(
+    (positionId: string | null) => {
+      setSelectedPositionId(positionId);
+    },
+    [setSelectedPositionId],
+  );
 
   // Get position by ID
-  const getPositionById = useCallback((positionId: string): NamedPosition | null => {
-    return positions.find(pos => pos.id === positionId) || null;
-  }, [positions]);
+  const getPositionById = useCallback(
+    (positionId: string): NamedPosition | null => {
+      return positions.find((pos) => pos.id === positionId) || null;
+    },
+    [positions],
+  );
 
   // Check if we can create custom positions (requires file system access)
   const canCreateCustomPositions = hasDirectoryAccess;
@@ -231,7 +269,7 @@ export function usePositionManager() {
   const getCustomPositions = customPositions;
 
   // Get only default positions
-  const getDefaultPositions = positions.filter(pos => pos.isDefault);
+  const getDefaultPositions = positions.filter((pos) => pos.isDefault);
 
   return {
     // Position data

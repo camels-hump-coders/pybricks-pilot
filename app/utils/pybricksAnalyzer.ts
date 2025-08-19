@@ -83,25 +83,25 @@ function analyzePybricksCode(code: string): PybricksAnalysis {
   if (analysis.isPybricksCode) {
     if (!analysis.hasMainFunction) {
       analysis.suggestions.push(
-        "Consider using a main() function to organize your code"
+        "Consider using a main() function to organize your code",
       );
     }
 
     if (!analysis.hasTelemetry) {
       analysis.suggestions.push(
-        "Add print() statements or hub display updates for debugging"
+        "Add print() statements or hub display updates for debugging",
       );
     }
 
     if (analysis.detectedMotors.length === 0 && analysis.isPybricksCode) {
       analysis.warnings.push(
-        "No motors detected - make sure to import and initialize motors"
+        "No motors detected - make sure to import and initialize motors",
       );
     }
 
     if (analysis.detectedHubs.length === 0 && analysis.isPybricksCode) {
       analysis.warnings.push(
-        "No hub detected - make sure to import and initialize your hub"
+        "No hub detected - make sure to import and initialize your hub",
       );
     }
 
@@ -111,13 +111,13 @@ function analyzePybricksCode(code: string): PybricksAnalysis {
       !code.includes("from time import sleep")
     ) {
       analysis.warnings.push(
-        'Use "from time import sleep" or "wait()" from pybricks.tools'
+        'Use "from time import sleep" or "wait()" from pybricks.tools',
       );
     }
 
     if (code.includes("while True:") && !code.includes("wait(")) {
       analysis.warnings.push(
-        "Consider adding wait() calls in infinite loops to prevent blocking"
+        "Consider adding wait() calls in infinite loops to prevent blocking",
       );
     }
 
@@ -127,7 +127,7 @@ function analyzePybricksCode(code: string): PybricksAnalysis {
       !code.includes("from pybricks.pupdevices import Motor")
     ) {
       analysis.warnings.push(
-        'Missing motor import: add "from pybricks.pupdevices import Motor"'
+        'Missing motor import: add "from pybricks.pupdevices import Motor"',
       );
     }
 
@@ -143,7 +143,7 @@ function analyzePybricksCode(code: string): PybricksAnalysis {
 }
 
 export function generatePybricksTemplate(
-  hubType: "prime" | "essential" | "inventor" = "prime"
+  hubType: "prime" | "essential" | "inventor" = "prime",
 ): string {
   const templates = {
     prime: `

@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 import { telemetryHistory } from "../services/telemetryHistory";
-import { type RobotPosition } from "../utils/robotPosition";
+import type { RobotPosition } from "../utils/robotPosition";
 
 /**
  * Custom hook for managing telemetry recording lifecycle
  */
 export function useTelemetryRecording(
   isConnected: boolean,
-  currentPosition: RobotPosition | null
+  currentPosition: RobotPosition | null,
 ) {
   // Track if we've already initialized recording for this connection
   const recordingInitializedRef = useRef(false);

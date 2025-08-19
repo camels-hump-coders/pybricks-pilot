@@ -5,30 +5,30 @@ interface BluetoothService {
   disconnect(server: BluetoothRemoteGATTServer): Promise<void>;
   isConnected(device: BluetoothDevice): boolean;
   discoverServices(
-    server: BluetoothRemoteGATTServer
+    server: BluetoothRemoteGATTServer,
   ): Promise<BluetoothRemoteGATTService[]>;
   getCharacteristic(
     service: BluetoothRemoteGATTService,
-    uuid: string
+    uuid: string,
   ): Promise<BluetoothRemoteGATTCharacteristic>;
   writeData(
     characteristic: BluetoothRemoteGATTCharacteristic,
-    data: BufferSource
+    data: BufferSource,
   ): Promise<void>;
   readData(
-    characteristic: BluetoothRemoteGATTCharacteristic
+    characteristic: BluetoothRemoteGATTCharacteristic,
   ): Promise<DataView>;
   subscribeToNotifications(
     characteristic: BluetoothRemoteGATTCharacteristic,
-    callback: (data: DataView) => void
+    callback: (data: DataView) => void,
   ): Promise<void>;
   addEventListener(
     event: "disconnected",
-    callback: (device: BluetoothDevice) => void
+    callback: (device: BluetoothDevice) => void,
   ): void;
   removeEventListener(
     event: "disconnected",
-    callback: (device: BluetoothDevice) => void
+    callback: (device: BluetoothDevice) => void,
   ): void;
 }
 
@@ -66,7 +66,7 @@ class WebBluetoothService implements BluetoothService {
 
       device.addEventListener(
         "gattserverdisconnected",
-        this.onDeviceDisconnected
+        this.onDeviceDisconnected,
       );
       return device;
     } catch (error) {
@@ -90,7 +90,7 @@ class WebBluetoothService implements BluetoothService {
         return device || null;
       } else {
         console.warn(
-          "navigator.bluetooth.getDevices is not supported in this browser"
+          "navigator.bluetooth.getDevices is not supported in this browser",
         );
         return null;
       }
@@ -108,7 +108,7 @@ class WebBluetoothService implements BluetoothService {
     // Add disconnect listener before connecting
     device.addEventListener(
       "gattserverdisconnected",
-      this.onDeviceDisconnected
+      this.onDeviceDisconnected,
     );
 
     const server = await device.gatt.connect();
@@ -122,13 +122,13 @@ class WebBluetoothService implements BluetoothService {
     }
 
     const device = Array.from(this.connectedDevices.entries()).find(
-      ([_, s]) => s === server
+      ([_, s]) => s === server,
     )?.[0];
 
     if (device) {
       device.removeEventListener(
         "gattserverdisconnected",
-        this.onDeviceDisconnected
+        this.onDeviceDisconnected,
       );
       this.connectedDevices.delete(device);
     }
@@ -140,7 +140,7 @@ class WebBluetoothService implements BluetoothService {
   }
 
   async discoverServices(
-    server: BluetoothRemoteGATTServer
+    server: BluetoothRemoteGATTServer,
   ): Promise<BluetoothRemoteGATTService[]> {
     const services = await server.getPrimaryServices();
     return services;
@@ -148,14 +148,14 @@ class WebBluetoothService implements BluetoothService {
 
   async getCharacteristic(
     service: BluetoothRemoteGATTService,
-    uuid: string
+    uuid: string,
   ): Promise<BluetoothRemoteGATTCharacteristic> {
     return await service.getCharacteristic(uuid);
   }
 
   async writeData(
     characteristic: BluetoothRemoteGATTCharacteristic,
-    data: BufferSource
+    data: BufferSource,
   ): Promise<void> {
     // Check if the characteristic supports write with response
     // Pybricks v3.3+ uses writeValueWithResponse for better reliability
@@ -169,14 +169,14 @@ class WebBluetoothService implements BluetoothService {
   }
 
   async readData(
-    characteristic: BluetoothRemoteGATTCharacteristic
+    characteristic: BluetoothRemoteGATTCharacteristic,
   ): Promise<DataView> {
     return await characteristic.readValue();
   }
 
   async subscribeToNotifications(
     characteristic: BluetoothRemoteGATTCharacteristic,
-    callback: (data: DataView) => void
+    callback: (data: DataView) => void,
   ): Promise<void> {
     characteristic.addEventListener("characteristicvaluechanged", (event) => {
       const target = event.target;
@@ -203,14 +203,14 @@ class WebBluetoothService implements BluetoothService {
 
   addEventListener(
     event: "disconnected",
-    callback: (device: BluetoothDevice) => void
+    callback: (device: BluetoothDevice) => void,
   ): void {
     this.disconnectListeners.add(callback);
   }
 
   removeEventListener(
     event: "disconnected",
-    callback: (device: BluetoothDevice) => void
+    callback: (device: BluetoothDevice) => void,
   ): void {
     this.disconnectListeners.delete(callback);
   }

@@ -40,7 +40,8 @@ class TelemetryHistoryService {
   private isRecording = false;
   private isProgramRunning = false;
   private lastPosition = { x: 0, y: 0, heading: 0 };
-  private selectedPathChangeCallback: ((pathId: string | null) => void) | null = null;
+  private selectedPathChangeCallback: ((pathId: string | null) => void) | null =
+    null;
 
   /**
    * Configure the maximum number of points to retain
@@ -50,7 +51,7 @@ class TelemetryHistoryService {
     // Clamp between 1000 and 50000 points
     this.maxHistorySize = Math.max(1000, Math.min(50000, maxPoints));
     console.log(
-      `[TelemetryHistory] Max history size set to ${this.maxHistorySize} points`
+      `[TelemetryHistory] Max history size set to ${this.maxHistorySize} points`,
     );
 
     // Clean up existing data that exceeds the new limit
@@ -153,7 +154,7 @@ class TelemetryHistoryService {
     x: number,
     y: number,
     heading: number,
-    isCmdKeyPressed: boolean
+    isCmdKeyPressed: boolean,
   ): void {
     if (!this.isRecording || !this.currentPath) {
       return;
@@ -161,8 +162,7 @@ class TelemetryHistoryService {
 
     // Only add point if position has changed significantly (more than 5mm or 2 degrees)
     const distChange = Math.sqrt(
-      Math.pow(x - this.lastPosition.x, 2) +
-        Math.pow(y - this.lastPosition.y, 2)
+      (x - this.lastPosition.x) ** 2 + (y - this.lastPosition.y) ** 2,
     );
     const headingChange = Math.abs(heading - this.lastPosition.heading);
 
@@ -236,7 +236,7 @@ class TelemetryHistoryService {
 
   deletePath(pathId: string): boolean {
     const initialLength = this.allPaths.length;
-    this.allPaths = this.allPaths.filter(path => path.id !== pathId);
+    this.allPaths = this.allPaths.filter((path) => path.id !== pathId);
     return this.allPaths.length < initialLength; // Return true if a path was deleted
   }
 
@@ -258,7 +258,7 @@ class TelemetryHistoryService {
   startNewPath(): void {
     this.stopRecording(); // Stop current recording and save to allPaths
     this.startRecording(); // Start new recording
-    
+
     // Auto-select the new path
     if (this.currentPath && this.selectedPathChangeCallback) {
       this.selectedPathChangeCallback(this.currentPath.id);
@@ -313,7 +313,7 @@ class TelemetryHistoryService {
         }
         return "#3b82f6";
 
-      case "motorLoad":
+      case "motorLoad": {
         const motors = point.data.motors;
         if (motors) {
           const loads = Object.values(motors)
@@ -327,15 +327,17 @@ class TelemetryHistoryService {
           }
         }
         return "#3b82f6";
+      }
 
-      case "colorSensor":
+      case "colorSensor": {
         const colorSensor = point.data.sensors?.color;
         if (colorSensor?.color) {
           return this.mapPybricksColor(colorSensor.color);
         }
         return "#3b82f6";
+      }
 
-      case "distanceSensor":
+      case "distanceSensor": {
         const distanceSensor = point.data.sensors?.ultrasonic;
         if (distanceSensor?.distance !== undefined) {
           const distance = distanceSensor.distance;
@@ -344,8 +346,9 @@ class TelemetryHistoryService {
           return this.getGradientColor(intensity, "distance");
         }
         return "#3b82f6";
+      }
 
-      case "reflectionSensor":
+      case "reflectionSensor": {
         const reflectionSensor = point.data.sensors?.color;
         if (reflectionSensor?.reflection !== undefined) {
           const reflection = reflectionSensor.reflection;
@@ -353,8 +356,9 @@ class TelemetryHistoryService {
           return this.getGradientColor(intensity, "reflection");
         }
         return "#3b82f6";
+      }
 
-      case "forceSensor":
+      case "forceSensor": {
         const forceSensor = point.data.sensors?.force;
         if (forceSensor?.force !== undefined) {
           const force = Math.abs(forceSensor.force);
@@ -363,6 +367,7 @@ class TelemetryHistoryService {
           return this.getGradientColor(intensity, "force");
         }
         return "#3b82f6";
+      }
 
       default:
         return "#3b82f6";
@@ -384,22 +389,25 @@ class TelemetryHistoryService {
           return `rgb(255, ${g}, 0)`;
         }
 
-      case "load":
+      case "load": {
         // Blue (low) to Red (high)
         const r = Math.round(255 * intensity);
         const b = Math.round(255 * (1 - intensity));
         return `rgb(${r}, 0, ${b})`;
+      }
 
-      case "distance":
+      case "distance": {
         // Red (close) to Green (far)
         const dr = Math.round(255 * intensity);
         const dg = Math.round(255 * (1 - intensity));
         return `rgb(${dr}, ${dg}, 0)`;
+      }
 
-      case "reflection":
+      case "reflection": {
         // Black (low) to White (high)
         const gray = Math.round(255 * intensity);
         return `rgb(${gray}, ${gray}, ${gray})`;
+      }
 
       case "force":
         // Light Blue (low) to Dark Red (high)
@@ -467,7 +475,7 @@ class TelemetryHistoryService {
         currentPath: this.currentPath,
       },
       null,
-      2
+      2,
     );
   }
 
@@ -482,7 +490,9 @@ class TelemetryHistoryService {
   }
 
   // Set callback for when selected path should change
-  setSelectedPathChangeCallback(callback: (pathId: string | null) => void): void {
+  setSelectedPathChangeCallback(
+    callback: (pathId: string | null) => void,
+  ): void {
     this.selectedPathChangeCallback = callback;
   }
 

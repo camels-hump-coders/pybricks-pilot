@@ -13,9 +13,7 @@ interface MotorEntryProps {
 export function MotorEntry({ name, motor }: MotorEntryProps) {
   return (
     <div className="ml-2 mb-1">
-      <span className="text-green-300 font-medium">
-        {name}:
-      </span>
+      <span className="text-green-300 font-medium">{name}:</span>
       <div className="ml-2 text-xs">
         <div className="flex justify-between">
           <span>Angle:</span>
@@ -42,16 +40,11 @@ export function MotorEntry({ name, motor }: MotorEntryProps) {
           </div>
         )}
         {motor.error && (
-          <div className="text-red-300 text-xs">
-            Error: {motor.error}
-          </div>
+          <div className="text-red-300 text-xs">Error: {motor.error}</div>
         )}
-        {Math.abs(motor.speed) < 1 &&
-          Math.abs(motor.load || 0) > 20 && (
-            <div className="text-orange-300 text-xs">
-              ⚠ Stalled
-            </div>
-          )}
+        {Math.abs(motor.speed) < 1 && Math.abs(motor.load || 0) > 20 && (
+          <div className="text-orange-300 text-xs">⚠ Stalled</div>
+        )}
       </div>
     </div>
   );

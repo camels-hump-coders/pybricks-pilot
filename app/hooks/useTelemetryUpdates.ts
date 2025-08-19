@@ -124,7 +124,7 @@ export function useTelemetryUpdates({
           newPosition.x,
           newPosition.y,
           newPosition.heading,
-          isCmdKeyPressedRef.current
+          isCmdKeyPressedRef.current,
         );
       }
 

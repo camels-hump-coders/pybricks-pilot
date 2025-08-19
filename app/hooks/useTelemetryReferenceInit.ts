@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { type RobotPosition } from "../utils/robotPosition";
+import type { RobotPosition } from "../utils/robotPosition";
 
 interface TelemetryReference {
   distance: number;
@@ -14,7 +14,7 @@ export function useTelemetryReferenceInit(
   currentPosition: RobotPosition | null,
   telemetryReference: TelemetryReference | null,
   isConnected: boolean,
-  setTelemetryReference: (ref: TelemetryReference) => void
+  setTelemetryReference: (ref: TelemetryReference) => void,
 ) {
   // Initialize telemetry reference when robot position is available but reference is not set
   useEffect(() => {

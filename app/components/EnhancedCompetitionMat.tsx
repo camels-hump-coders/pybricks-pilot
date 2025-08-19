@@ -144,10 +144,10 @@ export function EnhancedCompetitionMat({
 
   // Accordion panel states from atoms
   const [isPseudoCodeExpanded, setIsPseudoCodeExpanded] = useAtom(
-    isPseudoCodeExpandedAtom
+    isPseudoCodeExpandedAtom,
   );
   const [isTelemetryPlaybackExpanded, setIsTelemetryPlaybackExpanded] = useAtom(
-    isTelemetryPlaybackExpandedAtom
+    isTelemetryPlaybackExpandedAtom,
   );
 
   // Spline path dragging state from atoms
@@ -157,18 +157,18 @@ export function EnhancedCompetitionMat({
 
   // Control point dragging state from atoms
   const [isDraggingControlPoint, setIsDraggingControlPoint] = useAtom(
-    isDraggingControlPointAtom
+    isDraggingControlPointAtom,
   );
   const [draggedControlPoint, setDraggedControlPoint] = useAtom(
-    draggedControlPointAtom
+    draggedControlPointAtom,
   );
 
   // Curvature handle dragging state from atoms
   const [isDraggingTangencyHandle, setIsDraggingTangencyHandle] = useAtom(
-    isDraggingTangencyHandleAtom
+    isDraggingTangencyHandleAtom,
   );
   const [draggedTangencyHandle, setDraggedTangencyHandle] = useAtom(
-    draggedTangencyHandleAtom
+    draggedTangencyHandleAtom,
   );
 
   // Stop all dragging action
@@ -200,7 +200,7 @@ export function EnhancedCompetitionMat({
   // Mat image loading hook
   const { matImageRef } = useMatImageLoader(
     customMatConfig || null,
-    updateCanvasSize
+    updateCanvasSize,
   );
 
   // Use the coordinate utils from atoms - no need for duplicate implementation
@@ -263,7 +263,7 @@ export function EnhancedCompetitionMat({
     currentPosition,
     telemetryReference,
     isConnected,
-    setTelemetryReference
+    setTelemetryReference,
   );
 
   // Canvas event handlers hook
@@ -353,7 +353,7 @@ export function EnhancedCompetitionMat({
       handlePointPlacement,
       originalHandleCanvasClick,
       canvasRef,
-    ]
+    ],
   );
 
   return (
@@ -389,12 +389,12 @@ export function EnhancedCompetitionMat({
                     {customMatConfig.missions.reduce(
                       (sum, obj) =>
                         sum + getTotalPointsForMission(obj, scoringState),
-                      0
+                      0,
                     )}
                     /
                     {customMatConfig.missions.reduce(
                       (sum, obj) => sum + getMaxPointsForMission(obj),
-                      0
+                      0,
                     )}
                   </div>
                 </div>
@@ -487,7 +487,7 @@ export function EnhancedCompetitionMat({
         customMatConfig &&
         (() => {
           const selectedMission = customMatConfig.missions.find(
-            (m) => m.id === popoverObject
+            (m) => m.id === popoverObject,
           );
           if (!selectedMission) return null;
 

@@ -3,17 +3,22 @@ import type { MissionObjectiveChoice as Choice } from "../../schemas/GameMatConf
 interface ObjectiveChoiceProps {
   choice: Choice;
   isSelected: boolean;
-  onToggle: (objectId: string, objectiveId: string, points: number, choiceId: string) => void;
+  onToggle: (
+    objectId: string,
+    objectiveId: string,
+    points: number,
+    choiceId: string,
+  ) => void;
   objectId: string;
   objectiveId: string;
 }
 
-export function ObjectiveChoice({ 
-  choice, 
-  isSelected, 
-  onToggle, 
-  objectId, 
-  objectiveId 
+export function ObjectiveChoice({
+  choice,
+  isSelected,
+  onToggle,
+  objectId,
+  objectiveId,
 }: ObjectiveChoiceProps) {
   return (
     <button
@@ -42,13 +47,9 @@ export function ObjectiveChoice({
           <span>{choice.description}</span>
         </span>
         <span className="flex items-center gap-1">
-          <span className="text-xs">
-            {choice.points}pts
-          </span>
+          <span className="text-xs">{choice.points}pts</span>
           {choice.type === "bonus" && (
-            <span className="text-orange-500 text-xs">
-              bonus
-            </span>
+            <span className="text-orange-500 text-xs">bonus</span>
           )}
         </span>
       </span>

@@ -52,7 +52,7 @@ export function AddMissionDialog() {
     try {
       const newMission = await addMission(
         name.trim(),
-        description.trim() || undefined
+        description.trim() || undefined,
       );
 
       if (newMission) {

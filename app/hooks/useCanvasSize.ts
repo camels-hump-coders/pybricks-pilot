@@ -1,11 +1,17 @@
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
-import { canvasScaleAtom, canvasSizeAtom, coordinateUtilsAtom } from "../store/atoms/canvasState";
+import {
+  canvasScaleAtom,
+  canvasSizeAtom,
+  coordinateUtilsAtom,
+} from "../store/atoms/canvasState";
 
 /**
  * Custom hook for managing canvas size and scale calculations
  */
-export function useCanvasSize(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
+export function useCanvasSize(
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+) {
   const [scale, setScale] = useAtom(canvasScaleAtom);
   const [canvasSize, setCanvasSize] = useAtom(canvasSizeAtom);
   const coordinateUtils = useAtomValue(coordinateUtilsAtom);

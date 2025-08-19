@@ -20,7 +20,7 @@ interface RobotBounds {
 export function calculateRobotBounds(
   position: RobotPosition,
   robotConfig: RobotConfig,
-  utils: RobotDrawingUtils
+  utils: RobotDrawingUtils,
 ): RobotBounds {
   const { mmToCanvas, scale } = utils;
 
@@ -76,7 +76,7 @@ export function calculateRobotBounds(
 function isPointInRobotBounds(
   canvasX: number,
   canvasY: number,
-  bounds: RobotBounds
+  bounds: RobotBounds,
 ): boolean {
   // Transform mouse coordinates to robot's local coordinate system
   const relativeX = canvasX - bounds.robotBodyCenter.x;
@@ -103,7 +103,7 @@ function isPointInRobotBounds(
 function calculateHeadingToTarget(
   robotPosition: RobotPosition,
   targetX: number,
-  targetY: number
+  targetY: number,
 ): number {
   const dx = targetX - robotPosition.x;
   const dy = targetY - robotPosition.y;

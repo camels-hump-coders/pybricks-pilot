@@ -1,21 +1,26 @@
-import { ObjectiveChoice } from "./ObjectiveChoice";
 import type { MissionObjective as Objective } from "../../schemas/GameMatConfig";
 import type { ObjectiveState } from "../../utils/scoringUtils";
+import { ObjectiveChoice } from "./ObjectiveChoice";
 
 interface MissionObjectiveProps {
   objective: Objective;
   objectiveState: ObjectiveState | undefined;
   objectId: string;
   isLastObjective: boolean;
-  onToggleObjective: (objectId: string, objectiveId: string, points: number, choiceId: string) => void;
+  onToggleObjective: (
+    objectId: string,
+    objectiveId: string,
+    points: number,
+    choiceId: string,
+  ) => void;
 }
 
-export function MissionObjective({ 
-  objective, 
-  objectiveState, 
-  objectId, 
+export function MissionObjective({
+  objective,
+  objectiveState,
+  objectId,
   isLastObjective,
-  onToggleObjective 
+  onToggleObjective,
 }: MissionObjectiveProps) {
   const isCompleted = objectiveState?.completed || false;
 
@@ -28,8 +33,7 @@ export function MissionObjective({
       )}
       {objective.choices.map((choice) => {
         const isChoiceSelected =
-          isCompleted &&
-          objectiveState?.selectedChoiceId === choice.id;
+          isCompleted && objectiveState?.selectedChoiceId === choice.id;
 
         return (
           <ObjectiveChoice

@@ -24,11 +24,18 @@ export function drawTelemetryPath(
   pathOptions: PathVisualizationOptions,
   telemetryHistory: TelemetryHistoryService,
   utils: TelemetryDrawingUtils,
-  hoveredPointIndex?: number
+  hoveredPointIndex?: number,
 ) {
   // Draw only the selected path points
   if (selectedPathPoints.length > 0) {
-    drawPath(ctx, selectedPathPoints, pathOptions, telemetryHistory, utils, hoveredPointIndex);
+    drawPath(
+      ctx,
+      selectedPathPoints,
+      pathOptions,
+      telemetryHistory,
+      utils,
+      hoveredPointIndex,
+    );
   }
 }
 
@@ -41,7 +48,7 @@ function drawPath(
   pathOptions: PathVisualizationOptions,
   telemetryHistory: TelemetryHistoryService,
   utils: TelemetryDrawingUtils,
-  hoveredPointIndex?: number
+  hoveredPointIndex?: number,
 ) {
   if (points.length < 2) return;
 
@@ -63,7 +70,10 @@ function drawPath(
     const pos2 = mmToCanvas(point2.x, point2.y);
 
     // Get color based on visualization mode
-    const color = telemetryHistory.getColorForPoint(point1, pathOptions.colorMode);
+    const color = telemetryHistory.getColorForPoint(
+      point1,
+      pathOptions.colorMode,
+    );
     ctx.strokeStyle = color;
 
     ctx.beginPath();
@@ -74,7 +84,14 @@ function drawPath(
 
   // Draw markers if enabled
   if (pathOptions.showMarkers) {
-    drawPathMarkers(ctx, points, pathOptions, telemetryHistory, utils, hoveredPointIndex);
+    drawPathMarkers(
+      ctx,
+      points,
+      pathOptions,
+      telemetryHistory,
+      utils,
+      hoveredPointIndex,
+    );
   }
 
   ctx.restore();
@@ -89,14 +106,17 @@ function drawPathMarkers(
   pathOptions: PathVisualizationOptions,
   telemetryHistory: TelemetryHistoryService,
   utils: TelemetryDrawingUtils,
-  hoveredPointIndex?: number
+  hoveredPointIndex?: number,
 ) {
   const { mmToCanvas } = utils;
 
   points.forEach((point, index) => {
     // SIMPLIFIED MODEL: telemetry points are already in center-of-rotation coordinates
     const pos = mmToCanvas(point.x, point.y);
-    const color = telemetryHistory.getColorForPoint(point, pathOptions.colorMode);
+    const color = telemetryHistory.getColorForPoint(
+      point,
+      pathOptions.colorMode,
+    );
 
     // Draw marker circle
     ctx.fillStyle = color;

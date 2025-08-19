@@ -1,4 +1,4 @@
-import { type TelemetryPoint } from "../../services/telemetryHistory";
+import type { TelemetryPoint } from "../../services/telemetryHistory";
 import { MotorEntry } from "./MotorEntry";
 import { SensorEntry } from "./SensorEntry";
 
@@ -8,17 +8,16 @@ interface TelemetryTooltipProps {
   selectedPathPoints: TelemetryPoint[];
 }
 
-export function TelemetryTooltip({ 
-  hoveredPoint, 
-  tooltipPosition, 
-  selectedPathPoints 
+export function TelemetryTooltip({
+  hoveredPoint,
+  tooltipPosition,
+  selectedPathPoints,
 }: TelemetryTooltipProps) {
   const calculateRelativeTime = () => {
     // Calculate relative time from first point in selected path
     if (selectedPathPoints.length > 0) {
       const firstPointTime = selectedPathPoints[0].timestamp;
-      const relativeTime =
-        (hoveredPoint.timestamp - firstPointTime) / 1000;
+      const relativeTime = (hoveredPoint.timestamp - firstPointTime) / 1000;
       return `${relativeTime.toFixed(1)}s`;
     }
     return "0.0s";
@@ -55,9 +54,7 @@ export function TelemetryTooltip({
           <div>
             <span className="text-gray-300">Speed:</span>
             <span className="ml-2">
-              {Math.round(
-                hoveredPoint.data.drivebase.state?.drive_speed || 0
-              )}
+              {Math.round(hoveredPoint.data.drivebase.state?.drive_speed || 0)}
               mm/s
             </span>
           </div>
@@ -66,20 +63,13 @@ export function TelemetryTooltip({
           Object.keys(hoveredPoint.data.motors).length > 0 && (
             <>
               <div className="border-t border-gray-600 pt-2 mt-2">
-                <div className="text-gray-300 font-medium mb-1">
-                  Motors:
-                </div>
+                <div className="text-gray-300 font-medium mb-1">Motors:</div>
                 {Object.entries(hoveredPoint.data.motors)
                   .filter(
-                    ([name]) =>
-                      !["left", "right"].includes(name.toLowerCase())
+                    ([name]) => !["left", "right"].includes(name.toLowerCase()),
                   )
                   .map(([name, motor]) => (
-                    <MotorEntry
-                      key={name}
-                      name={name}
-                      motor={motor}
-                    />
+                    <MotorEntry key={name} name={name} motor={motor} />
                   ))}
               </div>
             </>
@@ -88,9 +78,7 @@ export function TelemetryTooltip({
           Object.keys(hoveredPoint.data.sensors).length > 0 && (
             <>
               <div className="border-t border-gray-600 pt-2 mt-2">
-                <div className="text-gray-300 font-medium mb-1">
-                  Sensors:
-                </div>
+                <div className="text-gray-300 font-medium mb-1">Sensors:</div>
                 {Object.entries(hoveredPoint.data.sensors).map(
                   ([name, data]) => (
                     <SensorEntry
@@ -99,7 +87,7 @@ export function TelemetryTooltip({
                       data={data}
                       hoveredPoint={hoveredPoint}
                     />
-                  )
+                  ),
                 )}
               </div>
             </>

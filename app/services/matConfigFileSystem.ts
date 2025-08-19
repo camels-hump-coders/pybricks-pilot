@@ -16,7 +16,7 @@ class MatConfigFileSystem {
 
   // Discover all available mats from the filesystem
   async discoverMats(
-    dirHandle: FileSystemDirectoryHandle
+    dirHandle: FileSystemDirectoryHandle,
   ): Promise<MatMetadata[]> {
     try {
       // Check if config/mats directory exists
@@ -61,7 +61,7 @@ class MatConfigFileSystem {
   // Load a specific mat configuration
   async loadMatConfig(
     dirHandle: FileSystemDirectoryHandle,
-    matId: string
+    matId: string,
   ): Promise<GameMatConfig | null> {
     try {
       const configHandle = await dirHandle.getDirectoryHandle("config");
@@ -85,7 +85,7 @@ class MatConfigFileSystem {
   async saveMatConfig(
     dirHandle: FileSystemDirectoryHandle,
     matId: string,
-    config: GameMatConfig
+    config: GameMatConfig,
   ): Promise<void> {
     try {
       // Ensure directory structure exists
@@ -121,7 +121,7 @@ class MatConfigFileSystem {
   async createMatConfig(
     dirHandle: FileSystemDirectoryHandle,
     matId: string,
-    config: Omit<GameMatConfig, "createdAt" | "updatedAt">
+    config: Omit<GameMatConfig, "createdAt" | "updatedAt">,
   ): Promise<void> {
     const fullConfig: GameMatConfig = {
       ...config,
@@ -135,7 +135,7 @@ class MatConfigFileSystem {
   // Delete a mat configuration
   async deleteMatConfig(
     dirHandle: FileSystemDirectoryHandle,
-    matId: string
+    matId: string,
   ): Promise<void> {
     try {
       const configHandle = await dirHandle.getDirectoryHandle("config");
@@ -162,7 +162,7 @@ class MatConfigFileSystem {
   // Check if a mat exists
   async matExists(
     dirHandle: FileSystemDirectoryHandle,
-    matId: string
+    matId: string,
   ): Promise<boolean> {
     try {
       const configHandle = await dirHandle.getDirectoryHandle("config");
@@ -179,7 +179,7 @@ class MatConfigFileSystem {
   async saveMatImage(
     dirHandle: FileSystemDirectoryHandle,
     matId: string,
-    imageFile: File
+    imageFile: File,
   ): Promise<void> {
     try {
       // Ensure directory structure exists

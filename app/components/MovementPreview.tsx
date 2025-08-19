@@ -13,7 +13,7 @@ export function calculatePreviewPosition(
   angle: number,
   previewType: "drive" | "turn",
   direction: "forward" | "backward" | "left" | "right",
-  robotConfig?: RobotConfig
+  robotConfig?: RobotConfig,
 ): RobotPosition {
   let newX = currentPosition.x;
   let newY = currentPosition.y;
@@ -50,7 +50,7 @@ export function calculateTrajectoryProjection(
   direction: "forward" | "backward" | "left" | "right",
   boardWidth: number = 2356, // Default FLL mat width in mm
   boardHeight: number = 1137, // Default FLL mat height in mm
-  robotConfig?: RobotConfig
+  robotConfig?: RobotConfig,
 ): {
   nextMoveEnd: RobotPosition;
   boardEndProjection: RobotPosition;
@@ -63,7 +63,7 @@ export function calculateTrajectoryProjection(
     angle,
     previewType,
     direction,
-    robotConfig
+    robotConfig,
   );
 
   // Then, project the trajectory to the board edge based on the robot's heading
@@ -75,7 +75,7 @@ export function calculateTrajectoryProjection(
     nextMoveEnd,
     boardWidth,
     boardHeight,
-    isBackwards
+    isBackwards,
   );
 
   // Add intermediate points for smoother trajectory visualization
@@ -95,7 +95,7 @@ function calculateBoardEdgeProjection(
   position: RobotPosition,
   boardWidth: number,
   boardHeight: number,
-  isBackwards: boolean = false
+  isBackwards: boolean = false,
 ): RobotPosition | null {
   const headingRad = (position.heading * Math.PI) / 180;
 

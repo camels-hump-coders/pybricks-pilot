@@ -1,8 +1,8 @@
 import { useAtomValue } from "jotai";
 import { useCallback, useRef, useState } from "react";
 import {
-  missionExecutionService,
   type MissionExecutionOptions,
+  missionExecutionService,
   type RobotCommand,
 } from "../services/missionExecution";
 import { virtualRobotService } from "../services/virtualRobot";
@@ -55,7 +55,7 @@ export function useMissionExecution() {
           mission,
           safePositions,
           robotConfig || undefined,
-          options
+          options,
         );
 
         setState((prev) => ({
@@ -75,7 +75,7 @@ export function useMissionExecution() {
         return [];
       }
     },
-    [robotConfig, safePositions]
+    [robotConfig, safePositions],
   );
 
   /**
@@ -92,7 +92,7 @@ export function useMissionExecution() {
 
       // Debug: Log the command sequence
       console.log(
-        `[Mission Execution] Sending ${commandsToExecute.length} commands to ${robotType} robot:`
+        `[Mission Execution] Sending ${commandsToExecute.length} commands to ${robotType} robot:`,
       );
       commandsToExecute.forEach((cmd, i) => {
         console.log(`  ${i + 1}. ${cmd.action}:`, cmd);
@@ -134,7 +134,7 @@ export function useMissionExecution() {
             : {
                 executeCommandSequence:
                   virtualRobotService.executeCommandSequence.bind(
-                    virtualRobotService
+                    virtualRobotService,
                   ),
                 sendDriveCommand: async (distance: number, speed: number) => {
                   await virtualRobotService.drive(distance, speed);
@@ -148,11 +148,15 @@ export function useMissionExecution() {
                 sendMotorCommand: async (
                   motor: string,
                   angle: number,
-                  speed: number
+                  speed: number,
                 ) => {
                   await virtualRobotService.setMotorAngle(motor, angle, speed);
                 },
-                turnAndDrive: async (angle: number, distance: number, speed: number) => {
+                turnAndDrive: async (
+                  angle: number,
+                  distance: number,
+                  speed: number,
+                ) => {
                   await virtualRobotService.turn(angle, speed);
                   await virtualRobotService.drive(distance, speed);
                 },
@@ -162,7 +166,7 @@ export function useMissionExecution() {
         // Execute the commands
         await missionExecutionService.executeMissionCommands(
           commandsToExecute,
-          robotInterface
+          robotInterface,
         );
 
         setState((prev) => ({
@@ -193,7 +197,7 @@ export function useMissionExecution() {
         return false;
       }
     },
-    [state.currentCommands, robotType, pybricksHub]
+    [state.currentCommands, robotType, pybricksHub],
   );
 
   /**
@@ -202,7 +206,7 @@ export function useMissionExecution() {
   const executeMission = useCallback(
     async (
       mission: Mission,
-      options: Partial<MissionExecutionOptions> = {}
+      options: Partial<MissionExecutionOptions> = {},
     ) => {
       // Generate commands
       const commands = generateCommands(mission, options);
@@ -216,7 +220,7 @@ export function useMissionExecution() {
       // Execute commands
       return await executeCommands(commands);
     },
-    [generateCommands, executeCommands]
+    [generateCommands, executeCommands],
   );
 
   /**

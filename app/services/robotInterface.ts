@@ -19,19 +19,25 @@ interface RobotInterface {
   setMotorAngle(motorName: string, angle: number, speed: number): Promise<void>;
   stopMotor(motorName: string): Promise<void>;
   sendControlCommand(command: string): Promise<void>;
-  
+
   // Command sequence control
-  executeCommandSequence(commands: Array<{
-    action: string;
-    distance?: number;
-    angle?: number;
-    speed?: number;
-    motor?: string;
-    [key: string]: any;
-  }>): Promise<void>;
-  
+  executeCommandSequence(
+    commands: Array<{
+      action: string;
+      distance?: number;
+      angle?: number;
+      speed?: number;
+      motor?: string;
+      [key: string]: any;
+    }>,
+  ): Promise<void>;
+
   // Compound movements
-  turnAndDrive(turnAngle: number, driveDistance: number, speed?: number): Promise<void>;
+  turnAndDrive(
+    turnAngle: number,
+    driveDistance: number,
+    speed?: number,
+  ): Promise<void>;
 
   // Event handling
   addEventListener(type: string, listener: EventListener): void;
@@ -204,7 +210,7 @@ class RobotConnectionManager {
   async setMotorAngle(
     motorName: string,
     angle: number,
-    speed: number
+    speed: number,
   ): Promise<void> {
     if (!this.currentRobot) throw new Error("No robot connected");
     return this.currentRobot.setMotorAngle(motorName, angle, speed);
@@ -258,7 +264,7 @@ class RobotConnectionManager {
   async setVirtualRobotPosition(
     x: number,
     y: number,
-    heading: number
+    heading: number,
   ): Promise<void> {
     if (this.robotType === "virtual" && this.currentRobot) {
       const virtualRobot = this.currentRobot as any;

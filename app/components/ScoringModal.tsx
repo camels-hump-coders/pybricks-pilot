@@ -1,5 +1,9 @@
 import type { Mission } from "../schemas/GameMatConfig";
-import { getTotalPointsForMission, getMaxPointsForMission, type ScoringState } from "../utils/scoringUtils";
+import {
+  getMaxPointsForMission,
+  getTotalPointsForMission,
+  type ScoringState,
+} from "../utils/scoringUtils";
 
 interface ScoringModalProps {
   mission: Mission;
@@ -9,7 +13,7 @@ interface ScoringModalProps {
     missionId: string,
     objectiveId: string,
     points: number,
-    choiceId: string
+    choiceId: string,
   ) => void;
 }
 
@@ -82,7 +86,7 @@ export function ScoringModal({
                             mission.id,
                             objective.id,
                             choice.points,
-                            choice.id
+                            choice.id,
                           )
                         }
                         className={`w-full text-left p-3 rounded-lg text-sm transition-colors touch-manipulation ${

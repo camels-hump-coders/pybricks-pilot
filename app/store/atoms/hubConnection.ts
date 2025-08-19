@@ -1,6 +1,10 @@
 import { atom } from "jotai";
 import type { HubInfo } from "../../services/bluetooth";
-import type { ProgramStatus, TelemetryData, DebugEvent } from "../../services/pybricksHub";
+import type {
+  DebugEvent,
+  ProgramStatus,
+  TelemetryData,
+} from "../../services/pybricksHub";
 
 // Connection state atoms
 const hubInfoAtom = atom<HubInfo | null>(null);

@@ -26,7 +26,7 @@ function getPerspectiveTransform(
     bottomRight: Point;
   },
   width: number,
-  height: number
+  height: number,
 ): Transform {
   // Source points (normalized 0-1)
   const src = [
@@ -168,7 +168,7 @@ export function deSkewImage(
     bottomRight: Point;
   },
   outputWidth: number,
-  outputHeight: number
+  outputHeight: number,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = outputWidth;

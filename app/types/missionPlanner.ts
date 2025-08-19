@@ -37,7 +37,7 @@ export interface StartPoint extends ReferencedPoint {
   type: "start";
 }
 
-// End point - references a position or another mission  
+// End point - references a position or another mission
 export interface EndPoint extends ReferencedPoint {
   type: "end";
 }
@@ -85,9 +85,9 @@ export interface Mission {
 }
 
 // Mission execution command types
-type DrivebaseCommand = 
+type DrivebaseCommand =
   | { type: "straight"; distance: number; speed?: number }
-  | { type: "turn"; angle: number; speed?: number } 
+  | { type: "turn"; angle: number; speed?: number }
   | { type: "arc"; radius: number; angle: number; speed?: number }
   | { type: "pause"; duration: number }
   | { type: "action"; name: string; parameters?: Record<string, any> };
@@ -115,7 +115,12 @@ interface MissionsFileData {
 }
 
 // Mission execution status
-export type MissionStatus = "idle" | "running" | "paused" | "completed" | "error";
+export type MissionStatus =
+  | "idle"
+  | "running"
+  | "paused"
+  | "completed"
+  | "error";
 
 // Mission execution state
 export interface MissionExecution {

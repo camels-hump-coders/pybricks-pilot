@@ -26,7 +26,7 @@ export function RadialHeadingSelector({
   const calculateAngleFromMouse = (
     clientX: number,
     clientY: number,
-    rect: DOMRect
+    rect: DOMRect,
   ) => {
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -67,14 +67,14 @@ export function RadialHeadingSelector({
     if (isDragging) {
       const handleGlobalMouseMove = (event: MouseEvent) => {
         const selector = document.querySelector(
-          "[data-heading-selector]"
+          "[data-heading-selector]",
         ) as HTMLElement;
         if (selector) {
           const rect = selector.getBoundingClientRect();
           const angle = calculateAngleFromMouse(
             event.clientX,
             event.clientY,
-            rect
+            rect,
           );
           onChange(angle);
         }

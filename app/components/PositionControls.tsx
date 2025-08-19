@@ -4,8 +4,11 @@ import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { usePositionManager } from "../hooks/usePositionManager";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { setRobotPositionAtom } from "../store/atoms/gameMat";
+import type {
+  EdgeBasedPosition,
+  NamedPosition,
+} from "../store/atoms/positionManagement";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import type { NamedPosition, EdgeBasedPosition } from "../store/atoms/positionManagement";
 import type { RobotPosition } from "../utils/robotPosition";
 import { calculateRobotPositionFromEdges } from "../utils/robotPosition.js";
 import { AddPositionDialog } from "./AddPositionDialog";
@@ -21,7 +24,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
   const robotConfig = useAtomValue(robotConfigAtom);
   const { customMatConfig } = useJotaiGameMat();
   const setRobotPosition = useSetAtom(setRobotPositionAtom);
-  
+
   // Position management hook
   const positionManager = usePositionManager();
 
@@ -34,7 +37,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
   });
 
   const [positionPreview, setPositionPreview] = useState<RobotPosition | null>(
-    null
+    null,
   );
 
   // Track last applied position for reset functionality
@@ -54,7 +57,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
         edgePositionSettings.fromSide,
         edgePositionSettings.heading,
         robotConfig,
-        customMatConfig
+        customMatConfig,
       );
       setPositionPreview(preview);
     } else {
@@ -74,9 +77,9 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
         y: position.y,
         heading: position.heading,
       };
-      
+
       setRobotPosition(robotPosition);
-      
+
       // Save as last position settings for reset functionality
       // Convert back to edge-based settings if it's a default position
       if (position.id === "bottom-left") {
@@ -96,15 +99,19 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
       } else {
         // For custom positions, approximate edge-based settings
         setLastPositionSettings({
-          side: position.x < (customMatConfig?.dimensions?.widthMm || 2362) / 2 ? "left" : "right",
+          side:
+            position.x < (customMatConfig?.dimensions?.widthMm || 2362) / 2
+              ? "left"
+              : "right",
           fromBottom: position.y,
-          fromSide: position.x < (customMatConfig?.dimensions?.widthMm || 2362) / 2 
-            ? position.x 
-            : (customMatConfig?.dimensions?.widthMm || 2362) - position.x,
+          fromSide:
+            position.x < (customMatConfig?.dimensions?.widthMm || 2362) / 2
+              ? position.x
+              : (customMatConfig?.dimensions?.widthMm || 2362) - position.x,
           heading: position.heading,
         });
       }
-      
+
       setIsSettingPosition(false);
     } catch (error) {
       console.error("Failed to apply named position:", error);
@@ -117,13 +124,15 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
       setRobotPosition(robotPosition);
       setIsSettingPosition(false);
     }
-    
+
     // Start a new telemetry path (preserving history)
     telemetryHistory.startNewPath();
   };
 
   // Helper function to get current edge-based settings for adding new positions
-  const getCurrentEdgePositionForNewPosition = (): EdgeBasedPosition | undefined => {
+  const getCurrentEdgePositionForNewPosition = ():
+    | EdgeBasedPosition
+    | undefined => {
     if (isSettingPosition) {
       return {
         side: edgePositionSettings.side,
@@ -165,7 +174,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
                   lastPositionSettings.fromSide,
                   lastPositionSettings.heading,
                   robotConfig,
-                  customMatConfig
+                  customMatConfig,
                 );
                 setRobotPosition(resetPosition);
                 setIsSettingPosition(false);
@@ -186,7 +195,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
                   lastPositionSettings.fromSide,
                   lastPositionSettings.heading,
                   robotConfig,
-                  customMatConfig
+                  customMatConfig,
                 );
                 setRobotPosition(resetPosition);
                 setIsSettingPosition(false);
@@ -202,12 +211,11 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
         </div>
       </div>
 
-      
       {/* Add Position Dialog */}
-      <AddPositionDialog 
+      <AddPositionDialog
         initialPosition={getCurrentEdgePositionForNewPosition()}
       />
-      
+
       {/* Position Management Dialog */}
       <PositionManagementDialog />
     </div>

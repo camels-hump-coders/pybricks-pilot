@@ -88,7 +88,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
       if (!isEditingMission) return;
       setPointPlacementMode("waypoint", afterPointId);
     },
-    [isEditingMission, setPointPlacementMode]
+    [isEditingMission, setPointPlacementMode],
   );
 
   // Handle adding action point after a specific point
@@ -97,7 +97,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
       if (!isEditingMission) return;
       setPointPlacementMode("action", afterPointId);
     },
-    [isEditingMission, setPointPlacementMode]
+    [isEditingMission, setPointPlacementMode],
   );
 
   // Cancel point placement
@@ -400,7 +400,7 @@ export function MissionControls({ className = "" }: MissionControlsProps) {
                                 onChange={(e) => {
                                   const newReferenceId = e.target.value;
                                   const referencedPosition = positions.find(
-                                    (pos) => pos.id === newReferenceId
+                                    (pos) => pos.id === newReferenceId,
                                   );
                                   if (referencedPosition) {
                                     // Update the existing point with new coordinates

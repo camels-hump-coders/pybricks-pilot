@@ -4,8 +4,8 @@ import { telemetryHistory } from "../services/telemetryHistory";
 import {
   // Control point atoms
   addControlPointAtom,
-  addTangencyHandlesToIntermediatePointsAtom,
   addSplinePointAtom,
+  addTangencyHandlesToIntermediatePointsAtom,
   calculateRobotPosition,
   cancelSplinePathAtom,
   completeSplinePathAtom,
@@ -26,12 +26,14 @@ import {
   maxPathPointsAtom,
   mousePositionAtom,
   movementPreviewAtom,
+  type ObjectiveState,
   pathColorModeAtom,
   pathOpacityAtom,
   perpendicularPreviewAtom,
   removeControlPointAtom,
   resetScoringAtom,
   robotPositionAtom,
+  type SplinePathPoint,
   scoringStateAtom,
   selectedSplinePointIdAtom,
   showPathAtom,
@@ -40,12 +42,10 @@ import {
   telemetryReferenceAtom,
   totalScoreAtom,
   updateControlPointAtom,
-  // Curvature handle atoms
-  updateTangencyHandleAtom,
   updateScoringAtom,
   updateSplinePointAtom,
-  type ObjectiveState,
-  type SplinePathPoint,
+  // Curvature handle atoms
+  updateTangencyHandleAtom,
 } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import type { RobotPosition } from "../utils/robotPosition";
@@ -54,14 +54,14 @@ export function useJotaiGameMat() {
   // Robot position state
   const [robotPosition, setRobotPositionDirect] = useAtom(robotPositionAtom);
   const [isSettingPosition, setIsSettingPosition] = useAtom(
-    isSettingPositionAtom
+    isSettingPositionAtom,
   );
   const [mousePosition, setMousePosition] = useAtom(mousePositionAtom);
   const [manualHeadingAdjustment, setManualHeadingAdjustment] = useAtom(
-    manualHeadingAdjustmentAtom
+    manualHeadingAdjustmentAtom,
   );
   const [telemetryReference, setTelemetryReference] = useAtom(
-    telemetryReferenceAtom
+    telemetryReferenceAtom,
   );
   const robotConfig = useAtomValue(robotConfigAtom);
 
@@ -75,7 +75,7 @@ export function useJotaiGameMat() {
 
   // Perpendicular motion preview
   const [perpendicularPreview, setPerpendicularPreview] = useAtom(
-    perpendicularPreviewAtom
+    perpendicularPreviewAtom,
   );
 
   // Path visualization
@@ -90,25 +90,25 @@ export function useJotaiGameMat() {
   // Spline path planning mode
   const [isSplinePathMode, setIsSplinePathMode] = useAtom(isSplinePathModeAtom);
   const [currentSplinePath, setCurrentSplinePath] = useAtom(
-    currentSplinePathAtom
+    currentSplinePathAtom,
   );
   const [splinePaths, setSplinePaths] = useAtom(splinePathsAtom);
   const [selectedSplinePointId, setSelectedSplinePointId] = useAtom(
-    selectedSplinePointIdAtom
+    selectedSplinePointIdAtom,
   );
   const [hoveredSplinePointId, setHoveredSplinePointId] = useAtom(
-    hoveredSplinePointIdAtom
+    hoveredSplinePointIdAtom,
   );
   const [hoveredCurvatureHandlePointId, setHoveredCurvatureHandlePointId] =
     useAtom(hoveredCurvatureHandlePointIdAtom);
   const [splinePathCommands, setSplinePathCommands] = useAtom(
-    splinePathCommandsAtom
+    splinePathCommandsAtom,
   );
   const [isExecutingSplinePath, setIsExecutingSplinePath] = useAtom(
-    isExecutingSplinePathAtom
+    isExecutingSplinePathAtom,
   );
   const [executingCommandIndex, setExecutingCommandIndex] = useAtom(
-    executingCommandIndexAtom
+    executingCommandIndexAtom,
   );
 
   // Derived values
@@ -134,7 +134,7 @@ export function useJotaiGameMat() {
   // Tangency handle actions
   const updateTangencyHandleAction = useSetAtom(updateTangencyHandleAtom);
   const addTangencyHandlesToIntermediatePointsAction = useSetAtom(
-    addTangencyHandlesToIntermediatePointsAtom
+    addTangencyHandlesToIntermediatePointsAtom,
   );
 
   // Helper functions - stabilize with refs to avoid recreating on every render
@@ -228,7 +228,7 @@ export function useJotaiGameMat() {
         heading: newHeading,
       });
     },
-    [setTelemetryReference, setRobotPositionDirect] // Only stable dependencies
+    [setTelemetryReference, setRobotPositionDirect], // Only stable dependencies
   );
 
   // Wrapper functions for backward compatibility
@@ -244,7 +244,7 @@ export function useJotaiGameMat() {
         }) => void;
         setManualHeadingAdjustment: (adjustment: number) => void;
         setScoringState: (state: any) => void;
-      }
+      },
     ) => {
       // MANUAL POSITION SETTING: Perform same reset steps as reset button before setting position
       if (resetFunctions) {
@@ -268,14 +268,14 @@ export function useJotaiGameMat() {
       // Clear telemetry history when manually setting position
       telemetryHistory.startNewPath();
     },
-    [setRobotPositionDirect, setTelemetryReference]
+    [setRobotPositionDirect, setTelemetryReference],
   );
 
   const updateScoring = useCallback(
     (missionId: string, objectiveId: string, state: ObjectiveState) => {
       updateScoringAction({ missionId, objectiveId, state });
     },
-    [updateScoringAction]
+    [updateScoringAction],
   );
 
   const resetScoring = useCallback(() => {
@@ -325,28 +325,28 @@ export function useJotaiGameMat() {
     (name: string) => {
       return createSplinePathAction(name);
     },
-    [createSplinePathAction]
+    [createSplinePathAction],
   );
 
   const addSplinePoint = useCallback(
     (position: RobotPosition) => {
       return addSplinePointAction(position);
     },
-    [addSplinePointAction]
+    [addSplinePointAction],
   );
 
   const updateSplinePoint = useCallback(
     (pointId: string, updates: Partial<SplinePathPoint>) => {
       updateSplinePointAction(pointId, updates);
     },
-    [updateSplinePointAction]
+    [updateSplinePointAction],
   );
 
   const deleteSplinePoint = useCallback(
     (pointId: string) => {
       deleteSplinePointAction(pointId);
     },
-    [deleteSplinePointAction]
+    [deleteSplinePointAction],
   );
 
   const completeSplinePath = useCallback(() => {
@@ -362,40 +362,46 @@ export function useJotaiGameMat() {
     (
       pointId: string,
       controlType: "before" | "after",
-      controlPoint: { x: number; y: number }
+      controlPoint: { x: number; y: number },
     ) => {
       addControlPointAction(pointId, controlType, controlPoint);
     },
-    [addControlPointAction]
+    [addControlPointAction],
   );
 
   const updateControlPoint = useCallback(
     (
       pointId: string,
       controlType: "before" | "after",
-      controlPoint: { x: number; y: number }
+      controlPoint: { x: number; y: number },
     ) => {
       updateControlPointAction(pointId, controlType, controlPoint);
     },
-    [updateControlPointAction]
+    [updateControlPointAction],
   );
 
   const removeControlPoint = useCallback(
     (pointId: string, controlType: "before" | "after") => {
       removeControlPointAction(pointId, controlType);
     },
-    [removeControlPointAction]
+    [removeControlPointAction],
   );
 
   // Curvature handle helper functions
   const updateTangencyHandle = useCallback(
     (
       pointId: string,
-      tangencyHandle: { x: number; y: number; strength: number; isEdited: boolean; isTangentDriving: boolean }
+      tangencyHandle: {
+        x: number;
+        y: number;
+        strength: number;
+        isEdited: boolean;
+        isTangentDriving: boolean;
+      },
     ) => {
       updateTangencyHandleAction(pointId, tangencyHandle);
     },
-    [updateTangencyHandleAction]
+    [updateTangencyHandleAction],
   );
 
   const addTangencyHandlesToIntermediatePoints = useCallback(() => {
@@ -407,7 +413,7 @@ export function useJotaiGameMat() {
       setControlMode("mission");
       createSplinePath(pathName);
     },
-    [setControlMode, createSplinePath]
+    [setControlMode, createSplinePath],
   );
 
   const exitSplinePathMode = useCallback(() => {
@@ -467,7 +473,7 @@ export function useJotaiGameMat() {
       currentSplinePath,
       addSplinePoint,
       addTangencyHandlesToIntermediatePoints,
-    ]
+    ],
   );
 
   // Effect to automatically add curvature handles when spline path changes
@@ -475,12 +481,13 @@ export function useJotaiGameMat() {
     if (currentSplinePath && currentSplinePath.points.length >= 3) {
       // Check if any intermediate points are missing curvature handles
       const needsHandles = currentSplinePath.points.some((point, index) => {
-        const isIntermediate = index > 0 && index < currentSplinePath.points.length - 1;
+        const isIntermediate =
+          index > 0 && index < currentSplinePath.points.length - 1;
         return isIntermediate && !point.tangencyHandle;
       });
-      
+
       if (needsHandles) {
-        console.log('Adding curvature handles to intermediate points...');
+        console.log("Adding curvature handles to intermediate points...");
         addTangencyHandlesToIntermediatePoints();
       }
     }

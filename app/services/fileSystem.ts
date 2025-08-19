@@ -9,7 +9,7 @@ interface FileSystemService {
   createFile(
     dirHandle: FileSystemDirectoryHandle,
     name: string,
-    content: string
+    content: string,
   ): Promise<FileSystemFileHandle>;
   persistDirectoryAccess(dirHandle: FileSystemDirectoryHandle): Promise<void>;
   clearPersistedData(): Promise<void>;
@@ -17,13 +17,13 @@ interface FileSystemService {
 
 class WebFileSystemService implements FileSystemService {
   private indexedDBService = import("./indexedDBFileSystem").then(
-    (m) => m.indexedDBFileSystemService
+    (m) => m.indexedDBFileSystemService,
   );
 
   async requestDirectoryAccess(): Promise<FileSystemDirectoryHandle | null> {
     if (!("showDirectoryPicker" in window)) {
       throw new Error(
-        "File System Access API is not supported in this browser"
+        "File System Access API is not supported in this browser",
       );
     }
 
@@ -64,7 +64,7 @@ class WebFileSystemService implements FileSystemService {
 
   async writeFile(
     fileHandle: FileSystemFileHandle,
-    content: string
+    content: string,
   ): Promise<void> {
     const writable = await fileHandle.createWritable();
     await writable.write(content);
@@ -72,7 +72,7 @@ class WebFileSystemService implements FileSystemService {
   }
 
   async listPythonFiles(
-    dirHandle: FileSystemDirectoryHandle
+    dirHandle: FileSystemDirectoryHandle,
   ): Promise<PythonFile[]> {
     const pythonFiles: PythonFile[] = [];
 
@@ -88,7 +88,7 @@ class WebFileSystemService implements FileSystemService {
   private async searchPythonFiles(
     dirHandle: FileSystemDirectoryHandle,
     pythonFiles: PythonFile[],
-    currentPath: string
+    currentPath: string,
   ): Promise<void> {
     // Limit recursion depth to prevent infinite loops
     if (currentPath.split("/").length > 10) return;
@@ -122,7 +122,7 @@ class WebFileSystemService implements FileSystemService {
         await this.searchPythonFiles(
           handle as FileSystemDirectoryHandle,
           dirEntry.children!,
-          relativePath
+          relativePath,
         );
 
         // Only add directory if it contains Python files
@@ -166,7 +166,7 @@ class WebFileSystemService implements FileSystemService {
 
   async watchDirectory(
     dirHandle: FileSystemDirectoryHandle,
-    callback: (files: PythonFile[]) => void
+    callback: (files: PythonFile[]) => void,
   ): Promise<() => void> {
     let isWatching = true;
 
@@ -198,7 +198,7 @@ class WebFileSystemService implements FileSystemService {
   async createFile(
     dirHandle: FileSystemDirectoryHandle,
     name: string,
-    content: string
+    content: string,
   ): Promise<FileSystemFileHandle> {
     const fileHandle = await dirHandle.getFileHandle(name, { create: true });
     await this.writeFile(fileHandle, content);
@@ -207,13 +207,13 @@ class WebFileSystemService implements FileSystemService {
 
   async createDirectory(
     parentHandle: FileSystemDirectoryHandle,
-    name: string
+    name: string,
   ): Promise<FileSystemDirectoryHandle> {
     return await parentHandle.getDirectoryHandle(name, { create: true });
   }
 
   async createExampleProject(
-    dirHandle: FileSystemDirectoryHandle
+    dirHandle: FileSystemDirectoryHandle,
   ): Promise<void> {
     // Create example directory
     const exampleDir = await this.createDirectory(dirHandle, "example");
@@ -229,7 +229,7 @@ class WebFileSystemService implements FileSystemService {
   }
 
   async persistDirectoryAccess(
-    dirHandle: FileSystemDirectoryHandle
+    dirHandle: FileSystemDirectoryHandle,
   ): Promise<void> {
     try {
       const indexedDB = await this.indexedDBService;
@@ -249,7 +249,7 @@ class WebFileSystemService implements FileSystemService {
             size: file.size,
             lastModified: file.lastModified,
           };
-        })
+        }),
       );
 
       await indexedDB.storeFileHandles(dirHandle.name, filesWithInfo);
@@ -271,7 +271,7 @@ class WebFileSystemService implements FileSystemService {
   }
 
   private extractFileHandlesRecursively(
-    files: PythonFile[]
+    files: PythonFile[],
   ): FileSystemFileHandle[] {
     const fileHandles: FileSystemFileHandle[] = [];
     files.forEach((file) => {

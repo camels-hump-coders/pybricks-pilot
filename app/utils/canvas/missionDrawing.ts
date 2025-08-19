@@ -29,7 +29,7 @@ import {
  * Type guard to check if a mission point has explicit coordinates
  */
 export function hasCoordinates(
-  point: MissionPointType
+  point: MissionPointType,
 ): point is Waypoint | ActionPoint {
   return point.type === "waypoint" || point.type === "action";
 }
@@ -51,8 +51,11 @@ export function drawMissions(
     tableHeight: number;
   },
   onMissionBoundsUpdate?: (
-    bounds: Map<string, { x: number; y: number; width: number; height: number }>
-  ) => void
+    bounds: Map<
+      string,
+      { x: number; y: number; width: number; height: number }
+    >,
+  ) => void,
 ) {
   if (!customMatConfig) return;
 
@@ -108,7 +111,7 @@ export function drawMissions(
         boundingBox.x - 2,
         boundingBox.y - 2,
         boundingBox.width + 4,
-        boundingBox.height + 4
+        boundingBox.height + 4,
       );
     }
 
@@ -151,7 +154,7 @@ export function drawMissions(
         radius,
         -Math.PI / 2, // Start at top (12 o'clock)
         -Math.PI / 2 + completionPercentage * 2 * Math.PI, // End based on percentage
-        false // Clockwise
+        false, // Clockwise
       );
       ctx.closePath(); // Close the pie slice
       ctx.fill();
@@ -188,7 +191,7 @@ export function drawMissionPlanner(
     selectedPointId?: string | null;
     showRobotGhosts?: boolean;
     robotConfig?: RobotConfig | null;
-  } = {}
+  } = {},
 ) {
   if (!mission || mission.points.length === 0) return;
 
@@ -238,7 +241,7 @@ function drawMissionPoint(
     isSelected?: boolean;
     showRobotGhost?: boolean;
     robotConfig?: RobotConfig | null;
-  } = {}
+  } = {},
 ) {
   const { mmToCanvas, scale } = utils;
   const {
@@ -331,7 +334,7 @@ function drawHeadingIndicator(
   point: ActionPoint,
   pos: { x: number; y: number },
   pointSize: number,
-  utils: MissionDrawingUtils
+  utils: MissionDrawingUtils,
 ) {
   const { scale } = utils;
   const headingRadians = (point.heading * Math.PI) / 180;
@@ -365,12 +368,12 @@ function drawHeadingIndicator(
   ctx.moveTo(endX, endY);
   ctx.lineTo(
     endX - Math.sin(angle1) * arrowheadSize,
-    endY + Math.cos(angle1) * arrowheadSize
+    endY + Math.cos(angle1) * arrowheadSize,
   );
   ctx.moveTo(endX, endY);
   ctx.lineTo(
     endX - Math.sin(angle2) * arrowheadSize,
-    endY + Math.cos(angle2) * arrowheadSize
+    endY + Math.cos(angle2) * arrowheadSize,
   );
   ctx.stroke();
 }
@@ -383,7 +386,7 @@ function drawRobotGhost(
   point: ActionPoint,
   pos: { x: number; y: number },
   utils: MissionDrawingUtils,
-  robotConfig: RobotConfig | null = null
+  robotConfig: RobotConfig | null = null,
 ) {
   const { scale } = utils;
   const headingRadians = (point.heading * Math.PI) / 180;
@@ -441,7 +444,7 @@ function drawRobotGhost(
     -frontIndicatorWidth / 2,
     -halfLength,
     frontIndicatorWidth,
-    frontIndicatorHeight
+    frontIndicatorHeight,
   );
 
   // Draw center of rotation indicator (small red dot at the actual point position)
@@ -463,7 +466,7 @@ export function drawMissionPointPreview(
   pointType: "waypoint" | "action" | "start" | "end",
   actionHeading: number,
   utils: MissionDrawingUtils,
-  robotConfig: RobotConfig | null = null
+  robotConfig: RobotConfig | null = null,
 ) {
   const { mmToCanvas, scale } = utils;
 
@@ -506,7 +509,7 @@ export function drawMissionPointPreview(
       { heading: actionHeading } as ActionPoint,
       { x: canvasX, y: canvasY },
       utils,
-      robotConfig
+      robotConfig,
     );
   }
 
@@ -526,7 +529,7 @@ export function drawMissionPointPreview(
       { heading: actionHeading } as ActionPoint,
       { x: canvasX, y: canvasY },
       size,
-      utils
+      utils,
     );
   }
 
@@ -546,7 +549,7 @@ export function drawMissionPointPreview(
     canvasX - labelWidth / 2 - 4,
     labelY - 2,
     labelWidth + 8,
-    labelHeight + 4
+    labelHeight + 4,
   );
 
   // Draw label text
@@ -574,7 +577,7 @@ function drawMissionArcPaths(
     strokeWidth?: number;
     showArrows?: boolean;
     opacity?: number;
-  } = {}
+  } = {},
 ) {
   if (!mission || mission.points.length < 2) return;
 
@@ -604,7 +607,7 @@ function drawMissionArcPaths(
 
     // Convert points to canvas coordinates
     const canvasPoints = pathPoints.map((point) =>
-      mmToCanvas(point.x, point.y)
+      mmToCanvas(point.x, point.y),
     );
 
     // Set different styles based on segment type
@@ -654,7 +657,7 @@ function drawPathArrow(
   ctx: CanvasRenderingContext2D,
   fromPoint: { x: number; y: number },
   toPoint: { x: number; y: number },
-  scale: number
+  scale: number,
 ) {
   const dx = toPoint.x - fromPoint.x;
   const dy = toPoint.y - fromPoint.y;
@@ -689,7 +692,7 @@ function drawPathArrow(
  */
 function findBestInsertionPoint(
   points: MissionPointType[],
-  mousePos: { x: number; y: number }
+  mousePos: { x: number; y: number },
 ): number {
   if (points.length <= 1) return points.length;
 
@@ -724,7 +727,7 @@ function findBestInsertionPoint(
 function distanceToSegment(
   point: { x: number; y: number },
   segStart: { x: number; y: number },
-  segEnd: { x: number; y: number }
+  segEnd: { x: number; y: number },
 ): number {
   const A = point.x - segStart.x;
   const B = point.y - segStart.y;
@@ -739,7 +742,7 @@ function distanceToSegment(
     return Math.sqrt(A * A + B * B);
   }
 
-  let param = dot / lenSq;
+  const param = dot / lenSq;
 
   let xx, yy;
 
@@ -772,7 +775,7 @@ function drawMissionPathPreviewSegments(
   options: {
     strokeColor: string;
     opacity: number;
-  }
+  },
 ) {
   const { strokeColor, opacity } = options;
   const { scale } = utils;
@@ -814,7 +817,7 @@ function drawMissionPathPreviewSegments(
 
       if (pathPoints.length >= 2) {
         const canvasPoints = pathPoints.map((point) =>
-          utils.mmToCanvas(point.x, point.y)
+          utils.mmToCanvas(point.x, point.y),
         );
 
         // Different styles for different segment types
@@ -866,7 +869,7 @@ export function drawMissionPathPreview(
     previewPointId?: string | null;
     strokeColor?: string;
     opacity?: number;
-  } = {}
+  } = {},
 ) {
   if (!mission || mission.points.length === 0) return;
 
@@ -914,6 +917,6 @@ export function drawMissionPathPreview(
     {
       strokeColor,
       opacity,
-    }
+    },
   );
 }

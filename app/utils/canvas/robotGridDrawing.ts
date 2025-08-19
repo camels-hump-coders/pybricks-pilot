@@ -12,7 +12,7 @@ interface RobotGridDrawingUtils {
 export function drawRobotOrientedGrid(
   ctx: CanvasRenderingContext2D,
   robotPosition: RobotPosition,
-  utils: RobotGridDrawingUtils
+  utils: RobotGridDrawingUtils,
 ) {
   const { mmToCanvas, scale } = utils;
   const gridSizeMm = 100; // 100mm grid squares

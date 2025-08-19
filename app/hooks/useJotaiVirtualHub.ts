@@ -1,16 +1,15 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
+import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+import { telemetryHistory } from "../services/telemetryHistory";
 import { virtualRobotService } from "../services/virtualRobot";
-import type { InstrumentationOptions } from "../utils/codeInstrumentation";
-import { transformTelemetryData } from "../utils/coordinateTransformations";
-
-// Import virtual robot specific atoms
+// Import program running state atoms
 import {
-  virtualRobotCapabilitiesAtom,
-  virtualRobotPositionAtom,
-  virtualRobotStateAtom,
-} from "../store/atoms/virtualRobot";
-
+  checkProgramRunningTimeoutAtom,
+  updateTelemetryTimestampAtom,
+} from "../store/atoms/programRunning";
+// Import robot config atom
+import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 // Import shared robot connection atoms
 import {
   batteryLevelAtom,
@@ -29,19 +28,14 @@ import {
   sensorDataAtom,
   telemetryDataAtom,
 } from "../store/atoms/robotConnection";
-
-// Import robot config atom
-import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-
-// Import program running state atoms
+// Import virtual robot specific atoms
 import {
-  checkProgramRunningTimeoutAtom,
-  updateTelemetryTimestampAtom,
-} from "../store/atoms/programRunning";
-
-import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
-
-import { telemetryHistory } from "../services/telemetryHistory";
+  virtualRobotCapabilitiesAtom,
+  virtualRobotPositionAtom,
+  virtualRobotStateAtom,
+} from "../store/atoms/virtualRobot";
+import type { InstrumentationOptions } from "../utils/codeInstrumentation";
+import { transformTelemetryData } from "../utils/coordinateTransformations";
 
 export function useJotaiVirtualHub() {
   // Get current robot type to conditionally set up event listeners
@@ -123,22 +117,22 @@ export function useJotaiVirtualHub() {
     // Add event listeners to virtual robot service
     virtualRobotService.addEventListener(
       "telemetry",
-      handleTelemetry as EventListener
+      handleTelemetry as EventListener,
     );
     virtualRobotService.addEventListener(
       "statusChange",
-      handleStatusChange as EventListener
+      handleStatusChange as EventListener,
     );
 
     // Cleanup event listeners
     return () => {
       virtualRobotService.removeEventListener(
         "telemetry",
-        handleTelemetry as EventListener
+        handleTelemetry as EventListener,
       );
       virtualRobotService.removeEventListener(
         "statusChange",
-        handleStatusChange as EventListener
+        handleStatusChange as EventListener,
       );
     };
   }, [
@@ -187,7 +181,7 @@ export function useJotaiVirtualHub() {
     async (distance: number, speed: number) => {
       await virtualRobotService.drive(distance, speed);
     },
-    []
+    [],
   );
 
   const sendTurnCommand = useCallback(async (angle: number, speed: number) => {
@@ -202,21 +196,21 @@ export function useJotaiVirtualHub() {
     async (speed: number, turnRate: number) => {
       await virtualRobotService.driveContinuous(speed, turnRate);
     },
-    []
+    [],
   );
 
   const sendMotorCommand = useCallback(
     async (motor: string, angle: number, speed: number) => {
       await virtualRobotService.setMotorAngle(motor, angle, speed);
     },
-    []
+    [],
   );
 
   const sendContinuousMotorCommand = useCallback(
     async (motor: string, speed: number) => {
       await virtualRobotService.setMotorSpeed(motor, speed);
     },
-    []
+    [],
   );
 
   const sendMotorStopCommand = useCallback(async (motor: string) => {
@@ -260,7 +254,7 @@ export function useJotaiVirtualHub() {
   // Mock instrumentation settings for compatibility
   const setInstrumentationEnabled = useCallback((enabled: boolean) => {
     console.log(
-      `[VirtualHub] Instrumentation ${enabled ? "enabled" : "disabled"} (mock)`
+      `[VirtualHub] Instrumentation ${enabled ? "enabled" : "disabled"} (mock)`,
     );
   }, []);
 
@@ -268,7 +262,7 @@ export function useJotaiVirtualHub() {
     (options: Partial<InstrumentationOptions>) => {
       console.log("[VirtualHub] Instrumentation options set (mock):", options);
     },
-    []
+    [],
   );
 
   const getInstrumentationOptions =
@@ -324,7 +318,8 @@ export function useJotaiVirtualHub() {
     isSendingCommand,
 
     // Command sequences and compound movements
-    executeCommandSequence: virtualRobotService.executeCommandSequence.bind(virtualRobotService),
+    executeCommandSequence:
+      virtualRobotService.executeCommandSequence.bind(virtualRobotService),
     turnAndDrive: virtualRobotService.turnAndDrive.bind(virtualRobotService),
 
     // Virtual robot specific

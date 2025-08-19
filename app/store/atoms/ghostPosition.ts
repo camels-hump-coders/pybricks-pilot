@@ -16,7 +16,7 @@ const ghostVisibilityAtom = atom<boolean>(false);
 export const ghostRobotAtom = atom((get) => {
   const position = get(ghostPositionAtom);
   const isVisible = get(ghostVisibilityAtom);
-  
+
   return {
     position,
     isVisible,
@@ -26,9 +26,13 @@ export const ghostRobotAtom = atom((get) => {
 // Write-only atom to update both position and visibility
 export const updateGhostRobotAtom = atom(
   null,
-  (get, set, update: { position: GhostPosition | null; isVisible?: boolean }) => {
+  (
+    get,
+    set,
+    update: { position: GhostPosition | null; isVisible?: boolean },
+  ) => {
     set(ghostPositionAtom, update.position);
-    
+
     // If position is provided, automatically set visibility to true
     // If position is null, use the provided visibility or default to false
     if (update.position !== null) {
@@ -36,14 +40,11 @@ export const updateGhostRobotAtom = atom(
     } else {
       set(ghostVisibilityAtom, update.isVisible ?? false);
     }
-  }
+  },
 );
 
 // Write-only atom to hide the ghost robot
-export const hideGhostRobotAtom = atom(
-  null,
-  (get, set) => {
-    set(ghostPositionAtom, null);
-    set(ghostVisibilityAtom, false);
-  }
-);
+export const hideGhostRobotAtom = atom(null, (get, set) => {
+  set(ghostPositionAtom, null);
+  set(ghostVisibilityAtom, false);
+});

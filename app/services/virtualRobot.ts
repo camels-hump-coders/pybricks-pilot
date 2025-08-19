@@ -303,7 +303,7 @@ class VirtualRobotService extends EventTarget {
 
       console.log(
         `[VirtualRobot] Drive completed. Final position:`,
-        this.getCurrentPosition()
+        this.getCurrentPosition(),
       );
     } catch (error) {
       if (signal.aborted) {
@@ -434,7 +434,7 @@ class VirtualRobotService extends EventTarget {
 
       console.log(
         `[VirtualRobot] Turn completed. Final position:`,
-        this.getCurrentPosition()
+        this.getCurrentPosition(),
       );
     } catch (error) {
       if (signal.aborted) {
@@ -473,7 +473,7 @@ class VirtualRobotService extends EventTarget {
     const deltaAngle = (turnRate * deltaTime) / 1000; // Convert to degrees
 
     console.log(
-      `[VirtualRobot] Drive continuous: speed=${speed}mm/s, turnRate=${turnRate}°/s`
+      `[VirtualRobot] Drive continuous: speed=${speed}mm/s, turnRate=${turnRate}°/s`,
     );
     console.log(`[VirtualRobot] Starting position:`, this.getCurrentPosition());
 
@@ -577,7 +577,7 @@ class VirtualRobotService extends EventTarget {
   async setMotorAngle(
     motorName: string,
     angle: number,
-    speed: number
+    speed: number,
   ): Promise<void> {
     if (!this._isConnected || !this.state.motors[motorName]) return;
 
@@ -621,7 +621,7 @@ class VirtualRobotService extends EventTarget {
     this.config.imuHeading = 0;
     console.log(
       "[VirtualRobot] Position reset to relative origin:",
-      this.getCurrentPosition()
+      this.getCurrentPosition(),
     );
   }
 
@@ -635,7 +635,7 @@ class VirtualRobotService extends EventTarget {
     this.config.imuHeading = heading;
     console.log(
       "[VirtualRobot] Position synced with UI, working from relative origin:",
-      this.getCurrentPosition()
+      this.getCurrentPosition(),
     );
   }
 
@@ -654,7 +654,7 @@ class VirtualRobotService extends EventTarget {
     this.dispatchEvent(
       new CustomEvent("statusChange", {
         detail: { running: true, output: "Program started" },
-      })
+      }),
     );
   }
 
@@ -671,7 +671,7 @@ class VirtualRobotService extends EventTarget {
     this.dispatchEvent(
       new CustomEvent("statusChange", {
         detail: { running: false, output: "Program stopped" },
-      })
+      }),
     );
   }
 
@@ -696,7 +696,7 @@ class VirtualRobotService extends EventTarget {
           this.abortController = new AbortController();
 
           console.log(
-            "[VirtualRobot] Drivebase reset - telemetry cleared and commands aborted"
+            "[VirtualRobot] Drivebase reset - telemetry cleared and commands aborted",
           );
           break;
 
@@ -708,7 +708,7 @@ class VirtualRobotService extends EventTarget {
         default:
           console.log(
             "[VirtualRobot] Unknown control command:",
-            command.action
+            command.action,
           );
       }
     } catch (error) {
@@ -742,10 +742,10 @@ class VirtualRobotService extends EventTarget {
       speed?: number;
       motor?: string;
       [key: string]: any;
-    }>
+    }>,
   ): Promise<void> {
     console.log(
-      `[VirtualRobot] Executing command sequence of ${commands.length} commands`
+      `[VirtualRobot] Executing command sequence of ${commands.length} commands`,
     );
 
     for (let i = 0; i < commands.length; i++) {
@@ -753,7 +753,7 @@ class VirtualRobotService extends EventTarget {
       console.log(
         `[VirtualRobot] Executing command ${i + 1}/${commands.length}:`,
         cmd.action,
-        cmd
+        cmd,
       );
 
       // Execute each command in sequence
@@ -799,7 +799,11 @@ class VirtualRobotService extends EventTarget {
           }
           break;
         case "arc":
-          if (cmd.radius !== undefined && cmd.angle !== undefined && cmd.speed !== undefined) {
+          if (
+            cmd.radius !== undefined &&
+            cmd.angle !== undefined &&
+            cmd.speed !== undefined
+          ) {
             await this.arc(cmd.radius, cmd.angle, cmd.speed);
           }
           break;
@@ -812,10 +816,10 @@ class VirtualRobotService extends EventTarget {
   async turnAndDrive(
     turnAngle: number,
     driveDistance: number,
-    speed: number = 100
+    speed: number = 100,
   ): Promise<void> {
     console.log(
-      `[VirtualRobot] Turn and drive: ${turnAngle}° then ${driveDistance}mm at ${speed}mm/s`
+      `[VirtualRobot] Turn and drive: ${turnAngle}° then ${driveDistance}mm at ${speed}mm/s`,
     );
     await this.executeCommandSequence([
       {
@@ -831,40 +835,45 @@ class VirtualRobotService extends EventTarget {
     ]);
   }
 
-  async arc(
-    radius: number,
-    angle: number,
-    speed: number
-  ): Promise<void> {
+  async arc(radius: number, angle: number, speed: number): Promise<void> {
     if (!this._isConnected) return;
 
     // Calculate arc center and angles from current robot state
     // The robot should arc from its current position and heading
     const currentPos = this.getCurrentPosition();
     const currentHeadingRad = (currentPos.heading * Math.PI) / 180;
-    
+
     // Calculate arc center perpendicular to current heading
     // For positive angle (left turn): center is to the left of robot
     // For negative angle (right turn): center is to the right of robot
-    const centerOffsetAngle = currentHeadingRad + (angle > 0 ? Math.PI / 2 : -Math.PI / 2);
+    const centerOffsetAngle =
+      currentHeadingRad + (angle > 0 ? Math.PI / 2 : -Math.PI / 2);
     const centerX = currentPos.x + radius * Math.cos(centerOffsetAngle);
     const centerY = currentPos.y + radius * Math.sin(centerOffsetAngle);
-    
+
     // Calculate start and end angles relative to center
-    const startAngle = Math.atan2(currentPos.y - centerY, currentPos.x - centerX) * (180 / Math.PI);
+    const startAngle =
+      Math.atan2(currentPos.y - centerY, currentPos.x - centerX) *
+      (180 / Math.PI);
     const endAngle = startAngle + angle;
 
-    console.log(`[VirtualRobot] Arc command: radius=${radius}mm, sweep=${angle}°, speed=${speed}mm/s`);
-    console.log(`[VirtualRobot] Calculated center(${centerX.toFixed(1)}, ${centerY.toFixed(1)}), ${startAngle.toFixed(1)}° to ${endAngle.toFixed(1)}°`);
+    console.log(
+      `[VirtualRobot] Arc command: radius=${radius}mm, sweep=${angle}°, speed=${speed}mm/s`,
+    );
+    console.log(
+      `[VirtualRobot] Calculated center(${centerX.toFixed(1)}, ${centerY.toFixed(1)}), ${startAngle.toFixed(1)}° to ${endAngle.toFixed(1)}°`,
+    );
     console.log(`[VirtualRobot] Starting position:`, currentPos);
 
     // Use the provided sweep angle directly
     const arcAngle = angle;
-    
-    const arcLength = Math.abs(arcAngle) * Math.PI * radius / 180;
+
+    const arcLength = (Math.abs(arcAngle) * Math.PI * radius) / 180;
     const duration = (arcLength / speed) * 1000; // Convert to milliseconds
 
-    console.log(`[VirtualRobot] Arc details: angle=${arcAngle.toFixed(1)}°, length=${arcLength.toFixed(1)}mm, duration=${(duration/1000).toFixed(1)}s`);
+    console.log(
+      `[VirtualRobot] Arc details: angle=${arcAngle.toFixed(1)}°, length=${arcLength.toFixed(1)}mm, duration=${(duration / 1000).toFixed(1)}s`,
+    );
 
     const signal = this.abortController.signal;
     const startTime = Date.now();
@@ -873,7 +882,7 @@ class VirtualRobotService extends EventTarget {
 
     try {
       // Calculate end position on the arc
-      const endAngleRad = endAngle * Math.PI / 180;
+      const endAngleRad = (endAngle * Math.PI) / 180;
       const endX = centerX + radius * Math.cos(endAngleRad);
       const endY = centerY + radius * Math.sin(endAngleRad);
 
@@ -885,28 +894,29 @@ class VirtualRobotService extends EventTarget {
         }
 
         const progress = (Date.now() - startTime) / duration;
-        
+
         // Interpolate along the arc
-        const currentAngle = startAngle + (arcAngle * progress);
-        const currentAngleRad = currentAngle * Math.PI / 180;
-        
+        const currentAngle = startAngle + arcAngle * progress;
+        const currentAngleRad = (currentAngle * Math.PI) / 180;
+
         // Calculate current position on arc
         const currentX = centerX + radius * Math.cos(currentAngleRad);
         const currentY = centerY + radius * Math.sin(currentAngleRad);
-        
+
         // Update robot position
         this.state.x = currentX;
         this.state.y = currentY;
-        
+
         // Update accumulated distance (arc length traveled)
-        const currentArcLength = Math.abs(arcAngle * progress) * Math.PI * radius / 180;
+        const currentArcLength =
+          (Math.abs(arcAngle * progress) * Math.PI * radius) / 180;
         this.state.driveDistance = initialDistance + currentArcLength;
-        
+
         // Calculate tangent direction for heading (perpendicular to radius)
         const tangentAngle = currentAngle + (arcAngle > 0 ? 90 : -90);
         this.state.heading = tangentAngle % 360;
         this.config.imuHeading = this.state.heading;
-        
+
         // Update drive angle (total rotation)
         const currentTotalRotation = arcAngle * progress;
         this.state.driveAngle = initialAngle + currentTotalRotation;
@@ -922,7 +932,7 @@ class VirtualRobotService extends EventTarget {
       this.state.y = endY;
       this.state.driveDistance = initialDistance + arcLength;
       this.state.driveAngle = initialAngle + arcAngle;
-      
+
       // Final heading - tangent to arc at end point
       const finalTangentAngle = endAngle + (arcAngle > 0 ? 90 : -90);
       this.state.heading = finalTangentAngle % 360;
@@ -933,7 +943,7 @@ class VirtualRobotService extends EventTarget {
 
       console.log(
         `[VirtualRobot] Arc completed. Final position:`,
-        this.getCurrentPosition()
+        this.getCurrentPosition(),
       );
     } catch (error) {
       if (signal.aborted) {

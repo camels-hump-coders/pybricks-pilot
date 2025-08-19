@@ -10,7 +10,7 @@ interface ProgramControlsProps {
   onUploadAndRunFile?: (
     file: any,
     content: string,
-    allPrograms: any[]
+    allPrograms: any[],
   ) => Promise<void>;
 }
 

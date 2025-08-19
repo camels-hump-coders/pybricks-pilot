@@ -1,26 +1,6 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import {
-  allProgramsAtom,
-  directoryHandleAtom,
-  directoryNameAtom,
-  fileContentCacheAtom,
-  hasDirectoryAccessAtom,
-  isCreatingFileAtom,
-  isFileSystemSupportedAtom,
-  isPythonFilesLoadingAtom,
-  isReadingFileAtom,
-  isRequestingDirectoryAtom,
-  isRestoringDirectoryAtom,
-  isWritingFileAtom,
-  programCountAtom,
-  pythonFilesAtom,
-  pythonFilesErrorAtom,
-  stableDirectoryAccessAtom,
-  unmountDirectoryAtom,
-} from "../store/atoms/fileSystem";
-
-import {
   addToProgramsAtom,
   clearPersistedDataAtom,
   createExampleProjectAtom,
@@ -39,6 +19,25 @@ import {
   setProgramStartPositionAtom,
   writeFileAtom,
 } from "../store/actions/fileSystemActions";
+import {
+  allProgramsAtom,
+  directoryHandleAtom,
+  directoryNameAtom,
+  fileContentCacheAtom,
+  hasDirectoryAccessAtom,
+  isCreatingFileAtom,
+  isFileSystemSupportedAtom,
+  isPythonFilesLoadingAtom,
+  isReadingFileAtom,
+  isRequestingDirectoryAtom,
+  isRestoringDirectoryAtom,
+  isWritingFileAtom,
+  programCountAtom,
+  pythonFilesAtom,
+  pythonFilesErrorAtom,
+  stableDirectoryAccessAtom,
+  unmountDirectoryAtom,
+} from "../store/atoms/fileSystem";
 
 export function useJotaiFileSystem() {
   // Directory state
@@ -136,7 +135,7 @@ export function useJotaiFileSystem() {
         },
       };
     },
-    [fileContentCache, pythonFiles, getFileContentAction]
+    [fileContentCache, pythonFiles, getFileContentAction],
   );
 
   return {

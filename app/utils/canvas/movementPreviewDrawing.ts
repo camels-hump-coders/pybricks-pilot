@@ -36,7 +36,7 @@ export function drawMovementPreview(
   currentPosition: RobotPosition | null,
   controlMode: "incremental" | "continuous",
   robotConfig: RobotConfig,
-  utils: RobotDrawingUtils
+  utils: RobotDrawingUtils,
 ) {
   if (
     !movementPreview?.positions ||
@@ -59,7 +59,7 @@ export function drawMovementPreview(
       utils,
       true,
       "primary",
-      movementPreview.direction
+      movementPreview.direction,
     );
   }
 
@@ -81,7 +81,7 @@ export function drawMovementPreview(
       utils,
       true,
       "secondary",
-      oppositeDirection
+      oppositeDirection,
     );
   }
 
@@ -94,7 +94,7 @@ export function drawMovementPreview(
         movementPreview.trajectoryProjection.nextMoveEnd,
         movementPreview.direction,
         robotConfig,
-        utils
+        utils,
       );
     }
 
@@ -103,7 +103,7 @@ export function drawMovementPreview(
       ctx,
       movementPreview.trajectoryProjection.trajectoryPath,
       movementPreview.direction,
-      utils
+      utils,
     );
   }
 
@@ -129,7 +129,7 @@ export function drawMovementPreview(
         movementPreview.secondaryTrajectoryProjection.nextMoveEnd,
         oppositeDirection,
         robotConfig,
-        utils
+        utils,
       );
     }
 
@@ -138,7 +138,7 @@ export function drawMovementPreview(
       ctx,
       movementPreview.secondaryTrajectoryProjection.trajectoryPath,
       oppositeDirection,
-      utils
+      utils,
     );
   }
 }
@@ -150,7 +150,7 @@ function drawPerpendicularPreview(
   ctx: CanvasRenderingContext2D,
   perpendicularPreview: PerpendicularPreview,
   robotConfig: RobotConfig,
-  utils: RobotDrawingUtils
+  utils: RobotDrawingUtils,
 ) {
   if (
     !perpendicularPreview.show ||
@@ -178,7 +178,7 @@ function drawPerpendicularPreview(
       utils,
       true,
       "perpendicular",
-      direction
+      direction,
     );
   });
 

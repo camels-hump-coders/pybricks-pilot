@@ -83,7 +83,7 @@ export function analyzeUserCode(code: string): {
  */
 function generateInstrumentationCode(
   analysis: ReturnType<typeof analyzeUserCode>,
-  options: InstrumentationOptions = {}
+  options: InstrumentationOptions = {},
 ): string {
   let instrumentationCode = "\n# === PybricksPilot Auto-Instrumentation ===\n";
   // Don't import - the pilot functions are already injected above
@@ -271,7 +271,7 @@ function generateInstrumentationCode(
  */
 function wrapWithInstrumentation(
   code: string,
-  options: InstrumentationOptions = {}
+  options: InstrumentationOptions = {},
 ): string {
   // Check if the user code already has a main() function (sync or async)
   const hasMainFunction = /(async\s+)?def\s+main\s*\(/.test(code);
@@ -288,8 +288,8 @@ function wrapWithInstrumentation(
     // Convert main() to async_main() without using inspect module
     // Parse user code to extract main function content
     const lines = code.split("\n");
-    let setupLines: string[] = [];
-    let mainFunctionLines: string[] = [];
+    const setupLines: string[] = [];
+    const mainFunctionLines: string[] = [];
     let inMainFunction = false;
     let mainIndentLevel = 0;
 
@@ -338,7 +338,7 @@ function wrapWithInstrumentation(
     // Create async version of main function
     wrappedCode += "# Async version of main() for parallel execution\n";
     wrappedCode += "async def async_main():\n";
-    wrappedCode += `    \"\"\"User's main program ${isMainAsync ? "(already async)" : "converted to async"}\"\"\"\n`;
+    wrappedCode += `    """User's main program ${isMainAsync ? "(already async)" : "converted to async"}"""\n`;
 
     // Add main function content with proper indentation and await conversion
     const asyncMainCode = mainFunctionLines
@@ -353,7 +353,7 @@ function wrapWithInstrumentation(
           // Be very specific: only convert standalone wait() calls, not method calls or parameters
           return indented.replace(
             /(\s|^)wait\s*\(\s*(\d+)/g,
-            "$1await wait($2"
+            "$1await wait($2",
           );
         }
       })
@@ -451,7 +451,7 @@ function wrapWithInstrumentation(
  */
 export function instrumentUserCode(
   userCode: string,
-  options: InstrumentationOptions = {}
+  options: InstrumentationOptions = {},
 ): {
   instrumentedCode: string;
   analysis: ReturnType<typeof analyzeUserCode>;

@@ -9,21 +9,21 @@ import { updateTelemetryDataAtom } from "../store/atoms/telemetryPoints";
  */
 export function useTelemetryDataSync() {
   const updateTelemetryData = useSetAtom(updateTelemetryDataAtom);
-  
+
   useEffect(() => {
     const loadTelemetryData = () => {
       const paths = telemetryHistory.getAllPaths();
       const currentPath = telemetryHistory.getCurrentPath();
-      
+
       updateTelemetryData({ paths, currentPath });
     };
-    
+
     // Load data initially
     loadTelemetryData();
-    
+
     // Set up periodic refresh to sync with the service
     const interval = setInterval(loadTelemetryData, 500);
-    
+
     return () => clearInterval(interval);
   }, [updateTelemetryData]);
 }

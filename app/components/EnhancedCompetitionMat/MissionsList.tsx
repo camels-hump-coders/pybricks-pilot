@@ -1,25 +1,30 @@
 import { useAtom } from "jotai";
+import type { GameMatConfig, Mission } from "../../schemas/GameMatConfig";
 import { missionsExpandedAtom } from "../../store/atoms/matUIState";
-import { MissionItem } from "./MissionItem";
-import type { Mission, GameMatConfig } from "../../schemas/GameMatConfig";
 import type { ScoringState } from "../../utils/scoringUtils";
+import { MissionItem } from "./MissionItem";
 
 interface MissionsListProps {
   customMatConfig: GameMatConfig | null;
   showScoring: boolean;
   scoringState: ScoringState;
-  onToggleObjective: (objectId: string, objectiveId: string, points: number, choiceId: string) => void;
+  onToggleObjective: (
+    objectId: string,
+    objectiveId: string,
+    points: number,
+    choiceId: string,
+  ) => void;
   getTotalPointsForMission: (mission: Mission, state: ScoringState) => number;
   getMaxPointsForMission: (mission: Mission) => number;
 }
 
-export function MissionsList({ 
-  customMatConfig, 
-  showScoring, 
-  scoringState, 
-  onToggleObjective, 
-  getTotalPointsForMission, 
-  getMaxPointsForMission 
+export function MissionsList({
+  customMatConfig,
+  showScoring,
+  scoringState,
+  onToggleObjective,
+  getTotalPointsForMission,
+  getMaxPointsForMission,
 }: MissionsListProps) {
   const [missionsExpanded, setMissionsExpanded] = useAtom(missionsExpandedAtom);
 

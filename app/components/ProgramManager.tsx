@@ -3,8 +3,8 @@ import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
-import type { PythonFile } from "../types/fileSystem";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
+import type { PythonFile } from "../types/fileSystem";
 import { FileBrowser } from "./FileBrowser";
 
 interface ProgramManagerProps {
@@ -88,7 +88,7 @@ export function ProgramManager({
       console.log(
         "[ProgramManager] Using hub menu upload for",
         allPrograms.length,
-        "programs"
+        "programs",
       );
       try {
         await uploadAndRunHubMenu(allPrograms, pythonFiles);
@@ -154,8 +154,14 @@ export function ProgramManager({
               onSetProgramSide={async (relativePath, programSide) => {
                 await setProgramSide({ relativePath, programSide });
               }}
-              onSetProgramStartPosition={async (relativePath, programStartPosition) => {
-                await setProgramStartPosition({ relativePath, programStartPosition });
+              onSetProgramStartPosition={async (
+                relativePath,
+                programStartPosition,
+              ) => {
+                await setProgramStartPosition({
+                  relativePath,
+                  programStartPosition,
+                });
               }}
               onMoveProgramUp={async (relativePath) => {
                 await moveProgramUp(relativePath);
@@ -338,7 +344,6 @@ export function ProgramManager({
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         )}

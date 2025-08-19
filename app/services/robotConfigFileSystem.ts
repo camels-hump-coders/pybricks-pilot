@@ -15,14 +15,20 @@ class RobotConfigFileSystem {
   private readonly ROBOTS_DIR = "config/robots";
 
   // Discover all available robot configurations from the filesystem
-  async discoverRobots(dirHandle: FileSystemDirectoryHandle): Promise<RobotMetadata[]> {
+  async discoverRobots(
+    dirHandle: FileSystemDirectoryHandle,
+  ): Promise<RobotMetadata[]> {
     try {
       // Check if config/robots directory exists
-      const configHandle = await dirHandle.getDirectoryHandle("config", { create: true });
-      const robotsHandle = await configHandle.getDirectoryHandle("robots", { create: true });
-      
+      const configHandle = await dirHandle.getDirectoryHandle("config", {
+        create: true,
+      });
+      const robotsHandle = await configHandle.getDirectoryHandle("robots", {
+        create: true,
+      });
+
       const robots: RobotMetadata[] = [];
-      
+
       // Always include the default robot (not stored in filesystem)
       robots.push({
         id: "default",
@@ -33,7 +39,7 @@ class RobotConfigFileSystem {
         createdAt: DEFAULT_ROBOT_CONFIG.createdAt,
         updatedAt: DEFAULT_ROBOT_CONFIG.updatedAt,
       });
-      
+
       // Iterate through each robot directory
       for await (const [robotId, robotDirHandle] of robotsHandle.entries()) {
         if (robotDirHandle.kind === "directory" && robotId !== "default") {
@@ -55,7 +61,7 @@ class RobotConfigFileSystem {
           }
         }
       }
-      
+
       return robots.sort((a, b) => {
         // Default robot first, then sort by name
         if (a.isDefault && !b.isDefault) return -1;
@@ -64,27 +70,34 @@ class RobotConfigFileSystem {
       });
     } catch (error) {
       console.warn("Failed to discover robots:", error);
-      return [{
-        id: "default",
-        name: DEFAULT_ROBOT_CONFIG.name,
-        description: DEFAULT_ROBOT_CONFIG.description,
-        tags: DEFAULT_ROBOT_CONFIG.tags,
-        isDefault: true,
-        createdAt: DEFAULT_ROBOT_CONFIG.createdAt,
-        updatedAt: DEFAULT_ROBOT_CONFIG.updatedAt,
-      }];
+      return [
+        {
+          id: "default",
+          name: DEFAULT_ROBOT_CONFIG.name,
+          description: DEFAULT_ROBOT_CONFIG.description,
+          tags: DEFAULT_ROBOT_CONFIG.tags,
+          isDefault: true,
+          createdAt: DEFAULT_ROBOT_CONFIG.createdAt,
+          updatedAt: DEFAULT_ROBOT_CONFIG.updatedAt,
+        },
+      ];
     }
   }
 
   // Load a specific robot configuration
-  async loadRobotConfig(dirHandle: FileSystemDirectoryHandle | null, robotId: string): Promise<RobotConfig | null> {
+  async loadRobotConfig(
+    dirHandle: FileSystemDirectoryHandle | null,
+    robotId: string,
+  ): Promise<RobotConfig | null> {
     // Return default robot config for "default" id
     if (robotId === "default") {
       return DEFAULT_ROBOT_CONFIG;
     }
 
     if (!dirHandle) {
-      console.warn(`Cannot load robot config '${robotId}' - no directory handle provided`);
+      console.warn(
+        `Cannot load robot config '${robotId}' - no directory handle provided`,
+      );
       return null;
     }
 
@@ -93,11 +106,11 @@ class RobotConfigFileSystem {
       const robotsHandle = await configHandle.getDirectoryHandle("robots");
       const robotDirHandle = await robotsHandle.getDirectoryHandle(robotId);
       const robotFileHandle = await robotDirHandle.getFileHandle("robot.json");
-      
+
       const file = await robotFileHandle.getFile();
       const content = await file.text();
       const config = JSON.parse(content) as RobotConfig;
-      
+
       // Validate the configuration
       if (this.isValidRobotConfig(config)) {
         return config;
@@ -112,7 +125,11 @@ class RobotConfigFileSystem {
   }
 
   // Save a robot configuration
-  async saveRobotConfig(dirHandle: FileSystemDirectoryHandle, robotId: string, config: RobotConfig): Promise<void> {
+  async saveRobotConfig(
+    dirHandle: FileSystemDirectoryHandle,
+    robotId: string,
+    config: RobotConfig,
+  ): Promise<void> {
     // Cannot save over the default robot
     if (robotId === "default") {
       throw new Error("Cannot modify the default robot configuration");
@@ -120,10 +137,16 @@ class RobotConfigFileSystem {
 
     try {
       // Ensure directory structure exists
-      const configHandle = await dirHandle.getDirectoryHandle("config", { create: true });
-      const robotsHandle = await configHandle.getDirectoryHandle("robots", { create: true });
-      const robotDirHandle = await robotsHandle.getDirectoryHandle(robotId, { create: true });
-      
+      const configHandle = await dirHandle.getDirectoryHandle("config", {
+        create: true,
+      });
+      const robotsHandle = await configHandle.getDirectoryHandle("robots", {
+        create: true,
+      });
+      const robotDirHandle = await robotsHandle.getDirectoryHandle(robotId, {
+        create: true,
+      });
+
       // Update timestamps
       const updatedConfig = {
         ...config,
@@ -131,9 +154,11 @@ class RobotConfigFileSystem {
         updatedAt: new Date().toISOString(),
         isDefault: false, // Custom robots are never default
       };
-      
+
       // Save robot.json
-      const robotFileHandle = await robotDirHandle.getFileHandle("robot.json", { create: true });
+      const robotFileHandle = await robotDirHandle.getFileHandle("robot.json", {
+        create: true,
+      });
       const writable = await robotFileHandle.createWritable();
       await writable.write(JSON.stringify(updatedConfig, null, 2));
       await writable.close();
@@ -143,7 +168,11 @@ class RobotConfigFileSystem {
   }
 
   // Create a new robot configuration
-  async createRobotConfig(dirHandle: FileSystemDirectoryHandle, robotId: string, config: Omit<RobotConfig, 'id' | 'createdAt' | 'updatedAt' | 'isDefault'>): Promise<void> {
+  async createRobotConfig(
+    dirHandle: FileSystemDirectoryHandle,
+    robotId: string,
+    config: Omit<RobotConfig, "id" | "createdAt" | "updatedAt" | "isDefault">,
+  ): Promise<void> {
     const fullConfig: RobotConfig = {
       ...config,
       id: robotId,
@@ -151,12 +180,15 @@ class RobotConfigFileSystem {
       updatedAt: new Date().toISOString(),
       isDefault: false,
     };
-    
+
     await this.saveRobotConfig(dirHandle, robotId, fullConfig);
   }
 
   // Delete a robot configuration
-  async deleteRobotConfig(dirHandle: FileSystemDirectoryHandle, robotId: string): Promise<void> {
+  async deleteRobotConfig(
+    dirHandle: FileSystemDirectoryHandle,
+    robotId: string,
+  ): Promise<void> {
     if (robotId === "default") {
       throw new Error("Cannot delete the default robot configuration");
     }
@@ -164,7 +196,7 @@ class RobotConfigFileSystem {
     try {
       const configHandle = await dirHandle.getDirectoryHandle("config");
       const robotsHandle = await configHandle.getDirectoryHandle("robots");
-      
+
       // Remove the entire robot directory
       await robotsHandle.removeEntry(robotId, { recursive: true });
     } catch (error) {
@@ -176,15 +208,18 @@ class RobotConfigFileSystem {
   generateRobotId(name: string): string {
     const baseId = name
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-    
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
     const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
     return `${baseId}-${timestamp}`;
   }
 
   // Check if a robot exists
-  async robotExists(dirHandle: FileSystemDirectoryHandle, robotId: string): Promise<boolean> {
+  async robotExists(
+    dirHandle: FileSystemDirectoryHandle,
+    robotId: string,
+  ): Promise<boolean> {
     if (robotId === "default") {
       return true;
     }
@@ -223,18 +258,24 @@ class RobotConfigFileSystem {
   }
 
   // Duplicate a robot configuration
-  async duplicateRobotConfig(dirHandle: FileSystemDirectoryHandle, originalId: string, newName: string): Promise<string> {
+  async duplicateRobotConfig(
+    dirHandle: FileSystemDirectoryHandle,
+    originalId: string,
+    newName: string,
+  ): Promise<string> {
     const original = await this.loadRobotConfig(dirHandle, originalId);
     if (!original) {
       throw new Error("Original robot configuration not found");
     }
 
     const newId = this.generateRobotId(newName);
-    
+
     const duplicated = {
       ...original,
       name: newName,
-      description: original.description ? `Copy of ${original.description}` : `Copy of ${original.name}`,
+      description: original.description
+        ? `Copy of ${original.description}`
+        : `Copy of ${original.name}`,
     };
 
     await this.createRobotConfig(dirHandle, newId, duplicated);

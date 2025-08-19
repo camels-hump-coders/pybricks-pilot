@@ -19,7 +19,7 @@ class MpyCrossCompiler extends EventTarget {
   private emitDebugEvent(
     type: "connection" | "upload" | "program" | "status" | "error" | "command",
     message: string,
-    details?: Record<string, any>
+    details?: Record<string, any>,
   ): void {
     const debugEvent: DebugEvent = {
       timestamp: Date.now(),
@@ -36,7 +36,7 @@ class MpyCrossCompiler extends EventTarget {
 
   async compileToBytecode(
     fileName: string,
-    pythonCode: string
+    pythonCode: string,
   ): Promise<CompilationResult> {
     try {
       this.emitDebugEvent("upload", "Starting MicroPython compilation", {
@@ -52,7 +52,7 @@ class MpyCrossCompiler extends EventTarget {
 
       this.emitDebugEvent(
         "upload",
-        "Code cleaned and prepared for compilation"
+        "Code cleaned and prepared for compilation",
       );
 
       // Compile using mpy-cross v6 with Pybricks-compatible options
@@ -68,7 +68,7 @@ class MpyCrossCompiler extends EventTarget {
         fileName,
         cleanCode,
         options.length > 0 ? options : undefined,
-        wasmUrl
+        wasmUrl,
       );
 
       if (result.status !== 0 || !result.mpy) {
@@ -125,7 +125,7 @@ class MpyCrossCompiler extends EventTarget {
   // Create a multi-file format with __main__.py as entry point
   createMultiFileFormat(
     mainFileName: string,
-    mpyBytecode: Uint8Array
+    mpyBytecode: Uint8Array,
   ): Uint8Array {
     // Multi-file format structure:
     // - File count (4 bytes, little endian)
@@ -173,7 +173,7 @@ class MpyCrossCompiler extends EventTarget {
     uint8View.set(mpyBytecode, offset);
 
     console.log(
-      `Created multi-file format: ${totalSize} bytes total, entry point: ${fileName}`
+      `Created multi-file format: ${totalSize} bytes total, entry point: ${fileName}`,
     );
 
     return uint8View;

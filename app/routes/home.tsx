@@ -89,7 +89,7 @@ export default function Home() {
 
   const robotConnection = useJotaiRobotConnection();
   const fileSystem = useJotaiFileSystem();
-  
+
   // Sync telemetry data from service to atoms
   useTelemetryDataSync();
 
@@ -166,7 +166,7 @@ export default function Home() {
     const { stableDirectoryAccess } = fileSystem;
     if (stableDirectoryAccess) {
       console.log("Directory changed, discovering robot configurations...");
-      discoverRobotConfigs().catch(error => {
+      discoverRobotConfigs().catch((error) => {
         console.warn("Robot discovery failed on directory change:", error);
       });
     }
@@ -180,17 +180,23 @@ export default function Home() {
         options.robotType === "virtual" ? "virtual robot" : "hub";
       showSuccess(
         "Connected",
-        `Successfully connected to the ${robotTypeText}!`
+        `Successfully connected to the ${robotTypeText}!`,
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to connect to the robot";
-      
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to connect to the robot";
+
       // Don't show error notification for user cancellation
-      if (errorMessage.includes("cancelled by user") || errorMessage.includes("User cancelled")) {
+      if (
+        errorMessage.includes("cancelled by user") ||
+        errorMessage.includes("User cancelled")
+      ) {
         // User cancelled the connection - no notification needed
         return;
       }
-      
+
       showError("Connection Failed", errorMessage);
     }
   };
@@ -204,11 +210,10 @@ export default function Home() {
         "Disconnect Failed",
         error instanceof Error
           ? error.message
-          : "Failed to disconnect from the hub"
+          : "Failed to disconnect from the hub",
       );
     }
   };
-
 
   const handleStopProgram = async () => {
     try {
@@ -217,7 +222,7 @@ export default function Home() {
     } catch (error) {
       showError(
         "Failed to Stop",
-        error instanceof Error ? error.message : "Failed to stop program"
+        error instanceof Error ? error.message : "Failed to stop program",
       );
     }
   };
@@ -252,7 +257,7 @@ print("Hello from ${name}!")
         .catch((error) => {
           showError(
             "Failed to Create File",
-            error instanceof Error ? error.message : "Unknown error"
+            error instanceof Error ? error.message : "Unknown error",
           );
         });
     }
@@ -262,7 +267,7 @@ print("Hello from ${name}!")
     try {
       await requestDirectoryAccess();
       showSuccess("Directory Access", "Directory access granted successfully!");
-      
+
       // Discover robot configurations when directory is mounted
       try {
         await discoverRobotConfigs();
@@ -274,7 +279,7 @@ print("Hello from ${name}!")
     } catch (error) {
       showError(
         "Directory Access Failed",
-        error instanceof Error ? error.message : "Failed to access directory"
+        error instanceof Error ? error.message : "Failed to access directory",
       );
     }
   };
@@ -425,12 +430,12 @@ print("Hello from ${name}!")
                 await createExampleProject();
                 showSuccess(
                   "Example Project Created",
-                  "Created example directory with program.py template"
+                  "Created example directory with program.py template",
                 );
               } catch (error) {
                 showError(
                   "Failed to Create Example",
-                  error instanceof Error ? error.message : "Unknown error"
+                  error instanceof Error ? error.message : "Unknown error",
                 );
               }
             }}

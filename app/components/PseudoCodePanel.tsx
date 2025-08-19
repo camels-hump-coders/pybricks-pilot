@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  pseudoCodeGenerator,
   type GeneratedProgram,
+  pseudoCodeGenerator,
 } from "../services/pseudoCodeGenerator.js";
 import type { TelemetryPoint } from "../services/telemetryHistory.js";
 import { normalizeHeading } from "../utils/headingUtils";
@@ -31,7 +31,7 @@ function PythonCodeBlock({ code }: { code: string }) {
 
           // Parse the afterFunc part to highlight numbers and units
           const parts = [];
-          let currentText = afterFunc;
+          const currentText = afterFunc;
 
           // Find and highlight numbers with units
           const numberMatch = currentText.match(/(\d+\.?\d*)(mm|°)/);
@@ -40,7 +40,7 @@ function PythonCodeBlock({ code }: { code: string }) {
             const num = numberMatch[1];
             const unit = numberMatch[2];
             const afterNum = currentText.slice(
-              numberMatch.index! + numberMatch[0].length
+              numberMatch.index! + numberMatch[0].length,
             );
 
             parts.push(
@@ -53,13 +53,13 @@ function PythonCodeBlock({ code }: { code: string }) {
               </span>,
               <span key="after" className="text-white">
                 {afterNum}
-              </span>
+              </span>,
             );
           } else {
             parts.push(
               <span key="text" className="text-white">
                 {afterFunc}
-              </span>
+              </span>,
             );
           }
 
@@ -233,7 +233,7 @@ export function PseudoCodePanel({
                             <span className="ml-2">
                               → Heading:{" "}
                               {normalizeHeading(command.targetHeading).toFixed(
-                                1
+                                1,
                               )}
                               °
                             </span>

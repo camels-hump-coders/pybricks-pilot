@@ -5,7 +5,9 @@ declare global {
   }
 
   interface Bluetooth {
-    requestDevice(options: BluetoothRequestDeviceOptions): Promise<BluetoothDevice>;
+    requestDevice(
+      options: BluetoothRequestDeviceOptions,
+    ): Promise<BluetoothDevice>;
     getDevices(): Promise<BluetoothDevice[]>;
   }
 
@@ -29,8 +31,14 @@ declare global {
     id: string;
     name?: string;
     gatt?: BluetoothRemoteGATTServer;
-    addEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
-    removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
+    addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+    ): void;
+    removeEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+    ): void;
   }
 
   interface BluetoothRemoteGATTServer {
@@ -38,16 +46,24 @@ declare global {
     connected: boolean;
     connect(): Promise<BluetoothRemoteGATTServer>;
     disconnect(): void;
-    getPrimaryService(service: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService>;
-    getPrimaryServices(service?: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService[]>;
+    getPrimaryService(
+      service: BluetoothServiceUUID,
+    ): Promise<BluetoothRemoteGATTService>;
+    getPrimaryServices(
+      service?: BluetoothServiceUUID,
+    ): Promise<BluetoothRemoteGATTService[]>;
   }
 
   interface BluetoothRemoteGATTService {
     device: BluetoothDevice;
     uuid: string;
     isPrimary: boolean;
-    getCharacteristic(characteristic: BluetoothServiceUUID): Promise<BluetoothRemoteGATTCharacteristic>;
-    getCharacteristics(characteristic?: BluetoothServiceUUID): Promise<BluetoothRemoteGATTCharacteristic[]>;
+    getCharacteristic(
+      characteristic: BluetoothServiceUUID,
+    ): Promise<BluetoothRemoteGATTCharacteristic>;
+    getCharacteristics(
+      characteristic?: BluetoothServiceUUID,
+    ): Promise<BluetoothRemoteGATTCharacteristic[]>;
   }
 
   interface BluetoothRemoteGATTCharacteristic {
@@ -61,8 +77,14 @@ declare global {
     writeValueWithResponse(value: BufferSource): Promise<void>;
     startNotifications(): Promise<BluetoothRemoteGATTCharacteristic>;
     stopNotifications(): Promise<BluetoothRemoteGATTCharacteristic>;
-    addEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
-    removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
+    addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+    ): void;
+    removeEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+    ): void;
   }
 
   interface BluetoothCharacteristicProperties {
@@ -79,24 +101,32 @@ declare global {
 
   // File System Access API types
   interface FileSystemHandle {
-    kind: 'file' | 'directory';
+    kind: "file" | "directory";
     name: string;
     isSameEntry(other: FileSystemHandle): Promise<boolean>;
   }
 
   interface FileSystemFileHandle extends FileSystemHandle {
-    kind: 'file';
+    kind: "file";
     getFile(): Promise<File>;
-    createWritable(options?: FileSystemCreateWritableOptions): Promise<FileSystemWritableFileStream>;
+    createWritable(
+      options?: FileSystemCreateWritableOptions,
+    ): Promise<FileSystemWritableFileStream>;
   }
 
   interface FileSystemDirectoryHandle extends FileSystemHandle {
-    kind: 'directory';
+    kind: "directory";
     entries(): AsyncIterable<[string, FileSystemHandle]>;
     keys(): AsyncIterable<string>;
     values(): AsyncIterable<FileSystemHandle>;
-    getFileHandle(name: string, options?: FileSystemGetFileOptions): Promise<FileSystemFileHandle>;
-    getDirectoryHandle(name: string, options?: FileSystemGetDirectoryOptions): Promise<FileSystemDirectoryHandle>;
+    getFileHandle(
+      name: string,
+      options?: FileSystemGetFileOptions,
+    ): Promise<FileSystemFileHandle>;
+    getDirectoryHandle(
+      name: string,
+      options?: FileSystemGetDirectoryOptions,
+    ): Promise<FileSystemDirectoryHandle>;
     removeEntry(name: string, options?: FileSystemRemoveOptions): Promise<void>;
     resolve(possibleDescendant: FileSystemHandle): Promise<string[] | null>;
   }
@@ -127,7 +157,7 @@ declare global {
   type FileSystemWriteChunkType = BufferSource | Blob | string | WriteParams;
 
   interface WriteParams {
-    type: 'write' | 'seek' | 'truncate';
+    type: "write" | "seek" | "truncate";
     data?: BufferSource | Blob | string;
     position?: number;
     size?: number;
@@ -135,10 +165,16 @@ declare global {
 
   interface Window {
     showDirectoryPicker(options?: {
-      mode?: 'read' | 'readwrite';
-      startIn?: 'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos';
+      mode?: "read" | "readwrite";
+      startIn?:
+        | "desktop"
+        | "documents"
+        | "downloads"
+        | "music"
+        | "pictures"
+        | "videos";
     }): Promise<FileSystemDirectoryHandle>;
-    
+
     showOpenFilePicker(options?: {
       multiple?: boolean;
       excludeAcceptAllOption?: boolean;
@@ -147,7 +183,7 @@ declare global {
         accept: Record<string, string[]>;
       }>;
     }): Promise<FileSystemFileHandle[]>;
-    
+
     showSaveFilePicker(options?: {
       suggestedName?: string;
       types?: Array<{

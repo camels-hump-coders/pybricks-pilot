@@ -10,14 +10,14 @@ interface RobotConnectionSelectorProps {
 }
 
 // Instructions Modal Component
-function RobotInstructionsModal({ 
-  isOpen, 
-  onClose, 
+function RobotInstructionsModal({
+  isOpen,
+  onClose,
   isConnecting,
-  onTryAgain
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+  onTryAgain,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
   isConnecting: boolean;
   onTryAgain: () => void;
 }) {
@@ -37,16 +37,19 @@ function RobotInstructionsModal({
             <span className="text-xl text-gray-500">×</span>
           </button>
         </div>
-        
+
         <div className="p-6 space-y-6">
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <span className="text-blue-600 dark:text-blue-400 text-xl">ℹ️</span>
+              <span className="text-blue-600 dark:text-blue-400 text-xl">
+                ℹ️
+              </span>
               <div className="text-blue-800 dark:text-blue-200">
                 <h3 className="font-semibold mb-2">Before You Begin</h3>
                 <p className="text-sm">
-                  Make sure your LEGO robot is powered on and has Pybricks firmware installed. 
-                  The robot should be within Bluetooth range of your computer.
+                  Make sure your LEGO robot is powered on and has Pybricks
+                  firmware installed. The robot should be within Bluetooth range
+                  of your computer.
                 </p>
               </div>
             </div>
@@ -58,11 +61,25 @@ function RobotInstructionsModal({
             </h3>
             <div className="space-y-3">
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                If you haven't already installed Pybricks firmware on your LEGO hub:
+                If you haven't already installed Pybricks firmware on your LEGO
+                hub:
               </p>
               <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300 ml-4">
-                <li>Visit <a href="https://code.pybricks.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600 underline">code.pybricks.com</a></li>
-                <li>Click "Install Pybricks" and follow the installation instructions</li>
+                <li>
+                  Visit{" "}
+                  <a
+                    href="https://code.pybricks.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:text-blue-600 underline"
+                  >
+                    code.pybricks.com
+                  </a>
+                </li>
+                <li>
+                  Click "Install Pybricks" and follow the installation
+                  instructions
+                </li>
                 <li>Once installed, your hub will be ready to connect</li>
               </ol>
             </div>
@@ -74,34 +91,53 @@ function RobotInstructionsModal({
             </h3>
             <div className="space-y-3">
               <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300 ml-4">
-                <li>Make sure your robot is powered on and running Pybricks firmware</li>
-                <li>Click "Connect to Robot" below to open the Bluetooth pairing dialog</li>
-                <li>Select your hub from the list (usually named "Pybricks Hub")</li>
-                <li>Once connected, you'll see real-time telemetry and can control your robot</li>
+                <li>
+                  Make sure your robot is powered on and running Pybricks
+                  firmware
+                </li>
+                <li>
+                  Click "Connect to Robot" below to open the Bluetooth pairing
+                  dialog
+                </li>
+                <li>
+                  Select your hub from the list (usually named "Pybricks Hub")
+                </li>
+                <li>
+                  Once connected, you'll see real-time telemetry and can control
+                  your robot
+                </li>
               </ol>
             </div>
           </div>
 
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <span className="text-yellow-600 dark:text-yellow-400 text-xl">⚠️</span>
+              <span className="text-yellow-600 dark:text-yellow-400 text-xl">
+                ⚠️
+              </span>
               <div className="text-yellow-800 dark:text-yellow-200">
                 <h3 className="font-semibold mb-2">Troubleshooting</h3>
                 <ul className="text-sm space-y-1">
-                  <li>• If the hub doesn't appear, try restarting your robot</li>
+                  <li>
+                    • If the hub doesn't appear, try restarting your robot
+                  </li>
                   <li>• Check that Bluetooth is enabled on your computer</li>
-                  <li>• The hub should show a Bluetooth icon when ready to connect</li>
+                  <li>
+                    • The hub should show a Bluetooth icon when ready to connect
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
           {isConnecting ? (
             <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400">
               <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm font-medium">Opening Bluetooth pairing dialog...</span>
+              <span className="text-sm font-medium">
+                Opening Bluetooth pairing dialog...
+              </span>
             </div>
           ) : (
             <div className="flex items-center gap-3">
@@ -143,9 +179,11 @@ export function RobotConnectionSelector({
   const [selectedRobotType, setSelectedRobotType] = useState<
     "real" | "virtual" | null
   >(robotType); // Use robotType directly, which can be null
-  
+
   const [showInstructions, setShowInstructions] = useState(false);
-  const [pendingConnection, setPendingConnection] = useState<"real" | "virtual" | null>(null);
+  const [pendingConnection, setPendingConnection] = useState<
+    "real" | "virtual" | null
+  >(null);
 
   // Clear Real Robot selection if Bluetooth becomes unsupported
   useEffect(() => {
@@ -184,9 +222,9 @@ export function RobotConnectionSelector({
     if (type === "real" && !isBluetoothSupported) {
       return;
     }
-    
+
     setSelectedRobotType(type);
-    
+
     if (type === "virtual") {
       // Connect immediately for virtual robot
       await handleConnect(type);
@@ -198,13 +236,13 @@ export function RobotConnectionSelector({
       await handleConnect(type);
     }
   };
-  
+
   const handleCloseInstructions = () => {
     setShowInstructions(false);
     setPendingConnection(null);
     setSelectedRobotType(null); // Reset selection so user can choose again
   };
-  
+
   const handleTryAgain = async () => {
     console.log("Try Again clicked - starting fresh real robot connection");
     try {
@@ -298,7 +336,7 @@ export function RobotConnectionSelector({
       <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
         {isConnecting ? (
           <p>
-            {selectedRobotType === "real" 
+            {selectedRobotType === "real"
               ? "Opening Bluetooth pairing dialog..."
               : "Connecting to virtual robot..."}
           </p>

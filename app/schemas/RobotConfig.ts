@@ -216,7 +216,7 @@ function validateRobotConfig(config: RobotConfig): string[] {
 
   if (config.wheels.left.distanceFromEdge * 2 >= config.dimensions.width) {
     errors.push(
-      "Wheels are too close together - not enough space between them"
+      "Wheels are too close together - not enough space between them",
     );
   }
 

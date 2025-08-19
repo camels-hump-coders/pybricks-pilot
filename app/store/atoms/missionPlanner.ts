@@ -72,14 +72,14 @@ export const addMissionAtom = atom(
 
     set(missionsAtom, [...missions, mission]);
     return mission;
-  }
+  },
 );
 
 // Remove a mission
 export const removeMissionAtom = atom(null, (get, set, missionId: string) => {
   const missions = get(missionsAtom);
   const updatedMissions = missions.filter(
-    (mission) => mission.id !== missionId
+    (mission) => mission.id !== missionId,
   );
   set(missionsAtom, updatedMissions);
 
@@ -101,7 +101,7 @@ export const updateMissionAtom = atom(
     get,
     set,
     missionId: string,
-    updates: Partial<Omit<Mission, "id" | "created">>
+    updates: Partial<Omit<Mission, "id" | "created">>,
   ) => {
     const missions = get(missionsAtom);
     const updatedMissions = missions.map((mission) =>
@@ -111,7 +111,7 @@ export const updateMissionAtom = atom(
             ...updates,
             modified: new Date().toISOString(),
           }
-        : mission
+        : mission,
     );
     set(missionsAtom, updatedMissions);
 
@@ -126,7 +126,7 @@ export const updateMissionAtom = atom(
     }
 
     return true;
-  }
+  },
 );
 
 // Start editing a mission
@@ -154,7 +154,7 @@ export const startEditingMissionAtom = atom(
     set(isMissionEditorOpenAtom, true);
 
     return true;
-  }
+  },
 );
 
 // Save editing changes to the mission
@@ -202,7 +202,7 @@ export const addPointToMissionAtom = atom(
 
     set(editingMissionAtom, updatedMission);
     return true;
-  }
+  },
 );
 
 // Remove a point from the editing mission
@@ -225,7 +225,7 @@ export const removePointFromMissionAtom = atom(
       ...editingMission,
       points: editingMission.points.filter((p) => p.id !== pointId),
       segments: editingMission.segments.filter(
-        (s) => s.fromPoint.id !== pointId && s.toPoint.id !== pointId
+        (s) => s.fromPoint.id !== pointId && s.toPoint.id !== pointId,
       ),
       modified: new Date().toISOString(),
     };
@@ -239,7 +239,7 @@ export const removePointFromMissionAtom = atom(
     }
 
     return true;
-  }
+  },
 );
 
 // Insert a point after a specific point (or at beginning if afterPointId is null)
@@ -258,7 +258,7 @@ export const insertPointAfterAtom = atom(
     let insertIndex = 0;
     if (afterPointId) {
       const afterIndex = editingMission.points.findIndex(
-        (p) => p.id === afterPointId
+        (p) => p.id === afterPointId,
       );
       if (afterIndex === -1) {
         console.log("After point not found:", afterPointId);
@@ -283,12 +283,12 @@ export const insertPointAfterAtom = atom(
     // Also update the main missions array to trigger UI updates
     const missions = get(missionsAtom);
     const updatedMissions = missions.map((m) =>
-      m.id === updatedMission.id ? updatedMission : m
+      m.id === updatedMission.id ? updatedMission : m,
     );
     set(missionsAtom, updatedMissions);
 
     return true;
-  }
+  },
 );
 
 // Update a point in the editing mission
@@ -303,7 +303,7 @@ export const updatePointInMissionAtom = atom(
       points: editingMission.points.map((point) =>
         point.id === pointId
           ? ({ ...point, ...updates } as MissionPointType)
-          : point
+          : point,
       ),
       modified: new Date().toISOString(),
     };
@@ -313,12 +313,12 @@ export const updatePointInMissionAtom = atom(
     // Also update the mission in the main missions array for auto-save
     const missions = get(missionsAtom);
     const updatedMissions = missions.map((mission) =>
-      mission.id === editingMission.id ? updatedMission : mission
+      mission.id === editingMission.id ? updatedMission : mission,
     );
     set(missionsAtom, updatedMissions);
 
     return true;
-  }
+  },
 );
 
 // Select a point for editing
@@ -326,7 +326,7 @@ export const selectPointAtom = atom(
   null,
   (get, set, pointId: string | null) => {
     set(selectedPointIdAtom, pointId);
-  }
+  },
 );
 
 // Clear mission selection

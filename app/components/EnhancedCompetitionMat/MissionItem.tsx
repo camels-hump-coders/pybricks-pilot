@@ -1,21 +1,26 @@
-import { MissionObjective } from "./MissionObjective";
 import type { Mission } from "../../schemas/GameMatConfig";
 import type { ScoringState } from "../../utils/scoringUtils";
+import { MissionObjective } from "./MissionObjective";
 
 interface MissionItemProps {
   mission: Mission;
   scoringState: ScoringState;
-  onToggleObjective: (objectId: string, objectiveId: string, points: number, choiceId: string) => void;
+  onToggleObjective: (
+    objectId: string,
+    objectiveId: string,
+    points: number,
+    choiceId: string,
+  ) => void;
   getTotalPointsForMission: (mission: Mission, state: ScoringState) => number;
   getMaxPointsForMission: (mission: Mission) => number;
 }
 
-export function MissionItem({ 
-  mission, 
-  scoringState, 
-  onToggleObjective, 
-  getTotalPointsForMission, 
-  getMaxPointsForMission 
+export function MissionItem({
+  mission,
+  scoringState,
+  onToggleObjective,
+  getTotalPointsForMission,
+  getMaxPointsForMission,
 }: MissionItemProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 sm:p-3">

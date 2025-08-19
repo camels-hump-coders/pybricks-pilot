@@ -23,7 +23,7 @@ function filePathToModuleName(filePath: string): string {
   let modulePath = filePath.replace(/\.py$/, "");
 
   // Replace path separators with dots
-  modulePath = modulePath.replace(/[\/\\]/g, ".");
+  modulePath = modulePath.replace(/[/\\]/g, ".");
 
   return modulePath;
 }
@@ -43,17 +43,15 @@ function generateHubMenuMainModule(
       heading: number;
     };
     moduleName: string;
-  }>
+  }>,
 ): string {
   const programList = programs
-    .map(
-      (prog) => {
-        const positionData = prog.position ? 
-          `"position": {"side": "${prog.position.side}", "fromBottom": ${prog.position.fromBottom}, "fromSide": ${prog.position.fromSide}, "heading": ${prog.position.heading}}` : 
-          `"position": {"side": "${prog.side}", "fromBottom": 0, "fromSide": 0, "heading": 0}`;
-        return `    {"num": ${prog.number}, "name": "${prog.name}", "side": "${prog.side}", ${positionData}, "file": "${prog.name}", "main": program_${prog.name}},`;
-      }
-    )
+    .map((prog) => {
+      const positionData = prog.position
+        ? `"position": {"side": "${prog.position.side}", "fromBottom": ${prog.position.fromBottom}, "fromSide": ${prog.position.fromSide}, "heading": ${prog.position.heading}}`
+        : `"position": {"side": "${prog.side}", "fromBottom": 0, "fromSide": 0, "heading": 0}`;
+      return `    {"num": ${prog.number}, "name": "${prog.name}", "side": "${prog.side}", ${positionData}, "file": "${prog.name}", "main": program_${prog.name}},`;
+    })
     .join("\n");
 
   return `"""
@@ -82,7 +80,7 @@ except ImportError as e:
     print(f"[PILOT] Make sure your file has an 'async def main():' function")
     print(f"[PILOT] Import error: {e}")
     raise
-`
+`,
   )
   .join("\n")}
 
@@ -159,7 +157,7 @@ class MultiModuleCompiler extends EventTarget {
   private emitDebugEvent(
     type: string,
     message: string,
-    details?: Record<string, any>
+    details?: Record<string, any>,
   ): void {
     const debugEvent = {
       timestamp: Date.now(),
@@ -179,7 +177,7 @@ class MultiModuleCompiler extends EventTarget {
    * This follows the exact Pybricks encoding pattern: size + null-terminated name + mpy binary
    */
   private async createMultiFileBlob(
-    modules: Array<{ name: string; blob: Blob }>
+    modules: Array<{ name: string; blob: Blob }>,
   ): Promise<Blob> {
     const blobParts: BlobPart[] = [];
 
@@ -218,14 +216,14 @@ class MultiModuleCompiler extends EventTarget {
   async compileMultiModule(
     selectedFile: PythonFile,
     fileContent: string,
-    availableFiles: PythonFile[]
+    availableFiles: PythonFile[],
   ): Promise<MultiModuleCompilationResult> {
     try {
       const modules: string[] = [];
 
       // Calculate the module name for the user's file
       const userModuleName = filePathToModuleName(
-        selectedFile.relativePath || selectedFile.name
+        selectedFile.relativePath || selectedFile.name,
       );
 
       this.emitDebugEvent("upload", "Starting multi-module compilation", {
@@ -238,7 +236,7 @@ class MultiModuleCompiler extends EventTarget {
       const resolved = await dependencyResolver.resolveDependencies(
         selectedFile,
         fileContent,
-        availableFiles
+        availableFiles,
       );
 
       if (resolved.unresolvedImports.length > 0) {
@@ -259,7 +257,7 @@ class MultiModuleCompiler extends EventTarget {
       compilationTasks.push(
         mpyCrossCompiler
           .compileToBytecode("pybrickspilot.py", pybricksPilotCode)
-          .then((result) => ({ name: "pybrickspilot", result }))
+          .then((result) => ({ name: "pybrickspilot", result })),
       );
 
       // Compile all resolved dependencies
@@ -267,7 +265,7 @@ class MultiModuleCompiler extends EventTarget {
         compilationTasks.push(
           mpyCrossCompiler
             .compileToBytecode(dep.file.name, dep.content)
-            .then((result) => ({ name: dep.moduleName, result }))
+            .then((result) => ({ name: dep.moduleName, result })),
         );
       }
 
@@ -275,7 +273,7 @@ class MultiModuleCompiler extends EventTarget {
       compilationTasks.push(
         mpyCrossCompiler
           .compileToBytecode("__main__.py", generateMainModule(userModuleName))
-          .then((result) => ({ name: "__main__", result }))
+          .then((result) => ({ name: "__main__", result })),
       );
 
       this.emitDebugEvent("upload", "Compiling all modules", {
@@ -334,7 +332,7 @@ class MultiModuleCompiler extends EventTarget {
    */
   async compileHubMenu(
     allPrograms: (PythonFile & { programNumber: number })[],
-    availableFiles: PythonFile[]
+    availableFiles: PythonFile[],
   ): Promise<MultiModuleCompilationResult> {
     try {
       const modules: string[] = [];
@@ -382,12 +380,12 @@ class MultiModuleCompiler extends EventTarget {
         // Resolve dependencies for this program
         this.emitDebugEvent(
           "upload",
-          `Resolving dependencies for ${program.name}`
+          `Resolving dependencies for ${program.name}`,
         );
         const resolved = await dependencyResolver.resolveDependencies(
           program.file,
           content,
-          availableFiles
+          availableFiles,
         );
 
         // Add all dependencies to our map (avoiding duplicates)
@@ -410,7 +408,7 @@ class MultiModuleCompiler extends EventTarget {
       compilationTasks.push(
         mpyCrossCompiler
           .compileToBytecode("pybrickspilot.py", pybricksPilotCode)
-          .then((result) => ({ name: "pybrickspilot", result }))
+          .then((result) => ({ name: "pybrickspilot", result })),
       );
 
       // Compile all resolved dependencies
@@ -418,7 +416,7 @@ class MultiModuleCompiler extends EventTarget {
         compilationTasks.push(
           mpyCrossCompiler
             .compileToBytecode(dep.file.name, dep.content)
-            .then((result) => ({ name: dep.moduleName, result }))
+            .then((result) => ({ name: dep.moduleName, result })),
         );
       }
 
@@ -427,7 +425,7 @@ class MultiModuleCompiler extends EventTarget {
         compilationTasks.push(
           mpyCrossCompiler
             .compileToBytecode(`${programName}.py`, content)
-            .then((result) => ({ name: programName, result }))
+            .then((result) => ({ name: programName, result })),
         );
       }
 
@@ -436,7 +434,7 @@ class MultiModuleCompiler extends EventTarget {
       compilationTasks.push(
         mpyCrossCompiler
           .compileToBytecode("__main__.py", hubMenuCode)
-          .then((result) => ({ name: "__main__", result }))
+          .then((result) => ({ name: "__main__", result })),
       );
 
       this.emitDebugEvent("upload", "Compiling all modules for hub menu", {

@@ -18,7 +18,7 @@ export interface ScoringState {
  * Calculate total points for a mission state
  */
 function getTotalPointsForMissionState(
-  state: { objectives: { [key: string]: ObjectiveState } } | undefined
+  state: { objectives: { [key: string]: ObjectiveState } } | undefined,
 ): number {
   if (!state?.objectives) return 0;
 
@@ -45,7 +45,7 @@ export function getMaxPointsForMission(mission: Mission): number {
  */
 export function getTotalPointsForMission(
   mission: Mission,
-  scoringState: ScoringState
+  scoringState: ScoringState,
 ): number {
   const state = scoringState[mission.id];
   if (!state?.objectives) return 0;
@@ -60,7 +60,7 @@ export function getTotalPointsForMission(
  */
 export function isMissionScored(
   mission: Mission,
-  scoringState: ScoringState
+  scoringState: ScoringState,
 ): boolean {
   const state = scoringState[mission.id];
   if (!state?.objectives) return false;

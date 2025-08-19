@@ -1,9 +1,9 @@
-import { useEffect } from "react";
 import { useAtomValue } from "jotai";
+import { useEffect } from "react";
 import { coordinateUtilsAtom } from "../store/atoms/canvasState";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import type { RobotPosition } from "../utils/robotPosition";
 import { useJotaiGameMat } from "./useJotaiGameMat";
-import { type RobotPosition } from "../utils/robotPosition";
 
 /**
  * Custom hook for handling position reset and set position events
@@ -15,7 +15,7 @@ export function usePositionResetEvents() {
   useEffect(() => {
     const handlePositionResetEvent = () => {
       console.log(
-        "[usePositionResetEvents] Position reset received, resetting robot to start position"
+        "[usePositionResetEvents] Position reset received, resetting robot to start position",
       );
       // Reset robot to the starting position but keep telemetry history
       gameMat.resetRobotToStartPosition();
@@ -25,7 +25,7 @@ export function usePositionResetEvents() {
       const positionData = event.detail.position;
       console.log(
         "[usePositionResetEvents] Position set received:",
-        positionData
+        positionData,
       );
 
       try {
@@ -52,7 +52,7 @@ export function usePositionResetEvents() {
 
         console.log(
           "[usePositionResetEvents] Setting robot position to:",
-          robotPosition
+          robotPosition,
         );
 
         // Use the existing setRobotPosition function without reset functions to preserve telemetry
@@ -60,7 +60,7 @@ export function usePositionResetEvents() {
       } catch (error) {
         console.error(
           "[usePositionResetEvents] Failed to set robot position:",
-          error
+          error,
         );
       }
     };
@@ -68,21 +68,21 @@ export function usePositionResetEvents() {
     // Listen for position reset and set events
     document.addEventListener(
       "positionReset",
-      handlePositionResetEvent as EventListener
+      handlePositionResetEvent as EventListener,
     );
     document.addEventListener(
       "setPosition",
-      handleSetPositionEvent as EventListener
+      handleSetPositionEvent as EventListener,
     );
 
     return () => {
       document.removeEventListener(
         "positionReset",
-        handlePositionResetEvent as EventListener
+        handlePositionResetEvent as EventListener,
       );
       document.removeEventListener(
         "setPosition",
-        handleSetPositionEvent as EventListener
+        handleSetPositionEvent as EventListener,
       );
     };
   }, [coordinateUtils, gameMat]);

@@ -8,11 +8,11 @@ interface UserPreferences {
   activeRobotId: string | null;
   activeMatId: string | null;
   // Add other preferences as needed
-  theme?: 'light' | 'dark' | 'system';
+  theme?: "light" | "dark" | "system";
   lastDirectoryPath?: string;
 }
 
-const PREFERENCES_KEY = 'pybricks-pilot-preferences';
+const PREFERENCES_KEY = "pybricks-pilot-preferences";
 
 class UserPreferencesService {
   private defaultPreferences: UserPreferences = {
@@ -29,7 +29,7 @@ class UserPreferencesService {
         return { ...this.defaultPreferences, ...parsed };
       }
     } catch (error) {
-      console.warn('Failed to load user preferences from localStorage:', error);
+      console.warn("Failed to load user preferences from localStorage:", error);
     }
     return { ...this.defaultPreferences };
   }
@@ -41,7 +41,7 @@ class UserPreferencesService {
       const updated = { ...current, ...preferences };
       localStorage.setItem(PREFERENCES_KEY, JSON.stringify(updated));
     } catch (error) {
-      console.warn('Failed to save user preferences to localStorage:', error);
+      console.warn("Failed to save user preferences to localStorage:", error);
     }
   }
 
@@ -67,7 +67,7 @@ class UserPreferencesService {
     try {
       localStorage.removeItem(PREFERENCES_KEY);
     } catch (error) {
-      console.warn('Failed to clear user preferences:', error);
+      console.warn("Failed to clear user preferences:", error);
     }
   }
 }

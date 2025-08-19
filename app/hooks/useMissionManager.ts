@@ -44,7 +44,7 @@ export function useMissionManager() {
   // Mission state
   const [missions, setMissions] = useAtom(missionsAtom);
   const [selectedMissionId, setSelectedMissionId] = useAtom(
-    selectedMissionIdAtom
+    selectedMissionIdAtom,
   );
   const selectedMission = useAtomValue(selectedMissionAtom);
   const [isEditingMission, setIsEditingMission] = useAtom(isEditingMissionAtom);
@@ -53,13 +53,13 @@ export function useMissionManager() {
 
   // UI state
   const [isMissionManagementOpen, setIsMissionManagementOpen] = useAtom(
-    isMissionManagementOpenAtom
+    isMissionManagementOpenAtom,
   );
   const [isAddMissionDialogOpen, setIsAddMissionDialogOpen] = useAtom(
-    isAddMissionDialogOpenAtom
+    isAddMissionDialogOpenAtom,
   );
   const [isMissionEditorOpen, setIsMissionEditorOpen] = useAtom(
-    isMissionEditorOpenAtom
+    isMissionEditorOpenAtom,
   );
 
   // Action atoms
@@ -97,7 +97,7 @@ export function useMissionManager() {
       }
     } catch (error) {
       console.log(
-        "No existing missions config file found, starting with empty missions"
+        "No existing missions config file found, starting with empty missions",
       );
     }
   }, [stableDirectoryAccess, stableDirectoryHandle, setMissions]);
@@ -117,11 +117,11 @@ export function useMissionManager() {
         // Ensure config directory exists
         const configHandle = await stableDirectoryHandle.getDirectoryHandle(
           "config",
-          { create: true }
+          { create: true },
         );
         const missionsFileHandle = await configHandle.getFileHandle(
           "missions.json",
-          { create: true }
+          { create: true },
         );
         const writable = await missionsFileHandle.createWritable();
         await writable.write(JSON.stringify(data, null, 2));
@@ -130,7 +130,7 @@ export function useMissionManager() {
         console.error("Failed to save missions:", error);
       }
     },
-    [stableDirectoryAccess, stableDirectoryHandle]
+    [stableDirectoryAccess, stableDirectoryHandle],
   );
 
   // Save whenever missions change
@@ -151,7 +151,7 @@ export function useMissionManager() {
     async (
       name: string,
       description?: string,
-      defaultArcRadius: number = 100
+      defaultArcRadius: number = 100,
     ): Promise<Mission | null> => {
       try {
         // Validate unique name
@@ -174,7 +174,7 @@ export function useMissionManager() {
         return null;
       }
     },
-    [addMission, missions]
+    [addMission, missions],
   );
 
   const handleRemoveMission = useCallback(
@@ -186,13 +186,13 @@ export function useMissionManager() {
         return false;
       }
     },
-    [removeMission]
+    [removeMission],
   );
 
   const handleUpdateMission = useCallback(
     async (
       missionId: string,
-      updates: Partial<Omit<Mission, "id" | "created">>
+      updates: Partial<Omit<Mission, "id" | "created">>,
     ): Promise<boolean> => {
       try {
         return updateMission(missionId, updates);
@@ -201,7 +201,7 @@ export function useMissionManager() {
         return false;
       }
     },
-    [updateMission]
+    [updateMission],
   );
 
   // Mission editing functions
@@ -209,7 +209,7 @@ export function useMissionManager() {
     (missionId: string) => {
       return startEditingMission(missionId);
     },
-    [startEditingMission]
+    [startEditingMission],
   );
 
   const handleSaveEditingMission = useCallback(() => {
@@ -225,35 +225,35 @@ export function useMissionManager() {
     (point: MissionPointType) => {
       return addPointToMission(point);
     },
-    [addPointToMission]
+    [addPointToMission],
   );
 
   const handleInsertPointAfter = useCallback(
     (afterPointId: string | null, point: MissionPointType) => {
       return insertPointAfter(afterPointId, point);
     },
-    [insertPointAfter]
+    [insertPointAfter],
   );
 
   const handleRemovePoint = useCallback(
     (pointId: string) => {
       return removePointFromMission(pointId);
     },
-    [removePointFromMission]
+    [removePointFromMission],
   );
 
   const handleUpdatePoint = useCallback(
     (pointId: string, updates: Partial<MissionPointType>) => {
       return updatePointInMission(pointId, updates);
     },
-    [updatePointInMission]
+    [updatePointInMission],
   );
 
   const handleSelectPoint = useCallback(
     (pointId: string | null) => {
       selectPoint(pointId);
     },
-    [selectPoint]
+    [selectPoint],
   );
 
   // Mission selection functions
@@ -261,7 +261,7 @@ export function useMissionManager() {
     (missionId: string | null) => {
       setSelectedMissionId(missionId);
     },
-    [setSelectedMissionId]
+    [setSelectedMissionId],
   );
 
   // Get mission by ID
@@ -269,7 +269,7 @@ export function useMissionManager() {
     (missionId: string): Mission | null => {
       return missions.find((mission) => mission.id === missionId) || null;
     },
-    [missions]
+    [missions],
   );
 
   // Validation functions
@@ -286,7 +286,7 @@ export function useMissionManager() {
       const existingMission = missions.find(
         (m) =>
           m.id !== excludeMissionId &&
-          m.name.toLowerCase() === name.trim().toLowerCase()
+          m.name.toLowerCase() === name.trim().toLowerCase(),
       );
 
       if (existingMission) {
@@ -295,7 +295,7 @@ export function useMissionManager() {
 
       return null;
     },
-    [missions]
+    [missions],
   );
 
   // Check if we can create missions (requires file system access)

@@ -1,14 +1,20 @@
-import { useState, useCallback } from "react";
 import { useAtom, useAtomValue } from "jotai";
+import { useCallback, useState } from "react";
+import {
+  actionPointHeadingAtom,
+  insertAfterPointIdAtom,
+  pointPlacementModeAtom,
+  selectedStartEndRefAtom,
+} from "../store/atoms/missionPlanner";
+import type {
+  ActionPoint,
+  EndPoint,
+  MissionPointType,
+  StartPoint,
+  Waypoint,
+} from "../types/missionPlanner";
 import { useMissionManager } from "./useMissionManager";
 import { usePositionManager } from "./usePositionManager";
-import { 
-  pointPlacementModeAtom, 
-  actionPointHeadingAtom, 
-  selectedStartEndRefAtom, 
-  insertAfterPointIdAtom 
-} from "../store/atoms/missionPlanner";
-import type { MissionPointType, Waypoint, ActionPoint, StartPoint, EndPoint } from "../types/missionPlanner";
 
 type PointPlacementMode = "waypoint" | "action" | "start" | "end" | null;
 
@@ -16,127 +22,168 @@ type PointPlacementMode = "waypoint" | "action" | "start" | "end" | null;
  * Hook for managing mission editing state and point placement
  */
 export function useMissionEditing() {
-  const {
-    editingMission,
-    isEditingMission,
-    insertPointAfter,
-  } = useMissionManager();
-  
+  const { editingMission, isEditingMission, insertPointAfter } =
+    useMissionManager();
+
   const { positions } = usePositionManager();
 
   // Use atoms for shared state across components
-  const [pointPlacementMode, setPointPlacementMode] = useAtom(pointPlacementModeAtom);
-  const [actionPointHeading, setActionPointHeading] = useAtom(actionPointHeadingAtom);
-  const [selectedStartEndRef, setSelectedStartEndRef] = useAtom(selectedStartEndRefAtom);
-  const [insertAfterPointId, setInsertAfterPointId] = useAtom(insertAfterPointIdAtom);
+  const [pointPlacementMode, setPointPlacementMode] = useAtom(
+    pointPlacementModeAtom,
+  );
+  const [actionPointHeading, setActionPointHeading] = useAtom(
+    actionPointHeadingAtom,
+  );
+  const [selectedStartEndRef, setSelectedStartEndRef] = useAtom(
+    selectedStartEndRefAtom,
+  );
+  const [insertAfterPointId, setInsertAfterPointId] = useAtom(
+    insertAfterPointIdAtom,
+  );
 
   // Resolve position reference to actual coordinates
-  const resolvePositionCoordinates = useCallback((referenceId: string): { x: number; y: number; heading: number } => {
-    // Find the position by ID
-    const position = positions.find(p => p.id === referenceId);
-    if (!position) {
-      console.warn(`Position ${referenceId} not found`);
-      return { x: 0, y: 0, heading: 0 };
-    }
+  const resolvePositionCoordinates = useCallback(
+    (referenceId: string): { x: number; y: number; heading: number } => {
+      // Find the position by ID
+      const position = positions.find((p) => p.id === referenceId);
+      if (!position) {
+        console.warn(`Position ${referenceId} not found`);
+        return { x: 0, y: 0, heading: 0 };
+      }
 
-    // NamedPosition already contains the resolved coordinates
-    const resolved = {
-      x: position.x,
-      y: position.y,
-      heading: position.heading
-    };
-    return resolved;
-  }, [positions]);
+      // NamedPosition already contains the resolved coordinates
+      const resolved = {
+        x: position.x,
+        y: position.y,
+        heading: position.heading,
+      };
+      return resolved;
+    },
+    [positions],
+  );
 
   // Handle point placement mode changes
-  const handleSetPlacementMode = useCallback((mode: PointPlacementMode, afterPointId?: string | null) => {
-    console.log("handleSetPlacementMode called:", { mode, afterPointId });
-    setPointPlacementMode(mode);
-    setInsertAfterPointId(afterPointId || null);
-    console.log("Point placement mode set to:", mode);
-    if (!mode) {
-      setActionPointHeading(0);
-      setSelectedStartEndRef("");
-      setInsertAfterPointId(null);
-    }
-  }, [setPointPlacementMode, setInsertAfterPointId, setActionPointHeading, setSelectedStartEndRef]);
+  const handleSetPlacementMode = useCallback(
+    (mode: PointPlacementMode, afterPointId?: string | null) => {
+      console.log("handleSetPlacementMode called:", { mode, afterPointId });
+      setPointPlacementMode(mode);
+      setInsertAfterPointId(afterPointId || null);
+      console.log("Point placement mode set to:", mode);
+      if (!mode) {
+        setActionPointHeading(0);
+        setSelectedStartEndRef("");
+        setInsertAfterPointId(null);
+      }
+    },
+    [
+      setPointPlacementMode,
+      setInsertAfterPointId,
+      setActionPointHeading,
+      setSelectedStartEndRef,
+    ],
+  );
 
   // Create a point at the given position
-  const createPoint = useCallback((x: number, y: number): MissionPointType | null => {
-    if (!pointPlacementMode || !editingMission) return null;
+  const createPoint = useCallback(
+    (x: number, y: number): MissionPointType | null => {
+      if (!pointPlacementMode || !editingMission) return null;
 
-    const pointId = `point-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const pointId = `point-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
-    switch (pointPlacementMode) {
-      case "waypoint":
-        return {
-          id: pointId,
-          x,
-          y,
-          type: "waypoint",
-        } as Waypoint;
+      switch (pointPlacementMode) {
+        case "waypoint":
+          return {
+            id: pointId,
+            x,
+            y,
+            type: "waypoint",
+          } as Waypoint;
 
-      case "action":
-        return {
-          id: pointId,
-          x,
-          y,
-          type: "action",
-          heading: actionPointHeading,
-          actionName: "Action",
-          pauseDuration: 1,
-        } as ActionPoint;
+        case "action":
+          return {
+            id: pointId,
+            x,
+            y,
+            type: "action",
+            heading: actionPointHeading,
+            actionName: "Action",
+            pauseDuration: 1,
+          } as ActionPoint;
 
-      case "start":
-        if (!selectedStartEndRef) return null;
-        // Start points only store the reference, coordinates are computed dynamically
-        const startPoint = {
-          id: pointId,
-          type: "start",
-          referenceType: selectedStartEndRef.startsWith("mission") ? "mission" : "position",
-          referenceId: selectedStartEndRef,
-        } as StartPoint;
-        return startPoint;
+        case "start": {
+          if (!selectedStartEndRef) return null;
+          // Start points only store the reference, coordinates are computed dynamically
+          const startPoint = {
+            id: pointId,
+            type: "start",
+            referenceType: selectedStartEndRef.startsWith("mission")
+              ? "mission"
+              : "position",
+            referenceId: selectedStartEndRef,
+          } as StartPoint;
+          return startPoint;
+        }
 
-      case "end":
-        if (!selectedStartEndRef) return null;
-        // End points only store the reference, coordinates are computed dynamically
-        const endPoint = {
-          id: pointId,
-          type: "end",
-          referenceType: selectedStartEndRef.startsWith("mission") ? "mission" : "position",
-          referenceId: selectedStartEndRef,
-        } as EndPoint;
-        return endPoint;
+        case "end": {
+          if (!selectedStartEndRef) return null;
+          // End points only store the reference, coordinates are computed dynamically
+          const endPoint = {
+            id: pointId,
+            type: "end",
+            referenceType: selectedStartEndRef.startsWith("mission")
+              ? "mission"
+              : "position",
+            referenceId: selectedStartEndRef,
+          } as EndPoint;
+          return endPoint;
+        }
 
-      default:
-        return null;
-    }
-  }, [pointPlacementMode, actionPointHeading, selectedStartEndRef, editingMission, resolvePositionCoordinates]);
+        default:
+          return null;
+      }
+    },
+    [
+      pointPlacementMode,
+      actionPointHeading,
+      selectedStartEndRef,
+      editingMission,
+      resolvePositionCoordinates,
+    ],
+  );
 
   // Handle point placement on canvas click
-  const handlePointPlacement = useCallback((x: number, y: number) => {
-    console.log("handlePointPlacement called:", { x, y, pointPlacementMode, insertAfterPointId });
-    const newPoint = createPoint(x, y);
-    console.log("Created point:", newPoint);
-    if (newPoint) {
-      const result = insertPointAfter(insertAfterPointId, newPoint);
-      console.log("Insert result:", result);
-      setPointPlacementMode(null);
-      setInsertAfterPointId(null);
-      return newPoint;
-    }
-    return null;
-  }, [createPoint, insertPointAfter, insertAfterPointId, pointPlacementMode]);
+  const handlePointPlacement = useCallback(
+    (x: number, y: number) => {
+      console.log("handlePointPlacement called:", {
+        x,
+        y,
+        pointPlacementMode,
+        insertAfterPointId,
+      });
+      const newPoint = createPoint(x, y);
+      console.log("Created point:", newPoint);
+      if (newPoint) {
+        const result = insertPointAfter(insertAfterPointId, newPoint);
+        console.log("Insert result:", result);
+        setPointPlacementMode(null);
+        setInsertAfterPointId(null);
+        return newPoint;
+      }
+      return null;
+    },
+    [createPoint, insertPointAfter, insertAfterPointId, pointPlacementMode],
+  );
 
   // Get preview data for rendering
   const getPreviewData = useCallback(() => {
     if (!pointPlacementMode) return null;
-    
+
     return {
       mode: pointPlacementMode,
       heading: pointPlacementMode === "action" ? actionPointHeading : 0,
-      needsReference: (pointPlacementMode === "start" || pointPlacementMode === "end") && !selectedStartEndRef,
+      needsReference:
+        (pointPlacementMode === "start" || pointPlacementMode === "end") &&
+        !selectedStartEndRef,
     };
   }, [pointPlacementMode, actionPointHeading, selectedStartEndRef]);
 
@@ -148,14 +195,14 @@ export function useMissionEditing() {
     actionPointHeading,
     selectedStartEndRef,
     insertAfterPointId,
-    
+
     // Actions
     setPointPlacementMode: handleSetPlacementMode,
     setActionPointHeading,
     setSelectedStartEndRef,
     setInsertAfterPointId,
     handlePointPlacement,
-    
+
     // Utils
     getPreviewData,
   };

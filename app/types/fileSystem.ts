@@ -2,7 +2,7 @@
 export interface RobotStartPosition {
   side: "left" | "right";
   fromBottom: number; // mm from bottom edge
-  fromSide: number; // mm from side edge  
+  fromSide: number; // mm from side edge
   heading: number; // degrees (-180 to 180, 0 = north/forward)
 }
 

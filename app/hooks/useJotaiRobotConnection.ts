@@ -1,14 +1,13 @@
 import { useAtom, useSetAtom } from "jotai";
 import { useCallback } from "react";
 import type { RobotConnectionOptions } from "../services/robotInterface";
-import { useJotaiPybricksHub } from "./useJotaiPybricksHub";
-import { useJotaiVirtualHub } from "./useJotaiVirtualHub";
-
 // Import shared atoms
 import {
   resetRobotTypeAtom,
   robotTypeAtom,
 } from "../store/atoms/robotConnection";
+import { useJotaiPybricksHub } from "./useJotaiPybricksHub";
+import { useJotaiVirtualHub } from "./useJotaiVirtualHub";
 
 export function useJotaiRobotConnection() {
   // Get current robot type to determine which implementation to use
@@ -35,7 +34,7 @@ export function useJotaiRobotConnection() {
         return await pybricksHub.connect();
       }
     },
-    [setRobotType, virtualHub, pybricksHub]
+    [setRobotType, virtualHub, pybricksHub],
   );
 
   const disconnect = useCallback(async () => {
@@ -109,7 +108,7 @@ export function useJotaiRobotConnection() {
     sendMotorStopCommand: currentRobot.sendMotorStopCommand,
     sendControlCommand: currentRobot.sendControlCommand,
     isSendingCommand: currentRobot.isSendingCommand,
-    
+
     // Command sequences and compound movements
     executeCommandSequence: currentRobot.executeCommandSequence,
     turnAndDrive: currentRobot.turnAndDrive,

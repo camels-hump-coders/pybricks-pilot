@@ -32,7 +32,7 @@ class DependencyResolver {
 
       // Handle "import module" and "import module.submodule"
       const importMatch = trimmed.match(
-        /^import\s+([a-zA-Z_][a-zA-Z0-9_.]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_.]*)*)$/
+        /^import\s+([a-zA-Z_][a-zA-Z0-9_.]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_.]*)*)$/,
       );
       if (importMatch) {
         const modules = importMatch[1].split(",").map((m) => m.trim());
@@ -42,7 +42,7 @@ class DependencyResolver {
 
       // Handle "from module import ..." and "from .relative import ..."
       const fromImportMatch = trimmed.match(
-        /^from\s+([a-zA-Z_][a-zA-Z0-9_.]*|\.[a-zA-Z_][a-zA-Z0-9_.]*)\s+import/
+        /^from\s+([a-zA-Z_][a-zA-Z0-9_.]*|\.[a-zA-Z_][a-zA-Z0-9_.]*)\s+import/,
       );
       if (fromImportMatch) {
         let module = fromImportMatch[1];
@@ -57,7 +57,6 @@ class DependencyResolver {
         if (module) {
           imports.push(module);
         }
-        continue;
       }
     }
 
@@ -119,14 +118,14 @@ class DependencyResolver {
    */
   private findFileByPath(
     files: PythonFile[],
-    targetPath: string
+    targetPath: string,
   ): PythonFile | null {
     // First flatten the file tree to get all files with proper relative paths
     const flatFiles = this.flattenFileTree(files);
 
     // Try exact match first
     let found = flatFiles.find(
-      (f) => f.relativePath === targetPath || f.name === targetPath
+      (f) => f.relativePath === targetPath || f.name === targetPath,
     );
     if (found) return found;
 
@@ -134,7 +133,7 @@ class DependencyResolver {
     found = flatFiles.find(
       (f) =>
         f.relativePath?.toLowerCase() === targetPath.toLowerCase() ||
-        f.name.toLowerCase() === targetPath.toLowerCase()
+        f.name.toLowerCase() === targetPath.toLowerCase(),
     );
     if (found) return found;
 
@@ -142,7 +141,7 @@ class DependencyResolver {
     if (targetPath.endsWith(".py")) {
       const withoutExt = targetPath.slice(0, -3);
       found = flatFiles.find(
-        (f) => f.relativePath === withoutExt || f.name === withoutExt
+        (f) => f.relativePath === withoutExt || f.name === withoutExt,
       );
       if (found) return found;
     }
@@ -155,7 +154,7 @@ class DependencyResolver {
    */
   private resolveModuleToFile(
     moduleName: string,
-    files: PythonFile[]
+    files: PythonFile[],
   ): PythonFile | null {
     const possiblePaths = this.moduleNameToFilePaths(moduleName);
 
@@ -170,7 +169,7 @@ class DependencyResolver {
     }
 
     console.error(
-      `[DependencyResolver] Could not resolve module: ${moduleName}`
+      `[DependencyResolver] Could not resolve module: ${moduleName}`,
     );
     return null;
   }
@@ -193,7 +192,7 @@ class DependencyResolver {
     }
 
     // Replace path separators with dots
-    modulePath = modulePath.replace(/[\/\\]/g, ".");
+    modulePath = modulePath.replace(/[/\\]/g, ".");
 
     return modulePath;
   }
@@ -217,7 +216,7 @@ class DependencyResolver {
   async resolveDependencies(
     entryFile: PythonFile,
     entryContent: string,
-    availableFiles: PythonFile[]
+    availableFiles: PythonFile[],
   ): Promise<ResolvedDependencies> {
     const resolved = new Map<string, DependencyInfo>();
     const unresolvedImports = new Set<string>();
@@ -225,10 +224,10 @@ class DependencyResolver {
 
     const resolveRecursive = async (
       file: PythonFile,
-      content: string
+      content: string,
     ): Promise<void> => {
       const moduleName = this.filePathToModuleName(
-        file.relativePath || file.name
+        file.relativePath || file.name,
       );
 
       // Avoid infinite recursion
@@ -251,12 +250,12 @@ class DependencyResolver {
         // Try to resolve to a local file
         const dependencyFile = this.resolveModuleToFile(
           importName,
-          availableFiles
+          availableFiles,
         );
 
         if (dependencyFile) {
           const depModuleName = this.filePathToModuleName(
-            dependencyFile.relativePath || dependencyFile.name
+            dependencyFile.relativePath || dependencyFile.name,
           );
           resolvedDeps.push(depModuleName);
 

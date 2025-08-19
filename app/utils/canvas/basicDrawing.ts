@@ -14,7 +14,7 @@ export function drawBorderWalls(
   utils: CanvasDrawingUtils,
   borderWallThickness: number,
   tableWidth: number,
-  tableHeight: number
+  tableHeight: number,
 ) {
   const { scale } = utils;
 
@@ -33,7 +33,7 @@ export function drawBorderWalls(
     scaledThickness,
     scaledThickness + scaledTableHeight,
     scaledTableWidth,
-    scaledThickness
+    scaledThickness,
   );
 
   // Left wall
@@ -41,7 +41,7 @@ export function drawBorderWalls(
     0,
     0,
     scaledThickness,
-    scaledThickness + scaledTableHeight + scaledThickness
+    scaledThickness + scaledTableHeight + scaledThickness,
   );
 
   // Right wall
@@ -49,7 +49,7 @@ export function drawBorderWalls(
     scaledThickness + scaledTableWidth,
     0,
     scaledThickness,
-    scaledThickness + scaledTableHeight + scaledThickness
+    scaledThickness + scaledTableHeight + scaledThickness,
   );
 }
 
@@ -63,7 +63,7 @@ function drawGridOverlay(
   matY: number,
   matWidth: number,
   matHeight: number,
-  gridSize = 50 // mm
+  gridSize = 50, // mm
 ) {
   const { scale } = utils;
 
@@ -101,7 +101,7 @@ export function drawGrid(
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
   canvasHeight: number,
-  gridSize = 20
+  gridSize = 20,
 ) {
   ctx.save();
 
@@ -134,7 +134,7 @@ function clearCanvas(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  backgroundColor = "#e5e5e5"
+  backgroundColor = "#e5e5e5",
 ) {
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);

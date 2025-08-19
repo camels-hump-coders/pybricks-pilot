@@ -21,7 +21,10 @@ const MissionObjectiveSchema = z.object({
   // All objectives must have choices array (even if just one choice)
   choices: z.array(MissionObjectiveChoiceSchema).min(1),
   // Scoring mode for the objective
-  scoringMode: z.enum(["multi-select", "single-select"]).optional().default("multi-select"),
+  scoringMode: z
+    .enum(["multi-select", "single-select"])
+    .optional()
+    .default("multi-select"),
 });
 
 const MissionSchema = z.object({
@@ -58,7 +61,9 @@ export const GameMatConfigSchema = z.object({
 });
 
 export type Point = z.infer<typeof PointSchema>;
-export type MissionObjectiveChoice = z.infer<typeof MissionObjectiveChoiceSchema>;
+export type MissionObjectiveChoice = z.infer<
+  typeof MissionObjectiveChoiceSchema
+>;
 export type MissionObjective = z.infer<typeof MissionObjectiveSchema>;
 export type Mission = z.infer<typeof MissionSchema>;
 export type GameMatConfig = z.infer<typeof GameMatConfigSchema>;

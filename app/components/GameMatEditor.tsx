@@ -31,16 +31,16 @@ export function GameMatEditor({
   // When editing, start in objects mode if we have an existing image
   const hasExistingImage = initialConfig?.imageUrl || initialConfig?.imageData;
   const [mode, setMode] = useState<EditorMode>(
-    hasExistingImage ? "objects" : "upload"
+    hasExistingImage ? "objects" : "upload",
   );
   const [matName, setMatName] = useState(
-    initialConfig?.name || "Custom Game Mat"
+    initialConfig?.name || "Custom Game Mat",
   );
   const [originalImageData, setOriginalImageData] = useState<string>(
-    initialConfig?.originalImageData || initialConfig?.imageUrl || ""
+    initialConfig?.originalImageData || initialConfig?.imageUrl || "",
   );
   const [normalizedImageData, setNormalizedImageData] = useState<string>(
-    initialConfig?.imageData || initialConfig?.imageUrl || ""
+    initialConfig?.imageData || initialConfig?.imageUrl || "",
   );
   const [corners, setCorners] = useState<{
     topLeft: Point;
@@ -54,7 +54,7 @@ export function GameMatEditor({
     bottomRight: { x: 1, y: 1 },
   });
   const [missions, setMissions] = useState<Mission[]>(
-    initialConfig?.missions || []
+    initialConfig?.missions || [],
   );
   const [currentCorner, setCurrentCorner] = useState<
     keyof typeof corners | null
@@ -136,7 +136,7 @@ export function GameMatEditor({
       reader.onload = (e) => {
         try {
           const config = JSON.parse(
-            e.target?.result as string
+            e.target?.result as string,
           ) as GameMatConfig;
           if (config.version === "1.0") {
             setMatName(config.name);
@@ -145,7 +145,7 @@ export function GameMatEditor({
             }
             if (config.originalImageData || config.imageData) {
               setOriginalImageData(
-                config.originalImageData || config.imageData || ""
+                config.originalImageData || config.imageData || "",
               );
             }
             if (config.corners) {
@@ -175,7 +175,7 @@ export function GameMatEditor({
     // Draw image to fit canvas
     const scale = Math.min(
       canvas.width / img.width,
-      canvas.height / img.height
+      canvas.height / img.height,
     );
     const width = img.width * scale;
     const height = img.height * scale;
@@ -228,7 +228,7 @@ export function GameMatEditor({
     imgX: number,
     imgY: number,
     imgWidth: number,
-    imgHeight: number
+    imgHeight: number,
   ) => {
     const cornerLabels = {
       topLeft: "Top Left",
@@ -264,12 +264,12 @@ export function GameMatEditor({
       ctx.strokeText(
         cornerLabels[key as keyof typeof cornerLabels],
         x + 10,
-        y - 10
+        y - 10,
       );
       ctx.fillText(
         cornerLabels[key as keyof typeof cornerLabels],
         x + 10,
-        y - 10
+        y - 10,
       );
     });
   };
@@ -279,7 +279,7 @@ export function GameMatEditor({
     imgX: number,
     imgY: number,
     imgWidth: number,
-    imgHeight: number
+    imgHeight: number,
   ) => {
     // Transform corners to canvas coordinates
     const tl = {
@@ -342,7 +342,7 @@ export function GameMatEditor({
     imgX: number,
     imgY: number,
     imgWidth: number,
-    imgHeight: number
+    imgHeight: number,
   ) => {
     // Draw X-axis calibration points
     if (calibrationPoints.xAxis.first) {
@@ -404,7 +404,7 @@ export function GameMatEditor({
     x: number,
     y: number,
     label: string,
-    color: string
+    color: string,
   ) => {
     // Draw point marker
     ctx.fillStyle = color;
@@ -439,7 +439,7 @@ export function GameMatEditor({
     imgX: number,
     imgY: number,
     imgWidth: number,
-    imgHeight: number
+    imgHeight: number,
   ) => {
     missions.forEach((obj) => {
       // Direct mapping since image is already normalized
@@ -506,9 +506,9 @@ export function GameMatEditor({
           (objective.points ||
             objective.choices.reduce(
               (objSum, choice) => objSum + choice.points,
-              0
+              0,
             )),
-        0
+        0,
       );
       const text = `${obj.name} (${totalPoints}pts)`;
       ctx.strokeText(text, canvasPos.x + 12, canvasPos.y - 5);
@@ -525,7 +525,7 @@ export function GameMatEditor({
 
   const canvasToNormalized = (
     canvasX: number,
-    canvasY: number
+    canvasY: number,
   ): Point | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -555,7 +555,7 @@ export function GameMatEditor({
         img,
         corners,
         MAT_WIDTH_MM,
-        MAT_HEIGHT_MM
+        MAT_HEIGHT_MM,
       );
       const normalizedData = deSkewedCanvas.toDataURL("image/png");
       setNormalizedImageData(normalizedData);
@@ -588,12 +588,12 @@ export function GameMatEditor({
 
     // Calculate X axis distance in normalized coordinates (0-1) - only consider X coordinate
     const xDistanceNormalized = Math.abs(
-      calibrationPoints.xAxis.second.x - calibrationPoints.xAxis.first.x
+      calibrationPoints.xAxis.second.x - calibrationPoints.xAxis.first.x,
     );
 
     // Calculate Y axis distance in normalized coordinates (0-1) - only consider Y coordinate
     const yDistanceNormalized = Math.abs(
-      calibrationPoints.yAxis.second.y - calibrationPoints.yAxis.first.y
+      calibrationPoints.yAxis.second.y - calibrationPoints.yAxis.first.y,
     );
 
     // Convert normalized distances to actual image pixel distances
@@ -634,14 +634,14 @@ export function GameMatEditor({
     imgX: number,
     imgY: number,
     imgWidth: number,
-    imgHeight: number
+    imgHeight: number,
   ): string | null => {
     const clickRadius = 15; // pixels
 
     for (const obj of missions) {
       const objX = imgX + obj.position.x * imgWidth;
       const objY = imgY + obj.position.y * imgHeight;
-      const distance = Math.sqrt(Math.pow(x - objX, 2) + Math.pow(y - objY, 2));
+      const distance = Math.sqrt((x - objX) ** 2 + (y - objY) ** 2);
 
       if (distance <= clickRadius) {
         return obj.id;
@@ -652,7 +652,7 @@ export function GameMatEditor({
   };
 
   const handleCanvasMouseDown = (
-    event: React.MouseEvent<HTMLCanvasElement>
+    event: React.MouseEvent<HTMLCanvasElement>,
   ) => {
     const canvas = canvasRef.current;
     if (!canvas || mode !== "objects") return;
@@ -673,7 +673,7 @@ export function GameMatEditor({
       imgX,
       imgY,
       imgWidth,
-      imgHeight
+      imgHeight,
     );
 
     if (clickedObjectId && !placingObject) {
@@ -778,7 +778,7 @@ export function GameMatEditor({
         imgX,
         imgY,
         imgWidth,
-        imgHeight
+        imgHeight,
       );
 
       if (clickedObjectId) {
@@ -823,7 +823,7 @@ export function GameMatEditor({
   };
 
   const handleCanvasMouseMove = (
-    event: React.MouseEvent<HTMLCanvasElement>
+    event: React.MouseEvent<HTMLCanvasElement>,
   ) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -835,7 +835,7 @@ export function GameMatEditor({
     setMousePos({ x, y });
     setShowMagnifier(
       (mode === "corners" && currentCorner !== null) ||
-        (mode === "calibration" && currentCalibrationPoint !== null)
+        (mode === "calibration" && currentCalibrationPoint !== null),
     );
 
     const imgX = parseFloat(canvas.dataset.imgX || "0");
@@ -860,8 +860,8 @@ export function GameMatEditor({
         prev.map((obj) =>
           obj.id === draggingObject
             ? { ...obj, position: { x: clampedX, y: clampedY } }
-            : obj
-        )
+            : obj,
+        ),
       );
 
       // Redraw canvas
@@ -874,7 +874,7 @@ export function GameMatEditor({
         imgX,
         imgY,
         imgWidth,
-        imgHeight
+        imgHeight,
       );
       if (hoveredObjectId !== hoveredObject) {
         setHoveredObject(hoveredObjectId);
@@ -931,7 +931,7 @@ export function GameMatEditor({
                   0,
                   0,
                   MAGNIFIER_SIZE,
-                  MAGNIFIER_SIZE
+                  MAGNIFIER_SIZE,
                 );
 
                 // Draw crosshair
@@ -956,8 +956,8 @@ export function GameMatEditor({
 
     setMissions((prev) =>
       prev.map((obj) =>
-        obj.id === selectedObject ? { ...obj, ...updates } : obj
-      )
+        obj.id === selectedObject ? { ...obj, ...updates } : obj,
+      ),
     );
   };
 
@@ -989,8 +989,8 @@ export function GameMatEditor({
       prev.map((obj) =>
         obj.id === selectedObject
           ? { ...obj, objectives: [...obj.objectives, newObjective] }
-          : obj
-      )
+          : obj,
+      ),
     );
   };
 
@@ -1004,14 +1004,14 @@ export function GameMatEditor({
               ...obj,
               objectives: obj.objectives.filter((o) => o.id !== objectiveId),
             }
-          : obj
-      )
+          : obj,
+      ),
     );
   };
 
   const updateObjectiveInSelected = (
     objectiveId: string,
-    updates: Partial<MissionObjective>
+    updates: Partial<MissionObjective>,
   ) => {
     if (!selectedObject) return;
 
@@ -1023,18 +1023,18 @@ export function GameMatEditor({
               objectives: obj.objectives.map((objective) =>
                 objective.id === objectiveId
                   ? { ...objective, ...updates }
-                  : objective
+                  : objective,
               ),
             }
-          : obj
-      )
+          : obj,
+      ),
     );
   };
 
   const handleSave = async () => {
     if (!normalizedImageData) {
       alert(
-        "Please complete the image processing (corners and calibration) before saving"
+        "Please complete the image processing (corners and calibration) before saving",
       );
       return;
     }
@@ -1206,12 +1206,12 @@ ${new Date().toISOString()}
       URL.revokeObjectURL(downloadUrl);
 
       alert(
-        `✅ Exported ${matName} season pack as ${seasonDirName}.tar\n\nExtract to app/assets/seasons/ and restart your dev server to use.`
+        `✅ Exported ${matName} season pack as ${seasonDirName}.tar\n\nExtract to app/assets/seasons/ and restart your dev server to use.`,
       );
     } catch (error) {
       console.error("Export failed:", error);
       alert(
-        `❌ Failed to export tar file: ${error instanceof Error ? error.message : "Unknown error"}`
+        `❌ Failed to export tar file: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   };
@@ -1864,7 +1864,7 @@ ${new Date().toISOString()}
                                               objective.id,
                                               {
                                                 choices: updatedChoices,
-                                              }
+                                              },
                                             );
                                           }}
                                           className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
@@ -1886,7 +1886,7 @@ ${new Date().toISOString()}
                                               objective.id,
                                               {
                                                 choices: updatedChoices,
-                                              }
+                                              },
                                             );
                                           }}
                                           className="w-16 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
@@ -1908,7 +1908,7 @@ ${new Date().toISOString()}
                                               objective.id,
                                               {
                                                 choices: updatedChoices,
-                                              }
+                                              },
                                             );
                                           }}
                                           className="px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
@@ -1920,13 +1920,13 @@ ${new Date().toISOString()}
                                           onClick={() => {
                                             const updatedChoices =
                                               objective.choices?.filter(
-                                                (_, i) => i !== choiceIndex
+                                                (_, i) => i !== choiceIndex,
                                               );
                                             updateObjectiveInSelected(
                                               objective.id,
                                               {
                                                 choices: updatedChoices,
-                                              }
+                                              },
                                             );
                                           }}
                                           className="text-red-500 hover:text-red-700 text-xs px-1"
@@ -1942,7 +1942,7 @@ ${new Date().toISOString()}
                                           ✕
                                         </button>
                                       </div>
-                                    )
+                                    ),
                                   )}
                                   <button
                                     onClick={() => {
@@ -2001,7 +2001,7 @@ ${new Date().toISOString()}
                           sum +
                           (o.choices?.reduce((cSum, c) => cSum + c.points, 0) ||
                             0),
-                        0
+                        0,
                       )}
                       pts)
                     </button>
@@ -2040,11 +2040,11 @@ ${new Date().toISOString()}
                             objSum +
                             (objective.choices?.reduce(
                               (cSum, c) => cSum + c.points,
-                              0
+                              0,
                             ) || 0),
-                          0
+                          0,
                         ),
-                      0
+                      0,
                     )}
                   </p>
                 </div>

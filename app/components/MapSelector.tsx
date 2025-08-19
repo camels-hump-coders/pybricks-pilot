@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { GameMatConfigSchema, type GameMatConfig } from "../schemas/GameMatConfig";
-import { 
-  availableMatConfigsAtom, 
-  isLoadingMatConfigsAtom, 
+import { useEffect, useState } from "react";
+import {
+  type GameMatConfig,
+  GameMatConfigSchema,
+} from "../schemas/GameMatConfig";
+import {
+  availableMatConfigsAtom,
   discoverMatConfigsAtom,
-  loadMatConfigAtom 
+  isLoadingMatConfigsAtom,
+  loadMatConfigAtom,
 } from "../store/atoms/configFileSystem";
 import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 
@@ -44,15 +47,15 @@ for (const [configPath, rawConfig] of Object.entries(seasonConfigs)) {
     const rulebookPath = configPath.replace("config.json", "rulebook.pdf");
     const imageUrl = seasonMats[matPath]?.default;
     const rulebookUrl = seasonRulebooks[rulebookPath]?.default;
-    
+
     if (!id || !imageUrl) {
       console.warn(`Skipping incomplete season config: ${configPath}`);
       continue;
     }
-    
+
     // Validate config with Zod schema
     const config = GameMatConfigSchema.parse(rawConfig);
-    
+
     BUILT_IN_MAPS.push({
       id,
       name: id,
@@ -74,7 +77,7 @@ export function MapSelector({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [availableMaps] = useState<BuiltInMap[]>(BUILT_IN_MAPS);
-  
+
   // Use filesystem-based mat configuration atoms
   const customMats = useAtomValue(availableMatConfigsAtom);
   const isLoadingCustomMaps = useAtomValue(isLoadingMatConfigsAtom);
@@ -104,7 +107,7 @@ export function MapSelector({
     } catch (error) {
       console.error("Error loading built-in map:", error);
       setLoadError(
-        `Failed to load ${mapInfo.displayName}: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to load ${mapInfo.displayName}: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     } finally {
       setIsLoading(false);
@@ -125,7 +128,7 @@ export function MapSelector({
     } catch (error) {
       console.error(`Error loading custom map ${matId}:`, error);
       setLoadError(
-        `Failed to load custom map: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to load custom map: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     } finally {
       setIsLoading(false);
@@ -133,7 +136,7 @@ export function MapSelector({
   };
 
   const handleFileImport = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -152,7 +155,7 @@ export function MapSelector({
     } catch (error) {
       console.error("Error importing map:", error);
       setLoadError(
-        `Failed to import map: ${error instanceof Error ? error.message : "Invalid file format"}`
+        `Failed to import map: ${error instanceof Error ? error.message : "Invalid file format"}`,
       );
     } finally {
       setIsLoading(false);
@@ -165,7 +168,7 @@ export function MapSelector({
     if (!currentMap) return "Loading...";
 
     const builtInMap = availableMaps.find(
-      (map) => map.name === currentMap.name
+      (map) => map.name === currentMap.name,
     );
     return builtInMap ? builtInMap.displayName : currentMap.name;
   };
@@ -214,38 +217,41 @@ export function MapSelector({
         </div>
 
         {/* Custom Maps */}
-        {hasDirectoryAccess && !isLoadingCustomMaps && customMats.length > 0 && (
-          <div>
-            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Your Custom Maps
-            </h4>
-            <div className="space-y-2">
-              {customMats.map((matInfo) => (
-                <button
-                  key={matInfo.id}
-                  onClick={() => loadCustomMap(matInfo.id)}
-                  disabled={isLoading}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    currentMap?.name === matInfo.name
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <div className="font-medium text-gray-800 dark:text-gray-200">
-                    {matInfo.displayName}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {matInfo.description || `Custom map from ./config/mats/${matInfo.id}/`}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    ID: {matInfo.id}
-                  </div>
-                </button>
-              ))}
+        {hasDirectoryAccess &&
+          !isLoadingCustomMaps &&
+          customMats.length > 0 && (
+            <div>
+              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Your Custom Maps
+              </h4>
+              <div className="space-y-2">
+                {customMats.map((matInfo) => (
+                  <button
+                    key={matInfo.id}
+                    onClick={() => loadCustomMap(matInfo.id)}
+                    disabled={isLoading}
+                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      currentMap?.name === matInfo.name
+                        ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                        : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <div className="font-medium text-gray-800 dark:text-gray-200">
+                      {matInfo.displayName}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      {matInfo.description ||
+                        `Custom map from ./config/mats/${matInfo.id}/`}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      ID: {matInfo.id}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-        
+          )}
+
         {/* Show message when no directory is mounted */}
         {!hasDirectoryAccess && (
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
@@ -272,7 +278,8 @@ export function MapSelector({
               className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/20 dark:file:text-blue-300 dark:hover:file:bg-blue-900/30"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Import a .json config file or .tar season pack from the Game Mat Editor
+              Import a .json config file or .tar season pack from the Game Mat
+              Editor
             </p>
           </div>
         </div>

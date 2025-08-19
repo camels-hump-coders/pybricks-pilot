@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { useEffect, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import type { RobotConfig } from "../schemas/RobotConfig";
 import {
@@ -8,14 +8,14 @@ import {
   studsToMm,
 } from "../schemas/RobotConfig";
 import { robotConfigStorage } from "../services/robotConfigStorage";
-import { 
-  availableRobotConfigsAtom, 
-  discoverRobotConfigsAtom,
-  saveRobotConfigAtom,
+import {
+  availableRobotConfigsAtom,
   createRobotConfigAtom,
   deleteRobotConfigAtom,
+  discoverRobotConfigsAtom,
   duplicateRobotConfigAtom,
-  loadRobotConfigAtom
+  loadRobotConfigAtom,
+  saveRobotConfigAtom,
 } from "../store/atoms/configFileSystem";
 import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 
@@ -33,13 +33,13 @@ export function RobotBuilder({
   initialConfig,
 }: RobotBuilderProps) {
   const [config, setConfig] = useState<RobotConfig>(
-    initialConfig || DEFAULT_ROBOT_CONFIG
+    initialConfig || DEFAULT_ROBOT_CONFIG,
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { stableDirectoryAccess } = useJotaiFileSystem();
-  
+
   // Use filesystem-based configuration atoms
   const savedConfigs = useAtomValue(availableRobotConfigsAtom);
   const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
@@ -91,30 +91,32 @@ export function RobotBuilder({
     setError(null);
 
     if (!hasDirectoryAccess && config.id !== "default") {
-      setError("No directory mounted - cannot save custom robot configurations");
+      setError(
+        "No directory mounted - cannot save custom robot configurations",
+      );
       setIsLoading(false);
       return;
     }
 
     try {
       let activeRobotConfig = config;
-      
+
       if (config.id === "default") {
         // Cannot save over default robot - need to create new one
-        const newRobotId = await createRobotConfig({ 
-          name: config.name + " (Custom)", 
+        const newRobotId = await createRobotConfig({
+          name: config.name + " (Custom)",
           config: {
             ...config,
-            name: config.name + " (Custom)"
-          }
+            name: config.name + " (Custom)",
+          },
         });
         console.log(`Created new robot configuration with ID: ${newRobotId}`);
-        
+
         // Create the config object with the new ID for activation
         activeRobotConfig = {
           ...config,
           id: newRobotId,
-          name: config.name + " (Custom)"
+          name: config.name + " (Custom)",
         };
       } else {
         // Save existing custom robot
@@ -162,15 +164,15 @@ export function RobotBuilder({
           : `${config.name} (Copy)`;
       const newRobotId = await duplicateRobotConfig({
         originalId: config.id,
-        newName
+        newName,
       });
-      
+
       // Load the duplicated config
       const duplicated = await loadRobotConfig(newRobotId);
       if (duplicated) {
         setConfig(duplicated);
       }
-      
+
       // Refresh robot discovery
       discoverRobots();
     } catch (error) {
@@ -191,14 +193,14 @@ export function RobotBuilder({
 
     try {
       await deleteRobotConfig(config.id);
-      
+
       // Switch to default robot after deletion
       const defaultConfig = await loadRobotConfig("default");
       if (defaultConfig) {
         setConfig(defaultConfig);
         onRobotChange(defaultConfig);
       }
-      
+
       // Refresh robot discovery
       discoverRobots();
     } catch (error) {
@@ -208,7 +210,7 @@ export function RobotBuilder({
 
   const handleDimensionChange = (
     dimension: "width" | "length",
-    value: number
+    value: number,
   ) => {
     const clampedValue = Math.max(1, Math.min(50, value));
     setConfig((prev) => ({
@@ -222,7 +224,7 @@ export function RobotBuilder({
 
   const handleWheelChange = (
     property: "distanceFromEdge" | "distanceFromTop" | "diameter" | "width",
-    value: number
+    value: number,
   ) => {
     setConfig((prev) => ({
       ...prev,
@@ -235,7 +237,7 @@ export function RobotBuilder({
 
   const handleAppearanceChange = (
     property: keyof RobotConfig["appearance"],
-    value: any
+    value: any,
   ) => {
     setConfig((prev) => ({
       ...prev,
@@ -356,15 +358,25 @@ export function RobotBuilder({
               onClick={duplicateConfig}
               disabled={isLoading || !hasDirectoryAccess}
               className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-              title={!hasDirectoryAccess ? "Mount a directory to duplicate robots" : ""}
+              title={
+                !hasDirectoryAccess
+                  ? "Mount a directory to duplicate robots"
+                  : ""
+              }
             >
               Duplicate
             </button>
             <button
               onClick={saveConfig}
-              disabled={isLoading || (!hasDirectoryAccess && config.id !== "default")}
+              disabled={
+                isLoading || (!hasDirectoryAccess && config.id !== "default")
+              }
               className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-              title={!hasDirectoryAccess && config.id !== "default" ? "Mount a directory to save custom robots" : ""}
+              title={
+                !hasDirectoryAccess && config.id !== "default"
+                  ? "Mount a directory to save custom robots"
+                  : ""
+              }
             >
               {isLoading ? "Saving..." : "Save"}
             </button>
@@ -386,8 +398,9 @@ export function RobotBuilder({
             <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
               <span>⚠️</span>
               <span className="text-sm">
-                No directory mounted - You can view the default robot but cannot save custom configurations.
-                Mount a directory to save robots to <code className="font-mono text-xs">./config/robots/</code>
+                No directory mounted - You can view the default robot but cannot
+                save custom configurations. Mount a directory to save robots to{" "}
+                <code className="font-mono text-xs">./config/robots/</code>
               </span>
             </div>
           </div>
@@ -490,7 +503,7 @@ export function RobotBuilder({
                       onChange={(e) =>
                         handleWheelChange(
                           "distanceFromEdge",
-                          parseFloat(e.target.value)
+                          parseFloat(e.target.value),
                         )
                       }
                       className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
@@ -510,7 +523,7 @@ export function RobotBuilder({
                       onChange={(e) =>
                         handleWheelChange(
                           "distanceFromTop",
-                          parseFloat(e.target.value)
+                          parseFloat(e.target.value),
                         )
                       }
                       className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"

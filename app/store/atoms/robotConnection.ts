@@ -1,9 +1,13 @@
 import { atom } from "jotai";
 import type { HubInfo } from "../../services/bluetooth";
-import type { ProgramStatus, TelemetryData, DebugEvent } from "../../services/pybricksHub";
+import type {
+  DebugEvent,
+  ProgramStatus,
+  TelemetryData,
+} from "../../services/pybricksHub";
 import type { RobotConnectionOptions } from "../../services/robotInterface";
-import { virtualRobotCapabilitiesAtom } from "./virtualRobot";
 import { pybricksHubCapabilitiesAtom } from "./pybricksHub";
+import { virtualRobotCapabilitiesAtom } from "./virtualRobot";
 
 // Robot type and connection state atoms
 export const robotTypeAtom = atom<"real" | "virtual" | null>(null);
@@ -32,9 +36,10 @@ export const isRunningProgramAtom = atom<boolean>(false);
 export const isStoppingProgramAtom = atom<boolean>(false);
 export const isSendingCommandAtom = atom<boolean>(false);
 
-
 // Derived atoms for convenience
-export const batteryLevelAtom = atom((get) => get(telemetryDataAtom)?.hub?.battery);
+export const batteryLevelAtom = atom(
+  (get) => get(telemetryDataAtom)?.hub?.battery,
+);
 export const motorDataAtom = atom((get) => get(telemetryDataAtom)?.motors);
 export const sensorDataAtom = atom((get) => get(telemetryDataAtom)?.sensors);
 export const imuDataAtom = atom((get) => get(telemetryDataAtom)?.hub?.imu);
@@ -42,13 +47,13 @@ export const imuDataAtom = atom((get) => get(telemetryDataAtom)?.hub?.imu);
 // Capabilities atom - delegates to robot-specific capability atoms
 const robotCapabilitiesAtom = atom((get) => {
   const robotType = get(robotTypeAtom);
-  
+
   if (robotType === "virtual") {
     return get(virtualRobotCapabilitiesAtom);
   } else if (robotType === "real") {
     return get(pybricksHubCapabilitiesAtom);
   }
-  
+
   return null;
 });
 
