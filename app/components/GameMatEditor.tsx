@@ -7,6 +7,10 @@ import type {
   Point,
 } from "../schemas/GameMatConfig";
 import { deSkewImage } from "../utils/perspectiveTransform";
+import { useGameMatEditorDrawing } from "../hooks/useGameMatEditorDrawing";
+import { UploadInterface } from "./GameMatEditor/UploadInterface";
+import { CanvasArea } from "./GameMatEditor/CanvasArea";
+import { SidePanel } from "./GameMatEditor/SidePanel";
 
 // Re-export types for backward compatibility;
 
@@ -91,6 +95,37 @@ export function GameMatEditor({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const areAllCornersSet = () => {
+    // Check if all corners have been set (moved from default positions)
+    // At least one coordinate should be different from the defaults
+    const hasTopLeft = corners.topLeft.x !== 0 || corners.topLeft.y !== 0;
+    const hasTopRight = corners.topRight.x !== 1 || corners.topRight.y !== 0;
+    const hasBottomLeft =
+      corners.bottomLeft.x !== 0 || corners.bottomLeft.y !== 1;
+    const hasBottomRight =
+      corners.bottomRight.x !== 1 || corners.bottomRight.y !== 1;
+
+    return hasTopLeft && hasTopRight && hasBottomLeft && hasBottomRight;
+  };
+
+  // Continuous canvas drawing hook
+  const { redraw } = useGameMatEditorDrawing({
+    canvasRef,
+    imageRef,
+    mode,
+    corners,
+    currentCorner,
+    calibrationPoints,
+    currentCalibrationPoint,
+    missions,
+    selectedObject,
+    draggingObject,
+    hoveredObject,
+    originalImageData,
+    normalizedImageData,
+    areAllCornersSet: areAllCornersSet(),
+  });
+
   // Load image when imageData changes
   useEffect(() => {
     const imageToLoad =
@@ -99,7 +134,7 @@ export function GameMatEditor({
       const img = new Image();
       img.onload = () => {
         imageRef.current = img;
-        drawCanvas();
+        // The continuous drawing hook will handle drawing automatically
       };
       img.src = imageToLoad;
     }
@@ -161,366 +196,7 @@ export function GameMatEditor({
     }
   };
 
-  const drawCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    const img = imageRef.current;
 
-    if (!canvas || !ctx || !img) return;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw image to fit canvas
-    const scale = Math.min(
-      canvas.width / img.width,
-      canvas.height / img.height,
-    );
-    const width = img.width * scale;
-    const height = img.height * scale;
-    const x = (canvas.width - width) / 2;
-    const y = (canvas.height - height) / 2;
-
-    ctx.drawImage(img, x, y, width, height);
-
-    // Store transform for later use
-    canvas.dataset.imgX = x.toString();
-    canvas.dataset.imgY = y.toString();
-    canvas.dataset.imgWidth = width.toString();
-    canvas.dataset.imgHeight = height.toString();
-
-    // Draw corners if in corners mode
-    if (mode === "corners") {
-      drawCorners(ctx, x, y, width, height);
-      // Draw perspective grid if corners are set
-      if (areAllCornersSet()) {
-        drawPerspectiveGrid(ctx, x, y, width, height);
-      }
-    }
-
-    // Draw calibration points if in calibration mode
-    if (mode === "calibration") {
-      drawCalibrationPoints(ctx, x, y, width, height);
-    }
-
-    // Draw scoring objects (only on normalized image)
-    if ((mode === "objects" || mode === "preview") && normalizedImageData) {
-      drawMissions(ctx, x, y, width, height);
-    }
-  };
-
-  const areAllCornersSet = () => {
-    // Check if all corners have been set (moved from default positions)
-    // At least one coordinate should be different from the defaults
-    const hasTopLeft = corners.topLeft.x !== 0 || corners.topLeft.y !== 0;
-    const hasTopRight = corners.topRight.x !== 1 || corners.topRight.y !== 0;
-    const hasBottomLeft =
-      corners.bottomLeft.x !== 0 || corners.bottomLeft.y !== 1;
-    const hasBottomRight =
-      corners.bottomRight.x !== 1 || corners.bottomRight.y !== 1;
-
-    return hasTopLeft && hasTopRight && hasBottomLeft && hasBottomRight;
-  };
-
-  const drawCorners = (
-    ctx: CanvasRenderingContext2D,
-    imgX: number,
-    imgY: number,
-    imgWidth: number,
-    imgHeight: number,
-  ) => {
-    const cornerLabels = {
-      topLeft: "Top Left",
-      topRight: "Top Right",
-      bottomLeft: "Bottom Left",
-      bottomRight: "Bottom Right",
-    };
-
-    Object.entries(corners).forEach(([key, point]) => {
-      const x = imgX + point.x * imgWidth;
-      const y = imgY + point.y * imgHeight;
-
-      // Draw corner marker
-      ctx.strokeStyle = currentCorner === key ? "#ff0000" : "#00ff00";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, 8, 0, 2 * Math.PI);
-      ctx.stroke();
-
-      // Draw crosshair
-      ctx.beginPath();
-      ctx.moveTo(x - 15, y);
-      ctx.lineTo(x + 15, y);
-      ctx.moveTo(x, y - 15);
-      ctx.lineTo(x, y + 15);
-      ctx.stroke();
-
-      // Draw label
-      ctx.fillStyle = "#fff";
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = 3;
-      ctx.font = "14px sans-serif";
-      ctx.strokeText(
-        cornerLabels[key as keyof typeof cornerLabels],
-        x + 10,
-        y - 10,
-      );
-      ctx.fillText(
-        cornerLabels[key as keyof typeof cornerLabels],
-        x + 10,
-        y - 10,
-      );
-    });
-  };
-
-  const drawPerspectiveGrid = (
-    ctx: CanvasRenderingContext2D,
-    imgX: number,
-    imgY: number,
-    imgWidth: number,
-    imgHeight: number,
-  ) => {
-    // Transform corners to canvas coordinates
-    const tl = {
-      x: imgX + corners.topLeft.x * imgWidth,
-      y: imgY + corners.topLeft.y * imgHeight,
-    };
-    const tr = {
-      x: imgX + corners.topRight.x * imgWidth,
-      y: imgY + corners.topRight.y * imgHeight,
-    };
-    const bl = {
-      x: imgX + corners.bottomLeft.x * imgWidth,
-      y: imgY + corners.bottomLeft.y * imgHeight,
-    };
-    const br = {
-      x: imgX + corners.bottomRight.x * imgWidth,
-      y: imgY + corners.bottomRight.y * imgHeight,
-    };
-
-    ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
-    ctx.lineWidth = 1;
-
-    // Draw border
-    ctx.beginPath();
-    ctx.moveTo(tl.x, tl.y);
-    ctx.lineTo(tr.x, tr.y);
-    ctx.lineTo(br.x, br.y);
-    ctx.lineTo(bl.x, bl.y);
-    ctx.closePath();
-    ctx.stroke();
-
-    // Draw grid lines (10x5 grid)
-    for (let i = 1; i < 10; i++) {
-      const t = i / 10;
-
-      // Vertical lines
-      const topPoint = lerp2D(tl, tr, t);
-      const bottomPoint = lerp2D(bl, br, t);
-      ctx.beginPath();
-      ctx.moveTo(topPoint.x, topPoint.y);
-      ctx.lineTo(bottomPoint.x, bottomPoint.y);
-      ctx.stroke();
-    }
-
-    for (let i = 1; i < 5; i++) {
-      const t = i / 5;
-
-      // Horizontal lines
-      const leftPoint = lerp2D(tl, bl, t);
-      const rightPoint = lerp2D(tr, br, t);
-      ctx.beginPath();
-      ctx.moveTo(leftPoint.x, leftPoint.y);
-      ctx.lineTo(rightPoint.x, rightPoint.y);
-      ctx.stroke();
-    }
-  };
-
-  const drawCalibrationPoints = (
-    ctx: CanvasRenderingContext2D,
-    imgX: number,
-    imgY: number,
-    imgWidth: number,
-    imgHeight: number,
-  ) => {
-    // Draw X-axis calibration points
-    if (calibrationPoints.xAxis.first) {
-      const x1 = imgX + calibrationPoints.xAxis.first.x * imgWidth;
-      const y1 = imgY + calibrationPoints.xAxis.first.y * imgHeight;
-      drawCalibrationPoint(ctx, x1, y1, "X1", "#ff6b6b");
-    }
-
-    if (calibrationPoints.xAxis.second) {
-      const x2 = imgX + calibrationPoints.xAxis.second.x * imgWidth;
-      const y2 = imgY + calibrationPoints.xAxis.second.y * imgHeight;
-      drawCalibrationPoint(ctx, x2, y2, "X2", "#ff6b6b");
-
-      // Draw line between X-axis points
-      if (calibrationPoints.xAxis.first) {
-        const x1 = imgX + calibrationPoints.xAxis.first.x * imgWidth;
-        const y1 = imgY + calibrationPoints.xAxis.first.y * imgHeight;
-        ctx.strokeStyle = "#ff6b6b";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-
-    // Draw Y-axis calibration points
-    if (calibrationPoints.yAxis.first) {
-      const x1 = imgX + calibrationPoints.yAxis.first.x * imgWidth;
-      const y1 = imgY + calibrationPoints.yAxis.first.y * imgHeight;
-      drawCalibrationPoint(ctx, x1, y1, "Y1", "#4ecdc4");
-    }
-
-    if (calibrationPoints.yAxis.second) {
-      const x2 = imgX + calibrationPoints.yAxis.second.x * imgWidth;
-      const y2 = imgY + calibrationPoints.yAxis.second.y * imgHeight;
-      drawCalibrationPoint(ctx, x2, y2, "Y2", "#4ecdc4");
-
-      // Draw line between Y-axis points
-      if (calibrationPoints.yAxis.first) {
-        const x1 = imgX + calibrationPoints.yAxis.first.x * imgWidth;
-        const y1 = imgY + calibrationPoints.yAxis.first.y * imgHeight;
-        ctx.strokeStyle = "#4ecdc4";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-  };
-
-  const drawCalibrationPoint = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    label: string,
-    color: string,
-  ) => {
-    // Draw point marker
-    ctx.fillStyle = color;
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, 8, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.stroke();
-
-    // Draw crosshair
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x - 15, y);
-    ctx.lineTo(x + 15, y);
-    ctx.moveTo(x, y - 15);
-    ctx.lineTo(x, y + 15);
-    ctx.stroke();
-
-    // Draw label
-    ctx.fillStyle = "#fff";
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 2;
-    ctx.font = "12px sans-serif";
-    ctx.strokeText(label, x + 10, y - 10);
-    ctx.fillText(label, x + 10, y - 10);
-  };
-
-  const drawMissions = (
-    ctx: CanvasRenderingContext2D,
-    imgX: number,
-    imgY: number,
-    imgWidth: number,
-    imgHeight: number,
-  ) => {
-    missions.forEach((obj) => {
-      // Direct mapping since image is already normalized
-      const canvasX = imgX + obj.position.x * imgWidth;
-      const canvasY = imgY + obj.position.y * imgHeight;
-      const canvasPos = { x: canvasX, y: canvasY };
-
-      const isSelected = selectedObject === obj.id;
-      const isDragging = draggingObject === obj.id;
-      const isHovered = hoveredObject === obj.id;
-
-      // Draw hover ring if hovered (and not selected)
-      if (isHovered && !isSelected && !isDragging) {
-        ctx.strokeStyle = "rgba(100, 150, 255, 0.6)";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(canvasPos.x, canvasPos.y, 15, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-
-      // Draw selection ring if selected
-      if (isSelected) {
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(canvasPos.x, canvasPos.y, 15, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-
-      // Draw object marker
-      const radius = isHovered || isSelected || isDragging ? 12 : 10;
-      ctx.fillStyle = isDragging
-        ? "rgba(255, 165, 0, 0.9)"
-        : isSelected
-          ? "rgba(255, 0, 0, 0.8)"
-          : isHovered
-            ? "rgba(100, 150, 255, 0.9)"
-            : "rgba(0, 100, 255, 0.8)";
-      ctx.beginPath();
-      ctx.arc(canvasPos.x, canvasPos.y, radius, 0, 2 * Math.PI);
-      ctx.fill();
-
-      // Draw border
-      ctx.strokeStyle = isDragging
-        ? "#ff8800"
-        : isSelected
-          ? "#cc0000"
-          : isHovered
-            ? "#4080ff"
-            : "#0066cc";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(canvasPos.x, canvasPos.y, radius, 0, 2 * Math.PI);
-      ctx.stroke();
-
-      // Draw label
-      ctx.fillStyle = "#fff";
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = 2;
-      ctx.font = "12px sans-serif";
-      const totalPoints = obj.objectives.reduce(
-        (sum, objective) =>
-          sum +
-          (objective.points ||
-            objective.choices.reduce(
-              (objSum, choice) => objSum + choice.points,
-              0,
-            )),
-        0,
-      );
-      const text = `${obj.name} (${totalPoints}pts)`;
-      ctx.strokeText(text, canvasPos.x + 12, canvasPos.y - 5);
-      ctx.fillText(text, canvasPos.x + 12, canvasPos.y - 5);
-    });
-  };
-
-  const lerp2D = (p1: Point, p2: Point, t: number): Point => {
-    return {
-      x: p1.x + (p2.x - p1.x) * t,
-      y: p1.y + (p2.y - p1.y) * t,
-    };
-  };
 
   const canvasToNormalized = (
     canvasX: number,
@@ -654,8 +330,11 @@ export function GameMatEditor({
     if (!canvas || mode !== "objects") return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Scale mouse coordinates from visual canvas size to internal canvas size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     const imgX = parseFloat(canvas.dataset.imgX || "0");
     const imgY = parseFloat(canvas.dataset.imgY || "0");
@@ -712,8 +391,11 @@ export function GameMatEditor({
     }
 
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Scale mouse coordinates from visual canvas size to internal canvas size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     const imgX = parseFloat(canvas.dataset.imgX || "0");
     const imgY = parseFloat(canvas.dataset.imgY || "0");
@@ -815,7 +497,7 @@ export function GameMatEditor({
       }
     }
 
-    drawCanvas();
+    redraw();
   };
 
   const handleCanvasMouseMove = (
@@ -825,8 +507,11 @@ export function GameMatEditor({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Scale mouse coordinates from visual canvas size to internal canvas size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     setMousePos({ x, y });
     setShowMagnifier(
@@ -861,7 +546,7 @@ export function GameMatEditor({
       );
 
       // Redraw canvas
-      drawCanvas();
+      redraw();
     } else if (mode === "objects" && !placingObject) {
       // Update hover state when not dragging
       const hoveredObjectId = getObjectAtPosition(
@@ -874,7 +559,7 @@ export function GameMatEditor({
       );
       if (hoveredObjectId !== hoveredObject) {
         setHoveredObject(hoveredObjectId);
-        drawCanvas(); // Redraw to show/hide hover effects
+        redraw(); // Redraw to show/hide hover effects
       }
     }
   };
@@ -1234,11 +919,11 @@ ${new Date().toISOString()}
     setPlacingObject(false);
     setMode("upload");
     imageRef.current = null;
-    drawCanvas();
+    redraw();
   };
 
   useEffect(() => {
-    drawCanvas();
+    redraw();
   }, [
     mode,
     corners,
@@ -1366,706 +1051,80 @@ ${new Date().toISOString()}
           {/* Canvas area */}
           <div className="flex-1 p-4 relative">
             {mode === "upload" ? (
-              originalImageData ? (
-                // Show existing image with option to replace
-                <div className="h-full flex flex-col">
-                  <div className="mb-4 text-center">
-                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                      Current mat image - You can keep this or upload a new one
-                    </p>
-                    <div className="flex justify-center gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                      >
-                        Replace Image
-                      </button>
-                      <button
-                        onClick={() => setMode("objects")}
-                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                      >
-                        Keep Current Image
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex-1 relative">
-                    <canvas
-                      ref={canvasRef}
-                      width={800}
-                      height={600}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                </div>
-              ) : (
-                // No image - show upload interface
-                <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Upload an image of your game mat
-                    </p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
-                    >
-                      Choose Image
-                    </button>
-                    <label className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 cursor-pointer">
-                      Import Config
-                      <input
-                        type="file"
-                        accept="application/json"
-                        onChange={handleImportConfig}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-              )
+              <UploadInterface
+                originalImageData={originalImageData}
+                onFileUpload={handleFileUpload}
+                onImportConfig={handleImportConfig}
+                onKeepCurrentImage={() => setMode("objects")}
+                canvasRef={canvasRef}
+              />
             ) : (
-              <div className="relative h-full">
-                <canvas
-                  ref={canvasRef}
-                  width={800}
-                  height={600}
-                  onMouseDown={handleCanvasMouseDown}
-                  onMouseUp={handleCanvasMouseUp}
-                  onClick={handleCanvasClick}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseLeave={() => {
-                    setShowMagnifier(false);
-                    setHoveredObject(null);
-                    if (draggingObject) {
-                      setDraggingObject(null);
-                      setDragOffset({ x: 0, y: 0 });
-                    }
-                  }}
-                  className={`w-full h-full object-contain ${
-                    mode === "objects" && !placingObject
-                      ? draggingObject
-                        ? "cursor-move"
-                        : hoveredObject
-                          ? "cursor-pointer"
-                          : "cursor-default"
-                      : mode === "objects" && placingObject
-                        ? "cursor-crosshair"
-                        : mode === "corners"
-                          ? "cursor-crosshair"
-                          : "cursor-default"
-                  }`}
-                />
-                {drawMagnifier()}
-              </div>
+              <CanvasArea
+                mode={mode}
+                canvasRef={canvasRef}
+                draggingObject={draggingObject}
+                hoveredObject={hoveredObject}
+                placingObject={placingObject}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseUp={handleCanvasMouseUp}
+                onClick={handleCanvasClick}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseLeave={() => {
+                  setShowMagnifier(false);
+                  setHoveredObject(null);
+                  if (draggingObject) {
+                    setDraggingObject(null);
+                    setDragOffset({ x: 0, y: 0 });
+                  }
+                }}
+                drawMagnifier={drawMagnifier}
+              />
             )}
           </div>
 
           {/* Side panel */}
-          <div className="w-80 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
-            {mode === "corners" && (
-              <div>
-                <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-4">
-                  Set Corner Points
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Click on each corner of the game mat in the image. Use the
-                  magnifier for pixel-perfect precision.
-                </p>
-                <div className="space-y-2">
-                  {(
-                    [
-                      "topLeft",
-                      "topRight",
-                      "bottomRight",
-                      "bottomLeft",
-                    ] as const
-                  ).map((corner) => (
-                    <button
-                      key={corner}
-                      onClick={() => setCurrentCorner(corner)}
-                      className={`w-full text-left px-3 py-2 rounded ${
-                        currentCorner === corner
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                      }`}
-                    >
-                      {corner
-                        .replace(/([A-Z])/g, " $1")
-                        .replace(/^./, (str) => str.toUpperCase())}
-                      {(corner === "topLeft" &&
-                        (corners.topLeft.x !== 0 || corners.topLeft.y !== 0)) ||
-                      (corner === "topRight" &&
-                        (corners.topRight.x !== 1 ||
-                          corners.topRight.y !== 0)) ||
-                      (corner === "bottomLeft" &&
-                        (corners.bottomLeft.x !== 0 ||
-                          corners.bottomLeft.y !== 1)) ||
-                      (corner === "bottomRight" &&
-                        (corners.bottomRight.x !== 1 ||
-                          corners.bottomRight.y !== 1))
-                        ? " ✓"
-                        : ""}
-                    </button>
-                  ))}
-                </div>
-                <label className="flex items-center mt-4 mb-2">
-                  <input
-                    type="checkbox"
-                    checked={autoDeSkew}
-                    onChange={(e) => setAutoDeSkew(e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Auto-apply corrections after setting corners
-                  </span>
-                </label>
-                <button
-                  onClick={() => {
-                    setCorners({
-                      topLeft: { x: 0, y: 0 },
-                      topRight: { x: 1, y: 0 },
-                      bottomLeft: { x: 0, y: 1 },
-                      bottomRight: { x: 1, y: 1 },
-                    });
-                    setCurrentCorner("topLeft");
-                    setNormalizedImageData(""); // Clear normalized image when resetting
-                  }}
-                  className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  Reset Corners
-                </button>
-                {areAllCornersSet() && !normalizedImageData && (
-                  <button
-                    onClick={performDeSkew}
-                    className="mt-2 w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                  >
-                    Apply Corner Corrections
-                  </button>
-                )}
-              </div>
-            )}
-
-            {mode === "calibration" && (
-              <div>
-                <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-4">
-                  Calibrate Mat Dimensions
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Click on two points on the X-axis and two points on the Y-axis
-                  that represent 100mm distances. This will allow us to
-                  automatically calculate the mat's actual dimensions.
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                      X-Axis (Horizontal) - 100mm reference
-                    </h4>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() =>
-                          setCurrentCalibrationPoint({
-                            axis: "xAxis",
-                            point: "first",
-                          })
-                        }
-                        className={`w-full text-left px-3 py-2 rounded ${
-                          currentCalibrationPoint?.axis === "xAxis" &&
-                          currentCalibrationPoint?.point === "first"
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                        }`}
-                      >
-                        First Point {calibrationPoints.xAxis.first ? "✓" : ""}
-                      </button>
-                      <button
-                        onClick={() =>
-                          setCurrentCalibrationPoint({
-                            axis: "xAxis",
-                            point: "second",
-                          })
-                        }
-                        className={`w-full text-left px-3 py-2 rounded ${
-                          currentCalibrationPoint?.axis === "xAxis" &&
-                          currentCalibrationPoint?.point === "second"
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                        }`}
-                      >
-                        Second Point {calibrationPoints.xAxis.second ? "✓" : ""}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                      Y-Axis (Vertical) - 100mm reference
-                    </h4>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() =>
-                          setCurrentCalibrationPoint({
-                            axis: "yAxis",
-                            point: "first",
-                          })
-                        }
-                        className={`w-full text-left px-3 py-2 rounded ${
-                          currentCalibrationPoint?.axis === "yAxis" &&
-                          currentCalibrationPoint?.point === "first"
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                        }`}
-                      >
-                        First Point {calibrationPoints.yAxis.first ? "✓" : ""}
-                      </button>
-                      <button
-                        onClick={() =>
-                          setCurrentCalibrationPoint({
-                            axis: "yAxis",
-                            point: "second",
-                          })
-                        }
-                        className={`w-full text-left px-3 py-2 rounded ${
-                          currentCalibrationPoint?.axis === "yAxis" &&
-                          currentCalibrationPoint?.point === "second"
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                        }`}
-                      >
-                        Second Point {calibrationPoints.yAxis.second ? "✓" : ""}
-                      </button>
-                    </div>
-                  </div>
-
-                  {currentCalibrationPoint && (
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded">
-                      <p className="text-sm text-blue-800 dark:text-blue-200">
-                        Click on the mat to set{" "}
-                        {currentCalibrationPoint.axis === "xAxis" ? "X" : "Y"}
-                        -axis point{" "}
-                        {currentCalibrationPoint.point === "first" ? "1" : "2"}
-                      </p>
-                    </div>
-                  )}
-
-                  {calibrationPoints.xAxis.first &&
-                    calibrationPoints.xAxis.second &&
-                    calibrationPoints.yAxis.first &&
-                    calibrationPoints.yAxis.second && (
-                      <div className="space-y-2">
-                        <button
-                          onClick={handleCalibrationComplete}
-                          className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                        >
-                          Calculate Dimensions & Continue
-                        </button>
-                        <button
-                          onClick={resetCalibration}
-                          className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                        >
-                          Reset Calibration
-                        </button>
-                      </div>
-                    )}
-
-                  {calculatedDimensions && (
-                    <div className="mt-4 p-3 bg-green-100 dark:bg-green-900 rounded">
-                      <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
-                        Calculated Dimensions
-                      </h4>
-                      <p className="text-sm text-green-700 dark:text-green-200">
-                        Width: {calculatedDimensions.widthMm.toFixed(2)}mm
-                      </p>
-                      <p className="text-sm text-green-700 dark:text-green-200">
-                        Height: {calculatedDimensions.heightMm.toFixed(2)}mm
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {mode === "objects" && (
-              <div>
-                <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-2">
-                  Scoring Objects
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Click "Add New Object" to place markers. Click and drag
-                  existing markers to move them.
-                </p>
-                <button
-                  onClick={() => setPlacingObject(true)}
-                  className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-4"
-                >
-                  {placingObject ? "Click on mat to place" : "Add New Object"}
-                </button>
-
-                {selectedObject &&
-                  missions.find((obj) => obj.id === selectedObject) && (
-                    <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-700 rounded">
-                      <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                        Edit Object
-                      </h4>
-                      <input
-                        type="text"
-                        value={
-                          missions.find((obj) => obj.id === selectedObject)
-                            ?.name
-                        }
-                        onChange={(e) =>
-                          updateSelectedObject({ name: e.target.value })
-                        }
-                        className="w-full px-2 py-1 mb-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                        placeholder="Object name"
-                      />
-                      <textarea
-                        value={
-                          missions.find((obj) => obj.id === selectedObject)
-                            ?.description
-                        }
-                        onChange={(e) =>
-                          updateSelectedObject({ description: e.target.value })
-                        }
-                        className="w-full px-2 py-1 mb-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                        placeholder="Description (optional)"
-                        rows={2}
-                      />
-
-                      {/* Scoring Mode Selector */}
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Scoring Mode
-                        </label>
-                        <select
-                          value="multi-select"
-                          disabled
-                          className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 opacity-50"
-                        >
-                          <option value="multi-select">
-                            Multi-select (check any/all objectives)
-                          </option>
-                        </select>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Multi-select allows multiple objectives to be
-                          completed simultaneously. Single-select allows only
-                          one objective at a time (like Precision Tokens).
-                        </p>
-                      </div>
-
-                      {/* Objectives Editor */}
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Objectives
-                          </h4>
-                          <button
-                            onClick={() => addObjectiveToSelected()}
-                            className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                          >
-                            + Add Objective
-                          </button>
-                        </div>
-
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {missions
-                            .find((obj) => obj.id === selectedObject)
-                            ?.objectives.map((objective, index) => (
-                              <div
-                                key={objective.id}
-                                className="border border-gray-200 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-700"
-                              >
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    Objective {index + 1}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      removeObjectiveFromSelected(objective.id)
-                                    }
-                                    className="text-red-500 hover:text-red-700 text-xs"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                                <input
-                                  type="text"
-                                  value={objective.description || ""}
-                                  onChange={(e) =>
-                                    updateObjectiveInSelected(objective.id, {
-                                      description: e.target.value,
-                                    })
-                                  }
-                                  className="w-full px-2 py-1 mb-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                  placeholder="Objective description (optional)"
-                                />
-
-                                {/* Scoring Mode */}
-                                <select
-                                  value={
-                                    objective.scoringMode || "multi-select"
-                                  }
-                                  onChange={(e) =>
-                                    updateObjectiveInSelected(objective.id, {
-                                      scoringMode: e.target.value as
-                                        | "multi-select"
-                                        | "single-select",
-                                    })
-                                  }
-                                  className="w-full px-2 py-1 mb-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                >
-                                  <option value="multi-select">
-                                    Multi-select (can complete multiple)
-                                  </option>
-                                  <option value="single-select">
-                                    Single-select (only one at a time)
-                                  </option>
-                                </select>
-
-                                {/* Choices for this objective */}
-                                <div className="space-y-1 mt-2">
-                                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                                    Choices ({objective.choices?.length || 0}):
-                                  </div>
-                                  {objective.choices?.map(
-                                    (choice, choiceIndex) => (
-                                      <div
-                                        key={choice.id}
-                                        className="flex gap-1 items-center"
-                                      >
-                                        <input
-                                          type="text"
-                                          value={choice.description}
-                                          onChange={(e) => {
-                                            const updatedChoices = [
-                                              ...(objective.choices || []),
-                                            ];
-                                            updatedChoices[choiceIndex] = {
-                                              ...choice,
-                                              description: e.target.value,
-                                            };
-                                            updateObjectiveInSelected(
-                                              objective.id,
-                                              {
-                                                choices: updatedChoices,
-                                              },
-                                            );
-                                          }}
-                                          className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                          placeholder="Choice description"
-                                        />
-                                        <input
-                                          type="number"
-                                          value={choice.points}
-                                          onChange={(e) => {
-                                            const updatedChoices = [
-                                              ...(objective.choices || []),
-                                            ];
-                                            updatedChoices[choiceIndex] = {
-                                              ...choice,
-                                              points:
-                                                parseInt(e.target.value, 10) ||
-                                                0,
-                                            };
-                                            updateObjectiveInSelected(
-                                              objective.id,
-                                              {
-                                                choices: updatedChoices,
-                                              },
-                                            );
-                                          }}
-                                          className="w-16 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                          placeholder="Pts"
-                                        />
-                                        <select
-                                          value={choice.type || "primary"}
-                                          onChange={(e) => {
-                                            const updatedChoices = [
-                                              ...(objective.choices || []),
-                                            ];
-                                            updatedChoices[choiceIndex] = {
-                                              ...choice,
-                                              type: e.target.value as
-                                                | "primary"
-                                                | "bonus",
-                                            };
-                                            updateObjectiveInSelected(
-                                              objective.id,
-                                              {
-                                                choices: updatedChoices,
-                                              },
-                                            );
-                                          }}
-                                          className="px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                                        >
-                                          <option value="primary">Pri</option>
-                                          <option value="bonus">Bon</option>
-                                        </select>
-                                        <button
-                                          onClick={() => {
-                                            const updatedChoices =
-                                              objective.choices?.filter(
-                                                (_, i) => i !== choiceIndex,
-                                              );
-                                            updateObjectiveInSelected(
-                                              objective.id,
-                                              {
-                                                choices: updatedChoices,
-                                              },
-                                            );
-                                          }}
-                                          className="text-red-500 hover:text-red-700 text-xs px-1"
-                                          disabled={
-                                            objective.choices?.length === 1
-                                          }
-                                          title={
-                                            objective.choices?.length === 1
-                                              ? "Must have at least one choice"
-                                              : "Remove choice"
-                                          }
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      const newChoice = {
-                                        id: `choice_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-                                        description: "New choice",
-                                        points: 5,
-                                        type: "primary" as const,
-                                      };
-                                      updateObjectiveInSelected(objective.id, {
-                                        choices: [
-                                          ...(objective.choices || []),
-                                          newChoice,
-                                        ],
-                                      });
-                                    }}
-                                    className="text-xs text-blue-500 hover:text-blue-700"
-                                  >
-                                    + Add Choice
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          {!missions.find((obj) => obj.id === selectedObject)
-                            ?.objectives.length && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
-                              No objectives yet. Click "Add Objective" to get
-                              started.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={deleteSelectedObject}
-                        className="w-full px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        Delete Object
-                      </button>
-                    </div>
-                  )}
-
-                <div className="space-y-2">
-                  {missions.map((obj) => (
-                    <button
-                      key={obj.id}
-                      onClick={() => setSelectedObject(obj.id)}
-                      className={`w-full text-left px-3 py-2 rounded ${
-                        selectedObject === obj.id
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                      }`}
-                    >
-                      {obj.name} (
-                      {obj.objectives.reduce(
-                        (sum, o) =>
-                          sum +
-                          (o.choices?.reduce((cSum, c) => cSum + c.points, 0) ||
-                            0),
-                        0,
-                      )}
-                      pts)
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {mode === "preview" && (
-              <div>
-                <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-4">
-                  Preview & Save
-                </h3>
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <strong>Mat Name:</strong> {matName}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <strong>Dimensions:</strong>{" "}
-                    {calculatedDimensions?.widthMm.toFixed(2) || MAT_WIDTH_MM}mm
-                    ×{" "}
-                    {calculatedDimensions?.heightMm.toFixed(2) || MAT_HEIGHT_MM}
-                    mm
-                    {calculatedDimensions && " (calculated)"}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <strong>Missions:</strong> {missions.length}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <strong>Total Possible Points:</strong>{" "}
-                    {missions.reduce(
-                      (sum, obj) =>
-                        sum +
-                        obj.objectives.reduce(
-                          (objSum, objective) =>
-                            objSum +
-                            (objective.choices?.reduce(
-                              (cSum, c) => cSum + c.points,
-                              0,
-                            ) || 0),
-                          0,
-                        ),
-                      0,
-                    )}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <button
-                    onClick={handleSave}
-                    className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                  >
-                    Save Configuration
-                  </button>
-                  <button
-                    onClick={handleExportTar}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    📦 Export Season Pack (.tar)
-                  </button>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Downloads a complete season pack with config.json, mat.png,
-                    and README.md in a proper directory structure
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          <SidePanel
+            mode={mode}
+            corners={corners}
+            currentCorner={currentCorner}
+            autoDeSkew={autoDeSkew}
+            normalizedImageData={normalizedImageData}
+            onSetCurrentCorner={setCurrentCorner}
+            onResetCorners={() => {
+              setCorners({
+                topLeft: { x: 0, y: 0 },
+                topRight: { x: 1, y: 0 },
+                bottomLeft: { x: 0, y: 1 },
+                bottomRight: { x: 1, y: 1 },
+              });
+              setCurrentCorner("topLeft");
+              setNormalizedImageData(""); // Clear normalized image when resetting
+            }}
+            onPerformDeSkew={performDeSkew}
+            onSetAutoDeSkew={setAutoDeSkew}
+            areAllCornersSet={areAllCornersSet()}
+            calibrationPoints={calibrationPoints}
+            currentCalibrationPoint={currentCalibrationPoint}
+            calculatedDimensions={calculatedDimensions}
+            onSetCurrentCalibrationPoint={setCurrentCalibrationPoint}
+            onCalibrationComplete={handleCalibrationComplete}
+            onResetCalibration={resetCalibration}
+            missions={missions}
+            selectedObject={selectedObject}
+            placingObject={placingObject}
+            onSetPlacingObject={setPlacingObject}
+            onSetSelectedObject={setSelectedObject}
+            onUpdateObject={updateSelectedObject}
+            onDeleteObject={deleteSelectedObject}
+            onAddObjective={addObjectiveToSelected}
+            onRemoveObjective={removeObjectiveFromSelected}
+            onUpdateObjective={updateObjectiveInSelected}
+            matName={matName}
+            onSave={handleSave}
+            onExportTar={handleExportTar}
+            MAT_WIDTH_MM={MAT_WIDTH_MM}
+            MAT_HEIGHT_MM={MAT_HEIGHT_MM}
+          />
         </div>
       </div>
     </div>
