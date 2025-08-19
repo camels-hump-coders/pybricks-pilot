@@ -1,4 +1,4 @@
-export interface PybricksAnalysis {
+interface PybricksAnalysis {
   isPybricksCode: boolean;
   detectedHubs: string[];
   detectedMotors: string[];
@@ -10,7 +10,7 @@ export interface PybricksAnalysis {
   suggestions: string[];
 }
 
-export function analyzePybricksCode(code: string): PybricksAnalysis {
+function analyzePybricksCode(code: string): PybricksAnalysis {
   const lines = code.split("\n");
   const analysis: PybricksAnalysis = {
     isPybricksCode: false,

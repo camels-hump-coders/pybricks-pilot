@@ -3,7 +3,7 @@ import { LEGO_STUD_SIZE_MM } from "../../schemas/RobotConfig";
 import type { RobotPosition } from "../robotPosition";
 import { calculateRobotBounds } from "./robotBounds";
 
-export type RobotPreviewType =
+type RobotPreviewType =
   | "primary"
   | "secondary"
   | "perpendicular"

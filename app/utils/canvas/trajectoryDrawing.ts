@@ -1,9 +1,9 @@
 import type { RobotConfig } from "../../schemas/RobotConfig";
 import type { RobotPosition } from "../robotPosition";
 
-export type MovementDirection = "forward" | "backward" | "left" | "right";
+type MovementDirection = "forward" | "backward" | "left" | "right";
 
-export interface TrajectoryDrawingUtils {
+interface TrajectoryDrawingUtils {
   mmToCanvas: (x: number, y: number) => { x: number; y: number };
   scale: number;
 }

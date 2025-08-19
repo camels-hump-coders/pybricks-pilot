@@ -146,7 +146,7 @@ export function drawMovementPreview(
 /**
  * Draw perpendicular preview trajectories - show ALL movement options when hovering over stop button
  */
-export function drawPerpendicularPreview(
+function drawPerpendicularPreview(
   ctx: CanvasRenderingContext2D,
   perpendicularPreview: PerpendicularPreview,
   robotConfig: RobotConfig,

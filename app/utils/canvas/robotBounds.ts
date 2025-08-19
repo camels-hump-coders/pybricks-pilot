@@ -3,7 +3,7 @@ import { LEGO_STUD_SIZE_MM } from "../../schemas/RobotConfig";
 import type { RobotPosition } from "../robotPosition";
 import type { RobotDrawingUtils } from "./robotDrawing";
 
-export interface RobotBounds {
+interface RobotBounds {
   centerOfRotation: { x: number; y: number };
   robotBodyCenter: { x: number; y: number };
   robotBodyOffsetX: number;
@@ -73,7 +73,7 @@ export function calculateRobotBounds(
 /**
  * Check if a canvas point is within the robot's bounds
  */
-export function isPointInRobotBounds(
+function isPointInRobotBounds(
   canvasX: number,
   canvasY: number,
   bounds: RobotBounds
@@ -100,7 +100,7 @@ export function isPointInRobotBounds(
 /**
  * Calculate the heading from current robot position to a target point
  */
-export function calculateHeadingToTarget(
+function calculateHeadingToTarget(
   robotPosition: RobotPosition,
   targetX: number,
   targetY: number

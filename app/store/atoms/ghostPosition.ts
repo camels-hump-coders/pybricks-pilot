@@ -1,16 +1,16 @@
 import { atom } from "jotai";
 
-export interface GhostPosition {
+interface GhostPosition {
   x: number;
   y: number;
   heading: number;
 }
 
 // Ghost robot position for telemetry playback
-export const ghostPositionAtom = atom<GhostPosition | null>(null);
+const ghostPositionAtom = atom<GhostPosition | null>(null);
 
 // Ghost robot visibility (whether playback has started)
-export const ghostVisibilityAtom = atom<boolean>(false);
+const ghostVisibilityAtom = atom<boolean>(false);
 
 // Combined atom for easy consumption
 export const ghostRobotAtom = atom((get) => {

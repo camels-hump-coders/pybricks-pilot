@@ -280,4 +280,4 @@ class RobotConnectionManager {
 }
 
 // Export singleton instance
-export const robotConnectionManager = new RobotConnectionManager();
+const robotConnectionManager = new RobotConnectionManager();

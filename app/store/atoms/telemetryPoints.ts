@@ -43,7 +43,7 @@ export const telemetryTotalDurationAtom = atom((get) => {
 });
 
 // Derived atom for statistics
-export const telemetryStatisticsAtom = atom((get) => {
+const telemetryStatisticsAtom = atom((get) => {
   const allPoints = get(allTelemetryPointsAtom);
   const paths = get(telemetryPathsAtom);
   const currentPath = get(currentTelemetryPathAtom);
@@ -106,7 +106,7 @@ export const clearTelemetryHistoryAtom = atom(
 );
 
 // Atom for starting a new telemetry path (keeps old paths)
-export const startNewTelemetryPathAtom = atom(
+const startNewTelemetryPathAtom = atom(
   null,
   (get, set) => {
     // This will be handled by the telemetryHistory service

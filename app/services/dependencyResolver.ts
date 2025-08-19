@@ -1,13 +1,13 @@
 import type { PythonFile } from "../types/fileSystem";
 
-export interface DependencyInfo {
+interface DependencyInfo {
   file: PythonFile;
   content: string;
   moduleName: string;
   dependencies: string[]; // Module names this file imports
 }
 
-export interface ResolvedDependencies {
+interface ResolvedDependencies {
   dependencies: DependencyInfo[];
   unresolvedImports: string[]; // Imports we couldn't resolve locally
 }
@@ -15,7 +15,7 @@ export interface ResolvedDependencies {
 /**
  * Resolves Python import dependencies recursively within the project directory
  */
-export class DependencyResolver {
+class DependencyResolver {
   /**
    * Extracts import statements from Python code
    * Handles: import module, from module import ..., from .relative import ...

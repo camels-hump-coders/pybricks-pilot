@@ -23,14 +23,14 @@ export const editingMissionAtom = atom<Mission | null>(null);
 export const selectedPointIdAtom = atom<string | null>(null);
 
 // Mission execution state
-export const missionExecutionAtom = atom<MissionExecution | null>(null);
-export const missionStatusAtom = atom<MissionStatus>("idle");
+const missionExecutionAtom = atom<MissionExecution | null>(null);
+const missionStatusAtom = atom<MissionStatus>("idle");
 
 // UI state atoms
 export const isMissionManagementOpenAtom = atom<boolean>(false);
 export const isAddMissionDialogOpenAtom = atom<boolean>(false);
 export const isMissionEditorOpenAtom = atom<boolean>(false);
-export const showMissionValidationAtom = atom<boolean>(false);
+const showMissionValidationAtom = atom<boolean>(false);
 
 // Mission editing state atoms
 export const pointPlacementModeAtom = atom<

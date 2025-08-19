@@ -7,7 +7,7 @@ export interface RobotPosition {
   heading: number; // degrees clockwise from north (0 = north, 90 = east)
 }
 
-export interface MatConfig {
+interface MatConfig {
   dimensions?: {
     widthMm?: number;
     heightMm?: number;

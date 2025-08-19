@@ -1,6 +1,6 @@
 import type { RobotPosition } from "../robotPosition";
 
-export interface RobotGridDrawingUtils {
+interface RobotGridDrawingUtils {
   mmToCanvas: (x: number, y: number) => { x: number; y: number };
   scale: number;
 }

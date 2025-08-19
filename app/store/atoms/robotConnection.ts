@@ -13,7 +13,7 @@ export const connectionErrorAtom = atom<Error | null>(null);
 
 // Telemetry atoms
 export const telemetryDataAtom = atom<TelemetryData | null>(null);
-export const telemetryHistoryAtom = atom<TelemetryData[]>([]);
+const telemetryHistoryAtom = atom<TelemetryData[]>([]);
 
 // Program state atoms
 export const programStatusAtom = atom<ProgramStatus>({ running: false });
@@ -40,7 +40,7 @@ export const sensorDataAtom = atom((get) => get(telemetryDataAtom)?.sensors);
 export const imuDataAtom = atom((get) => get(telemetryDataAtom)?.hub?.imu);
 
 // Capabilities atom - delegates to robot-specific capability atoms
-export const robotCapabilitiesAtom = atom((get) => {
+const robotCapabilitiesAtom = atom((get) => {
   const robotType = get(robotTypeAtom);
   
   if (robotType === "virtual") {
@@ -61,7 +61,7 @@ export const clearProgramOutputLogAtom = atom(null, (get, set) => {
   set(programOutputLogAtom, []);
 });
 
-export const resetTelemetryAtom = atom(null, (get, set) => {
+const resetTelemetryAtom = atom(null, (get, set) => {
   set(telemetryDataAtom, null);
   set(telemetryHistoryAtom, []);
   set(programStatusAtom, { running: false });

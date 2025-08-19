@@ -17,7 +17,7 @@ export interface ScoringState {
 /**
  * Calculate total points for a mission state
  */
-export function getTotalPointsForMissionState(
+function getTotalPointsForMissionState(
   state: { objectives: { [key: string]: ObjectiveState } } | undefined
 ): number {
   if (!state?.objectives) return 0;

@@ -15,7 +15,7 @@ import { usePositionManager } from "./usePositionManager";
 /**
  * Mission execution state
  */
-export interface MissionExecutionState {
+interface MissionExecutionState {
   isGenerating: boolean;
   isExecuting: boolean;
   isPaused: boolean;

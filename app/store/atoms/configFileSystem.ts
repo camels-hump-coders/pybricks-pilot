@@ -9,14 +9,14 @@ import { initializeActiveRobotAtom } from "./robotConfigSimplified";
 // Mat configuration atoms
 export const availableMatConfigsAtom = atom<Array<{ id: string; name: string; displayName: string; description?: string; tags: string[] }>>([]);
 export const isLoadingMatConfigsAtom = atom<boolean>(false);
-export const currentMatConfigAtom = atom<GameMatConfig | null>(null);
-export const selectedMatIdAtom = atom<string | null>(null);
+const currentMatConfigAtom = atom<GameMatConfig | null>(null);
+const selectedMatIdAtom = atom<string | null>(null);
 
 // Robot configuration atoms
 export const availableRobotConfigsAtom = atom<RobotConfig[]>([]);
-export const isLoadingRobotConfigsAtom = atom<boolean>(false);
-export const currentRobotConfigAtom = atom<RobotConfig | null>(null);
-export const selectedRobotIdAtom = atom<string>("default");
+const isLoadingRobotConfigsAtom = atom<boolean>(false);
+const currentRobotConfigAtom = atom<RobotConfig | null>(null);
+const selectedRobotIdAtom = atom<string>("default");
 
 // Mat discovery action
 export const discoverMatConfigsAtom = atom(null, async (get, set) => {
@@ -240,7 +240,7 @@ export const createRobotConfigAtom = atom(null, async (get, set, params: { name:
 });
 
 // Delete mat configuration
-export const deleteMatConfigAtom = atom(null, async (get, set, matId: string) => {
+const deleteMatConfigAtom = atom(null, async (get, set, matId: string) => {
   const directoryHandle = get(directoryHandleAtom);
   if (!directoryHandle) throw new Error("No directory selected");
 

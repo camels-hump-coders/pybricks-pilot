@@ -8,8 +8,7 @@ import type {
 } from "../schemas/GameMatConfig";
 import { deSkewImage } from "../utils/perspectiveTransform";
 
-// Re-export types for backward compatibility
-export type { GameMatConfig };
+// Re-export types for backward compatibility;
 
 interface GameMatEditorProps {
   onSave: (config: GameMatConfig, imageFile?: File) => void;

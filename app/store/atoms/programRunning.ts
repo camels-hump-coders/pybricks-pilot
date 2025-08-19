@@ -1,7 +1,7 @@
 import { atom } from "jotai";
 
 // Track the last time telemetry was received
-export const lastTelemetryTimestampAtom = atom<number>(0);
+const lastTelemetryTimestampAtom = atom<number>(0);
 
 // Track if we're currently running a program based on telemetry reception
 export const isProgramRunningAtom = atom<boolean>(false);
@@ -57,7 +57,7 @@ export const checkProgramRunningTimeoutAtom = atom(
 );
 
 // Helper atom to manually stop the program (for manual stop button)
-export const stopProgramAtom = atom(
+const stopProgramAtom = atom(
   null,
   (get, set) => {
     console.log("[ProgramRunning] Program manually stopped");

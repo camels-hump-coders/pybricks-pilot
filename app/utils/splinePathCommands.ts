@@ -24,7 +24,7 @@ function calculateTurnAngle(fromHeading: number, toHeading: number): number {
 /**
  * Convert a spline path to executable robot commands
  */
-export function convertSplinePathToCommands(path: SplinePath): SplinePathCommand[] {
+function convertSplinePathToCommands(path: SplinePath): SplinePathCommand[] {
   if (!path || path.points.length < 2) {
     return [];
   }
@@ -78,7 +78,7 @@ export function convertSplinePathToCommands(path: SplinePath): SplinePathCommand
  * Convert spline path with smooth arcs to robot commands
  * This is a more advanced version that can generate arc commands for smooth curves
  */
-export function convertSplinePathToSmoothCommands(path: SplinePath): SplinePathCommand[] {
+function convertSplinePathToSmoothCommands(path: SplinePath): SplinePathCommand[] {
   if (!path || path.points.length < 2) {
     return [];
   }

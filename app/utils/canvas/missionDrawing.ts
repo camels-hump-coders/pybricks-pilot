@@ -9,7 +9,7 @@ import type {
 import { computeArcPath, generateArcPathPoints } from "../arcPathComputation";
 import type { NamedPosition } from "../../store/atoms/positionManagement";
 
-export interface MissionDrawingUtils {
+interface MissionDrawingUtils {
   mmToCanvas: (x: number, y: number) => { x: number; y: number };
   canvasToMm: (x: number, y: number) => { x: number; y: number };
   scale: number;
@@ -213,7 +213,7 @@ export function drawMissionPlanner(
 /**
  * Draw a single mission point
  */
-export function drawMissionPoint(
+function drawMissionPoint(
   ctx: CanvasRenderingContext2D,
   point: MissionPointType,
   index: number,
@@ -547,7 +547,7 @@ export function drawMissionPointPreview(
 /**
  * Draw arc path segments for a mission
  */
-export function drawMissionArcPaths(
+function drawMissionArcPaths(
   ctx: CanvasRenderingContext2D,
   mission: MissionPlannerMission,
   positions: NamedPosition[],

@@ -3,7 +3,7 @@
  */
 
 // Base point interface for waypoints and actions (have explicit coordinates)
-export interface MissionPoint {
+interface MissionPoint {
   id: string;
   x: number; // mm from left edge of mat
   y: number; // mm from top edge of mat (0 = top, positive = downward)
@@ -11,7 +11,7 @@ export interface MissionPoint {
 }
 
 // Base interface for points that reference positions (start/end points)
-export interface ReferencedPoint {
+interface ReferencedPoint {
   id: string;
   type: "start" | "end";
   referenceType: "position" | "mission";
@@ -60,13 +60,13 @@ export interface ResolvedMissionPoint {
 }
 
 // Arc configuration for smooth movement between points
-export interface ArcConfig {
+interface ArcConfig {
   radius: number; // mm - radius of the arc
   clockwise: boolean; // direction of the arc
 }
 
 // Segment between two points
-export interface MissionSegment {
+interface MissionSegment {
   fromPoint: MissionPointType;
   toPoint: MissionPointType;
   arcConfig?: ArcConfig; // optional arc configuration for smooth movement
@@ -85,7 +85,7 @@ export interface Mission {
 }
 
 // Mission execution command types
-export type DrivebaseCommand = 
+type DrivebaseCommand = 
   | { type: "straight"; distance: number; speed?: number }
   | { type: "turn"; angle: number; speed?: number } 
   | { type: "arc"; radius: number; angle: number; speed?: number }
@@ -93,7 +93,7 @@ export type DrivebaseCommand =
   | { type: "action"; name: string; parameters?: Record<string, any> };
 
 // Compiled mission ready for execution
-export interface CompiledMission {
+interface CompiledMission {
   mission: Mission;
   commands: DrivebaseCommand[];
   totalDistance: number; // mm
@@ -101,14 +101,14 @@ export interface CompiledMission {
 }
 
 // Mission validation result
-export interface MissionValidation {
+interface MissionValidation {
   isValid: boolean;
   errors: string[];
   warnings: string[];
 }
 
 // File format for missions.json
-export interface MissionsFileData {
+interface MissionsFileData {
   version: string;
   missions: Mission[];
   lastModified: string;

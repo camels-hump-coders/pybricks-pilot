@@ -360,7 +360,7 @@ export function drawSplinePath(
 /**
  * Draw a smooth spline curve through the given points (future enhancement)
  */
-export function drawSplineCurve(
+function drawSplineCurve(
   ctx: CanvasRenderingContext2D,
   points: SplinePathPoint[],
   utils: RobotDrawingUtils

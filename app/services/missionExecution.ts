@@ -57,7 +57,7 @@ export interface MissionExecutionOptions {
 /**
  * Convert arc path segments to robot commands
  */
-export class MissionExecutionService {
+class MissionExecutionService {
   private defaultOptions: MissionExecutionOptions = {
     defaultSpeed: 200, // mm/s
     defaultTurnSpeed: 90, // degrees/s

@@ -10,7 +10,7 @@ import type { NamedPosition } from "../store/atoms/positionManagement";
  * Resolve a mission point by computing coordinates from position references
  * for start/end points or using existing coordinates for waypoints/actions
  */
-export function resolveMissionPoint(
+function resolveMissionPoint(
   point: MissionPointType,
   positions: NamedPosition[]
 ): ResolvedMissionPoint {
@@ -77,13 +77,13 @@ export function resolveMissionPoints(
 /**
  * Check if a point needs coordinate resolution (is a start/end point)
  */
-export function isReferencedPoint(point: MissionPointType): point is StartPoint | EndPoint {
+function isReferencedPoint(point: MissionPointType): point is StartPoint | EndPoint {
   return point.type === "start" || point.type === "end";
 }
 
 /**
  * Check if a point has explicit coordinates (is a waypoint/action)
  */
-export function hasExplicitCoordinates(point: MissionPointType): point is { x: number; y: number } {
+function hasExplicitCoordinates(point: MissionPointType): point is { x: number; y: number } {
   return point.type === "waypoint" || point.type === "action";
 }

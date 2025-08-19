@@ -11,8 +11,8 @@ export const robotConfigAtom = atom<RobotConfig>(DEFAULT_ROBOT_CONFIG);
 export const robotBuilderOpenAtom = atom<boolean>(false);
 
 // Loading/error states for robot operations
-export const robotConfigLoadingAtom = atom<boolean>(false);
-export const robotConfigErrorAtom = atom<string | null>(null);
+const robotConfigLoadingAtom = atom<boolean>(false);
+const robotConfigErrorAtom = atom<string | null>(null);
 
 // Action to set the current robot config and persist the selection
 export const setActiveRobotAtom = atom(
@@ -56,7 +56,7 @@ export const initializeActiveRobotAtom = atom(
 );
 
 // Derived atoms
-export const robotDimensionsAtom = atom((get) => {
+const robotDimensionsAtom = atom((get) => {
   const config = get(robotConfigAtom);
   return {
     widthMm: config.dimensions.width * 8, // Convert studs to mm
@@ -66,7 +66,7 @@ export const robotDimensionsAtom = atom((get) => {
   };
 });
 
-export const robotWheelbaseAtom = atom((get) => {
+const robotWheelbaseAtom = atom((get) => {
   const config = get(robotConfigAtom);
   return {
     leftWheel: config.wheels.left,
@@ -77,13 +77,13 @@ export const robotWheelbaseAtom = atom((get) => {
   };
 });
 
-export const robotAppearanceAtom = atom((get) => {
+const robotAppearanceAtom = atom((get) => {
   const config = get(robotConfigAtom);
   return config.appearance;
 });
 
 // Robot builder state atoms (UI state, not persisted)
-export const robotBuilderStateAtom = atom({
+const robotBuilderStateAtom = atom({
   selectedTool: "select" as
     | "select"
     | "fill"
@@ -98,7 +98,7 @@ export const robotBuilderStateAtom = atom({
   pan: { x: 0, y: 0 },
 });
 
-export const updateRobotBuilderStateAtom = atom(
+const updateRobotBuilderStateAtom = atom(
   null,
   (
     get,

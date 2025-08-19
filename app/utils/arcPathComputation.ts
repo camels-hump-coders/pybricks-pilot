@@ -364,12 +364,12 @@ function calculateWaypointArc(
 /**
  * Path segment types for optimal robot movement
  */
-export type PathSegmentType = "turn" | "straight" | "arc";
+type PathSegmentType = "turn" | "straight" | "arc";
 
 /**
  * Enhanced path segment with turn-straight-arc breakdown
  */
-export interface OptimalPathSegment extends ArcPathSegment {
+interface OptimalPathSegment extends ArcPathSegment {
   segmentType: PathSegmentType;
   turnAngle?: number; // For turn segments
   arcSweepAngle?: number; // For arc segments
@@ -636,7 +636,7 @@ export function generateArcPathPoints(
 /**
  * Get the total path length for a mission
  */
-export function calculateMissionPathLength(
+function calculateMissionPathLength(
   mission: Mission,
   positions: NamedPosition[]
 ): number {
@@ -647,7 +647,7 @@ export function calculateMissionPathLength(
 /**
  * Get estimated time to complete mission based on arc path
  */
-export function estimateMissionTime(
+function estimateMissionTime(
   mission: Mission,
   positions: NamedPosition[],
   averageSpeed: number = 200 // mm/s

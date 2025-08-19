@@ -33,7 +33,7 @@ export interface ObjectiveState {
   selectedChoiceId?: string;
 }
 
-export interface ScoringState {
+interface ScoringState {
   [objectId: string]: {
     objectives: {
       [objectiveId: string]: ObjectiveState;
@@ -124,7 +124,7 @@ export const robotPositionAtom = atom<RobotPosition>(
 );
 
 // Derived atom that recalculates initial position when mat or robot config changes
-export const initialRobotPositionAtom = atom((get) => {
+const initialRobotPositionAtom = atom((get) => {
   const robotConfig = get(robotConfigAtom);
   const matConfig = get(customMatConfigAtom);
 
@@ -160,7 +160,7 @@ export const totalScoreAtom = atom<number>(0);
 export const movementPreviewAtom = atom<MovementPreview | null>(null);
 
 // Perpendicular motion preview atom - for showing all 4 possible movement options
-export interface PerpendicularPreviewGhost {
+interface PerpendicularPreviewGhost {
   position: RobotPosition;
   type: "drive" | "turn";
   direction: "forward" | "backward" | "left" | "right";

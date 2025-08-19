@@ -11,7 +11,7 @@ export const hoveredPointAtom = atom<number | null>(null);
 export const missionBoundsAtom = atom<Map<string, { x: number; y: number; width: number; height: number }>>(new Map());
 
 // Canvas update trigger
-export const updateCanvasAtom = atom<number>(0);
+const updateCanvasAtom = atom<number>(0);
 
 // Derived coordinate transformation functions atom
 export const coordinateUtilsAtom = atom((get) => {
@@ -64,42 +64,42 @@ export const coordinateUtilsAtom = atom((get) => {
 });
 
 // Actions for canvas state
-export const setCanvasSizeAtom = atom(
+const setCanvasSizeAtom = atom(
   null,
   (get, set, size: { width: number; height: number }) => {
     set(canvasSizeAtom, size);
   }
 );
 
-export const setCanvasScaleAtom = atom(
+const setCanvasScaleAtom = atom(
   null,
   (get, set, scale: number) => {
     set(canvasScaleAtom, scale);
   }
 );
 
-export const setHoveredObjectAtom = atom(
+const setHoveredObjectAtom = atom(
   null,
   (get, set, objectId: string | null) => {
     set(hoveredObjectAtom, objectId);
   }
 );
 
-export const setHoveredPointAtom = atom(
+const setHoveredPointAtom = atom(
   null,
   (get, set, pointIndex: number | null) => {
     set(hoveredPointAtom, pointIndex);
   }
 );
 
-export const setMissionBoundsAtom = atom(
+const setMissionBoundsAtom = atom(
   null,
   (get, set, bounds: Map<string, { x: number; y: number; width: number; height: number }>) => {
     set(missionBoundsAtom, bounds);
   }
 );
 
-export const triggerCanvasUpdateAtom = atom(
+const triggerCanvasUpdateAtom = atom(
   null,
   (get, set) => {
     set(updateCanvasAtom, Date.now());

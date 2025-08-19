@@ -1,7 +1,7 @@
 import { normalizeHeading } from "../utils/headingUtils";
 import type { TelemetryPath, TelemetryPoint } from "./telemetryHistory";
 
-export interface MovementCommand {
+interface MovementCommand {
   type: "drive" | "turn";
   distance?: number; // mm - raw encoder distance delta
   angle?: number; // degrees - raw encoder angle delta
@@ -22,7 +22,7 @@ export interface GeneratedProgram {
 }
 
 // New interface for raw telemetry data
-export interface RawTelemetryPoint {
+interface RawTelemetryPoint {
   timestamp: number;
   isCmdKeyPressed: boolean;
   drivebase?: {

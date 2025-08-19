@@ -47,21 +47,21 @@ export interface RobotConfig {
   isDefault: boolean;
 }
 
-export interface WheelPosition {
+interface WheelPosition {
   distanceFromEdge: number; // studs from left/right edge of robot (wheels are symmetric)
   distanceFromTop: number; // studs from top edge of robot (Y=0 at top, Y+ down)
   diameter: number; // mm
   width: number; // mm
 }
 
-export interface LegoStud {
+interface LegoStud {
   x: number; // stud position (0-based)
   y: number; // stud position (0-based)
   type: "empty" | "filled" | "wheel" | "sensor" | "motor";
   color?: string;
 }
 
-export interface RobotBuilderState {
+interface RobotBuilderState {
   selectedTool: "select" | "fill" | "wheel" | "sensor" | "motor" | "eraser";
   selectedColor: string;
   gridSize: number; // studs
@@ -127,34 +127,34 @@ export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
 
 // LEGO stud size constants
 export const LEGO_STUD_SIZE_MM = 8; // 1 stud = 8mm
-export const LEGO_PLATE_HEIGHT_MM = 3.2; // 1 plate = 3.2mm
-export const LEGO_BRICK_HEIGHT_MM = 9.6; // 1 brick = 9.6mm
+const LEGO_PLATE_HEIGHT_MM = 3.2; // 1 plate = 3.2mm
+const LEGO_BRICK_HEIGHT_MM = 9.6; // 1 brick = 9.6mm
 
 // Convert studs to mm
 export const studsToMm = (studs: number): number => studs * LEGO_STUD_SIZE_MM;
 
 // Convert mm to studs
-export const mmToStuds = (mm: number): number => mm / LEGO_STUD_SIZE_MM;
+const mmToStuds = (mm: number): number => mm / LEGO_STUD_SIZE_MM;
 
 // Helper functions for stud-based positioning
-export const getWheelbaseStuds = (config: RobotConfig): number => {
+const getWheelbaseStuds = (config: RobotConfig): number => {
   return config.dimensions.width - config.wheels.left.distanceFromEdge * 2;
 };
 
-export const getWheelbaseMm = (config: RobotConfig): number => {
+const getWheelbaseMm = (config: RobotConfig): number => {
   return getWheelbaseStuds(config) * LEGO_STUD_SIZE_MM;
 };
 
-export const getRobotCenterX = (config: RobotConfig): number => {
+const getRobotCenterX = (config: RobotConfig): number => {
   return config.dimensions.width / 2;
 };
 
-export const getRobotCenterY = (config: RobotConfig): number => {
+const getRobotCenterY = (config: RobotConfig): number => {
   return config.dimensions.length / 2;
 };
 
 // Convert edge-based positioning to center-based for calculations
-export const getWheelPositionFromCenter = (config: RobotConfig) => {
+const getWheelPositionFromCenter = (config: RobotConfig) => {
   const centerX = config.dimensions.width / 2;
   const centerY = config.dimensions.length / 2;
 
@@ -194,7 +194,7 @@ export const calculateCenterOfRotation = (config: RobotConfig) => {
 };
 
 // Validate robot configuration
-export function validateRobotConfig(config: RobotConfig): string[] {
+function validateRobotConfig(config: RobotConfig): string[] {
   const errors: string[] = [];
 
   if (config.dimensions.width < 4 || config.dimensions.length < 4) {

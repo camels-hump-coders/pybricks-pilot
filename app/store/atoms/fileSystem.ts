@@ -60,7 +60,7 @@ export const stableDirectoryAccessAtom = atom((get) => {
 });
 
 // Memoized directory handle atom that's stable based on directory name
-export const stableDirectoryHandleAtom = atom((get) => {
+const stableDirectoryHandleAtom = atom((get) => {
   const directoryHandle = get(directoryHandleAtom);
   const directoryName = get(directoryNameAtom);
   
@@ -136,7 +136,7 @@ export const unmountDirectoryAtom = atom(null, (get, set) => {
   set(pythonFilesErrorAtom, null);
 });
 
-export const refreshFilesAtom = atom(null, async (get, set) => {
+const refreshFilesAtom = atom(null, async (get, set) => {
   const handle = get(directoryHandleAtom);
   if (!handle) return;
 

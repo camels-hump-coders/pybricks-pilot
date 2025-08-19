@@ -1,17 +1,17 @@
 import type { TelemetryPoint } from "../../services/telemetryHistory";
 
-export interface TelemetryDrawingUtils {
+interface TelemetryDrawingUtils {
   mmToCanvas: (x: number, y: number) => { x: number; y: number };
 }
 
-export interface PathVisualizationOptions {
+interface PathVisualizationOptions {
   opacity: number;
   strokeWidth: number;
   showMarkers: boolean;
   colorMode: "time" | "speed" | "heading";
 }
 
-export interface TelemetryHistoryService {
+interface TelemetryHistoryService {
   getColorForPoint: (point: TelemetryPoint, colorMode: string) => string;
 }
 
@@ -35,7 +35,7 @@ export function drawTelemetryPath(
 /**
  * Draw a path from telemetry points
  */
-export function drawPath(
+function drawPath(
   ctx: CanvasRenderingContext2D,
   points: TelemetryPoint[],
   pathOptions: PathVisualizationOptions,
@@ -83,7 +83,7 @@ export function drawPath(
 /**
  * Draw markers for path points
  */
-export function drawPathMarkers(
+function drawPathMarkers(
   ctx: CanvasRenderingContext2D,
   points: TelemetryPoint[],
   pathOptions: PathVisualizationOptions,

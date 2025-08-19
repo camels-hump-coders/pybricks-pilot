@@ -2,7 +2,7 @@
  * Basic canvas drawing utilities for the competition mat
  */
 
-export interface CanvasDrawingUtils {
+interface CanvasDrawingUtils {
   scale: number;
 }
 
@@ -56,7 +56,7 @@ export function drawBorderWalls(
 /**
  * Draw grid overlay on the mat
  */
-export function drawGridOverlay(
+function drawGridOverlay(
   ctx: CanvasRenderingContext2D,
   utils: CanvasDrawingUtils,
   matX: number,
@@ -130,7 +130,7 @@ export function drawGrid(
 /**
  * Clear canvas with background color
  */
-export function clearCanvas(
+function clearCanvas(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
