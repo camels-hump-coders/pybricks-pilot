@@ -7,6 +7,7 @@
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
+    "list-files": "./scripts/list-files-by-lines.py app",
     "lint": "npm run lint:biome && npm run lint:knip",
     "lint:biome": "npx @biomejs/biome check",
     "lint:knip": "npx knip",
