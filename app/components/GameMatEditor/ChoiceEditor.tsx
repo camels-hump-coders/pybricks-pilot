@@ -6,7 +6,6 @@ import type {
 interface ChoiceEditorProps {
   choice: MissionObjectiveChoice;
   choiceIndex: number;
-  choices: MissionObjectiveChoice[];
   onUpdateChoice: (
     choiceIndex: number,
     updatedChoice: MissionObjectiveChoice,
@@ -18,7 +17,6 @@ interface ChoiceEditorProps {
 export function ChoiceEditor({
   choice,
   choiceIndex,
-  choices,
   onUpdateChoice,
   onRemoveChoice,
   canRemove,

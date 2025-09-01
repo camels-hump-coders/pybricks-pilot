@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useMissionManager } from "../hooks/useMissionManager";
 
 /**
@@ -17,6 +17,8 @@ export function AddMissionDialog() {
   const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const closeTitleId = useId();
+  const loadingTitleId = useId();
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -112,7 +114,10 @@ export function AddMissionDialog() {
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              role="img"
+              aria-labelledby={closeTitleId}
             >
+              <title id={closeTitleId}>Close dialog</title>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -183,7 +188,10 @@ export function AddMissionDialog() {
                     className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                     fill="none"
                     viewBox="0 0 24 24"
+                    role="img"
+                    aria-labelledby={loadingTitleId}
                   >
+                    <title id={loadingTitleId}>Loading</title>
                     <circle
                       cx="12"
                       cy="12"

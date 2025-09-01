@@ -1,12 +1,6 @@
 import type { SplinePath } from "../../store/atoms/gameMat";
 import type { RobotDrawingUtils } from "./robotDrawing";
 
-interface SplinePathDrawingProps {
-  splinePath: SplinePath;
-  selectedPointId?: string | null;
-  utils: RobotDrawingUtils;
-}
-
 /**
  * Draw a spline path with its points and connections
  */

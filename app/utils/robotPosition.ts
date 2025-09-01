@@ -49,7 +49,6 @@ export function calculateRobotPositionFromEdges(
   const matHeightMm = matConfig?.dimensions?.heightMm || 1137;
 
   let x: number;
-  let y: number;
 
   if (side === "left") {
     // fromSideMm is distance from left edge to the left edge of robot
@@ -60,7 +59,8 @@ export function calculateRobotPositionFromEdges(
   }
 
   // fromBottomMm is distance from bottom edge to the bottom edge of robot
-  y = matHeightMm - fromBottomMm - (robotLengthMm - centerOfRotationFromTopMm);
+  const y =
+    matHeightMm - fromBottomMm - (robotLengthMm - centerOfRotationFromTopMm);
 
   const result = {
     x,
