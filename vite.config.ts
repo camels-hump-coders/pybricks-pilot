@@ -4,10 +4,7 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig(() => {
-  // Use repository name as base for GitHub Pages deployment
-  // NOTE: we now use a custom domain of pybrickspilot.org, so no need for a basename
-  // const base = process.env.GITHUB_PAGES === 'true' ? '/pybricks-pilot/' : '/';
-  const base = "/";
+  const base = process.env.BASE_PATH ?? "/";
 
   return {
     base,
