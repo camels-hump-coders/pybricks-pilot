@@ -21,16 +21,7 @@ interface RobotInterface {
   sendControlCommand(command: string): Promise<void>;
 
   // Command sequence control
-  executeCommandSequence(
-    commands: Array<{
-      action: string;
-      distance?: number;
-      angle?: number;
-      speed?: number;
-      motor?: string;
-      [key: string]: any;
-    }>,
-  ): Promise<void>;
+  executeCommandSequence(commands: RobotCommand[]): Promise<void>;
 
   // Compound movements
   turnAndDrive(
@@ -48,13 +39,34 @@ interface RobotInterface {
   getCapabilities(): RobotCapabilities;
 }
 
-interface RobotCapabilities {
+export interface RobotCapabilities {
   maxMotorCount: number;
   maxSensorCount: number;
   drivebaseSupported: boolean;
   imuSupported: boolean;
   batteryMonitoring: boolean;
   programStorage: boolean;
+}
+
+export interface RobotCommand {
+  action:
+    | "drive"
+    | "turn"
+    | "stop"
+    | "motor"
+    | "pause"
+    | "drive_continuous"
+    | "turn_and_drive"
+    | "arc";
+  distance?: number;
+  angle?: number;
+  speed?: number;
+  turn_rate?: number;
+  motor?: string;
+  duration?: number;
+  radius?: number;
+  description?: string;
+  [key: string]: unknown;
 }
 
 export interface RobotConnectionOptions {

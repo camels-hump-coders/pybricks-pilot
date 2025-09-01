@@ -8,7 +8,8 @@ import {
   GameMatConfigSchema,
 } from "../schemas/GameMatConfig";
 import { matConfigFileSystem } from "../services/matConfigFileSystem";
-import type { ProgramStatus } from "../services/pybricksHub";
+import type { RobotCommand } from "../services/robotInterface";
+import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
 import {
   createMatConfigAtom,
   discoverMatConfigsAtom,
@@ -27,6 +28,7 @@ import {
   robotConfigAtom,
   setActiveRobotAtom,
 } from "../store/atoms/robotConfigSimplified";
+import type { PythonFile } from "../types/fileSystem";
 import { CompactRobotController } from "./CompactRobotController";
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
@@ -248,15 +250,15 @@ interface RobotControlsSectionProps {
   ) => Promise<void>;
   onContinuousMotorCommand: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand: (motor: string) => Promise<void>;
-  onExecuteCommandSequence: (commands: any[]) => Promise<void>;
-  telemetryData?: any;
+  onExecuteCommandSequence: (commands: RobotCommand[]) => Promise<void>;
+  telemetryData?: TelemetryData;
   isConnected: boolean;
   robotType?: "real" | "virtual" | null;
   onStopProgram?: () => Promise<void>;
   onUploadAndRunFile?: (
-    file: any,
+    file: PythonFile,
     content: string,
-    availableFiles: any[],
+    availableFiles: PythonFile[],
   ) => Promise<void>;
   onRobotBuilderOpen: () => void;
   onResetTelemetry?: () => Promise<void>; // Add reset telemetry function
@@ -541,9 +543,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
   // Create a smart upload function that uses hub menu when there are numbered programs
   const handleUploadAndRun = async (
-    _file: any,
+    _file: PythonFile,
     _content: string,
-    _availableFiles: any[],
+    _availableFiles: PythonFile[],
   ) => {
     // allPrograms already contains numbered programs with programNumber
     // No need to filter since allPrograms is already the numbered programs list
@@ -824,8 +826,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           onMotorCommand={sendMotorCommand}
           onContinuousMotorCommand={sendContinuousMotorCommand}
           onMotorStopCommand={sendMotorStopCommand}
-          onExecuteCommandSequence={robotConnection.executeCommandSequence}
-          telemetryData={telemetryData}
+              onExecuteCommandSequence={robotConnection.executeCommandSequence}
+              telemetryData={telemetryData ?? undefined}
           isConnected={isConnected}
           robotType={robotType}
           onStopProgram={stopProgram}
@@ -868,8 +870,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             onMotorCommand={sendMotorCommand}
             onContinuousMotorCommand={sendContinuousMotorCommand}
             onMotorStopCommand={sendMotorStopCommand}
-            onExecuteCommandSequence={robotConnection.executeCommandSequence}
-            telemetryData={telemetryData}
+              onExecuteCommandSequence={robotConnection.executeCommandSequence}
+              telemetryData={telemetryData ?? undefined}
             isConnected={isConnected}
             robotType={robotType}
             onStopProgram={stopProgram}

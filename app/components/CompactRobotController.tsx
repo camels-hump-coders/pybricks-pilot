@@ -1,8 +1,11 @@
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
+import type { RobotCommand } from "../services/robotInterface";
+import type { TelemetryData } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
+  type PerpendicularPreviewGhost,
   perpendicularPreviewAtom,
   robotPositionAtom,
   showGridOverlayAtom,
@@ -11,6 +14,7 @@ import {
 import { isUploadingProgramAtom } from "../store/atoms/hubConnection";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import type { PythonFile } from "../types/fileSystem";
 import type { RobotPosition } from "../utils/robotPosition";
 import { ControlModeToggle } from "./ControlModeToggle";
 import { ManualControls } from "./ManualControls";
@@ -35,8 +39,8 @@ interface CompactRobotControllerProps {
   ) => Promise<void>;
   onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand?: (motor: string) => Promise<void>;
-  onExecuteCommandSequence?: (commands: any[]) => Promise<void>;
-  telemetryData?: any;
+  onExecuteCommandSequence?: (commands: RobotCommand[]) => Promise<void>;
+  telemetryData?: TelemetryData;
   isConnected: boolean;
   className?: string;
   // Robot position now comes from Jotai atoms
@@ -45,9 +49,9 @@ interface CompactRobotControllerProps {
   // Program control props
   onStopProgram?: () => Promise<void>;
   onUploadAndRunFile?: (
-    file: any,
+    file: PythonFile,
     content: string,
-    allPrograms: any[],
+    allPrograms: PythonFile[],
   ) => Promise<void>;
   onPreviewUpdate?: (preview: {
     type: "drive" | "turn" | null;
@@ -127,14 +131,7 @@ export function CompactRobotController({
   );
 
   // Game mat state
-  const {
-    controlMode,
-    setControlMode,
-    currentSplinePath,
-    splinePaths,
-    enterSplinePathMode,
-    exitSplinePathMode,
-  } = useJotaiGameMat();
+  const { controlMode, setControlMode } = useJotaiGameMat();
 
   // Effect to initialize trajectory overlay when enabled
   useEffect(() => {
@@ -154,7 +151,7 @@ export function CompactRobotController({
     ) {
       // Only update if there are no hover ghosts currently
       setPerpendicularPreview((prev) => {
-        const hasHoverGhosts = prev.ghosts.some((g: any) => g.isHover);
+        const hasHoverGhosts = prev.ghosts.some((g) => g.isHover === true);
         if (hasHoverGhosts) {
           // Don't update trajectory ghosts if there are hover ghosts
           return prev;
@@ -284,7 +281,7 @@ export function CompactRobotController({
       setPerpendicularPreview((prev) => {
         // If all current ghosts are trajectory overlay ghosts, clear them
         const hasOnlyTrajectoryGhosts = prev.ghosts.every(
-          (ghost) => (ghost as any).isTrajectoryOverlay,
+          (ghost) => ghost.isTrajectoryOverlay === true,
         );
         if (hasOnlyTrajectoryGhosts && prev.ghosts.length > 0) {
           return {
@@ -320,7 +317,7 @@ export function CompactRobotController({
     : [];
 
   // Helper functions for continuous control
-  function queueCommand(commandFn: () => Promise<any>) {
+  function queueCommand(commandFn: () => Promise<void>) {
     if (!isFullyConnected) {
       console.warn(
         "Robot controls disabled: Hub not connected or control code not loaded",
@@ -615,10 +612,10 @@ export function CompactRobotController({
 
       // For turn previews, just show the turn (no forward movement)
 
-      const hoverGhost = {
+      const hoverGhost: PerpendicularPreviewGhost & { isHover: true } = {
         position: ghostPosition,
-        type: type as "drive" | "turn",
-        direction: direction as "forward" | "backward" | "left" | "right",
+        type,
+        direction,
         color:
           type === "drive"
             ? direction === "forward"
@@ -642,7 +639,7 @@ export function CompactRobotController({
           show: true,
           ghosts: [
             ...perpendicularPreview.ghosts.filter(
-              (g: any) =>
+              (g) =>
                 // Remove any previous hover ghost (identified by isHover flag)
                 // Don't remove trajectory overlay ghosts, we want both turn ghosts visible
                 !g.isHover,
@@ -676,7 +673,7 @@ export function CompactRobotController({
         // Keep the trajectory overlay ghosts, just remove hover ghosts
         setPerpendicularPreview((prev) => ({
           ...prev,
-          ghosts: prev.ghosts.filter((g: any) => !g.isHover),
+          ghosts: prev.ghosts.filter((g) => !g.isHover),
         }));
       } else {
         // Clear all ghosts when not hovering and trajectory overlay is off

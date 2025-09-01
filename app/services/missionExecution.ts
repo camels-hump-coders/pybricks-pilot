@@ -2,6 +2,7 @@ import type { RobotConfig } from "../schemas/RobotConfig";
 import type { NamedPosition } from "../store/atoms/positionManagement";
 import type { Mission } from "../types/missionPlanner";
 import type { ArcPathSegment } from "../utils/arcPathComputation";
+import type { RobotCommand } from "./robotInterface";
 import { computeArcPath, normalizeAngle } from "../utils/arcPathComputation";
 
 /**
@@ -19,26 +20,6 @@ function canvasToRobotHeading(canvasHeading: number): number {
 /**
  * Robot command interface - matches both virtual and real robot command formats
  */
-export interface RobotCommand {
-  action:
-    | "drive"
-    | "turn"
-    | "stop"
-    | "motor"
-    | "pause"
-    | "drive_continuous"
-    | "turn_and_drive"
-    | "arc";
-  distance?: number; // mm
-  angle?: number; // degrees (relative)
-  speed?: number; // mm/s for drive, degrees/s for turn
-  turn_rate?: number; // degrees/s for continuous drive
-  motor?: string;
-  duration?: number; // ms for pause
-  // Arc-specific parameters
-  radius?: number; // Arc radius (mm)
-  description?: string; // Human readable description
-}
 
 /**
  * Mission execution options
@@ -315,7 +296,7 @@ class MissionExecutionService {
   async executeMissionCommands(
     commands: RobotCommand[],
     robotInterface: {
-      executeCommandSequence?: (commands: any[]) => Promise<void>;
+      executeCommandSequence?: (commands: RobotCommand[]) => Promise<void>;
       sendDriveCommand?: (distance: number, speed: number) => Promise<void>;
       sendTurnCommand?: (angle: number, speed: number) => Promise<void>;
       sendStopCommand?: () => Promise<void>;

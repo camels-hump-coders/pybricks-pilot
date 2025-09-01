@@ -142,12 +142,14 @@ export const totalScoreAtom = atom<number>(0);
 export const movementPreviewAtom = atom<MovementPreview | null>(null);
 
 // Perpendicular motion preview atom - for showing all 4 possible movement options
-interface PerpendicularPreviewGhost {
+export interface PerpendicularPreviewGhost {
   position: RobotPosition;
   type: "drive" | "turn";
   direction: "forward" | "backward" | "left" | "right";
   color: string; // CSS color for the ghost robot
   label: string; // Description for the movement
+  isTrajectoryOverlay?: boolean;
+  isHover?: boolean;
 }
 
 export const perpendicularPreviewAtom = atom<{

@@ -1,19 +1,9 @@
-interface SensorData {
-  type: string;
-  color?: any;
-  reflection?: number;
-  ambient?: number;
-  distance?: number;
-  force?: number;
-  pressed?: boolean;
-  angle?: number;
-  speed?: number;
-  value?: any;
-  error?: string;
-}
+import type { TelemetryData } from "../services/pybricksHub";
+
+type SensorData = NonNullable<TelemetryData["sensors"]>[string];
 
 interface SensorDisplayProps {
-  sensorData?: { [name: string]: SensorData };
+  sensorData?: TelemetryData["sensors"];
   className?: string;
 }
 
