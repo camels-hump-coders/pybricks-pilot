@@ -84,11 +84,17 @@ export function TelemetryTooltip({
           <div className="space-y-1">
             {Object.entries(telemetry.sensors).map(([name, sensor]) => {
               if (sensor.type === "color") {
+                let colorDisplay = "";
+                if (typeof sensor.color === "string") {
+                  colorDisplay = sensor.color;
+                } else if (Array.isArray(sensor.color)) {
+                  colorDisplay = sensor.color.join(", ");
+                }
                 return (
                   <div key={name} className="flex justify-between">
                     <span className="text-gray-400">{name}:</span>
                     <span>
-                      {sensor.color}
+                      {colorDisplay}
                       {sensor.reflection !== undefined &&
                         ` (${sensor.reflection}%)`}
                     </span>

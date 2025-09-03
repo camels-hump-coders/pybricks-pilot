@@ -197,15 +197,18 @@ class DependencyResolver {
   /**
    * Reads file content from a PythonFile
    */
-  private async readFileContent(file: PythonFile): Promise<string> {
-    try {
-      const fileHandle = await file.handle.getFile();
-      return await fileHandle.text();
-    } catch (error) {
-      console.warn(`Failed to read file ${file.name}:`, error);
-      return "";
+    private async readFileContent(file: PythonFile): Promise<string> {
+      try {
+        if ("getFile" in file.handle) {
+          const fileHandle = await file.handle.getFile();
+          return await fileHandle.text();
+        }
+        return "";
+      } catch (error) {
+        console.warn(`Failed to read file ${file.name}:`, error);
+        return "";
+      }
     }
-  }
 
   /**
    * Recursively resolves all dependencies for a given file

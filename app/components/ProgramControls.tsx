@@ -3,14 +3,15 @@ import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
+import type { PythonFile } from "../types/fileSystem";
 import { HubMenuInterface } from "./HubMenuInterface";
 
 interface ProgramControlsProps {
   onStopProgram?: () => Promise<void>;
   onUploadAndRunFile?: (
-    file: any,
+    file: PythonFile,
     content: string,
-    allPrograms: any[],
+    allPrograms: PythonFile[],
   ) => Promise<void>;
 }
 
@@ -60,10 +61,12 @@ export function ProgramControls({
                 // If program is running, this will stop it and re-upload
                 const firstProgram = allPrograms[0];
                 try {
-                  const content = await firstProgram.handle
-                    .getFile()
-                    .then((f) => f.text());
-                  await onUploadAndRunFile(firstProgram, content, allPrograms);
+                  if ("getFile" in firstProgram.handle) {
+                    const content = await firstProgram.handle
+                      .getFile()
+                      .then((f: File) => f.text());
+                    await onUploadAndRunFile(firstProgram, content, allPrograms);
+                  }
                 } catch (error) {
                   console.error("Failed to upload and run programs:", error);
                 }

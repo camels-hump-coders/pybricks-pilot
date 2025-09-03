@@ -20,6 +20,18 @@ class WebFileSystemService implements FileSystemService {
     (m) => m.indexedDBFileSystemService,
   );
 
+  private isFileHandle(
+    handle: FileSystemHandle,
+  ): handle is FileSystemFileHandle {
+    return handle.kind === "file";
+  }
+
+  private isDirectoryHandle(
+    handle: FileSystemHandle,
+  ): handle is FileSystemDirectoryHandle {
+    return handle.kind === "directory";
+  }
+
   async requestDirectoryAccess(): Promise<FileSystemDirectoryHandle | null> {
     if (!("showDirectoryPicker" in window)) {
       throw new Error(
@@ -96,37 +108,34 @@ class WebFileSystemService implements FileSystemService {
     for await (const [name, handle] of dirHandle.entries()) {
       const relativePath = currentPath ? `${currentPath}/${name}` : name;
 
-      if (handle.kind === "file" && name.endsWith(".py")) {
-        const fileInfo = await this.getFileInfo(handle as FileSystemFileHandle);
+      if (this.isFileHandle(handle) && name.endsWith(".py")) {
+        const fileInfo = await this.getFileInfo(handle);
         pythonFiles.push({
-          handle: handle as FileSystemFileHandle,
+          handle,
           name: fileInfo.name,
           size: fileInfo.size,
           lastModified: fileInfo.lastModified,
           relativePath: relativePath,
           isDirectory: false,
         });
-      } else if (handle.kind === "directory" && !name.startsWith(".")) {
+      } else if (this.isDirectoryHandle(handle) && !name.startsWith(".")) {
         // Create directory entry
+        const children: PythonFile[] = [];
         const dirEntry: PythonFile = {
-          handle: handle as any, // Directory handles don't have the same interface
+          handle,
           name: name,
           size: 0,
           lastModified: Date.now(),
           relativePath: relativePath,
           isDirectory: true,
-          children: [],
+          children,
         };
 
         // Recursively search subdirectories
-        await this.searchPythonFiles(
-          handle as FileSystemDirectoryHandle,
-          dirEntry.children!,
-          relativePath,
-        );
+        await this.searchPythonFiles(handle, children, relativePath);
 
         // Only add directory if it contains Python files
-        if (dirEntry.children?.length > 0) {
+        if (children.length > 0) {
           pythonFiles.push(dirEntry);
         }
       }
@@ -276,10 +285,10 @@ class WebFileSystemService implements FileSystemService {
     const fileHandles: FileSystemFileHandle[] = [];
     files.forEach((file) => {
       if (file.isDirectory && file.children) {
-        fileHandles.push(...this.extractFileHandlesRecursively(file.children));
-      } else if (!file.isDirectory) {
-        fileHandles.push(file.handle);
-      }
+      fileHandles.push(...this.extractFileHandlesRecursively(file.children));
+    } else if (!file.isDirectory && "getFile" in file.handle) {
+      fileHandles.push(file.handle);
+    }
     });
     return fileHandles;
   }
