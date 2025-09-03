@@ -371,22 +371,25 @@ class MultiModuleCompiler extends EventTarget {
       >();
       const allProgramContents = new Map<string, string>();
 
-      for (const program of numberedPrograms) {
-        // Read program content
-        const file = await program.file.handle.getFile();
-        const content = await file.text();
-        allProgramContents.set(program.moduleName, content);
+        for (const program of numberedPrograms) {
+          // Read program content
+          let content = "";
+          if ("getFile" in program.file.handle) {
+            const file = await program.file.handle.getFile();
+            content = await file.text();
+            allProgramContents.set(program.moduleName, content);
+          }
 
-        // Resolve dependencies for this program
-        this.emitDebugEvent(
-          "upload",
-          `Resolving dependencies for ${program.name}`,
-        );
-        const resolved = await dependencyResolver.resolveDependencies(
-          program.file,
-          content,
-          availableFiles,
-        );
+          // Resolve dependencies for this program
+          this.emitDebugEvent(
+            "upload",
+            `Resolving dependencies for ${program.name}`,
+          );
+          const resolved = await dependencyResolver.resolveDependencies(
+            program.file,
+            content,
+            availableFiles,
+          );
 
         // Add all dependencies to our map (avoiding duplicates)
         for (const dep of resolved.dependencies) {

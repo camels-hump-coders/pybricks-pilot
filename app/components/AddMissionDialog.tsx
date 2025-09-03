@@ -113,6 +113,7 @@ export function AddMissionDialog() {
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
+              <title>Close dialog</title>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -184,6 +185,7 @@ export function AddMissionDialog() {
                     fill="none"
                     viewBox="0 0 24 24"
                   >
+                    <title>Loading</title>
                     <circle
                       cx="12"
                       cy="12"
