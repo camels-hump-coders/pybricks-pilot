@@ -1,15 +1,15 @@
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
-import type { RobotCommand } from "../services/robotInterface";
+import { missionRecorder, type StepCommand } from "../services/missionRecorder";
 import type { TelemetryData } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
-  type PerpendicularPreviewGhost,
   perpendicularPreviewAtom,
   robotPositionAtom,
   showGridOverlayAtom,
   showTrajectoryOverlayAtom,
+  type PerpendicularPreviewGhost,
 } from "../store/atoms/gameMat";
 import { isUploadingProgramAtom } from "../store/atoms/hubConnection";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
@@ -19,6 +19,7 @@ import type { RobotPosition } from "../utils/robotPosition";
 import { ControlModeToggle } from "./ControlModeToggle";
 import { ManualControls } from "./ManualControls";
 import { MissionControls } from "./MissionControls";
+import { MissionRecorderControls } from "./MissionRecorderControls";
 import { MotorControls } from "./MotorControls";
 import {
   calculatePreviewPosition,
@@ -35,11 +36,11 @@ interface CompactRobotControllerProps {
   onMotorCommand?: (
     motor: string,
     angle: number,
-    speed: number,
+    speed: number
   ) => Promise<void>;
   onContinuousMotorCommand?: (motor: string, speed: number) => Promise<void>;
   onMotorStopCommand?: (motor: string) => Promise<void>;
-  onExecuteCommandSequence?: (commands: RobotCommand[]) => Promise<void>;
+  onExecuteCommandSequence?: (commands: StepCommand[]) => Promise<void>;
   telemetryData?: TelemetryData;
   isConnected: boolean;
   className?: string;
@@ -51,7 +52,7 @@ interface CompactRobotControllerProps {
   onUploadAndRunFile?: (
     file: PythonFile,
     content: string,
-    allPrograms: PythonFile[],
+    allPrograms: PythonFile[]
   ) => Promise<void>;
   onPreviewUpdate?: (preview: {
     type: "drive" | "turn" | null;
@@ -94,7 +95,7 @@ export function CompactRobotController({
   onMotorCommand,
   onContinuousMotorCommand,
   onMotorStopCommand,
-  onExecuteCommandSequence,
+  onExecuteCommandSequence: _onExecuteCommandSequence,
   telemetryData,
   isConnected,
   className = "",
@@ -124,10 +125,10 @@ export function CompactRobotController({
   const isUploadingProgram = useAtomValue(isUploadingProgramAtom);
   const [showGridOverlay, setShowGridOverlay] = useAtom(showGridOverlayAtom);
   const [showTrajectoryOverlay, setShowTrajectoryOverlay] = useAtom(
-    showTrajectoryOverlayAtom,
+    showTrajectoryOverlayAtom
   );
   const [perpendicularPreview, setPerpendicularPreview] = useAtom(
-    perpendicularPreviewAtom,
+    perpendicularPreviewAtom
   );
 
   // Game mat state
@@ -167,7 +168,7 @@ export function CompactRobotController({
           angle,
           "drive",
           "forward",
-          robotConfig,
+          robotConfig
         );
         if (forwardPosition) {
           ghosts.push({
@@ -187,7 +188,7 @@ export function CompactRobotController({
           angle,
           "drive",
           "backward",
-          robotConfig,
+          robotConfig
         );
         if (backwardPosition) {
           ghosts.push({
@@ -207,7 +208,7 @@ export function CompactRobotController({
           angle,
           "turn",
           "left",
-          robotConfig,
+          robotConfig
         );
         const leftTurnThenForward = calculatePreviewPosition(
           leftTurnPosition || currentRobotPosition,
@@ -215,7 +216,7 @@ export function CompactRobotController({
           angle,
           "drive",
           "forward",
-          robotConfig,
+          robotConfig
         );
         if (leftTurnThenForward) {
           ghosts.push({
@@ -235,7 +236,7 @@ export function CompactRobotController({
           angle,
           "turn",
           "right",
-          robotConfig,
+          robotConfig
         );
         const rightTurnThenForward = calculatePreviewPosition(
           rightTurnPosition || currentRobotPosition,
@@ -243,7 +244,7 @@ export function CompactRobotController({
           angle,
           "drive",
           "forward",
-          robotConfig,
+          robotConfig
         );
         if (rightTurnThenForward) {
           ghosts.push({
@@ -281,7 +282,7 @@ export function CompactRobotController({
       setPerpendicularPreview((prev) => {
         // If all current ghosts are trajectory overlay ghosts, clear them
         const hasOnlyTrajectoryGhosts = prev.ghosts.every(
-          (ghost) => ghost.isTrajectoryOverlay === true,
+          (ghost) => ghost.isTrajectoryOverlay === true
         );
         if (hasOnlyTrajectoryGhosts && prev.ghosts.length > 0) {
           return {
@@ -312,7 +313,7 @@ export function CompactRobotController({
   // Available motors (exclude drivebase motors)
   const availableMotors = telemetryData?.motors
     ? Object.keys(telemetryData.motors).filter(
-        (name) => !["left", "right"].includes(name),
+        (name) => !["left", "right"].includes(name)
       )
     : [];
 
@@ -320,7 +321,7 @@ export function CompactRobotController({
   function queueCommand(commandFn: () => Promise<void>) {
     if (!isFullyConnected) {
       console.warn(
-        "Robot controls disabled: Hub not connected or control code not loaded",
+        "Robot controls disabled: Hub not connected or control code not loaded"
       );
       return Promise.resolve();
     }
@@ -346,7 +347,7 @@ export function CompactRobotController({
   async function sendStepDrive(distance: number, speed: number) {
     if (!isFullyConnected) {
       console.warn(
-        "Robot controls disabled: Hub not connected or control code not loaded",
+        "Robot controls disabled: Hub not connected or control code not loaded"
       );
       return;
     }
@@ -360,6 +361,11 @@ export function CompactRobotController({
 
     try {
       await onDriveCommand?.(distance, speed);
+      missionRecorder.record({
+        type: "drive",
+        distance,
+        speed,
+      });
     } finally {
       setExecutingCommand(null);
     }
@@ -368,7 +374,7 @@ export function CompactRobotController({
   async function sendStepTurn(angle: number, speed: number) {
     if (!isFullyConnected) {
       console.warn(
-        "Robot controls disabled: Hub not connected or control code not loaded",
+        "Robot controls disabled: Hub not connected or control code not loaded"
       );
       return;
     }
@@ -382,6 +388,11 @@ export function CompactRobotController({
 
     try {
       await onTurnCommand?.(angle, speed);
+      missionRecorder.record({
+        type: "turn",
+        angle,
+        speed,
+      });
     } finally {
       setExecutingCommand(null);
     }
@@ -397,7 +408,7 @@ export function CompactRobotController({
   function sendStop() {
     if (!isFullyConnected) {
       console.warn(
-        "Robot controls disabled: Hub not connected or control code not loaded",
+        "Robot controls disabled: Hub not connected or control code not loaded"
       );
       return;
     }
@@ -407,7 +418,7 @@ export function CompactRobotController({
   function sendMotorCommand(motorName: string, angle: number, speed: number) {
     if (!isFullyConnected) {
       console.warn(
-        "Robot controls disabled: Hub not connected or control code not loaded",
+        "Robot controls disabled: Hub not connected or control code not loaded"
       );
       return;
     }
@@ -460,7 +471,7 @@ export function CompactRobotController({
   function updateDualPreview(
     type: "drive" | "turn",
     overrideDistance?: number,
-    overrideAngle?: number,
+    overrideAngle?: number
   ) {
     if (onPreviewUpdate && currentRobotPosition) {
       const currentDistance = overrideDistance ?? distance;
@@ -474,7 +485,7 @@ export function CompactRobotController({
           currentAngle,
           "drive",
           "forward",
-          robotConfig,
+          robotConfig
         );
         const backwardPosition = calculatePreviewPosition(
           currentRobotPosition,
@@ -482,7 +493,7 @@ export function CompactRobotController({
           currentAngle,
           "drive",
           "backward",
-          robotConfig,
+          robotConfig
         );
 
         // Calculate trajectory projections for both directions
@@ -494,7 +505,7 @@ export function CompactRobotController({
           "forward",
           2356,
           1137,
-          robotConfig,
+          robotConfig
         );
         const backwardTrajectory = calculateTrajectoryProjection(
           currentRobotPosition,
@@ -504,7 +515,7 @@ export function CompactRobotController({
           "backward",
           2356,
           1137,
-          robotConfig,
+          robotConfig
         );
 
         onPreviewUpdate({
@@ -525,7 +536,7 @@ export function CompactRobotController({
           currentAngle,
           "turn",
           "left",
-          robotConfig,
+          robotConfig
         );
         const rightPosition = calculatePreviewPosition(
           currentRobotPosition,
@@ -533,7 +544,7 @@ export function CompactRobotController({
           currentAngle,
           "turn",
           "right",
-          robotConfig,
+          robotConfig
         );
 
         // Calculate trajectory projections for both directions
@@ -545,7 +556,7 @@ export function CompactRobotController({
           "left",
           2356,
           1137,
-          robotConfig,
+          robotConfig
         );
         const rightTrajectory = calculateTrajectoryProjection(
           currentRobotPosition,
@@ -555,7 +566,7 @@ export function CompactRobotController({
           "right",
           2356,
           1137,
-          robotConfig,
+          robotConfig
         );
 
         onPreviewUpdate({
@@ -574,7 +585,7 @@ export function CompactRobotController({
 
   function updatePreview(
     type: "drive" | "turn" | null,
-    direction: "forward" | "backward" | "left" | "right" | null,
+    direction: "forward" | "backward" | "left" | "right" | null
   ) {
     if (onPreviewUpdate && currentRobotPosition && type && direction) {
       const previewPosition = calculatePreviewPosition(
@@ -583,7 +594,7 @@ export function CompactRobotController({
         angle,
         type,
         direction,
-        robotConfig,
+        robotConfig
       );
 
       const trajectoryProjection = calculateTrajectoryProjection(
@@ -594,7 +605,7 @@ export function CompactRobotController({
         direction,
         2356,
         1137,
-        robotConfig,
+        robotConfig
       );
 
       onPreviewUpdate({
@@ -639,10 +650,10 @@ export function CompactRobotController({
           show: true,
           ghosts: [
             ...perpendicularPreview.ghosts.filter(
-              (g) =>
+              (g: PerpendicularPreviewGhost) =>
                 // Remove any previous hover ghost (identified by isHover flag)
                 // Don't remove trajectory overlay ghosts, we want both turn ghosts visible
-                !g.isHover,
+                !g.isHover
             ),
             hoverGhost,
           ],
@@ -673,7 +684,9 @@ export function CompactRobotController({
         // Keep the trajectory overlay ghosts, just remove hover ghosts
         setPerpendicularPreview((prev) => ({
           ...prev,
-          ghosts: prev.ghosts.filter((g) => !g.isHover),
+          ghosts: prev.ghosts.filter(
+            (g: PerpendicularPreviewGhost) => !g.isHover
+          ),
         }));
       } else {
         // Clear all ghosts when not hovering and trajectory overlay is off
@@ -763,7 +776,6 @@ export function CompactRobotController({
                   driveSpeed={driveSpeed}
                   setDriveSpeed={setDriveSpeed}
                   executingCommand={executingCommand}
-                  isFullyConnected={isFullyConnected}
                   onUpdatePreview={updatePreview}
                   onUpdateDualPreview={updateDualPreview}
                   onSendStepDrive={sendStepDrive}
@@ -792,6 +804,12 @@ export function CompactRobotController({
                   onSendMotorCommand={sendMotorCommand}
                   onStartContinuousMotor={startContinuousMotor}
                   onStopContinuousMotor={stopContinuousMotor}
+                />
+
+                {/* Mission Recorder */}
+                <MissionRecorderControls
+                  onDrive={sendStepDrive}
+                  onTurn={sendStepTurn}
                 />
               </div>
             )}

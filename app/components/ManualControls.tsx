@@ -15,7 +15,6 @@ interface ManualControlsProps {
   driveSpeed: number;
   setDriveSpeed: (speed: number) => void;
   executingCommand: ExecutingCommand | null;
-  isFullyConnected: boolean;
   onUpdatePreview: (
     type: "drive" | "turn" | null,
     direction: "forward" | "backward" | "left" | "right" | null,
@@ -48,7 +47,6 @@ export function ManualControls({
   driveSpeed,
   setDriveSpeed,
   executingCommand,
-  isFullyConnected,
   onUpdatePreview,
   onUpdateDualPreview,
   onSendStepDrive,
