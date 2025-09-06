@@ -71,12 +71,12 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
     }
   };
 
-  const toggleEventExpansion = (eventId: number) => {
+  const toggleEventExpansion = (timestamp: number) => {
     const newExpanded = new Set(expandedEvents);
-    if (newExpanded.has(eventId)) {
-      newExpanded.delete(eventId);
+    if (newExpanded.has(timestamp)) {
+      newExpanded.delete(timestamp);
     } else {
-      newExpanded.add(eventId);
+      newExpanded.add(timestamp);
     }
     setExpandedEvents(newExpanded);
   };
@@ -258,20 +258,21 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
         ) : (
           <div className="space-y-1">
             {debugEvents.map((event) => {
-              const eventId = event.timestamp;
-              const isExpanded = expandedEvents.has(eventId);
+              const isExpanded = expandedEvents.has(event.timestamp);
               const hasDetails =
                 event.details && Object.keys(event.details).length > 0;
 
               return (
                 <div
-                  key={eventId}
+                  key={event.timestamp}
                   className="border border-gray-200 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <button
                     type="button"
                     className={`flex items-start gap-2 w-full text-left ${hasDetails ? "cursor-pointer" : ""}`}
-                    onClick={() => hasDetails && toggleEventExpansion(eventId)}
+                    onClick={() =>
+                      hasDetails && toggleEventExpansion(event.timestamp)
+                    }
                   >
                     <span className="text-gray-400 dark:text-gray-500 text-[10px] min-w-[60px] font-mono">
                       {formatTimestamp(event.timestamp)}
@@ -303,23 +304,24 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
                   {hasDetails && isExpanded && event.details && (
                     <div className="mt-2 ml-[134px] text-[9px] text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600">
                       <div className="font-mono space-y-1">
-                        {Object.entries(formatDetails(event.details)).map(
-                          ([key, value]) => (
-                            <div
-                              key={key}
-                              className="border-b border-gray-200 dark:border-gray-600 pb-1 last:border-b-0"
-                            >
-                              <div className="text-gray-500 dark:text-gray-400 font-semibold mb-1">
-                                {key}:
+                        {event.details &&
+                          Object.entries(formatDetails(event.details)).map(
+                            ([key, value]) => (
+                              <div
+                                key={key}
+                                className="border-b border-gray-200 dark:border-gray-600 pb-1 last:border-b-0"
+                              >
+                                <div className="text-gray-500 dark:text-gray-400 font-semibold mb-1">
+                                  {key}:
+                                </div>
+                                <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-all">
+                                  {value.length > 500
+                                    ? `${value.slice(0, 500)}...`
+                                    : value}
+                                </div>
                               </div>
-                              <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-all">
-                                {value.length > 500
-                                  ? `${value.slice(0, 500)}...`
-                                  : value}
-                              </div>
-                            </div>
-                          ),
-                        )}
+                            ),
+                          )}
                       </div>
                     </div>
                   )}
