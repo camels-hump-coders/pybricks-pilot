@@ -2,6 +2,8 @@
  * Mission Planner types and interfaces
  */
 
+import type { StepCommand } from "./missionRecorder";
+
 // Base point interface for waypoints and actions (have explicit coordinates)
 interface MissionPoint {
   id: string;
@@ -82,6 +84,7 @@ export interface Mission {
   defaultArcRadius: number; // default arc radius for segments without specific config
   created: string; // ISO date string
   modified: string; // ISO date string
+  steps?: StepCommand[];
 }
 
 // Mission execution command types

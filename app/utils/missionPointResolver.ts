@@ -1,5 +1,6 @@
 import type { NamedPosition } from "../store/atoms/positionManagement";
 import type {
+  ActionPoint,
   EndPoint,
   MissionPointType,
   ResolvedMissionPoint,
@@ -60,8 +61,8 @@ function resolveMissionPoint(
     type: point.type,
     // Include additional properties for actions
     ...(point.type === "action" && {
-      actionName: (point as any).actionName,
-      pauseDuration: (point as any).pauseDuration,
+      actionName: (point as ActionPoint).actionName,
+      pauseDuration: (point as ActionPoint).pauseDuration,
     }),
   };
 }
