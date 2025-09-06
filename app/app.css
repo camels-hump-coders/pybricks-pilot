@@ -16,3 +16,81 @@ body {
     color-scheme: dark;
   }
 }
+
+/* highlight.js theme that adapts to light/dark via Tailwind's dark variant */
+.hljs {
+  @apply bg-transparent text-gray-800 dark:text-gray-200;
+}
+.hljs-comment,
+.hljs-quote {
+  @apply text-gray-500 dark:text-gray-400 italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #7c3aed; /* purple-600 */
+}
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-subst {
+  color: #a78bfa; /* purple-400 */
+}
+.hljs-literal,
+.hljs-number {
+  color: #b45309; /* amber-700 */
+}
+.dark .hljs-literal,
+.dark .hljs-number {
+  color: #fbbf24; /* amber-400 */
+}
+.hljs-string,
+.hljs-doctag {
+  color: #047857; /* emerald-700 */
+}
+.dark .hljs-string,
+.dark .hljs-doctag {
+  color: #34d399; /* emerald-400 */
+}
+.hljs-title,
+.hljs-section {
+  color: #1d4ed8; /* blue-700 */
+}
+.dark .hljs-title,
+.dark .hljs-section {
+  color: #60a5fa; /* blue-400 */
+}
+.hljs-attr,
+.hljs-variable,
+.hljs-attribute,
+.hljs-symbol {
+  color: #be123c; /* rose-700 */
+}
+.dark .hljs-attr,
+.dark .hljs-variable,
+.dark .hljs-attribute,
+.dark .hljs-symbol {
+  color: #fb7185; /* rose-400 */
+}
+.hljs-built_in,
+.hljs-bullet,
+.hljs-type {
+  color: #0f766e; /* teal-700 */
+}
+.dark .hljs-built_in,
+.dark .hljs-bullet,
+.dark .hljs-type {
+  color: #5eead4; /* teal-300 */
+}
+.hljs-meta {
+  @apply text-gray-600 dark:text-gray-300;
+}
+.hljs-operator,
+.hljs-punctuation {
+  @apply text-gray-700 dark:text-gray-300;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}

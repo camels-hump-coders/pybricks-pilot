@@ -469,28 +469,31 @@ class PseudoCodeGeneratorService {
    */
   generateReadableCode(program: GeneratedProgram): string {
     if (program.commands.length === 0) {
-      return "// No movement detected";
+      return "# No movement detected";
     }
 
-    let code = `// Generated pseudo code from robot movements\n`;
-    code += `// Total distance: ${program.totalDistance.toFixed(1)}mm\n`;
-    code += `// Total time: ${(program.totalTime / 1000).toFixed(1)}s\n`;
-    code += `// Start position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.startPosition.heading).toFixed(1)}°\n`;
-    code += `// End position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.endPosition.heading).toFixed(1)}°\n\n`;
+    let code = `# Generated pseudo code from robot movements\n`;
+    code += `# Total distance: ${program.totalDistance.toFixed(1)}mm\n`;
+    code += `# Total time: ${(program.totalTime / 1000).toFixed(1)}s\n`;
+    code += `# Start position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.startPosition.heading).toFixed(1)}°\n`;
+    code += `# End position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.endPosition.heading).toFixed(1)}°\n\n`;
+
+    code += `async def run():\n`;
+    code += `  """Generated pseudo code from robot movements"""\n`;
 
     program.commands.forEach((command, _index) => {
       const directionComment =
-        command.direction === "backward" ? " // Backward" : "";
+        command.direction === "backward" ? " # Backward" : "";
 
       if (command.type === "drive") {
         const distance = command.distance || 0;
         // Since we're now using signed displacements, just display the distance directly
         // Positive = forward, negative = backward
-        code += `straight(${distance.toFixed(1)})${directionComment}\n`;
+        code += `  await drive_straight(${distance.toFixed(1)})${directionComment}\n`;
       } else {
         // For turn commands, show the target heading
         const targetHeading = command.targetHeading || 0;
-        code += `turn_to_heading(${normalizeHeading(targetHeading).toFixed(1)})\n`;
+        code += `  await turn_to_heading(${normalizeHeading(targetHeading).toFixed(1)})\n`;
       }
     });
 

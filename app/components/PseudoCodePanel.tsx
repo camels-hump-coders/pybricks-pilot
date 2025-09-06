@@ -5,90 +5,22 @@ import {
 } from "../services/pseudoCodeGenerator.js";
 import type { TelemetryPoint } from "../services/telemetryHistory.js";
 import { normalizeHeading } from "../utils/headingUtils";
+import hljs from "highlight.js/lib/core";
+import python from "highlight.js/lib/languages/python";
 
-// Python syntax highlighting component
-function PythonCodeBlock({ code }: { code: string }) {
-  const highlightPython = (code: string) => {
-    return code.split("\n").map((line, index) => {
-      // Handle comments
-      if (line.trim().startsWith("//")) {
-        return (
-          <div key={index} className="text-gray-400 italic">
-            {line}
-          </div>
-        );
-      }
+// Register python language once (module scope)
+hljs.registerLanguage("python", python);
 
-      // Handle function calls
-      if (line.includes("straight(") || line.includes("turn_to_heading(")) {
-        // Split the line into parts for highlighting
-        const funcMatch = line.match(/(straight|turn_to_heading)\(/);
-        if (funcMatch) {
-          const funcName = funcMatch[1];
-          const funcIndex = funcMatch.index!;
-          const beforeFunc = line.slice(0, funcIndex);
-          const afterFunc = line.slice(funcIndex + funcName.length + 1);
-
-          // Parse the afterFunc part to highlight numbers and units
-          const parts = [];
-          const currentText = afterFunc;
-
-          // Find and highlight numbers with units
-          const numberMatch = currentText.match(/(\d+\.?\d*)(mm|°)/);
-          if (numberMatch) {
-            const beforeNum = currentText.slice(0, numberMatch.index);
-            const num = numberMatch[1];
-            const unit = numberMatch[2];
-            const afterNum = currentText.slice(
-              numberMatch.index! + numberMatch[0].length,
-            );
-
-            parts.push(
-              <span key="before" className="text-white">
-                {beforeNum}
-              </span>,
-              <span key="number" className="text-green-400">
-                {num}
-                {unit}
-              </span>,
-              <span key="after" className="text-white">
-                {afterNum}
-              </span>,
-            );
-          } else {
-            parts.push(
-              <span key="text" className="text-white">
-                {afterFunc}
-              </span>,
-            );
-          }
-
-          return (
-            <div key={index} className="text-blue-400">
-              {beforeFunc}
-              <span className="text-yellow-400">{funcName}</span>
-              <span className="text-white">(</span>
-              {parts}
-            </div>
-          );
-        }
-      }
-
-      // Handle empty lines
-      if (line.trim() === "") {
-        return <div key={index}>&nbsp;</div>;
-      }
-
-      // Default case
-      return (
-        <div key={index} className="text-white">
-          {line}
-        </div>
-      );
-    });
-  };
-
-  return <pre className="p-3 text-xs">{highlightPython(code)}</pre>;
+function HighlightedPython({ code }: { code: string }) {
+  const html = hljs.highlight(code || "", { language: "python" }).value;
+  return (
+    <pre className="p-3 text-xs overflow-x-auto font-mono">
+      <code
+        className="hljs language-python"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </pre>
+  );
 }
 
 interface PseudoCodePanelProps {
@@ -203,8 +135,8 @@ export function PseudoCodePanel({
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 Generated Code:
               </div>
-              <div className="bg-gray-900 rounded text-xs overflow-x-auto">
-                <PythonCodeBlock code={readableCode} />
+              <div className="rounded text-xs overflow-x-auto bg-gray-100 dark:bg-gray-900">
+                <HighlightedPython code={readableCode} />
               </div>
             </div>
 
