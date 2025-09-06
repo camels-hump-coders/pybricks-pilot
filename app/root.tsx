@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider as JotaiProvider } from "jotai";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -16,6 +16,7 @@ import faviconUrl from "./assets/favicon.svg?url";
 import socialShareUrl from "./assets/social-share.png?url";
 import { ServiceEventSync } from "./components/ServiceEventSync";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { registerServiceWorker } from "./registerServiceWorker";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -29,6 +30,7 @@ export const links: Route.LinksFunction = () => [
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
   { rel: "icon", href: faviconUrl, type: "image/svg+xml" },
+  { rel: "manifest", href: "/manifest.json" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -37,6 +39,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#000000" />
 
         {/* Primary meta tags */}
         <title>
@@ -113,6 +116,10 @@ export default function App() {
         },
       }),
   );
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   return (
     <JotaiProvider>
