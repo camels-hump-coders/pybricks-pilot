@@ -2,10 +2,10 @@ import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { missionRecorder } from "../services/missionRecorder";
-import type { StepCommand } from "../types/missionRecorder";
-import { telemetryHistory } from "../services/telemetryHistory";
 import type { TelemetryData } from "../services/pybricksHub";
+import { telemetryHistory } from "../services/telemetryHistory";
 import {
+  type PerpendicularPreviewGhost,
   perpendicularPreviewAtom,
   robotPositionAtom,
   showGridOverlayAtom,
@@ -15,7 +15,7 @@ import { isUploadingProgramAtom } from "../store/atoms/hubConnection";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import type { PythonFile } from "../types/fileSystem";
-import type { PerpendicularPreviewGhost } from "../store/atoms/gameMat";
+import type { StepCommand } from "../types/missionRecorder";
 import type { RobotPosition } from "../utils/robotPosition";
 import { ControlModeToggle } from "./ControlModeToggle";
 import { ManualControls } from "./ManualControls";
@@ -624,10 +624,10 @@ export function CompactRobotController({
 
       // For turn previews, just show the turn (no forward movement)
 
-      const hoverGhost = {
+      const hoverGhost: PerpendicularPreviewGhost & { isHover: true } = {
         position: ghostPosition,
-        type: type as "drive" | "turn",
-        direction: direction as "forward" | "backward" | "left" | "right",
+        type,
+        direction,
         color:
           type === "drive"
             ? direction === "forward"

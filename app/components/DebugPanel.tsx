@@ -301,7 +301,7 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
                     )}
                   </button>
 
-                  {hasDetails && isExpanded && (
+                  {hasDetails && isExpanded && event.details && (
                     <div className="mt-2 ml-[134px] text-[9px] text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600">
                       <div className="font-mono space-y-1">
                         {event.details &&

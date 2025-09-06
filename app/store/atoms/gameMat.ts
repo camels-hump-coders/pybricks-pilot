@@ -148,8 +148,8 @@ export interface PerpendicularPreviewGhost {
   direction: "forward" | "backward" | "left" | "right";
   color: string; // CSS color for the ghost robot
   label: string; // Description for the movement
-  isHover?: boolean;
   isTrajectoryOverlay?: boolean;
+  isHover?: boolean;
 }
 
 export const perpendicularPreviewAtom = atom<{

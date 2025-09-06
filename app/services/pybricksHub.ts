@@ -1,4 +1,12 @@
 import type { PythonFile } from "../types/fileSystem";
+import type { RobotCapabilities, RobotCommand } from "./robotInterface";
+
+declare global {
+  interface Window {
+    DEBUG?: boolean;
+  }
+}
+
 import {
   type InstrumentationOptions,
   instrumentUserCode,
@@ -65,7 +73,7 @@ export interface TelemetryData {
   sensors?: {
     [name: string]: {
       type: string;
-      color?: any;
+      color?: string | number[];
       reflection?: number;
       ambient?: number;
       distance?: number;
@@ -73,7 +81,7 @@ export interface TelemetryData {
       pressed?: boolean;
       angle?: number;
       speed?: number;
-      value?: any;
+      value?: unknown;
       error?: string;
     };
   };
@@ -122,7 +130,7 @@ export interface DebugEvent {
     | "command"
     | "stdout";
   message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 class PybricksHubService extends EventTarget {
@@ -131,8 +139,10 @@ class PybricksHubService extends EventTarget {
   private txCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
   private rxCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
   private outputLineBuffer = ""; // Buffer for accumulating complete output lines
-  private responseCallbacks = new Map<string, (response: any) => void>();
+  private messageBuffer = "";
+  private responseCallbacks = new Map<string, (response: unknown) => void>();
   private currentSelectedSlot: number = 0;
+  private currentRunningProgId = 0;
   private maxBleWriteSize: number = 20; // Default minimum BLE size, will be updated from hub capabilities
   private maxUserProgramSize: number = 0; // Will be updated from hub capabilities
   // Note: Pybricks uses writeValueWithoutResponse, so we rely on BLE write completion
@@ -183,7 +193,11 @@ class PybricksHubService extends EventTarget {
       await this.setupCommunication();
 
       const hubInfo = await bluetoothService.getHubInfo(this.server);
-      this.emitDebugEvent("connection", "Hub connected successfully", hubInfo);
+        this.emitDebugEvent(
+          "connection",
+          "Hub connected successfully",
+          { ...hubInfo },
+        );
       return hubInfo;
     } catch (error) {
       this.emitDebugEvent("error", "Failed to connect to hub", {
@@ -241,11 +255,11 @@ class PybricksHubService extends EventTarget {
       ...this.instrumentationOptions,
       ...options,
     };
-    this.emitDebugEvent(
-      "status",
-      "Instrumentation options updated",
-      this.instrumentationOptions,
-    );
+      this.emitDebugEvent(
+        "status",
+        "Instrumentation options updated",
+        { ...this.instrumentationOptions },
+      );
   }
 
   getInstrumentationOptions(): InstrumentationOptions {
@@ -574,7 +588,7 @@ class PybricksHubService extends EventTarget {
   private emitDebugEvent(
     type: DebugEvent["type"],
     message: string,
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
   ): void {
     const debugEvent: DebugEvent = {
       timestamp: Date.now(),
@@ -814,7 +828,7 @@ class PybricksHubService extends EventTarget {
         const telemetryData = JSON.parse(outputLine);
         // Check if it's telemetry data (has timestamp and type fields)
         if (telemetryData.timestamp && telemetryData.type === "telemetry") {
-          if ((window as any).DEBUG) {
+          if (window.DEBUG) {
             this.emitDebugEvent("program", "Received telemetry data", {
               timestamp: telemetryData.timestamp,
               hasMotors: !!telemetryData.motors,
@@ -835,7 +849,7 @@ class PybricksHubService extends EventTarget {
       }
     }
 
-    if ((window as any).DEBUG) {
+    if (window.DEBUG) {
       this.emitDebugEvent("program", "Program output", {
         output: outputLine,
       });
@@ -880,17 +894,8 @@ class PybricksHubService extends EventTarget {
   }
 
   // New command sequence method
-  async executeCommandSequence(
-    commands: Array<{
-      action: string;
-      distance?: number;
-      angle?: number;
-      speed?: number;
-      motor?: string;
-      [key: string]: any;
-    }>,
-  ): Promise<void> {
-    const commandSequence = JSON.stringify(commands);
+    async executeCommandSequence(commands: RobotCommand[]): Promise<void> {
+      const commandSequence = JSON.stringify(commands);
     await this.sendControlCommand(commandSequence);
   }
 
@@ -981,7 +986,7 @@ class PybricksHubService extends EventTarget {
     return "real";
   }
 
-  getCapabilities(): any {
+  getCapabilities(): RobotCapabilities {
     return {
       maxMotorCount: 4,
       maxSensorCount: 4,

@@ -1,4 +1,5 @@
 import { EventTarget } from "../utils/eventTarget.js";
+import type { RobotCapabilities, RobotCommand } from "./robotInterface";
 
 interface VirtualRobotConfig {
   name: string;
@@ -20,6 +21,17 @@ interface VirtualRobotConfig {
   };
 }
 
+interface MotorState {
+  angle: number;
+  speed: number;
+  load: number;
+}
+
+interface SensorState {
+  type: string;
+  value: unknown;
+}
+
 interface VirtualRobotState {
   // Simple accumulated values like real robot encoders
   driveDistance: number; // Total distance traveled (mm)
@@ -29,21 +41,10 @@ interface VirtualRobotState {
   y: number; // Current Y position (mm)
 
   // Motor states
-  motors: {
-    [name: string]: {
-      angle: number;
-      speed: number;
-      load: number;
-    };
-  };
+  motors: { [name: string]: MotorState };
 
   // Sensor states
-  sensors: {
-    [name: string]: {
-      type: string;
-      value: any;
-    };
-  };
+  sensors: { [name: string]: SensorState };
 }
 
 class VirtualRobotService extends EventTarget {
@@ -51,6 +52,7 @@ class VirtualRobotService extends EventTarget {
   private state: VirtualRobotState;
   private telemetryInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private programRunning = false;
   private _isConnected = false;
   private lastTelemetryTime = 0;
   private abortController: AbortController = new AbortController();
@@ -83,8 +85,8 @@ class VirtualRobotService extends EventTarget {
   }
 
   private initializeState(): VirtualRobotState {
-    const motors: { [name: string]: any } = {};
-    const sensors: { [name: string]: any } = {};
+    const motors: Record<string, MotorState> = {};
+    const sensors: Record<string, SensorState> = {};
 
     // Initialize motors
     for (let i = 0; i < this.config.motorCount; i++) {
@@ -714,7 +716,7 @@ class VirtualRobotService extends EventTarget {
     }
   }
 
-  getCapabilities(): any {
+  getCapabilities(): RobotCapabilities {
     return {
       maxMotorCount: this.config.motorCount,
       maxSensorCount: this.config.sensorCount,
@@ -733,14 +735,7 @@ class VirtualRobotService extends EventTarget {
   }
 
   async executeCommandSequence(
-    commands: Array<{
-      action: string;
-      distance?: number;
-      angle?: number;
-      speed?: number;
-      motor?: string;
-      [key: string]: any;
-    }>,
+      commands: RobotCommand[],
   ): Promise<void> {
     console.log(
       `[VirtualRobot] Executing command sequence of ${commands.length} commands`,

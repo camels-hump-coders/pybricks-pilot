@@ -3,8 +3,8 @@ import { useCallback, useRef, useState } from "react";
 import {
   type MissionExecutionOptions,
   missionExecutionService,
-  type RobotCommand,
 } from "../services/missionExecution";
+import type { RobotCommand } from "../services/robotInterface";
 import { virtualRobotService } from "../services/virtualRobot";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { robotTypeAtom } from "../store/atoms/robotConnection";
