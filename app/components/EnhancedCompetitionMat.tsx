@@ -41,20 +41,23 @@ import { TelemetryTooltip } from "./EnhancedCompetitionMat/TelemetryTooltip";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 
 // RobotPosition interface now imported from utils/canvas
 
 interface EnhancedCompetitionMatProps {
-  isConnected: boolean;
   showScoring?: boolean;
 }
 
 // Scoring types and utilities now imported from utils/scoringUtils
 
-export function EnhancedCompetitionMat({
-  isConnected,
-  showScoring = false,
-}: EnhancedCompetitionMatProps) {
+import { showScoringAtom } from "../store/atoms/matUIState";
+
+export function EnhancedCompetitionMat({ showScoring = false }: EnhancedCompetitionMatProps) {
+  const { isConnected } = useJotaiRobotConnection();
+  // Prefer global atom if present (prop retained for backward compatibility during migration)
+  const globalShowScoring = useAtomValue(showScoringAtom);
+  const effectiveShowScoring = globalShowScoring ?? showScoring;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Get coordinate utilities and constants from atom
@@ -159,7 +162,7 @@ export function EnhancedCompetitionMat({
     currentPosition,
     mousePosition,
     scoringState,
-    showScoring,
+    showScoring: effectiveShowScoring,
     movementPreview,
     perpendicularPreview,
     isSplinePathMode,
@@ -194,7 +197,7 @@ export function EnhancedCompetitionMat({
   const currentPositionRef = useRef(currentPosition);
   const manualHeadingAdjustmentRef = useRef(manualHeadingAdjustment);
   const customMatConfigRef = useRef(customMatConfig);
-  const showScoringRef = useRef(showScoring);
+  const showScoringRef = useRef(effectiveShowScoring);
   const isCmdKeyPressedRef = useRef(isCmdKeyPressed);
 
   isCmdKeyPressedRef.current = isCmdKeyPressed;
@@ -202,7 +205,7 @@ export function EnhancedCompetitionMat({
   currentPositionRef.current = currentPosition;
   manualHeadingAdjustmentRef.current = manualHeadingAdjustment;
   customMatConfigRef.current = customMatConfig;
-  showScoringRef.current = showScoring;
+  showScoringRef.current = effectiveShowScoring;
 
   // Initialize telemetry reference
   useTelemetryReferenceInit(
@@ -222,7 +225,7 @@ export function EnhancedCompetitionMat({
     toggleObjective,
   } = useCanvasEventHandlers({
     canvasRef,
-    showScoring,
+    showScoring: effectiveShowScoring,
     scoringState,
     setScoringState,
     coordinateUtils,
@@ -327,7 +330,7 @@ export function EnhancedCompetitionMat({
 
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
             {/* Prominent Score Display */}
-            {customMatConfig && showScoring && (
+            {customMatConfig && effectiveShowScoring && (
               <div className="bg-gradient-to-r from-green-400 to-blue-500 dark:from-green-500 dark:to-blue-600 text-white px-3 py-3 rounded-lg shadow-lg border-2 border-white dark:border-gray-300">
                 <div className="text-center">
                   <div className="text-lg font-bold">
@@ -384,8 +387,8 @@ export function EnhancedCompetitionMat({
         />
       )}
 
-      {/* Telemetry Playback Controls */}
-      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+      {/* Telemetry Playback Controls - hidden on mobile to prioritize robot controls */}
+      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hidden xl:block">
         {/* Accordion Header */}
         <button
           onClick={() =>
@@ -417,15 +420,17 @@ export function EnhancedCompetitionMat({
         {isTelemetryPlaybackExpanded && <TelemetryPlayback />}
       </div>
 
-      {/* Missions List */}
-      <MissionsList
-        customMatConfig={customMatConfig}
-        showScoring={showScoring}
-        scoringState={scoringState}
-        onToggleObjective={toggleObjective}
-        getTotalPointsForMission={getTotalPointsForMission}
-        getMaxPointsForMission={getMaxPointsForMission}
-      />
+      {/* Missions List - hidden on mobile to keep robot controls directly under map */}
+      <div className="hidden xl:block">
+        <MissionsList
+          customMatConfig={customMatConfig}
+          showScoring={effectiveShowScoring}
+          scoringState={scoringState}
+          onToggleObjective={toggleObjective}
+          getTotalPointsForMission={getTotalPointsForMission}
+          getMaxPointsForMission={getMaxPointsForMission}
+        />
+      </div>
 
       {/* Mission Scoring Side Panel */}
       {popoverObject &&
@@ -448,8 +453,8 @@ export function EnhancedCompetitionMat({
           );
         })()}
 
-      {/* Pseudo Code Panel */}
-      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+      {/* Pseudo Code Panel - hidden on mobile to keep robot controls directly under map */}
+      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hidden xl:block">
         {/* Accordion Header */}
         <button
           onClick={() => setIsPseudoCodeExpanded(!isPseudoCodeExpanded)}

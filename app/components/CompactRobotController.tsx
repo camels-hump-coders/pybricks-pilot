@@ -744,8 +744,6 @@ export function CompactRobotController({
       {/* Main Controls */}
       <div className="p-3">
         <div className="space-y-3 sm:space-y-4">
-          {/* Position Control Buttons */}
-          <PositionControls onResetTelemetry={onResetTelemetry} />
 
           {/* Control Mode Toggle - Only visible for real robots when hub program is running */}
           <ControlModeToggle
@@ -827,6 +825,9 @@ export function CompactRobotController({
               (robotType === "real" && isProgramRunning)) && (
               <MissionControls />
             )}
+
+          {/* Position Control Buttons - moved to bottom */}
+          <PositionControls onResetTelemetry={onResetTelemetry} />
         </div>
       </div>
     </div>

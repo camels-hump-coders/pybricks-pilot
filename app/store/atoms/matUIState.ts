@@ -11,7 +11,14 @@ export const popoverObjectAtom = atom<string | null>(null);
 // Accordion expansion states
 export const missionsExpandedAtom = atom<boolean>(false);
 export const isPseudoCodeExpandedAtom = atom<boolean>(true);
-export const isTelemetryPlaybackExpandedAtom = atom<boolean>(true);
+export const isTelemetryPlaybackExpandedAtom = atom<boolean>(false);
+
+// Global UI toggles
+export const showScoringAtom = atom<boolean>(false);
+export const showMapSelectorAtom = atom<boolean>(false);
+export const showMatEditorAtom = atom<boolean>(false);
+export const matEditorModeAtom = atom<"edit" | "new">("edit");
+export const isMatConfigLoadingAtom = atom<boolean>(true);
 
 // ============================================
 // Canvas Interaction State Atoms

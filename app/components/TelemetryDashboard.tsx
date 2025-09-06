@@ -29,7 +29,7 @@ import {
   setActiveRobotAtom,
 } from "../store/atoms/robotConfigSimplified";
 import type { PythonFile } from "../types/fileSystem";
-import { CompactRobotController } from "./CompactRobotController";
+// CompactRobotController is consumed via RobotControlsSection
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
 import { GameMatEditor } from "./GameMatEditor";
@@ -39,6 +39,11 @@ import { MotorStatus } from "./MotorStatus";
 import { ProgramOutputLog } from "./ProgramOutputLog";
 import { RobotBuilder } from "./RobotBuilder";
 import { SensorDisplay } from "./SensorDisplay";
+import { isMatConfigLoadingAtom, matEditorModeAtom, showMapSelectorAtom, showMatEditorAtom, showScoringAtom } from "../store/atoms/matUIState";
+import { ActiveRobotPanel } from "./ActiveRobotPanel";
+import { MatControlsPanel } from "./MatControlsPanel";
+import { RobotControlsSection } from "./RobotControlsSection";
+import { HubStatusSection } from "./HubStatusSection";
 
 // Load built-in maps using the same logic as MapSelector
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
@@ -105,412 +110,13 @@ const getDefaultUnearthedMap = (): GameMatConfig | null => {
   return null;
 };
 
-// Sub-component for Mat Controls Panel
-interface MatControlsPanelProps {
-  isLoadingConfig: boolean;
-  showScoring: boolean;
-  currentScore: number;
-  onMapSelectorOpen: () => void;
-  onMatEditorOpen: (mode: "edit" | "new") => void;
-  onScoringToggle: () => void;
-  onClearMat: () => void;
-}
+// Inline panel components moved to their own files
 
-function MatControlsPanel({
-  isLoadingConfig,
-  showScoring,
-  currentScore,
-  onMapSelectorOpen,
-  onMatEditorOpen,
-  onScoringToggle,
-  onClearMat,
-}: MatControlsPanelProps) {
-  // Use Jotai atom directly instead of prop
-  const { customMatConfig } = useJotaiGameMat();
-  const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-      <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-          Mat Controls
-        </h3>
-      </div>
-      <div className="p-2 sm:p-3 space-y-2 sm:space-y-3">
-        {/* Current Mat Info */}
-        <div className="text-xs text-gray-600 dark:text-gray-400">
-          Current:{" "}
-          <span className="font-medium text-gray-800 dark:text-gray-200">
-            {customMatConfig ? customMatConfig.name : "Loading..."}
-          </span>
-        </div>
+// Inline panel components moved to their own files
 
-        {/* Map Selection/Creation Buttons */}
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={onMapSelectorOpen}
-            disabled={isLoadingConfig}
-            className="w-full px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            🗺️ Select Mat
-          </button>
+// Inline panel components moved to their own files
 
-          {hasDirectoryAccess ? (
-            <>
-              <button
-                type="button"
-                onClick={() => onMatEditorOpen("edit")}
-                disabled={!customMatConfig || isLoadingConfig}
-                className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                title={
-                  !customMatConfig ? "Select a map first" : "Edit current map"
-                }
-              >
-                ✏️ Edit Mat
-              </button>
-              <button
-                type="button"
-                onClick={() => onMatEditorOpen("new")}
-                className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
-              >
-                ➕ New Mat
-              </button>
-            </>
-          ) : (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-600 dark:text-yellow-400">📁</span>
-                <div className="text-sm text-yellow-700 dark:text-yellow-300">
-                  <div className="font-medium">
-                    Mount a directory to create or edit mats
-                  </div>
-                  <div className="text-xs mt-1 text-yellow-600 dark:text-yellow-400">
-                    Mat configurations are saved to{" "}
-                    <code className="font-mono">
-                      ./config/mats/&lt;id&gt;/mat.json
-                    </code>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Scoring and Mat Actions */}
-        {customMatConfig && (
-          <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
-            <button
-              type="button"
-              onClick={onScoringToggle}
-              className={`w-full px-3 py-2 rounded text-sm transition-colors ${
-                showScoring
-                  ? "bg-green-500 text-white hover:bg-green-600"
-                  : "bg-gray-500 text-white hover:bg-gray-600"
-              }`}
-            >
-              {showScoring ? "🎯 Scoring On" : "🎯 Scoring Off"}
-            </button>
-
-            <button
-              type="button"
-              onClick={onClearMat}
-              className="w-full px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-            >
-              ❌ Clear Mat
-            </button>
-
-            {customMatConfig.rulebookUrl && (
-              <a
-                href={customMatConfig.rulebookUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full px-3 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm text-center"
-                title="Open rulebook in new tab"
-              >
-                📖 Rulebook
-              </a>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Sub-component for Robot Controls Section
-interface RobotControlsSectionProps {
-  onDriveCommand: (direction: number, speed: number) => Promise<void>;
-  onTurnCommand: (angle: number, speed: number) => Promise<void>;
-  onStopCommand: () => Promise<void>;
-  onContinuousDriveCommand: (speed: number, turnRate: number) => Promise<void>;
-  onMotorCommand: (
-    motor: string,
-    angle: number,
-    speed: number,
-  ) => Promise<void>;
-  onContinuousMotorCommand: (motor: string, speed: number) => Promise<void>;
-  onMotorStopCommand: (motor: string) => Promise<void>;
-  onExecuteCommandSequence: (commands: RobotCommand[]) => Promise<void>;
-  telemetryData?: TelemetryData;
-  isConnected: boolean;
-  robotType?: "real" | "virtual" | null;
-  onStopProgram?: () => Promise<void>;
-  onUploadAndRunFile?: (
-    file: PythonFile,
-    content: string,
-    availableFiles: PythonFile[],
-  ) => Promise<void>;
-  onRobotBuilderOpen: () => void;
-  onResetTelemetry?: () => Promise<void>; // Add reset telemetry function
-}
-
-function RobotControlsSection({
-  onDriveCommand,
-  onTurnCommand,
-  onStopCommand,
-  onContinuousDriveCommand,
-  onMotorCommand,
-  onContinuousMotorCommand,
-  onMotorStopCommand,
-  onExecuteCommandSequence,
-  telemetryData,
-  isConnected,
-  robotType,
-  onStopProgram,
-  onUploadAndRunFile,
-  onRobotBuilderOpen,
-  onResetTelemetry,
-}: RobotControlsSectionProps) {
-  // Use Jotai atoms directly instead of prop drilling
-  const [, setMovementPreview] = useAtom(movementPreviewAtom);
-  const currentRobotConfig = useAtomValue(robotConfigAtom);
-  const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
-  return (
-    <div className="space-y-4">
-      {/* Active Robot Panel with Customize Button */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
-        <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-          Active Robot:
-        </div>
-        <div className="font-medium text-gray-900 dark:text-white text-sm">
-          {currentRobotConfig.name}
-        </div>
-        <div className="text-xs text-gray-500 mt-1">
-          {currentRobotConfig.dimensions.width}×
-          {currentRobotConfig.dimensions.length} studs (
-          {currentRobotConfig.dimensions.width * 8}×
-          {currentRobotConfig.dimensions.length * 8}mm)
-        </div>
-
-        {/* Customize Robot Button/Info */}
-        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-          {hasDirectoryAccess ? (
-            <button
-              type="button"
-              onClick={onRobotBuilderOpen}
-              className="w-full px-3 py-1.5 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-            >
-              🧱 Customize Robot
-            </button>
-          ) : (
-            <div className="flex items-start gap-2">
-              <span className="text-yellow-600 dark:text-yellow-400 text-xs">
-                📁
-              </span>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                <div>Mount a directory to customize robot</div>
-                <div className="text-xs mt-0.5 text-gray-500 dark:text-gray-500">
-                  Configs saved to{" "}
-                  <code className="font-mono text-xs">./config/robots/</code>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <CompactRobotController
-        onDriveCommand={onDriveCommand}
-        onTurnCommand={onTurnCommand}
-        onStopCommand={onStopCommand}
-        onContinuousDriveCommand={onContinuousDriveCommand}
-        onMotorCommand={onMotorCommand}
-        onContinuousMotorCommand={onContinuousMotorCommand}
-        onMotorStopCommand={onMotorStopCommand}
-        onExecuteCommandSequence={onExecuteCommandSequence}
-        telemetryData={telemetryData}
-        isConnected={isConnected}
-        robotType={robotType}
-        onResetTelemetry={onResetTelemetry}
-        onStopProgram={onStopProgram}
-        onUploadAndRunFile={onUploadAndRunFile}
-        onPreviewUpdate={(preview) => {
-          // Update movement preview atom for EnhancedCompetitionMat to display
-          setMovementPreview(preview);
-        }}
-      />
-    </div>
-  );
-}
-
-// Sub-component for Hub Status Section
-interface HubStatusSectionProps {
-  programStatus?: ProgramStatus;
-}
-
-function HubStatusSection({ programStatus }: HubStatusSectionProps) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-          Hub Status
-        </h3>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          Last update:{" "}
-          {programStatus?.lastStatusUpdate
-            ? new Date(programStatus.lastStatusUpdate).toLocaleTimeString()
-            : "Never"}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {/* Program Status */}
-        <div
-          className={`p-3 rounded-lg border ${
-            programStatus?.statusFlags?.userProgramRunning
-              ? "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700"
-              : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">
-              {programStatus?.statusFlags?.userProgramRunning ? "▶️" : "⏸️"}
-            </span>
-            <div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Program
-              </div>
-              <div
-                className={`font-medium text-sm ${
-                  programStatus?.statusFlags?.userProgramRunning
-                    ? "text-green-800 dark:text-green-300"
-                    : "text-gray-800 dark:text-gray-200"
-                }`}
-              >
-                {programStatus?.statusFlags?.userProgramRunning
-                  ? "Running"
-                  : "Stopped"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Battery Status */}
-        <div
-          className={`p-3 rounded-lg border ${
-            programStatus?.statusFlags?.batteryCritical
-              ? "bg-red-50 dark:bg-red-900 border-red-200 dark:border-red-700"
-              : programStatus?.statusFlags?.batteryLowWarning
-                ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-gray-700"
-                : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">
-              {programStatus?.statusFlags?.batteryCritical
-                ? "🔴"
-                : programStatus?.statusFlags?.batteryLowWarning
-                  ? "🟡"
-                  : "🟢"}
-            </span>
-            <div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Battery
-              </div>
-              <div
-                className={`font-medium text-sm ${
-                  programStatus?.statusFlags?.batteryCritical
-                    ? "text-red-800 dark:text-red-300"
-                    : programStatus?.statusFlags?.batteryLowWarning
-                      ? "text-yellow-800 dark:text-yellow-300"
-                      : "text-gray-800 dark:text-gray-200"
-                }`}
-              >
-                {programStatus?.statusFlags?.batteryCritical
-                  ? "Critical"
-                  : programStatus?.statusFlags?.batteryLowWarning
-                    ? "Low"
-                    : "OK"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Power Status */}
-        <div
-          className={`p-3 rounded-lg border ${
-            programStatus?.statusFlags?.powerButtonPressed
-              ? "bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700"
-              : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">
-              {programStatus?.statusFlags?.powerButtonPressed ? "⚡" : "🔋"}
-            </span>
-            <div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Power
-              </div>
-              <div
-                className={`font-medium text-sm ${
-                  programStatus?.statusFlags?.powerButtonPressed
-                    ? "text-yellow-800 dark:text-yellow-300"
-                    : "text-gray-800 dark:text-gray-200"
-                }`}
-              >
-                {programStatus?.statusFlags?.powerButtonPressed
-                  ? "Button Pressed"
-                  : "Normal"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bluetooth Status */}
-        <div
-          className={`p-3 rounded-lg border ${
-            programStatus?.statusFlags?.bleAdvertising
-              ? "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700"
-              : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">
-              {programStatus?.statusFlags?.bleAdvertising ? "📶" : "📴"}
-            </span>
-            <div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Bluetooth
-              </div>
-              <div
-                className={`font-medium text-sm ${
-                  programStatus?.statusFlags?.bleAdvertising
-                    ? "text-green-800 dark:text-green-300"
-                    : "text-gray-800 dark:text-gray-200"
-                }`}
-              >
-                {programStatus?.statusFlags?.bleAdvertising
-                  ? "Advertising"
-                  : "Connected"}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Inline panel components moved to their own files
 
 export function TelemetryDashboard({ className = "" }: { className?: string }) {
   // Use Jotai robot connection hook directly instead of prop drilling
@@ -561,16 +167,17 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       throw new Error("No upload method available");
     }
   };
-  const [showMatEditor, setShowMatEditor] = useState(false);
-  const [showMapSelector, setShowMapSelector] = useState(false);
-  const [matEditorMode, setMatEditorMode] = useState<"edit" | "new">("edit");
+  // Global UI atoms for map and editor dialogs
+  const [showMatEditor, setShowMatEditor] = useAtom(showMatEditorAtom);
+  const [showMapSelector, setShowMapSelector] = useAtom(showMapSelectorAtom);
+  const [matEditorMode, setMatEditorMode] = useAtom(matEditorModeAtom);
   // Use Jotai for custom mat config instead of local state
   const { customMatConfig, setCustomMatConfig } = useJotaiGameMat();
-  const [showScoring, setShowScoring] = useState(false);
+  const [showScoring, setShowScoring] = useAtom(showScoringAtom);
   // Use Jotai for current score instead of local state
-  const currentScore = useAtomValue(currentScoreAtom);
+  // currentScore used inside MatControlsPanel via atom
   const [robotBuilderOpen, setRobotBuilderOpen] = useAtom(robotBuilderOpenAtom);
-  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isLoadingConfig, setIsLoadingConfig] = useAtom(isMatConfigLoadingAtom);
   const setActiveRobot = useSetAtom(setActiveRobotAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
 
@@ -810,88 +417,38 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
       {/* Competition Mat - Full width on mobile, positioned in grid on desktop */}
       <div className="xl:hidden w-full">
-        <EnhancedCompetitionMat
-          showScoring={showScoring}
-          isConnected={isConnected}
-        />
+        <EnhancedCompetitionMat />
       </div>
 
       {/* Mobile Layout - Robot Controls below mat on mobile */}
       <div className="xl:hidden space-y-2 sm:space-y-4">
         <RobotControlsSection
-          onDriveCommand={sendDriveCommand}
-          onTurnCommand={sendTurnCommand}
-          onStopCommand={sendStopCommand}
-          onContinuousDriveCommand={sendContinuousDriveCommand}
-          onMotorCommand={sendMotorCommand}
-          onContinuousMotorCommand={sendContinuousMotorCommand}
-          onMotorStopCommand={sendMotorStopCommand}
-              onExecuteCommandSequence={robotConnection.executeCommandSequence}
-              telemetryData={telemetryData ?? undefined}
-          isConnected={isConnected}
-          robotType={robotType}
-          onStopProgram={stopProgram}
           onUploadAndRunFile={handleUploadAndRun}
-          onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
-          onResetTelemetry={resetTelemetry}
         />
 
-        <MatControlsPanel
-          isLoadingConfig={isLoadingConfig}
-          showScoring={showScoring}
-          currentScore={currentScore}
-          onMapSelectorOpen={() => setShowMapSelector(true)}
-          onMatEditorOpen={(mode) => {
-            setMatEditorMode(mode);
-            setShowMatEditor(true);
-          }}
-          onScoringToggle={() => setShowScoring(!showScoring)}
-          onClearMat={handleClearCustomMat}
-        />
+        <MatControlsPanel onClearMat={handleClearCustomMat} />
+
+        {/* Active Robot moved below Mat Controls */}
+        <ActiveRobotPanel onRobotBuilderOpen={() => setRobotBuilderOpen(true)} />
       </div>
 
       {/* Desktop Layout - Mat and Controls side by side on large screens */}
       <div className="hidden xl:grid xl:grid-cols-4 gap-4">
         {/* Competition Mat - Takes up 3 columns */}
         <div className="col-span-3">
-          <EnhancedCompetitionMat
-            showScoring={showScoring}
-            isConnected={isConnected}
-          />
+          <EnhancedCompetitionMat />
         </div>
 
         {/* Right Sidebar - Robot Controls and Mat Controls */}
         <div className="col-span-1 space-y-4">
           <RobotControlsSection
-            onDriveCommand={sendDriveCommand}
-            onTurnCommand={sendTurnCommand}
-            onStopCommand={sendStopCommand}
-            onContinuousDriveCommand={sendContinuousDriveCommand}
-            onMotorCommand={sendMotorCommand}
-            onContinuousMotorCommand={sendContinuousMotorCommand}
-            onMotorStopCommand={sendMotorStopCommand}
-              onExecuteCommandSequence={robotConnection.executeCommandSequence}
-              telemetryData={telemetryData ?? undefined}
-            isConnected={isConnected}
-            robotType={robotType}
-            onStopProgram={stopProgram}
             onUploadAndRunFile={handleUploadAndRun}
-            onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
-            onResetTelemetry={resetTelemetry}
           />
 
-          <MatControlsPanel
-            isLoadingConfig={isLoadingConfig}
-            showScoring={showScoring}
-            currentScore={currentScore}
-            onMapSelectorOpen={() => setShowMapSelector(true)}
-            onMatEditorOpen={(mode) => {
-              setMatEditorMode(mode);
-              setShowMatEditor(true);
-            }}
-            onScoringToggle={() => setShowScoring(!showScoring)}
-            onClearMat={handleClearCustomMat}
-          />
+          <MatControlsPanel onClearMat={handleClearCustomMat} />
+
+          {/* Active Robot moved below Mat Controls */}
+          <ActiveRobotPanel onRobotBuilderOpen={() => setRobotBuilderOpen(true)} />
         </div>
       </div>
 
@@ -935,7 +492,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       )}
 
       {/* Hub Status Section */}
-      <HubStatusSection programStatus={programStatus} />
+      <HubStatusSection />
 
       {/* Robot Builder Modal */}
       <RobotBuilder
