@@ -21,6 +21,7 @@ import { ControlModeToggle } from "./ControlModeToggle";
 import { ManualControls } from "./ManualControls";
 import { MissionControls } from "./MissionControls";
 import { MissionRecorderControls } from "./MissionRecorderControls";
+import { missionFeatureEnabledAtom } from "../store/atoms/featureFlags";
 import { MotorControls } from "./MotorControls";
 import {
   calculatePreviewPosition,
@@ -701,6 +702,8 @@ export function CompactRobotController({
     }
   }
 
+  const missionFeatureEnabled = useAtomValue(missionFeatureEnabledAtom);
+
   return (
     <div
       className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}
@@ -808,15 +811,18 @@ export function CompactRobotController({
                 />
 
                 {/* Mission Recorder */}
-                <MissionRecorderControls
-                  onDrive={sendStepDrive}
-                  onTurn={sendStepTurn}
-                />
+                {missionFeatureEnabled && (
+                  <MissionRecorderControls
+                    onDrive={sendStepDrive}
+                    onTurn={sendStepTurn}
+                  />
+                )}
               </div>
             )}
 
           {/* Mission Controls - Only visible for virtual robots or real robots when hub program is running */}
           {controlMode === "mission" &&
+            missionFeatureEnabled &&
             (robotType === "virtual" ||
               (robotType === "real" && isProgramRunning)) && (
               <MissionControls />

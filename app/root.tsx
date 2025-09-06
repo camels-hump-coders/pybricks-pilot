@@ -15,6 +15,7 @@ import "./app.css";
 import faviconUrl from "./assets/favicon.svg?url";
 import socialShareUrl from "./assets/social-share.png?url";
 import { ServiceEventSync } from "./components/ServiceEventSync";
+import { SecretPiToggle } from "./components/SecretPiToggle";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 export const links: Route.LinksFunction = () => [
@@ -120,6 +121,8 @@ export default function App() {
         <ServiceEventSync>
           <ThemeProvider>
             <Outlet />
+            {/* Hidden feature toggle for Mission mode */}
+            <SecretPiToggle />
           </ThemeProvider>
         </ServiceEventSync>
       </QueryClientProvider>

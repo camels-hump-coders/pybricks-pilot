@@ -2,6 +2,7 @@ import { useAtomValue } from "jotai";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import type { ControlMode } from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
+import { missionFeatureEnabledAtom } from "../store/atoms/featureFlags";
 
 interface ControlModeToggleProps {
   controlMode: ControlMode;
@@ -18,6 +19,7 @@ export function ControlModeToggle({
 }: ControlModeToggleProps) {
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
   const { robotType } = useJotaiRobotConnection();
+  const missionFeatureEnabled = useAtomValue(missionFeatureEnabledAtom);
   const robotControlsEnabled =
     robotType === "virtual" || (robotType === "real" && isProgramRunning);
 
@@ -69,7 +71,8 @@ export function ControlModeToggle({
         >
           Hold
         </button>
-        <button
+        {missionFeatureEnabled && (
+          <button
           type="button"
           disabled={!robotControlsEnabled}
           onClick={() => handleModeChange("mission")}
@@ -80,7 +83,8 @@ export function ControlModeToggle({
           }`}
         >
           Mission
-        </button>
+          </button>
+        )}
       </div>
     </div>
   );
