@@ -81,7 +81,7 @@ export function useCanvasSize(
       resizeTimeout = setTimeout(updateCanvasSize, 100);
     };
 
-    window.addEventListener("resize", throttledResize);
+    window.addEventListener("resize", throttledResize, { passive: true });
 
     // Use ResizeObserver for more reliable container size detection
     let resizeObserver: ResizeObserver | null = null;

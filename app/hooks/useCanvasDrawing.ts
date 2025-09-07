@@ -47,6 +47,7 @@ import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import { drawSplinePath } from "../utils/canvas/splinePathDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing";
+import { lowQualityModeAtom } from "../store/atoms/matUIState";
 import type { RobotPosition } from "../utils/robotPosition";
 
 type ScoringState = {
@@ -213,22 +214,13 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   dataRefs.current.pointPlacementMode = pointPlacementMode;
   dataRefs.current.actionPointHeading = actionPointHeading;
 
-  // Animation loop control
+  // Event-driven redraw control
   const animationFrameRef = useRef<number | null>(null);
-  const isRunningRef = useRef(false);
   const lastFrameTimeRef = useRef(0);
-  // Cap frame rate to reduce CPU/GPU load on slower machines
-  const targetFrameMs = 1000 / 30; // ~30 FPS
+  const targetFrameMs = 1000 / 30; // cap ~30 FPS when invalidations flood
+  const lowQuality = useAtomValue(lowQualityModeAtom);
 
-  // Respect reduced motion and scale-heavy scenes to skip extra effects
-  const reducedEffects = useMemo(() => {
-    const prefersReduced =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // Also reduce effects when scale is large (very big canvases)
-    return prefersReduced || dataRefs.current.scale > 1.5;
-  }, [dataRefs.current.scale]);
+  // compute reduced effects contextually inside draw based on env and load
 
   // Main drawing function that uses refs for always-current data
   const drawCanvas = useCallback(() => {
@@ -249,6 +241,17 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     // Clear canvas with a neutral background
     ctx.fillStyle = "#e5e5e5";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedEffects =
+      lowQuality ||
+      prefersReduced ||
+      document.visibilityState === "hidden" ||
+      data.scale > 1.5 ||
+      (data.selectedPathPoints?.length || 0) > 4000;
 
     // Draw the table surface (skip gradients when reducedEffects)
     if (!reducedEffects) {
@@ -354,17 +357,31 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       );
     }
 
-    // Draw telemetry path
+    // Draw telemetry path (sample points in reduced mode)
     if (data.pathOptions?.showPath) {
+      let points = data.selectedPathPoints;
+      if (reducedEffects && points.length > 2000) {
+        const step = Math.ceil(points.length / 2000);
+        const sampled: typeof points = [];
+        for (let i = 0; i < points.length; i += step) sampled.push(points[i]);
+        // Ensure we include the last point for continuity
+        if (sampled[sampled.length - 1] !== points[points.length - 1]) {
+          sampled.push(points[points.length - 1]);
+        }
+        points = sampled;
+      }
       drawTelemetryPath(
         ctx,
-        data.selectedPathPoints,
+        points,
         {
           ...data.pathOptions,
           colorMode:
             data.pathOptions.colorMode === "none"
               ? "time"
               : (data.pathOptions.colorMode as "time" | "speed" | "heading"),
+          strokeWidth: reducedEffects
+            ? Math.max(1, (data.pathOptions.strokeWidth || 2) * 0.75)
+            : data.pathOptions.strokeWidth,
         },
         {
           getColorForPoint: (point: any, colorMode: string) =>
@@ -586,60 +603,69 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     }
   }, [matImageRef.current, canvasRef.current]);
 
-  // Main render loop - continuous frame-rate rendering
-  const renderLoop = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !isRunningRef.current) return;
-
-    // Set canvas size if needed (canvasSize is already rounded)
-    const data = dataRefs.current;
-    const targetWidth = Math.round(data.canvasSize.width);
-    const targetHeight = Math.round(data.canvasSize.height);
-
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-    }
-
-    // Throttle frame rate
-    const now = performance.now();
-    if (now - lastFrameTimeRef.current >= targetFrameMs) {
-      lastFrameTimeRef.current = now;
-      drawCanvas();
-    }
-
-    // Schedule next frame
-    animationFrameRef.current = requestAnimationFrame(renderLoop);
+  // Event-driven draw; coalesce invalidations via RAF
+  const invalidate = useCallback(() => {
+    if (!canvasRef.current) return;
+    if (animationFrameRef.current !== null) return;
+    animationFrameRef.current = requestAnimationFrame(() => {
+      animationFrameRef.current = null;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const data = dataRefs.current;
+      const targetWidth = Math.round(data.canvasSize.width);
+      const targetHeight = Math.round(data.canvasSize.height);
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+      }
+      const now = performance.now();
+      if (now - lastFrameTimeRef.current >= targetFrameMs) {
+        lastFrameTimeRef.current = now;
+        drawCanvas();
+      }
+    });
   }, [drawCanvas, canvasRef.current]);
 
-  // Start/stop continuous rendering
-  const startRenderLoop = useCallback(() => {
-    if (isRunningRef.current || !canvasRef.current) return;
-
-    isRunningRef.current = true;
-    animationFrameRef.current = requestAnimationFrame(renderLoop);
-  }, [renderLoop, canvasRef.current]);
-
-  const stopRenderLoop = useCallback(() => {
-    isRunningRef.current = false;
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-  }, []);
-
-  // Start render loop on mount, stop on unmount
-  useEffect(() => {
-    startRenderLoop();
-
-    return () => {
-      stopRenderLoop();
-    };
-  }, [startRenderLoop, stopRenderLoop]);
+  // Signal-driven invalidation for relevant inputs
+  useEffect(() => { invalidate(); }, [
+    // Atom-driven inputs
+    canvasSize,
+    scale,
+    coordinateUtils,
+    customMatConfig,
+    controlMode,
+    robotConfig,
+    showGridOverlay,
+    hoveredObject,
+    missionBounds,
+    pathOptions,
+    selectedPathPoints,
+    ghostRobot,
+    editingMission,
+    selectedMission,
+    selectedPointId,
+    positions,
+    atomMousePosition,
+    // Prop-driven inputs
+    currentPosition,
+    mousePosition,
+    scoringState,
+    showScoring,
+    movementPreview,
+    perpendicularPreview,
+    isSplinePathMode,
+    currentSplinePath,
+    splinePaths,
+    selectedSplinePointId,
+    hoveredSplinePointId,
+    hoveredCurvatureHandlePointId,
+    hoveredPoint,
+    hoveredPointIndexValue,
+    lowQuality,
+  ]);
 
   return {
     drawCanvas,
-    startRenderLoop,
-    stopRenderLoop,
+    invalidate,
   };
 }

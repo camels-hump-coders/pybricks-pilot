@@ -42,6 +42,28 @@ export interface RobotConfig {
     hasDistanceSensor: boolean;
   };
 
+  // Drivebase + I/O mapping
+  drivebase?: {
+    leftMotorPort: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+    rightMotorPort: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+    leftReversed?: boolean;
+    rightReversed?: boolean;
+    wheelDiameterMm: number; // explicit control for Pybricks DriveBase
+    axleTrackMm: number; // distance between wheels
+  };
+
+  motors?: Array<{
+    name: string;
+    port: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+    reversed?: boolean;
+  }>;
+
+  sensors?: Array<{
+    name: string;
+    type: 'color' | 'ultrasonic' | 'force' | 'gyro' | 'other';
+    port: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+  }>;
+
   // Metadata
   tags: string[];
   isDefault: boolean;
@@ -120,6 +142,21 @@ export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
     hasColorSensor: true,
     hasDistanceSensor: true,
   },
+
+  drivebase: {
+    leftMotorPort: 'A',
+    rightMotorPort: 'B',
+    leftReversed: false,
+    rightReversed: false,
+    wheelDiameterMm: 56,
+    axleTrackMm: studsToMm( 
+      // compute from wheel x positions (distance between left and right wheel centers)
+      Math.abs(((2) + ((22 - 2))) - 2 * 11) // placeholder, overridden at runtime if needed
+    ) || 120,
+  },
+
+  motors: [],
+  sensors: [],
 
   tags: ["default", "fll", "standard"],
   isDefault: true,

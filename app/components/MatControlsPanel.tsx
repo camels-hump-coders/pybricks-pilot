@@ -8,6 +8,7 @@ import {
   showMapSelectorAtom,
   showMatEditorAtom,
   showScoringAtom,
+  lowQualityModeAtom,
 } from "../store/atoms/matUIState";
 
 interface MatControlsPanelProps {
@@ -23,6 +24,7 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
   const [, setShowMatEditor] = useAtom(showMatEditorAtom);
   const [, setMatEditorMode] = useAtom(matEditorModeAtom);
   const isLoadingConfig = useAtomValue(isMatConfigLoadingAtom);
+  const [lowQuality, setLowQuality] = useAtom(lowQualityModeAtom);
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
@@ -115,6 +117,39 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
             </button>
           </div>
         )}
+
+        {/* Performance settings */}
+        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              ⚡ Low Quality Mode
+            </div>
+            <span className="relative group cursor-help text-gray-500 dark:text-gray-400" aria-label="Low Quality Mode info">
+              ℹ️
+              <div role="tooltip" className="absolute right-0 mt-1 z-20 hidden group-hover:block bg-gray-900 text-white text-xs p-2 rounded shadow-lg w-64">
+                - Skips heavy gradients and shadows
+                <br />- Samples telemetry path to ~2000 points
+                <br />- Slightly reduces stroke widths
+                <br />- Disables oriented grid under certain conditions
+              </div>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !lowQuality;
+              setLowQuality(next);
+              try { localStorage.setItem("ui.lowQualityMode", String(next)); } catch {}
+            }}
+            className={`w-full px-3 py-2 rounded text-sm transition-colors ${
+              lowQuality
+                ? "bg-amber-600 text-white hover:bg-amber-700"
+                : "bg-gray-500 text-white hover:bg-gray-600"
+            }`}
+          >
+            {lowQuality ? "Turn Off" : "Turn On"}
+          </button>
+        </div>
       </div>
     </div>
   );

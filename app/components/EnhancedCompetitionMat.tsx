@@ -158,7 +158,7 @@ export function EnhancedCompetitionMat({
   );
 
   // Canvas drawing hook
-  useCanvasDrawing({
+  const { invalidate } = useCanvasDrawing({
     canvasRef,
     matImageRef,
     currentPosition,
@@ -245,6 +245,7 @@ export function EnhancedCompetitionMat({
     setHoveredPointIndex,
     setTooltipPosition,
     setMousePosition,
+    invalidate,
   });
 
   // Spline keyboard events
@@ -358,10 +359,10 @@ export function EnhancedCompetitionMat({
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseLeave}
+          onPointerDown={handleCanvasMouseDown as any}
+          onPointerMove={handleCanvasMouseMove as any}
+          onPointerUp={handleCanvasMouseUp as any}
+          onPointerLeave={handleCanvasMouseLeave as any}
           className={`block w-full rounded shadow-2xl ${
             hoveredObject ? "cursor-pointer" : "cursor-default"
           }`}

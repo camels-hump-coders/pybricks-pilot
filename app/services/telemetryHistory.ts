@@ -160,13 +160,20 @@ class TelemetryHistoryService {
       return;
     }
 
-    // Only add point if position has changed significantly (more than 5mm or 2 degrees)
+    // Adaptive decimation: increase thresholds when paths grow large
+    const currentPoints = this.currentPath?.points.length || 0;
+    const baseDist = 5;
+    const baseHeading = 2;
+    const distThreshold = currentPoints > 10000 ? 12 : currentPoints > 5000 ? 8 : baseDist;
+    const headingThreshold = currentPoints > 10000 ? 6 : currentPoints > 5000 ? 4 : baseHeading;
+
+    // Only add point if position has changed significantly
     const distChange = Math.sqrt(
       (x - this.lastPosition.x) ** 2 + (y - this.lastPosition.y) ** 2,
     );
     const headingChange = Math.abs(heading - this.lastPosition.heading);
 
-    if (distChange < 5 && headingChange < 2) return;
+    if (distChange < distThreshold && headingChange < headingThreshold) return;
 
     const point: TelemetryPoint = {
       timestamp: Date.now(),

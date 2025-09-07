@@ -71,6 +71,7 @@ interface UseCanvasEventHandlersProps {
   setHoveredPointIndex: (index: number) => void;
   setTooltipPosition: (position: { x: number; y: number } | null) => void;
   setMousePosition: (position: RobotPosition | null) => void;
+  invalidate?: () => void;
 }
 
 /**
@@ -96,6 +97,7 @@ export function useCanvasEventHandlers({
   setHoveredPointIndex,
   setTooltipPosition,
   setMousePosition,
+  invalidate,
 }: UseCanvasEventHandlersProps) {
   const controlMode = useAtomValue(controlModeAtom);
   const setHoveredObject = useSetAtom(hoveredObjectAtom);
@@ -142,7 +144,7 @@ export function useCanvasEventHandlers({
     });
 
   const handleCanvasMouseDown = useCallback(
-    (event: React.MouseEvent<HTMLCanvasElement>) => {
+    (event: React.PointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -162,11 +164,13 @@ export function useCanvasEventHandlers({
         );
         if (handled) {
           event.preventDefault();
+          invalidate?.();
           return;
         }
       }
+      invalidate?.();
     },
-    [canvasRef, controlMode, coordinateUtils, missionPointInteractions],
+    [canvasRef, controlMode, coordinateUtils, missionPointInteractions, invalidate],
   );
 
   const handleCanvasClick = useCallback(
@@ -191,13 +195,19 @@ export function useCanvasEventHandlers({
           canvasY,
           coordinateUtils,
         );
-        if (handled) return;
+        if (handled) {
+          invalidate?.();
+          return;
+        }
       }
 
       // Handle spline path mode clicks
       if (isSplinePathMode) {
         const handled = splineInteractions.handleSplineClick(canvasX, canvasY);
-        if (handled) return;
+        if (handled) {
+          invalidate?.();
+          return;
+        }
       }
 
       // Handle mission clicks
@@ -207,7 +217,11 @@ export function useCanvasEventHandlers({
         showScoring,
         controlMode,
       );
-      if (missionHandled) return;
+      if (missionHandled) {
+        invalidate?.();
+        return;
+      }
+      invalidate?.();
     },
     [
       canvasRef,
@@ -219,6 +233,7 @@ export function useCanvasEventHandlers({
       splineInteractions,
       handleMissionClick,
       showScoring,
+      invalidate,
     ],
   );
 
@@ -319,7 +334,8 @@ export function useCanvasEventHandlers({
 
     // Stop all dragging when mouse is released
     stopAllDragging();
-  }, [missionPointInteractions, stopAllDragging]);
+    invalidate?.();
+  }, [missionPointInteractions, stopAllDragging, invalidate]);
 
   const handleCanvasMouseLeave = useCallback(() => {
     setMousePosition(null);
@@ -336,6 +352,7 @@ export function useCanvasEventHandlers({
 
     // Handle telemetry mouse leave
     handleTelemetryMouseLeave();
+    invalidate?.();
   }, [
     setMousePosition,
     setHoveredObject,
@@ -344,6 +361,7 @@ export function useCanvasEventHandlers({
     splineInteractions,
     canvasRef,
     handleTelemetryMouseLeave,
+    invalidate,
   ]);
 
   // Create the toggleObjective function with bound parameters

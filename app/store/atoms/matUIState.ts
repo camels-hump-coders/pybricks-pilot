@@ -19,6 +19,22 @@ export const showMapSelectorAtom = atom<boolean>(false);
 export const showMatEditorAtom = atom<boolean>(false);
 export const matEditorModeAtom = atom<"edit" | "new">("edit");
 export const isMatConfigLoadingAtom = atom<boolean>(true);
+// Performance
+export const lowQualityModeAtom = atom<boolean>(false);
+
+// Initialize/persist Low Quality mode in localStorage
+const LOW_QUALITY_STORAGE_KEY = "ui.lowQualityMode";
+lowQualityModeAtom.onMount = (set) => {
+  try {
+    const stored =
+      typeof window !== "undefined" && window.localStorage
+        ? window.localStorage.getItem(LOW_QUALITY_STORAGE_KEY)
+        : null;
+    if (stored !== null) set(stored === "true");
+  } catch {
+    // ignore
+  }
+};
 
 // ============================================
 // Canvas Interaction State Atoms

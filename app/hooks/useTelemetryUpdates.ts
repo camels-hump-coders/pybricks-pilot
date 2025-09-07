@@ -35,6 +35,7 @@ export function useTelemetryUpdates({
   const telemetryReferenceRef = useRef(telemetryReference);
   const manualHeadingAdjustmentRef = useRef(manualHeadingAdjustment);
   const isCmdKeyPressedRef = useRef(isCmdKeyPressed);
+  const lastProcessRef = useRef(0);
 
   // Update refs when values change
   useEffect(() => {
@@ -56,8 +57,6 @@ export function useTelemetryUpdates({
   // Handle telemetry updates using event subscription
   useEffect(() => {
     if (!isConnected) return;
-
-    const lastProcessRef = useRef(0);
 
     const handleTelemetryEvent = (event: Event) => {
       const now = performance.now();
