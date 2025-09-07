@@ -93,6 +93,12 @@ interface RobotBuilderState {
   pan: { x: number; y: number };
 }
 
+// LEGO stud size constants
+export const LEGO_STUD_SIZE_MM = 8; // 1 stud = 8mm
+
+// Convert studs to mm
+export const studsToMm = (studs: number): number => studs * LEGO_STUD_SIZE_MM;
+
 // Default robot configuration
 export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
   id: "default",
@@ -161,12 +167,6 @@ export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
   tags: ["default", "fll", "standard"],
   isDefault: true,
 };
-
-// LEGO stud size constants
-export const LEGO_STUD_SIZE_MM = 8; // 1 stud = 8mm
-
-// Convert studs to mm
-export const studsToMm = (studs: number): number => studs * LEGO_STUD_SIZE_MM;
 
 // Automatically calculate center of rotation from wheel positions
 export const calculateCenterOfRotation = (config: RobotConfig) => {
