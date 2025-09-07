@@ -168,7 +168,9 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   // Use Jotai for current score instead of local state
   // currentScore used inside MatControlsPanel via atom
   const [robotBuilderOpen, setRobotBuilderOpen] = useAtom(robotBuilderOpenAtom);
-  const [_isLoadingConfig, setIsLoadingConfig] = useAtom(isMatConfigLoadingAtom);
+  const [_isLoadingConfig, setIsLoadingConfig] = useAtom(
+    isMatConfigLoadingAtom,
+  );
   const setActiveRobot = useSetAtom(setActiveRobotAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
 

@@ -350,6 +350,47 @@ class PybricksHubService extends EventTarget {
     );
   }
 
+  /**
+   * Compile an ad-hoc Python program (provided as a string), resolve local imports
+   * against available files (e.g., robot.py), upload it as a multi-module bundle,
+   * and run it immediately.
+   */
+  async uploadAndRunAdhocProgram(
+    name: string,
+    content: string,
+    availableFiles: PythonFile[],
+  ): Promise<void> {
+    // Clear program output at the start of uploading and running a program
+    this.emitClearProgramOutputEvent();
+
+    // Create a synthetic PythonFile descriptor for the ad-hoc content
+    const selectedFile: PythonFile = {
+      handle: {} as unknown as FileSystemFileHandle,
+      name,
+      size: content.length,
+      lastModified: Date.now(),
+      relativePath: name,
+      isDirectory: false,
+    };
+
+    const compilationResult = await multiModuleCompiler.compileMultiModule(
+      selectedFile,
+      content,
+      availableFiles,
+    );
+
+    if (!compilationResult.success || !compilationResult.multiFileBlob) {
+      throw new Error(
+        `Ad-hoc program compilation failed: ${compilationResult.error || "Unknown error"}`,
+      );
+    }
+
+    await this.uploadCompiledProgramPybricksFlow(
+      compilationResult.multiFileBlob,
+      true,
+    );
+  }
+
   private async uploadCompiledProgramPybricksFlow(
     programBlob: Blob,
     shouldRun: boolean = false,

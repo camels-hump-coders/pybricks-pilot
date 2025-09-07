@@ -6,9 +6,13 @@ import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
 import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
-import { robotBuilderOpenAtom, robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import { generateQuickStartCode } from "../utils/quickStart";
+import {
+  robotBuilderOpenAtom,
+  robotConfigAtom,
+} from "../store/atoms/robotConfigSimplified";
 import type { PythonFile } from "../types/fileSystem";
+import { generateCalibrationProgram } from "../utils/calibration";
+import { generateQuickStartCode } from "../utils/quickStart";
 import { FileBrowser } from "./FileBrowser";
 
 interface ProgramManagerProps {
@@ -82,11 +86,13 @@ export function ProgramManager({
     removeFromPrograms,
     programCount,
     allPrograms,
+    writeFile,
+    refreshFiles,
   } = useJotaiFileSystem();
 
   // Get robot connection for hub menu upload functionality
   const robotConnection = useJotaiRobotConnection();
-  const { uploadAndRunHubMenu } = robotConnection;
+  const { uploadAndRunHubMenu, uploadAndRunAdhocProgram } = robotConnection;
 
   // Access current robot config to compute Step 1 completion
 
@@ -96,7 +102,6 @@ export function ProgramManager({
     addToPrograms: fsAddToPrograms,
     refreshFiles: fsRefreshFiles,
   } = useJotaiFileSystem();
-
 
   const handleGenerateQuickStartProgram = async () => {
     if (!hasDirectoryAccess || !stableDirectoryHandle) {
@@ -295,7 +300,18 @@ export function ProgramManager({
                   : `${programCount} program${programCount !== 1 ? "s" : ""} configured for hub menu`}
               </span>
             </div>
-            {programCount === 0 && (
+            {(programCount === 0 ||
+              (programCount > 0 &&
+                allPrograms.every((p) => {
+                  const n = p.name.toLowerCase();
+                  const r = p.relativePath?.toLowerCase?.() || "";
+                  return (
+                    n.includes("quickstart") ||
+                    n === "robot.py" ||
+                    r.endsWith("/robot.py") ||
+                    r === "robot.py"
+                  );
+                }))) && (
               <div className="mt-3 p-3 rounded bg-white/70 dark:bg-gray-800/40 border border-orange-200 dark:border-orange-800">
                 <div className="text-sm font-medium mb-2 text-gray-800 dark:text-gray-200">
                   Quick Start: Get Your Robot Moving
@@ -306,52 +322,125 @@ export function ProgramManager({
                   const step3Complete = isConnected && isRunning;
                   return (
                     <>
-                <ol className="list-decimal ml-4 text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                  <li>
-                    Configure your robot's motors, sensors, and drivebase.
-                  </li>
-                  <li>Generate a starter program tailored to your robot.</li>
-                  <li>Upload & run the program menu on your hub.</li>
-                </ol>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <ol className="list-decimal ml-4 text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        <li>
+                          Configure your robot's motors, sensors, and drivebase.
+                        </li>
+                        <li>
+                          Generate a starter program tailored to your robot.
+                        </li>
+                        <li>
+                          Calibrate: drive 200mm forward and turn 360° to
+                          measure.
+                        </li>
+                        <li>Upload & run the program menu on your hub.</li>
+                      </ol>
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <button
+                          onClick={() => {
+                            openRobotBuilder(true);
+                          }}
+                          className="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1"
+                          title="Open Robot Builder"
+                        >
+                          {step1Complete ? "✅" : "🧱"} Configure Robot
+                        </button>
+                        <button
+                          onClick={handleGenerateQuickStartProgram}
+                          disabled={!step1Complete || !hasDirectoryAccess}
+                          title={
+                            !step1Complete
+                              ? "Customize your robot in step 1 first"
+                              : !hasDirectoryAccess
+                                ? "Mount a directory to save the program"
+                                : "Generate starter program"
+                          }
+                          className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {step2Complete ? "✅" : "✨"} Generate Starter Program
+                        </button>
                   <button
-                    onClick={() => {
-                      openRobotBuilder(true);
+                    onClick={async () => {
+                      if (!uploadAndRunAdhocProgram) return;
+                      try {
+                        // Make sure robot.py contains the latest config before compile
+                        const robotFile = (pythonFiles || []).find((f) => {
+                          const p = (f.relativePath || f.name || "").toLowerCase();
+                          return !f.isDirectory && (p.endsWith("/robot.py") || p === "robot.py");
+                        });
+                        if (robotFile && "getFile" in robotFile.handle) {
+                          const codePy = generateQuickStartCode(currentRobotConfig);
+                          await writeFile({
+                            handle: robotFile.handle as FileSystemFileHandle,
+                            content: codePy,
+                          });
+                          await refreshFiles();
+                        }
+                        const code = generateCalibrationProgram();
+                        await uploadAndRunAdhocProgram(
+                          "calibrate.py",
+                          code,
+                          pythonFiles,
+                        );
+                      } catch (e) {
+                        const msg = e instanceof Error ? e.message : String(e);
+                        addNotification({
+                          type: "error",
+                          title: "Calibration Upload Failed",
+                          message: msg || "Unknown error",
+                          duration: 0,
+                        });
+                      }
                     }}
-                    className="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1"
-                    title="Open Robot Builder"
-                  >
-                    {step1Complete ? "✅" : "🧱"} Configure Robot
-                  </button>
-                  <button
-                    onClick={handleGenerateQuickStartProgram}
-                    disabled={!step1Complete || !hasDirectoryAccess}
-                    title={
-                      !step1Complete
-                        ? "Customize your robot in step 1 first"
-                        : !hasDirectoryAccess
-                          ? "Mount a directory to save the program"
-                          : "Generate starter program"
-                    }
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
-                  >
-                    {step2Complete ? "✅" : "✨"} Generate Starter Program
-                  </button>
-                  <button
-                    onClick={handleUploadAndRun}
-                    disabled={!step2Complete || !isConnected}
-                    title={
-                      !step2Complete
-                        ? "Generate a program first"
-                        : !isConnected
-                          ? "Connect to the hub"
-                          : "Upload & run menu"
-                    }
-                    className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
-                  >
-                    {step3Complete ? "✅" : "🚀"} Upload & Run
-                  </button>
-                </div>
+                          disabled={
+                            !isConnected ||
+                            !pythonFiles.some((f) => {
+                              const p = (
+                                f.relativePath ||
+                                f.name ||
+                                ""
+                              ).toLowerCase();
+                              return (
+                                p.endsWith("/robot.py") || p === "robot.py"
+                              );
+                            })
+                          }
+                          title={
+                            !isConnected
+                              ? "Connect to the hub"
+                              : !pythonFiles.some((f) => {
+                                    const p = (
+                                      f.relativePath ||
+                                      f.name ||
+                                      ""
+                                    ).toLowerCase();
+                                    return (
+                                      p.endsWith("/robot.py") ||
+                                      p === "robot.py"
+                                    );
+                                  })
+                                ? "Generate robot.py first (use Generate Starter Program)"
+                                : "Uploads and runs a calibration program (imports robot.py)"
+                          }
+                          className="px-3 py-2 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1"
+                        >
+                          🎯 Calibrate
+                        </button>
+                        <button
+                          onClick={handleUploadAndRun}
+                          disabled={!step2Complete || !isConnected}
+                          title={
+                            !step2Complete
+                              ? "Generate a program first"
+                              : !isConnected
+                                ? "Connect to the hub"
+                                : "Upload & run menu"
+                          }
+                          className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {step3Complete ? "✅" : "🚀"} Upload & Run
+                        </button>
+                      </div>
                     </>
                   );
                 })()}

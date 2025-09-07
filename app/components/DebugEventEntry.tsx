@@ -1,6 +1,6 @@
-import React from "react";
 import hljs from "highlight.js/lib/core";
 import jsonLang from "highlight.js/lib/languages/json";
+import React from "react";
 import type { DebugEvent } from "../services/pybricksHub";
 
 // Register JSON language once (idempotent)
@@ -60,4 +60,3 @@ export function DebugEventEntry({ event }: { event: DebugEvent }) {
     </div>
   );
 }
-

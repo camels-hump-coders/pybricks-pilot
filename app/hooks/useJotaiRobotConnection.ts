@@ -83,6 +83,8 @@ export function useJotaiRobotConnection() {
     // File-based upload methods (only available for real robots)
     uploadAndRunHubMenu:
       robotType === "real" ? pybricksHub.uploadAndRunHubMenu : undefined,
+    uploadAndRunAdhocProgram:
+      robotType === "real" ? pybricksHub.uploadAndRunAdhocProgram : undefined,
 
     // Program state
     programStatus: currentRobot.programStatus,

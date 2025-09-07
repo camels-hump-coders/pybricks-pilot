@@ -4,14 +4,25 @@ import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useNotifications } from "../hooks/useNotifications";
 import { useUploadProgress } from "../hooks/useUploadProgress";
+import { saveRobotConfigAtom } from "../store/atoms/configFileSystem";
 import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
-import { robotBuilderOpenAtom, robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import { debugEventsAtom, programOutputLogAtom } from "../store/atoms/robotConnection";
-import { DebugEventEntry } from "./DebugEventEntry";
+import {
+  robotBuilderOpenAtom,
+  robotConfigAtom,
+  setActiveRobotAtom,
+} from "../store/atoms/robotConfigSimplified";
+import {
+  debugEventsAtom,
+  programOutputLogAtom,
+} from "../store/atoms/robotConnection";
 import type { PythonFile } from "../types/fileSystem";
+import { generateCalibrationProgram } from "../utils/calibration";
 import { generateQuickStartCode } from "../utils/quickStart";
+import { CalibrationPanel } from "./CalibrationPanel";
+import { DebugEventEntry } from "./DebugEventEntry";
 import { HubMenuInterface } from "./HubMenuInterface";
+import { normalizeProgramLine } from "../utils/logs";
 
 interface ProgramControlsProps {
   onStopProgram?: () => Promise<void>;
@@ -35,16 +46,20 @@ export function ProgramControls({
     createFile,
     addToPrograms,
     refreshFiles,
+    writeFile,
     pythonFiles,
   } = useJotaiFileSystem();
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
   const { isConnected, uploadAndRunHubMenu } = useJotaiRobotConnection();
+  const { uploadAndRunAdhocProgram } = useJotaiRobotConnection();
   // Upload progress (for UI display)
   const { uploadProgress } = useUploadProgress();
-  const { robotType } = useJotaiRobotConnection();
+  const { robotType, executeCommandSequence } = useJotaiRobotConnection();
   const { showError, addNotification } = useNotifications();
   const openDetails = useSetAtom(showDebugDetailsAtom);
   const openRobotBuilder = useSetAtom(robotBuilderOpenAtom);
+  const setActiveRobot = useSetAtom(setActiveRobotAtom);
+  const saveRobotConfig = useSetAtom(saveRobotConfigAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
 
   // Quick Start helpers (duplicated here for convenience in the top control)
@@ -83,16 +98,39 @@ export function ProgramControls({
   const debugEvents = useAtomValue(debugEventsAtom);
   const recentEvents = debugEvents.slice(-6).reverse();
   const programOutputLog = useAtomValue(programOutputLogAtom);
+  const hasRobotPy = (pythonFiles || []).some((f) => {
+    const p = (f.relativePath || f.name || "").toLowerCase();
+    return p.endsWith("/robot.py") || p === "robot.py";
+  });
+
+  const syncRobotPyToCurrentConfig = async () => {
+    try {
+      const robotFile = (pythonFiles || []).find((f) => {
+        const p = (f.relativePath || f.name || "").toLowerCase();
+        return !f.isDirectory && (p.endsWith("/robot.py") || p === "robot.py");
+      });
+      if (!robotFile) return; // nothing to do
+      const code = generateQuickStartCode(currentRobotConfig);
+      if ("getFile" in robotFile.handle) {
+        await writeFile({
+          handle: robotFile.handle as FileSystemFileHandle,
+          content: code,
+        });
+        await refreshFiles();
+      }
+    } catch (e) {
+      // Best effort; surface a non-blocking notification
+      addNotification({
+        type: "warning",
+        title: "robot.py not updated",
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
 
   // Detect when the robot program exits (based on telemetry-driven running flag)
   const prevRunningRef = useRef(isProgramRunning);
   useEffect(() => {
-    const normalizeLine = (raw: string | null | undefined): string | null => {
-      if (!raw) return null;
-      const sysExit = "The program was stopped (SystemExit)";
-      return raw.endsWith(sysExit) ? sysExit : raw;
-    };
-
     // Program just started: clear any prior error banner
     if (!prevRunningRef.current && isProgramRunning) {
       setLastUploadError(null);
@@ -108,20 +146,21 @@ export function ProgramControls({
           /error|exception|importerror|traceback/i.test(e.message || ""),
       );
       if (errEvent) {
-        message = normalizeLine(errEvent.message);
+        message = normalizeProgramLine(errEvent.message);
       } else if (programOutputLog && programOutputLog.length > 0) {
         const tail = programOutputLog.slice(-5);
         // Try to grab the most informative line (prefer ones containing 'Error' or 'Traceback')
         const candidate =
-          tail.find((l) => /error|traceback|importerror/i.test(l)) || tail[tail.length - 1];
-        message = normalizeLine(candidate);
+          tail.find((l) => /error|traceback|importerror/i.test(l)) ||
+          tail[tail.length - 1];
+        message = normalizeProgramLine(candidate);
       }
       setLastUploadError(
         message || "Robot program exited. Open details to inspect recent logs.",
       );
     }
     prevRunningRef.current = isProgramRunning;
-  }, [isProgramRunning, openDetails]);
+  }, [isProgramRunning, debugEvents.length, programOutputLog?.length || 0]);
 
   const handleUploadAndRunMenu = async () => {
     if (allPrograms.length > 0 && uploadAndRunHubMenu) {
@@ -241,12 +280,26 @@ export function ProgramControls({
             {recentEvents.length === 0 ? (
               <div className="text-gray-500">No debug events</div>
             ) : (
-              recentEvents.map((e, idx) => <DebugEventEntry key={idx} event={e} />)
+              recentEvents.map((e, idx) => (
+                <DebugEventEntry key={idx} event={e} />
+              ))
             )}
           </div>
         </div>
       )}
-      {programCount === 0 && (
+      {(programCount === 0 ||
+        (allPrograms.length > 0 &&
+          allPrograms.every((p) => {
+            const n = p.name.toLowerCase();
+            const r = p.relativePath?.toLowerCase?.() || "";
+            // Treat our auto-generated files as quickstart: 001_quickstart.py or robot.py
+            return (
+              n.includes("quickstart") ||
+              n === "robot.py" ||
+              r.endsWith("/robot.py") ||
+              r === "robot.py"
+            );
+          }))) && (
         <div className="mt-2 p-2 rounded bg-white/70 dark:bg-gray-800/40 border border-orange-200 dark:border-orange-800">
           <div className="text-xs font-medium mb-2 text-gray-800 dark:text-gray-200">
             Quick Start: Get Your Robot Moving
@@ -254,9 +307,10 @@ export function ProgramControls({
           <ol className="list-decimal ml-4 text-xs text-gray-700 dark:text-gray-300 space-y-1">
             <li>Configure your robot's motors, sensors, and drivebase.</li>
             <li>Generate a starter program tailored to your robot.</li>
+            <li>Calibrate: drive 200mm forward and turn 360° to measure.</li>
             <li>Upload & run the program menu on your hub.</li>
           </ol>
-          <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-4 gap-2">
             <button
               onClick={() => {
                 openRobotBuilder(true);
@@ -281,6 +335,44 @@ export function ProgramControls({
               {step2Complete ? "✅" : "✨"} Generate Starter Program
             </button>
             <button
+              onClick={async () => {
+                // Upload and run an ad-hoc calibration program that imports robot.py
+                if (!uploadAndRunAdhocProgram) return;
+                try {
+                  // Ensure robot.py reflects current robot config before compile
+                  await syncRobotPyToCurrentConfig();
+                  const code = generateCalibrationProgram();
+                  await uploadAndRunAdhocProgram(
+                    "calibrate.py",
+                    code,
+                    pythonFiles as any,
+                  );
+                } catch (e) {
+                  const msg = e instanceof Error ? e.message : String(e);
+                  setLastUploadError(msg || "Calibration upload failed");
+                  addNotification({
+                    type: "error",
+                    title: "Calibration Upload Failed",
+                    message: msg || "Unknown error",
+                    duration: 0,
+                    primaryActionLabel: "View details",
+                    onPrimaryAction: () => openDetails(true),
+                  });
+                }
+              }}
+              disabled={!isConnected || !hasRobotPy}
+              title={
+                !isConnected
+                  ? "Connect to the hub"
+                  : !hasRobotPy
+                    ? "Generate robot.py first (use Generate Starter Program)"
+                    : "Uploads and runs a calibration program (imports robot.py)"
+              }
+              className="px-2 py-2 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1"
+            >
+              🎯 Calibrate
+            </button>
+            <button
               onClick={handleUploadAndRunMenu}
               disabled={!step2Complete || !isConnected}
               title={
@@ -295,6 +387,150 @@ export function ProgramControls({
               {step3Complete ? "✅" : "🚀"} Upload & Run
             </button>
           </div>
+
+          {/* Guided Calibration Readout */}
+          <CalibrationPanel
+            currentWheelDiameter={
+              currentRobotConfig?.wheels?.left?.diameter || 56
+            }
+            currentAxleTrack={
+              // Best-effort: prefer explicit drivebase if present, else estimate from width in studs
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              currentRobotConfig?.drivebase?.axleTrackMm ??
+              (currentRobotConfig?.dimensions?.width
+                ? currentRobotConfig.dimensions.width * 8
+                : 120)
+            }
+            onApplyWheelDiameter={(newDiameter) => {
+              if (!currentRobotConfig) {
+                return;
+              }
+              const {drivebase} = currentRobotConfig;
+              if (!drivebase) {
+                return
+              }
+              // Guard: avoid redundant updates
+              const currentDiameterLeft = Math.round(currentRobotConfig.wheels.left.diameter);
+              const currentDiameterDb = Math.round((drivebase as any).wheelDiameterMm || currentDiameterLeft);
+              if (
+                Math.round(newDiameter) === currentDiameterLeft &&
+                Math.round(newDiameter) === currentDiameterDb
+              ) {
+                return;
+              }
+              try {
+                const updated = {
+                  ...currentRobotConfig,
+                  wheels: {
+                    left: {
+                      ...currentRobotConfig.wheels.left,
+                      diameter: newDiameter,
+                    },
+                    right: {
+                      ...currentRobotConfig.wheels.right,
+                      diameter: newDiameter,
+                    },
+                  },
+                  // Ensure drivebase field is kept in sync with Robot Builder's source of truth
+                  drivebase: {
+                    ...drivebase,
+                    wheelDiameterMm: newDiameter,
+                  },
+                };
+                // Update active robot and attempt to persist if not default
+                setActiveRobot(updated);
+                if (!updated.isDefault) {
+                  // Persist to filesystem
+                  saveRobotConfig({
+                    robotId: updated.id,
+                    config: updated,
+                  }).catch(() => {
+                    /* ignore, surfaced elsewhere */
+                  });
+                } else {
+                  addNotification({
+                    type: "info",
+                    title: "Updated Active Robot",
+                    message: "Using default robot; changes not saved to disk.",
+                  });
+                }
+                addNotification({
+                  type: "success",
+                  title: "Wheel Diameter Updated",
+                  message: `Applied ${Math.round(newDiameter)}mm to both wheels`,
+                });
+              } catch (e) {
+                addNotification({
+                  type: "error",
+                  title: "Failed to Apply",
+                  message: e instanceof Error ? e.message : String(e),
+                });
+              }
+            }}
+            onApplyAxleTrack={(newAxleTrack) => {
+              if (!currentRobotConfig) return;
+              const {drivebase} = currentRobotConfig;
+              if (!drivebase) {
+                return
+              }
+              // Guard: avoid redundant updates
+              const currentAxle = Math.round((drivebase as any).axleTrackMm || (currentRobotConfig.dimensions.width * 8));
+              if (Math.round(newAxleTrack) === currentAxle) {
+                return;
+              }
+              try {
+                // Store axle track within a drivebase section if present; else attach
+                const updated = {
+                  ...currentRobotConfig,
+                  drivebase: {
+                    ...drivebase,
+                    axleTrackMm: newAxleTrack,
+                  },
+                };
+
+                setActiveRobot(updated);
+                if (!updated.isDefault) {
+                  saveRobotConfig({
+                    robotId: updated.id,
+                    config: updated,
+                  }).catch(() => {
+                    /* ignore */
+                  });
+                } else {
+                  addNotification({
+                    type: "info",
+                    title: "Updated Active Robot",
+                    message: "Using default robot; changes not saved to disk.",
+                  });
+                }
+                addNotification({
+                  type: "success",
+                  title: "Axle Track Updated",
+                  message: `Applied ${Math.round(newAxleTrack)}mm axle track`,
+                });
+              } catch (e) {
+                addNotification({
+                  type: "error",
+                  title: "Failed to Apply",
+                  message: e instanceof Error ? e.message : String(e),
+                });
+              }
+            }}
+            onRerunCalibrate={async () => {
+              if (!uploadAndRunAdhocProgram) return;
+              try {
+                const code = generateCalibrationProgram();
+                await uploadAndRunAdhocProgram(
+                  "calibrate.py",
+                  code,
+                  pythonFiles as any,
+                );
+              } catch {
+                // ignore
+              }
+            }}
+            onOpenRobotBuilder={() => openRobotBuilder(true)}
+          />
         </div>
       )}
       {/* Active Program Display */}

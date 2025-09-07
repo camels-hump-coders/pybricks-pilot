@@ -1,7 +1,6 @@
 import hljs from "highlight.js/lib/core";
 import python from "highlight.js/lib/languages/python";
-import { useEffect, useState } from "react";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   type GeneratedProgram,
   pseudoCodeGenerator,

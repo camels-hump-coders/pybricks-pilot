@@ -36,6 +36,7 @@ import {
 } from "../store/atoms/virtualRobot";
 import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 import { transformTelemetryData } from "../utils/coordinateTransformations";
+import { normalizeProgramLine } from "../utils/logs";
 
 export function useJotaiVirtualHub() {
   // Get current robot type to conditionally set up event listeners
@@ -110,8 +111,7 @@ export function useJotaiVirtualHub() {
       if (status.output?.trim()) {
         const timestamp = new Date().toLocaleTimeString();
         const raw = status.output.trim();
-        const sysExit = "The program was stopped (SystemExit)";
-        const normalized = raw.endsWith(sysExit) ? sysExit : raw;
+        const normalized = normalizeProgramLine(raw) || "";
         const logEntry = `[${timestamp}] ${normalized}`;
         setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
       }

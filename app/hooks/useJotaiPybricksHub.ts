@@ -125,6 +125,21 @@ export function useJotaiPybricksHub() {
     [],
   );
 
+  const uploadAndRunAdhocProgram = useCallback(
+    async (
+      name: string,
+      content: string,
+      availableFiles: import("../types/fileSystem").PythonFile[],
+    ) => {
+      await pybricksHubService.uploadAndRunAdhocProgram(
+        name,
+        content,
+        availableFiles,
+      );
+    },
+    [],
+  );
+
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
     async (distance: number, speed: number) => {
@@ -267,6 +282,7 @@ export function useJotaiPybricksHub() {
     runProgram,
     stopProgram,
     uploadAndRunHubMenu,
+    uploadAndRunAdhocProgram,
 
     programStatus,
     isUploadingProgram,

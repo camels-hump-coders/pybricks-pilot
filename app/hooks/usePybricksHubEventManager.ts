@@ -20,6 +20,7 @@ import {
   telemetryDataAtom,
 } from "../store/atoms/robotConnection";
 import { transformTelemetryData } from "../utils/coordinateTransformations";
+import { normalizeProgramLine } from "../utils/logs";
 
 /**
  * Hook that manages Pybricks hub event listeners centrally.
@@ -70,10 +71,7 @@ export function usePybricksHubEventManager() {
       if (status.output?.trim()) {
         const timestamp = new Date().toLocaleTimeString();
         const raw = status.output.trim();
-        // Special-case: sometimes a line ends with SystemExit appended after partial output.
-        // Treat such a line as only the system exit message to avoid confusing partial JSON.
-        const sysExit = "The program was stopped (SystemExit)";
-        const normalized = raw.endsWith(sysExit) ? sysExit : raw;
+        const normalized = normalizeProgramLine(raw) || "";
         const logEntry = `[${timestamp}] ${normalized}`;
         setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
 

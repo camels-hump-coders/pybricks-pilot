@@ -54,7 +54,10 @@ export function ControlModeToggle({
         >
           {robotType === "real" ? "Program" : "Scoring"}
         </button>
-        <div className="w-full" title={!driveControlsEnabled ? disabledReason : undefined}>
+        <div
+          className="w-full"
+          title={!driveControlsEnabled ? disabledReason : undefined}
+        >
           <button
             type="button"
             disabled={!driveControlsEnabled}
@@ -68,7 +71,10 @@ export function ControlModeToggle({
             Step
           </button>
         </div>
-        <div className="w-full" title={!driveControlsEnabled ? disabledReason : undefined}>
+        <div
+          className="w-full"
+          title={!driveControlsEnabled ? disabledReason : undefined}
+        >
           <button
             type="button"
             disabled={!driveControlsEnabled}
@@ -83,7 +89,10 @@ export function ControlModeToggle({
           </button>
         </div>
         {missionFeatureEnabled && (
-          <div className="w-full" title={!driveControlsEnabled ? disabledReason : undefined}>
+          <div
+            className="w-full"
+            title={!driveControlsEnabled ? disabledReason : undefined}
+          >
             <button
               type="button"
               disabled={!driveControlsEnabled}

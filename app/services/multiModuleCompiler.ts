@@ -159,13 +159,15 @@ try:
 except Exception as e:
     # Never allow unexpected errors to terminate background telemetry
     print(f"[PILOT] Orchestrator error: {e}")
-    # Fallback to a safe infinite telemetry loop
-    while True:
-        try:
-            # Run background telemetry cooperatively
-            await wait(1000)
-        except Exception as _:
-            pass
+    # Fallback to a safe infinite telemetry loop using an async task
+    async def _fallback_loop():
+        while True:
+            try:
+                await wait(1000)
+            except Exception as _:
+                pass
+
+    run_task(_fallback_loop())
 `;
 }
 

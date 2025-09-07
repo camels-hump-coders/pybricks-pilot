@@ -1,6 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import React from "react";
-import { DebugEventEntry } from "./DebugEventEntry";
 import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import {
   clearDebugEventsAtom,
@@ -8,6 +7,7 @@ import {
   debugEventsAtom,
   programOutputLogAtom,
 } from "../store/atoms/robotConnection";
+import { DebugEventEntry } from "./DebugEventEntry";
 
 export function DebugDetailsModal() {
   const [open, setOpen] = useAtom(showDebugDetailsAtom);
@@ -46,7 +46,9 @@ export function DebugDetailsModal() {
               {lastEvents.length === 0 ? (
                 <div className="text-gray-500">No debug events</div>
               ) : (
-                lastEvents.map((e, idx) => <DebugEventEntry key={idx} event={e} />)
+                lastEvents.map((e, idx) => (
+                  <DebugEventEntry key={idx} event={e} />
+                ))
               )}
             </div>
           </div>
