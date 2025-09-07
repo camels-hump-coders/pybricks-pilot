@@ -4,6 +4,7 @@ import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { missionRecorder } from "../services/missionRecorder";
 import type { TelemetryData } from "../services/pybricksHub";
 import { telemetryHistory } from "../services/telemetryHistory";
+import { missionFeatureEnabledAtom } from "../store/atoms/featureFlags";
 import {
   type PerpendicularPreviewGhost,
   perpendicularPreviewAtom,
@@ -21,7 +22,6 @@ import { ControlModeToggle } from "./ControlModeToggle";
 import { ManualControls } from "./ManualControls";
 import { MissionControls } from "./MissionControls";
 import { MissionRecorderControls } from "./MissionRecorderControls";
-import { missionFeatureEnabledAtom } from "../store/atoms/featureFlags";
 import { MotorControls } from "./MotorControls";
 import {
   calculatePreviewPosition,
@@ -110,8 +110,8 @@ export function CompactRobotController({
   // State
   const [distance, setDistance] = useState(100);
   const [angle, setAngle] = useState(45);
-  const [driveSpeed, setDriveSpeed] = useState(50);
-  const [motorSpeed, setMotorSpeed] = useState(50);
+  const [driveSpeed, setDriveSpeed] = useState(100);
+  const [motorSpeed, setMotorSpeed] = useState(100);
   const [motorAngle, setMotorAngle] = useState(45);
   const [executingCommand, setExecutingCommand] =
     useState<ExecutingCommand | null>(null);
@@ -744,16 +744,27 @@ export function CompactRobotController({
       {/* Main Controls */}
       <div className="p-3">
         <div className="space-y-3 sm:space-y-4">
-
           {/* Control Mode Toggle - Only visible for real robots when hub program is running */}
           <ControlModeToggle
             controlMode={controlMode}
             setControlMode={setControlMode}
             onEnterMissionMode={() => {
-              /* TODO: Enter mission mode */
+              // Disable overlays and clear hover ghosts when entering mission mode
+              setShowGridOverlay(false);
+              setShowTrajectoryOverlay(false);
+              setPerpendicularPreview((prev) => ({
+                ...prev,
+                show: false,
+                ghosts: [],
+              }));
             }}
             onExitMissionMode={() => {
-              /* TODO: Exit mission mode */
+              // Clear any mission-related hover ghosts on exit
+              setPerpendicularPreview((prev) => ({
+                ...prev,
+                show: false,
+                ghosts: [],
+              }));
             }}
           />
 

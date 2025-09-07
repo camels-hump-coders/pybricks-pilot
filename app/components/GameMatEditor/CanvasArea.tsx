@@ -1,4 +1,4 @@
-import type { Point } from "../../schemas/GameMatConfig";
+// Removed unused import
 
 interface CanvasAreaProps {
   mode: "upload" | "corners" | "calibration" | "objects" | "preview";

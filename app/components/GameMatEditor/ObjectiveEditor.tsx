@@ -110,7 +110,6 @@ export function ObjectiveEditor({
             key={choice.id}
             choice={choice}
             choiceIndex={choiceIndex}
-            choices={objective.choices || []}
             onUpdateChoice={handleUpdateChoice}
             onRemoveChoice={handleRemoveChoice}
             canRemove={canRemoveChoice}

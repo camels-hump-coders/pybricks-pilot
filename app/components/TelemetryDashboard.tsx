@@ -8,8 +8,8 @@ import {
   GameMatConfigSchema,
 } from "../schemas/GameMatConfig";
 import { matConfigFileSystem } from "../services/matConfigFileSystem";
-import type { RobotCommand } from "../services/robotInterface";
 import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
+import type { RobotCommand } from "../services/robotInterface";
 import {
   createMatConfigAtom,
   discoverMatConfigsAtom,
@@ -22,6 +22,13 @@ import {
   movementPreviewAtom,
   setRobotPositionAtom,
 } from "../store/atoms/gameMat";
+import {
+  isMatConfigLoadingAtom,
+  matEditorModeAtom,
+  showMapSelectorAtom,
+  showMatEditorAtom,
+  showScoringAtom,
+} from "../store/atoms/matUIState";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import {
   robotBuilderOpenAtom,
@@ -29,21 +36,20 @@ import {
   setActiveRobotAtom,
 } from "../store/atoms/robotConfigSimplified";
 import type { PythonFile } from "../types/fileSystem";
+import { ActiveRobotPanel } from "./ActiveRobotPanel";
 // CompactRobotController is consumed via RobotControlsSection
 import { DrivebaseDisplay } from "./DrivebaseDisplay";
 import { EnhancedCompetitionMat } from "./EnhancedCompetitionMat";
 import { GameMatEditor } from "./GameMatEditor";
+import { HubStatusSection } from "./HubStatusSection";
 import { IMUDisplay } from "./IMUDisplay";
 import { MapSelector } from "./MapSelector";
+import { MatControlsPanel } from "./MatControlsPanel";
 import { MotorStatus } from "./MotorStatus";
 import { ProgramOutputLog } from "./ProgramOutputLog";
 import { RobotBuilder } from "./RobotBuilder";
-import { SensorDisplay } from "./SensorDisplay";
-import { isMatConfigLoadingAtom, matEditorModeAtom, showMapSelectorAtom, showMatEditorAtom, showScoringAtom } from "../store/atoms/matUIState";
-import { ActiveRobotPanel } from "./ActiveRobotPanel";
-import { MatControlsPanel } from "./MatControlsPanel";
 import { RobotControlsSection } from "./RobotControlsSection";
-import { HubStatusSection } from "./HubStatusSection";
+import { SensorDisplay } from "./SensorDisplay";
 
 // Load built-in maps using the same logic as MapSelector
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
@@ -203,7 +209,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
       setIsLoadingConfig(false);
     };
     loadDefaultMat();
-  }, [setCustomMatConfig]);
+  }, [setCustomMatConfig, setShowScoring, setIsLoadingConfig]);
 
   useEffect(() => {
     if (currentRobotConfig && customMatConfig) {
@@ -422,14 +428,14 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
       {/* Mobile Layout - Robot Controls below mat on mobile */}
       <div className="xl:hidden space-y-2 sm:space-y-4">
-        <RobotControlsSection
-          onUploadAndRunFile={handleUploadAndRun}
-        />
+        <RobotControlsSection onUploadAndRunFile={handleUploadAndRun} />
 
         <MatControlsPanel onClearMat={handleClearCustomMat} />
 
         {/* Active Robot moved below Mat Controls */}
-        <ActiveRobotPanel onRobotBuilderOpen={() => setRobotBuilderOpen(true)} />
+        <ActiveRobotPanel
+          onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
+        />
       </div>
 
       {/* Desktop Layout - Mat and Controls side by side on large screens */}
@@ -441,14 +447,14 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
 
         {/* Right Sidebar - Robot Controls and Mat Controls */}
         <div className="col-span-1 space-y-4">
-          <RobotControlsSection
-            onUploadAndRunFile={handleUploadAndRun}
-          />
+          <RobotControlsSection onUploadAndRunFile={handleUploadAndRun} />
 
           <MatControlsPanel onClearMat={handleClearCustomMat} />
 
           {/* Active Robot moved below Mat Controls */}
-          <ActiveRobotPanel onRobotBuilderOpen={() => setRobotBuilderOpen(true)} />
+          <ActiveRobotPanel
+            onRobotBuilderOpen={() => setRobotBuilderOpen(true)}
+          />
         </div>
       </div>
 

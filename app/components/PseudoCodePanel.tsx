@@ -1,3 +1,5 @@
+import hljs from "highlight.js/lib/core";
+import python from "highlight.js/lib/languages/python";
 import { useEffect, useState } from "react";
 import {
   type GeneratedProgram,
@@ -5,8 +7,6 @@ import {
 } from "../services/pseudoCodeGenerator.js";
 import type { TelemetryPoint } from "../services/telemetryHistory.js";
 import { normalizeHeading } from "../utils/headingUtils";
-import hljs from "highlight.js/lib/core";
-import python from "highlight.js/lib/languages/python";
 
 // Register python language once (module scope)
 hljs.registerLanguage("python", python);
@@ -174,7 +174,10 @@ export function PseudoCodePanel({
                       ) : (
                         <>
                           Target:{" "}
-                          {normalizeHeading(command.targetHeading!).toFixed(1)}°
+                          {command.targetHeading !== undefined
+                            ? normalizeHeading(command.targetHeading).toFixed(1)
+                            : "N/A"}
+                          °
                         </>
                       )}
                     </div>

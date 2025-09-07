@@ -2,8 +2,8 @@ import type { RobotConfig } from "../schemas/RobotConfig";
 import type { NamedPosition } from "../store/atoms/positionManagement";
 import type { Mission } from "../types/missionPlanner";
 import type { ArcPathSegment } from "../utils/arcPathComputation";
-import type { RobotCommand } from "./robotInterface";
 import { computeArcPath, normalizeAngle } from "../utils/arcPathComputation";
+import type { RobotCommand } from "./robotInterface";
 
 /**
  * Convert canvas heading to robot heading

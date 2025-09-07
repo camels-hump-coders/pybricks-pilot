@@ -1,6 +1,7 @@
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { calculateTrajectoryProjection } from "../components/MovementPreview";
+import type { TelemetryPoint } from "../services/telemetryHistory";
 import { telemetryHistory } from "../services/telemetryHistory";
 import {
   canvasScaleAtom,
@@ -9,6 +10,12 @@ import {
   hoveredObjectAtom,
   missionBoundsAtom,
 } from "../store/atoms/canvasState";
+import type {
+  MovementPreview,
+  ObjectiveState,
+  PerpendicularPreviewGhost,
+  SplinePath,
+} from "../store/atoms/gameMat";
 import {
   controlModeAtom,
   customMatConfigAtom,
@@ -42,22 +49,37 @@ import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing";
 import type { RobotPosition } from "../utils/robotPosition";
 
+type ScoringState = {
+  [objectId: string]: {
+    objectives: {
+      [objectiveId: string]: ObjectiveState;
+    };
+  };
+};
+
+type PerpendicularPreview = {
+  show: boolean;
+  ghosts: PerpendicularPreviewGhost[];
+  distance: number;
+  angle: number;
+};
+
 interface UseCanvasDrawingProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   matImageRef: React.RefObject<HTMLCanvasElement | HTMLImageElement | null>;
   currentPosition: RobotPosition | null;
   mousePosition: { x: number; y: number } | null;
-  scoringState: any; // TODO: Add proper typing
+  scoringState: ScoringState;
   showScoring: boolean;
-  movementPreview: any; // TODO: Add proper typing
-  perpendicularPreview: any; // TODO: Add proper typing
+  movementPreview: MovementPreview | null;
+  perpendicularPreview: PerpendicularPreview;
   isSplinePathMode: boolean;
-  currentSplinePath: any; // TODO: Add proper typing
-  splinePaths: any[]; // TODO: Add proper typing
+  currentSplinePath: SplinePath | null;
+  splinePaths: SplinePath[];
   selectedSplinePointId: string | null;
   hoveredSplinePointId: string | null;
   hoveredCurvatureHandlePointId: string | null;
-  hoveredPoint: any; // TODO: Add proper typing
+  hoveredPoint: TelemetryPoint | null;
   hoveredPointIndexValue: number;
   setMissionBounds: (
     bounds: Map<

@@ -133,6 +133,8 @@ export function MissionManagementDialog() {
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <svg
+              role="img"
+              aria-label="Close"
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
@@ -271,6 +273,8 @@ export function MissionManagementDialog() {
                             title="Edit mission"
                           >
                             <svg
+                              role="img"
+                              aria-label="Edit"
                               className="w-4 h-4"
                               fill="none"
                               stroke="currentColor"
@@ -292,6 +296,8 @@ export function MissionManagementDialog() {
                           >
                             {isDeleting === mission.id ? (
                               <svg
+                                role="img"
+                                aria-label="Loading"
                                 className="w-4 h-4 animate-spin"
                                 fill="none"
                                 viewBox="0 0 24 24"
@@ -312,6 +318,8 @@ export function MissionManagementDialog() {
                               </svg>
                             ) : (
                               <svg
+                                role="img"
+                                aria-label="Delete"
                                 className="w-4 h-4"
                                 fill="none"
                                 stroke="currentColor"

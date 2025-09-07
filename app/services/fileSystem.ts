@@ -285,10 +285,10 @@ class WebFileSystemService implements FileSystemService {
     const fileHandles: FileSystemFileHandle[] = [];
     files.forEach((file) => {
       if (file.isDirectory && file.children) {
-      fileHandles.push(...this.extractFileHandlesRecursively(file.children));
-    } else if (!file.isDirectory && "getFile" in file.handle) {
-      fileHandles.push(file.handle);
-    }
+        fileHandles.push(...this.extractFileHandlesRecursively(file.children));
+      } else if (!file.isDirectory && "getFile" in file.handle) {
+        fileHandles.push(file.handle);
+      }
     });
     return fileHandles;
   }

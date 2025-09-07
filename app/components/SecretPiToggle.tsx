@@ -1,5 +1,8 @@
 import { useAtom, useSetAtom } from "jotai";
-import { missionFeatureEnabledAtom, toggleMissionFeatureAtom } from "../store/atoms/featureFlags";
+import {
+  missionFeatureEnabledAtom,
+  toggleMissionFeatureAtom,
+} from "../store/atoms/featureFlags";
 
 /**
  * Bottom-right hidden π toggle to enable/disable Mission features.
@@ -34,4 +37,3 @@ export function SecretPiToggle() {
     </div>
   );
 }
-

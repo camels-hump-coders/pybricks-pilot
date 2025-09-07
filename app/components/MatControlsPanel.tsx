@@ -27,11 +27,16 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
       <div className="p-2 sm:p-3 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Mat Controls</h3>
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          Mat Controls
+        </h3>
       </div>
       <div className="p-2 sm:p-3 space-y-2 sm:space-y-3">
         <div className="text-xs text-gray-600 dark:text-gray-400">
-          Current: <span className="font-medium text-gray-800 dark:text-gray-200">{customMatConfig ? customMatConfig.name : "Loading..."}</span>
+          Current:{" "}
+          <span className="font-medium text-gray-800 dark:text-gray-200">
+            {customMatConfig ? customMatConfig.name : "Loading..."}
+          </span>
         </div>
         <div className="space-y-2">
           <button
@@ -52,7 +57,9 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
                 }}
                 disabled={!customMatConfig || isLoadingConfig}
                 className="w-full px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!customMatConfig ? "Select a map first" : "Edit current map"}
+                title={
+                  !customMatConfig ? "Select a map first" : "Edit current map"
+                }
               >
                 ✏️ Edit Mat
               </button>
@@ -72,9 +79,14 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
               <div className="flex items-start gap-2">
                 <span className="text-yellow-600 dark:text-yellow-400">📁</span>
                 <div className="text-xs text-yellow-700 dark:text-yellow-300">
-                  <div className="font-medium">Mount a directory to create or edit mats</div>
+                  <div className="font-medium">
+                    Mount a directory to create or edit mats
+                  </div>
                   <div className="text-xs mt-1 text-yellow-600 dark:text-yellow-400">
-                    Mat configurations are saved to <code className="font-mono">./config/mats/&lt;id&gt;/mat.json</code>
+                    Mat configurations are saved to{" "}
+                    <code className="font-mono">
+                      ./config/mats/&lt;id&gt;/mat.json
+                    </code>
                   </div>
                 </div>
               </div>

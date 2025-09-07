@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { useEffect, useState } from "react";
 import { missionRecorder } from "../services/missionRecorder";
-import { missionsAtom, addMissionAtom, updateMissionAtom } from "../store/atoms/missionPlanner";
 import { robotPositionAtom } from "../store/atoms/gameMat";
+import {
+  addMissionAtom,
+  missionsAtom,
+  updateMissionAtom,
+} from "../store/atoms/missionPlanner";
 import type { StepCommand } from "../types/missionRecorder";
 import type { RobotPosition } from "../utils/robotPosition";
 
@@ -11,7 +15,10 @@ interface MissionRecorderControlsProps {
   onTurn: (angle: number, speed: number) => Promise<void>;
 }
 
-export function MissionRecorderControls({ onDrive, onTurn }: MissionRecorderControlsProps) {
+export function MissionRecorderControls({
+  onDrive,
+  onTurn,
+}: MissionRecorderControlsProps) {
   const [, forceUpdate] = useState(0);
   const missions = useAtomValue(missionsAtom);
   const addMission = useSetAtom(addMissionAtom);
@@ -20,7 +27,10 @@ export function MissionRecorderControls({ onDrive, onTurn }: MissionRecorderCont
   const [selectedId, setSelectedId] = useState<string>("");
   const [newName, setNewName] = useState("");
 
-  useEffect(() => missionRecorder.subscribe(() => forceUpdate((v) => v + 1)), []);
+  useEffect(
+    () => missionRecorder.subscribe(() => forceUpdate((v) => v + 1)),
+    [],
+  );
 
   const isRecording = missionRecorder.isRecording();
   const checkpoints = missionRecorder.getCheckpoints();
@@ -47,7 +57,11 @@ export function MissionRecorderControls({ onDrive, onTurn }: MissionRecorderCont
     missionRecorder.stop();
   };
 
-  const handleUpdate = (missionId: string, points: RobotPosition[], steps: StepCommand[]) => {
+  const handleUpdate = (
+    missionId: string,
+    points: RobotPosition[],
+    steps: StepCommand[],
+  ) => {
     const missionPoints = points.map((p, idx) => ({
       id: `cp-${idx}`,
       type: "action" as const,
@@ -76,7 +90,9 @@ export function MissionRecorderControls({ onDrive, onTurn }: MissionRecorderCont
 
   return (
     <div className="space-y-2">
-      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">Mission Recorder</div>
+      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        Mission Recorder
+      </div>
       {!isRecording ? (
         <div className="flex items-center gap-2">
           <select

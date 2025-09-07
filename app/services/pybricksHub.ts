@@ -193,11 +193,9 @@ class PybricksHubService extends EventTarget {
       await this.setupCommunication();
 
       const hubInfo = await bluetoothService.getHubInfo(this.server);
-        this.emitDebugEvent(
-          "connection",
-          "Hub connected successfully",
-          { ...hubInfo },
-        );
+      this.emitDebugEvent("connection", "Hub connected successfully", {
+        ...hubInfo,
+      });
       return hubInfo;
     } catch (error) {
       this.emitDebugEvent("error", "Failed to connect to hub", {
@@ -255,11 +253,9 @@ class PybricksHubService extends EventTarget {
       ...this.instrumentationOptions,
       ...options,
     };
-      this.emitDebugEvent(
-        "status",
-        "Instrumentation options updated",
-        { ...this.instrumentationOptions },
-      );
+    this.emitDebugEvent("status", "Instrumentation options updated", {
+      ...this.instrumentationOptions,
+    });
   }
 
   getInstrumentationOptions(): InstrumentationOptions {
@@ -894,8 +890,8 @@ class PybricksHubService extends EventTarget {
   }
 
   // New command sequence method
-    async executeCommandSequence(commands: RobotCommand[]): Promise<void> {
-      const commandSequence = JSON.stringify(commands);
+  async executeCommandSequence(commands: RobotCommand[]): Promise<void> {
+    const commandSequence = JSON.stringify(commands);
     await this.sendControlCommand(commandSequence);
   }
 

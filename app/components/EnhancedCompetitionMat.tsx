@@ -5,6 +5,7 @@ import { useCanvasEventHandlers } from "../hooks/useCanvasEventHandlers";
 import { useCanvasSize } from "../hooks/useCanvasSize";
 import { useCmdKey } from "../hooks/useCmdKey";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useMatImageLoader } from "../hooks/useMatImageLoader";
 import { useMissionEditing } from "../hooks/useMissionEditing";
 import { usePositionResetEvents } from "../hooks/usePositionResetEvents";
@@ -41,7 +42,6 @@ import { TelemetryTooltip } from "./EnhancedCompetitionMat/TelemetryTooltip";
 import { PseudoCodePanel } from "./PseudoCodePanel";
 import { ScoringModal } from "./ScoringModal";
 import { TelemetryPlayback } from "./TelemetryPlayback";
-import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 
 // RobotPosition interface now imported from utils/canvas
 
@@ -53,7 +53,9 @@ interface EnhancedCompetitionMatProps {
 
 import { showScoringAtom } from "../store/atoms/matUIState";
 
-export function EnhancedCompetitionMat({ showScoring = false }: EnhancedCompetitionMatProps) {
+export function EnhancedCompetitionMat({
+  showScoring = false,
+}: EnhancedCompetitionMatProps) {
   const { isConnected } = useJotaiRobotConnection();
   // Prefer global atom if present (prop retained for backward compatibility during migration)
   const globalShowScoring = useAtomValue(showScoringAtom);

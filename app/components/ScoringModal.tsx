@@ -31,7 +31,13 @@ export function ScoringModal({
       {/* Backdrop - full screen on mobile, right side only on large screens */}
       <div
         className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity md:right-0 md:left-auto md:w-1/3 lg:w-1/4 xl:w-1/5"
+        role="button"
+        tabIndex={0}
         onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onClose();
+        }}
+        aria-label="Close scoring panel"
       />
 
       {/* Side Panel */}

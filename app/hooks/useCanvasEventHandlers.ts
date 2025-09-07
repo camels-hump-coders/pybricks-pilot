@@ -1,6 +1,8 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback } from "react";
+import type { TelemetryPoint } from "../services/telemetryHistory";
 import { hoveredObjectAtom } from "../store/atoms/canvasState";
+import type { SplinePath } from "../store/atoms/gameMat";
 import { controlModeAtom } from "../store/atoms/gameMat";
 import {
   draggedControlPointAtom,
@@ -12,6 +14,7 @@ import {
   isDraggingTangencyHandleAtom,
   stopAllDraggingAtom,
 } from "../store/atoms/matUIState";
+import type { RobotPosition } from "../utils/robotPosition";
 import { useMissionInteractions } from "./useMissionInteractions";
 import { useMissionPointInteractions } from "./useMissionPointInteractions";
 import { useSplineInteractions } from "./useSplineInteractions";
@@ -22,27 +25,52 @@ interface UseCanvasEventHandlersProps {
   showScoring: boolean;
   scoringState: any;
   setScoringState: React.Dispatch<React.SetStateAction<any>>;
-  coordinateUtils: any; // TODO: Add proper typing
+  coordinateUtils: {
+    mmToCanvas: (x: number, y: number) => { x: number; y: number };
+    canvasToMm: (x: number, y: number) => { x: number; y: number };
+    scale: number;
+    matDimensions: {
+      matX: number;
+      matY: number;
+      matWidthMm: number;
+      matHeightMm: number;
+      borderWallThickness: number;
+      tableWidth: number;
+      tableHeight: number;
+    };
+  };
   // Spline-related props
-  currentSplinePath: any;
+  currentSplinePath: SplinePath | null;
   isSplinePathMode: boolean;
   justFinishedDragging: boolean;
   addSplinePointAtMousePosition: (x: number, y: number) => string | null;
   setSelectedSplinePointId: (id: string | null) => void;
-  updateSplinePoint: (pointId: string, update: any) => void;
+  updateSplinePoint: (
+    pointId: string,
+    update: Partial<SplinePath["points"][number]>,
+  ) => void;
   updateControlPoint: (
     pointId: string,
     controlType: "before" | "after",
-    controlPoint: any,
+    controlPoint: { x: number; y: number },
   ) => void;
-  updateTangencyHandle: (pointId: string, handle: any) => void;
+  updateTangencyHandle: (
+    pointId: string,
+    handle: {
+      x: number;
+      y: number;
+      strength: number;
+      isEdited: boolean;
+      isTangentDriving: boolean;
+    },
+  ) => void;
   setHoveredSplinePointId: (id: string | null) => void;
   setHoveredCurvatureHandlePointId: (id: string | null) => void;
   // Telemetry-related props
-  setHoveredPoint: (point: any) => void;
+  setHoveredPoint: (point: TelemetryPoint | null) => void;
   setHoveredPointIndex: (index: number) => void;
   setTooltipPosition: (position: { x: number; y: number } | null) => void;
-  setMousePosition: (position: any) => void;
+  setMousePosition: (position: RobotPosition | null) => void;
 }
 
 /**

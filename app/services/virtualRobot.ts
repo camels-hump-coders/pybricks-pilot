@@ -734,9 +734,7 @@ class VirtualRobotService extends EventTarget {
     }
   }
 
-  async executeCommandSequence(
-      commands: RobotCommand[],
-  ): Promise<void> {
+  async executeCommandSequence(commands: RobotCommand[]): Promise<void> {
     console.log(
       `[VirtualRobot] Executing command sequence of ${commands.length} commands`,
     );

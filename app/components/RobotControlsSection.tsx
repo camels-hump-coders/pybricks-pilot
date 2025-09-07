@@ -1,9 +1,9 @@
 import { useAtom } from "jotai";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { movementPreviewAtom } from "../store/atoms/gameMat";
-import { CompactRobotController } from "./CompactRobotController";
 import type { PythonFile } from "../types/fileSystem";
 import type { StepCommand } from "../types/missionRecorder";
+import { CompactRobotController } from "./CompactRobotController";
 
 interface RobotControlsSectionProps {
   onUploadAndRunFile?: (

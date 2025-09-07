@@ -1,7 +1,4 @@
-import type {
-  MissionObjective,
-  MissionObjectiveChoice,
-} from "../../schemas/GameMatConfig";
+import type { MissionObjectiveChoice } from "../../schemas/GameMatConfig";
 
 interface ChoiceEditorProps {
   choice: MissionObjectiveChoice;

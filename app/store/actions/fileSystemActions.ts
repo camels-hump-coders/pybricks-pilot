@@ -252,13 +252,13 @@ export const getFileContentAtom = atom(
 
     // Find file and read it
     const files = get(pythonFilesAtom);
-      const file = files.find((f) => f.name === fileName);
+    const file = files.find((f) => f.name === fileName);
 
-      if (!file || file.isDirectory || !("getFile" in file.handle)) {
-        throw new Error(`File ${fileName} not found`);
-      }
+    if (!file || file.isDirectory || !("getFile" in file.handle)) {
+      throw new Error(`File ${fileName} not found`);
+    }
 
-      return await set(readFileAtom, file.handle);
+    return await set(readFileAtom, file.handle);
   },
 );
 

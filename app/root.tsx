@@ -14,8 +14,8 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import faviconUrl from "./assets/favicon.svg?url";
 import socialShareUrl from "./assets/social-share.png?url";
-import { ServiceEventSync } from "./components/ServiceEventSync";
 import { SecretPiToggle } from "./components/SecretPiToggle";
+import { ServiceEventSync } from "./components/ServiceEventSync";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 export const links: Route.LinksFunction = () => [

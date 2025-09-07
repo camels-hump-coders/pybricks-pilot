@@ -1,8 +1,12 @@
 import { calculatePreviewPosition } from "../components/MovementPreview";
-import type { RobotPosition } from "../utils/robotPosition";
 import type { StepCommand } from "../types/missionRecorder";
+import type { RobotPosition } from "../utils/robotPosition";
 
-type UpdateCallback = (missionId: string, checkpoints: RobotPosition[], steps: StepCommand[]) => void;
+type UpdateCallback = (
+  missionId: string,
+  checkpoints: RobotPosition[],
+  steps: StepCommand[],
+) => void;
 
 class MissionRecorderService {
   private recording: {
@@ -14,7 +18,11 @@ class MissionRecorderService {
 
   private listeners: (() => void)[] = [];
 
-  start(missionId: string, startPosition: RobotPosition, update: UpdateCallback) {
+  start(
+    missionId: string,
+    startPosition: RobotPosition,
+    update: UpdateCallback,
+  ) {
     this.recording = {
       missionId,
       checkpoints: [startPosition],
@@ -32,7 +40,8 @@ class MissionRecorderService {
 
   record(step: StepCommand) {
     if (!this.recording) return;
-    const last = this.recording.checkpoints[this.recording.checkpoints.length - 1];
+    const last =
+      this.recording.checkpoints[this.recording.checkpoints.length - 1];
     const { missionId, checkpoints, steps, update } = this.recording;
     const direction =
       step.type === "drive"

@@ -9,7 +9,8 @@ export function HubStatusSection() {
           Hub Status
         </h3>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          Last update: {programStatus?.lastStatusUpdate
+          Last update:{" "}
+          {programStatus?.lastStatusUpdate
             ? new Date(programStatus.lastStatusUpdate).toLocaleTimeString()
             : "Never"}
         </div>
@@ -28,7 +29,9 @@ export function HubStatusSection() {
               {programStatus?.statusFlags?.userProgramRunning ? "▶️" : "⏸️"}
             </span>
             <div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">Program</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Program
+              </div>
               <div
                 className={`font-medium text-sm ${
                   programStatus?.statusFlags?.userProgramRunning
@@ -36,7 +39,9 @@ export function HubStatusSection() {
                     : "text-gray-800 dark:text-gray-200"
                 }`}
               >
-                {programStatus?.statusFlags?.userProgramRunning ? "Running" : "Stopped"}
+                {programStatus?.statusFlags?.userProgramRunning
+                  ? "Running"
+                  : "Stopped"}
               </div>
             </div>
           </div>
@@ -60,7 +65,9 @@ export function HubStatusSection() {
                   : "🟢"}
             </span>
             <div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">Battery</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Battery
+              </div>
               <div
                 className={`font-medium text-sm ${
                   programStatus?.statusFlags?.batteryCritical
@@ -88,11 +95,17 @@ export function HubStatusSection() {
           }`}
         >
           <div className="flex items-center gap-2">
-            <span className="text-lg">{programStatus?.statusFlags?.powerButtonPressed ? "⏻" : "🔋"}</span>
+            <span className="text-lg">
+              {programStatus?.statusFlags?.powerButtonPressed ? "⏻" : "🔋"}
+            </span>
             <div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">Power</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Power
+              </div>
               <div className="font-medium text-sm text-gray-800 dark:text-gray-200">
-                {programStatus?.statusFlags?.powerButtonPressed ? "Button pressed" : "Normal"}
+                {programStatus?.statusFlags?.powerButtonPressed
+                  ? "Button pressed"
+                  : "Normal"}
               </div>
             </div>
           </div>

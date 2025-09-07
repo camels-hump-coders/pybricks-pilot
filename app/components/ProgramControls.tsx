@@ -65,7 +65,11 @@ export function ProgramControls({
                     const content = await firstProgram.handle
                       .getFile()
                       .then((f: File) => f.text());
-                    await onUploadAndRunFile(firstProgram, content, allPrograms);
+                    await onUploadAndRunFile(
+                      firstProgram,
+                      content,
+                      allPrograms,
+                    );
                   }
                 } catch (error) {
                   console.error("Failed to upload and run programs:", error);

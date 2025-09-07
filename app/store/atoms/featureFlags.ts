@@ -8,9 +8,10 @@ export const missionFeatureEnabledAtom = atom<boolean>(false);
 
 missionFeatureEnabledAtom.onMount = (set) => {
   try {
-    const stored = typeof window !== "undefined" && window.localStorage
-      ? window.localStorage.getItem(STORAGE_KEY)
-      : null;
+    const stored =
+      typeof window !== "undefined" && window.localStorage
+        ? window.localStorage.getItem(STORAGE_KEY)
+        : null;
     if (stored !== null) {
       set(stored === "true");
     }
@@ -30,4 +31,3 @@ export const toggleMissionFeatureAtom = atom(null, (get, set) => {
     // ignore storage errors
   }
 });
-

@@ -3,7 +3,7 @@ import { useEffect } from "react";
 interface UseSplineKeyboardEventsProps {
   isSplinePathMode: boolean;
   selectedSplinePointId: string | null;
-  currentSplinePath: any; // TODO: Add proper typing
+  currentSplinePath: import("../store/atoms/gameMat").SplinePath | null;
   deleteSplinePoint: (pointId: string) => void;
   setSelectedSplinePointId: (pointId: string | null) => void;
   completeSplinePath: () => void;

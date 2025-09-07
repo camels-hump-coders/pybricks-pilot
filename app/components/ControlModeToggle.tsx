@@ -1,8 +1,8 @@
 import { useAtomValue } from "jotai";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
+import { missionFeatureEnabledAtom } from "../store/atoms/featureFlags";
 import type { ControlMode } from "../store/atoms/gameMat";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
-import { missionFeatureEnabledAtom } from "../store/atoms/featureFlags";
 
 interface ControlModeToggleProps {
   controlMode: ControlMode;
@@ -73,16 +73,16 @@ export function ControlModeToggle({
         </button>
         {missionFeatureEnabled && (
           <button
-          type="button"
-          disabled={!robotControlsEnabled}
-          onClick={() => handleModeChange("mission")}
-          className={`px-1 py-2 text-xs rounded transition-colors ${
-            controlMode === "mission"
-              ? "bg-purple-500 text-white"
-              : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
-          }`}
-        >
-          Mission
+            type="button"
+            disabled={!robotControlsEnabled}
+            onClick={() => handleModeChange("mission")}
+            className={`px-1 py-2 text-xs rounded transition-colors ${
+              controlMode === "mission"
+                ? "bg-purple-500 text-white"
+                : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
+            }`}
+          >
+            Mission
           </button>
         )}
       </div>
