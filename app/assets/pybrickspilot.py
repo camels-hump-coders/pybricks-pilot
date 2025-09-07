@@ -417,6 +417,9 @@ async def _execute_command_sequence(commands):
 
 async def _execute_command(command):
     """Execute a received command or command sequence."""
+    if command is None:
+        return
+    
     try:
         # Check if this is a command sequence (array of commands)
         if isinstance(command, list):

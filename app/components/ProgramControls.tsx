@@ -87,6 +87,11 @@ export function ProgramControls({
   // Detect when the robot program exits (based on telemetry-driven running flag)
   const prevRunningRef = useRef(isProgramRunning);
   useEffect(() => {
+    // Program just started: clear any prior error banner
+    if (!prevRunningRef.current && isProgramRunning) {
+      setLastUploadError(null);
+    }
+
     if (prevRunningRef.current && !isProgramRunning) {
       // Program just stopped; surface the most relevant recent error/log inline
       let message: string | null = null;
@@ -108,7 +113,6 @@ export function ProgramControls({
       setLastUploadError(
         message || "Robot program exited. Open details to inspect recent logs.",
       );
-      openDetails(true);
     }
     prevRunningRef.current = isProgramRunning;
   }, [isProgramRunning, openDetails]);
