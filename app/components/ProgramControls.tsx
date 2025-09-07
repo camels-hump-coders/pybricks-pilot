@@ -87,6 +87,12 @@ export function ProgramControls({
   // Detect when the robot program exits (based on telemetry-driven running flag)
   const prevRunningRef = useRef(isProgramRunning);
   useEffect(() => {
+    const normalizeLine = (raw: string | null | undefined): string | null => {
+      if (!raw) return null;
+      const sysExit = "The program was stopped (SystemExit)";
+      return raw.endsWith(sysExit) ? sysExit : raw;
+    };
+
     // Program just started: clear any prior error banner
     if (!prevRunningRef.current && isProgramRunning) {
       setLastUploadError(null);
@@ -102,13 +108,13 @@ export function ProgramControls({
           /error|exception|importerror|traceback/i.test(e.message || ""),
       );
       if (errEvent) {
-        message = errEvent.message;
+        message = normalizeLine(errEvent.message);
       } else if (programOutputLog && programOutputLog.length > 0) {
         const tail = programOutputLog.slice(-5);
         // Try to grab the most informative line (prefer ones containing 'Error' or 'Traceback')
         const candidate =
           tail.find((l) => /error|traceback|importerror/i.test(l)) || tail[tail.length - 1];
-        message = candidate;
+        message = normalizeLine(candidate);
       }
       setLastUploadError(
         message || "Robot program exited. Open details to inspect recent logs.",

@@ -69,11 +69,16 @@ export function usePybricksHubEventManager() {
       // If there's program output, add it to the log
       if (status.output?.trim()) {
         const timestamp = new Date().toLocaleTimeString();
-        const logEntry = `[${timestamp}] ${status.output.trim()}`;
+        const raw = status.output.trim();
+        // Special-case: sometimes a line ends with SystemExit appended after partial output.
+        // Treat such a line as only the system exit message to avoid confusing partial JSON.
+        const sysExit = "The program was stopped (SystemExit)";
+        const normalized = raw.endsWith(sysExit) ? sysExit : raw;
+        const logEntry = `[${timestamp}] ${normalized}`;
         setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
 
         // Check for hub menu status messages
-        const output = status.output.trim();
+        const output = normalized;
         if (output.includes("[PILOT:MENU_STATUS]")) {
           try {
             // Parse hub menu status: [PILOT:MENU_STATUS] selected=1 total=3 state=menu

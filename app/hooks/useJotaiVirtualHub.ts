@@ -109,7 +109,10 @@ export function useJotaiVirtualHub() {
       // If there's program output, add it to the log
       if (status.output?.trim()) {
         const timestamp = new Date().toLocaleTimeString();
-        const logEntry = `[${timestamp}] ${status.output.trim()}`;
+        const raw = status.output.trim();
+        const sysExit = "The program was stopped (SystemExit)";
+        const normalized = raw.endsWith(sysExit) ? sysExit : raw;
+        const logEntry = `[${timestamp}] ${normalized}`;
         setProgramOutputLog((prev) => [...prev, logEntry].slice(-200)); // Keep last 200 lines
       }
     };
