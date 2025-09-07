@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { TelemetryPoint } from "../services/telemetryHistory";
 import { hoveredObjectAtom } from "../store/atoms/canvasState";
 import type { SplinePath } from "../store/atoms/gameMat";
@@ -222,8 +222,15 @@ export function useCanvasEventHandlers({
     ],
   );
 
-  const handleCanvasMouseMove = useCallback(
-    (event: React.MouseEvent<HTMLCanvasElement>) => {
+  // Throttle high-frequency mousemove with requestAnimationFrame
+  const rafPendingRef = useRef(false);
+  const lastEventRef = useRef<React.MouseEvent<HTMLCanvasElement> | null>(null);
+
+  const flushMouseMove = useCallback(() => {
+    const event = lastEventRef.current;
+    rafPendingRef.current = false;
+    if (!event) return;
+
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -276,8 +283,7 @@ export function useCanvasEventHandlers({
       } else {
         setHoveredObject(null);
       }
-    },
-    [
+  }, [
       canvasRef,
       coordinateUtils,
       setMousePosition,
@@ -294,7 +300,17 @@ export function useCanvasEventHandlers({
       showScoring,
       checkMissionClick,
       setHoveredObject,
-    ],
+  ]);
+
+  const handleCanvasMouseMove = useCallback(
+    (event: React.MouseEvent<HTMLCanvasElement>) => {
+      lastEventRef.current = event;
+      if (!rafPendingRef.current) {
+        rafPendingRef.current = true;
+        requestAnimationFrame(flushMouseMove);
+      }
+    },
+    [flushMouseMove],
   );
 
   const handleCanvasMouseUp = useCallback(() => {

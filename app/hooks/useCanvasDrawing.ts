@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { calculateTrajectoryProjection } from "../components/MovementPreview";
 import type { TelemetryPoint } from "../services/telemetryHistory";
 import { telemetryHistory } from "../services/telemetryHistory";
@@ -216,6 +216,19 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   // Animation loop control
   const animationFrameRef = useRef<number | null>(null);
   const isRunningRef = useRef(false);
+  const lastFrameTimeRef = useRef(0);
+  // Cap frame rate to reduce CPU/GPU load on slower machines
+  const targetFrameMs = 1000 / 30; // ~30 FPS
+
+  // Respect reduced motion and scale-heavy scenes to skip extra effects
+  const reducedEffects = useMemo(() => {
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Also reduce effects when scale is large (very big canvases)
+    return prefersReduced || dataRefs.current.scale > 1.5;
+  }, [dataRefs.current.scale]);
 
   // Main drawing function that uses refs for always-current data
   const drawCanvas = useCallback(() => {
@@ -237,21 +250,25 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     ctx.fillStyle = "#e5e5e5";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw the glossy black table surface with gradient for depth
-    const tableGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    tableGradient.addColorStop(0, "#1a1a1a");
-    tableGradient.addColorStop(0.5, "#0d0d0d");
-    tableGradient.addColorStop(1, "#000000");
-    ctx.fillStyle = tableGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw the table surface (skip gradients when reducedEffects)
+    if (!reducedEffects) {
+      const tableGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      tableGradient.addColorStop(0, "#1a1a1a");
+      tableGradient.addColorStop(0.5, "#0d0d0d");
+      tableGradient.addColorStop(1, "#000000");
+      ctx.fillStyle = tableGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Add subtle glossy highlight overlay across entire surface
-    const glossGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-    glossGradient.addColorStop(0, "rgba(255, 255, 255, 0.02)");
-    glossGradient.addColorStop(0.5, "rgba(255, 255, 255, 0.04)");
-    glossGradient.addColorStop(1, "rgba(255, 255, 255, 0.02)");
-    ctx.fillStyle = glossGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const glossGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      glossGradient.addColorStop(0, "rgba(255, 255, 255, 0.02)");
+      glossGradient.addColorStop(0.5, "rgba(255, 255, 255, 0.04)");
+      glossGradient.addColorStop(1, "rgba(255, 255, 255, 0.02)");
+      ctx.fillStyle = glossGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = "#0f0f0f";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     // Draw border walls (3D effect) - only if coordinateUtils is available
     if (data.coordinateUtils) {
@@ -282,11 +299,13 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       // Mat is flush with the bottom edge of the table surface (6mm gap at top, 0mm at bottom)
       const matY = borderOffset + (tableHeight - matHeight);
 
-      // Draw a subtle shadow under the mat for depth
-      ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-      ctx.shadowBlur = 10 * data.scale;
-      ctx.shadowOffsetX = 2 * data.scale;
-      ctx.shadowOffsetY = 2 * data.scale;
+      // Optional shadow under the mat for depth
+      if (!reducedEffects) {
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        ctx.shadowBlur = 10 * data.scale;
+        ctx.shadowOffsetX = 2 * data.scale;
+        ctx.shadowOffsetY = 2 * data.scale;
+      }
 
       // Draw mat background or image
       if (matImageRef.current) {
@@ -384,7 +403,8 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
     if (
       data.showGridOverlay &&
       data.controlMode === "incremental" &&
-      data.currentPosition
+      data.currentPosition &&
+      !reducedEffects
     ) {
       drawRobotOrientedGrid(ctx, data.currentPosition, {
         mmToCanvas,
@@ -536,13 +556,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       data.editingMission &&
       data.robotConfig
     ) {
-      console.log("Drawing mission point preview:", {
-        controlMode: data.controlMode,
-        pointPlacementMode: data.pointPlacementMode,
-        atomMousePosition: data.atomMousePosition,
-        mousePositionForPreview,
-        actionPointHeading: data.actionPointHeading,
-      });
+      // no-op
 
       // Draw the smooth path preview showing how the new point will connect
       if (
@@ -569,14 +583,6 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         { mmToCanvas, canvasToMm, scale: data.scale },
         data.robotConfig,
       );
-    } else if (data.controlMode === "mission" && data.pointPlacementMode) {
-      console.log("Preview conditions not met:", {
-        controlMode: data.controlMode,
-        pointPlacementMode: data.pointPlacementMode,
-        hasAtomMousePosition: !!data.atomMousePosition,
-        hasMousePositionForPreview: !!mousePositionForPreview,
-        hasEditingMission: !!data.editingMission,
-      });
     }
   }, [matImageRef.current, canvasRef.current]);
 
@@ -595,8 +601,12 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
       canvas.height = targetHeight;
     }
 
-    // Draw the canvas
-    drawCanvas();
+    // Throttle frame rate
+    const now = performance.now();
+    if (now - lastFrameTimeRef.current >= targetFrameMs) {
+      lastFrameTimeRef.current = now;
+      drawCanvas();
+    }
 
     // Schedule next frame
     animationFrameRef.current = requestAnimationFrame(renderLoop);

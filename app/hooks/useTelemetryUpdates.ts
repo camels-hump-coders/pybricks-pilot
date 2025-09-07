@@ -57,7 +57,16 @@ export function useTelemetryUpdates({
   useEffect(() => {
     if (!isConnected) return;
 
+    const lastProcessRef = useRef(0);
+
     const handleTelemetryEvent = (event: Event) => {
+      const now = performance.now();
+      // Throttle processing to ~50 FPS to reduce load on slower devices
+      if (now - lastProcessRef.current < 20) {
+        return;
+      }
+      lastProcessRef.current = now;
+
       const customEvent = event as CustomEvent;
       const receivedTelemetryData = customEvent.detail;
 
