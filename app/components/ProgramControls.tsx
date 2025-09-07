@@ -5,6 +5,7 @@ import { useUploadProgress } from "../hooks/useUploadProgress";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import type { PythonFile } from "../types/fileSystem";
 import { HubMenuInterface } from "./HubMenuInterface";
+import { useNotifications } from "../hooks/useNotifications";
 
 interface ProgramControlsProps {
   onStopProgram?: () => Promise<void>;
@@ -26,6 +27,7 @@ export function ProgramControls({
   // Upload progress (for UI display)
   const { uploadProgress } = useUploadProgress();
   const { robotType } = useJotaiRobotConnection();
+  const { showError } = useNotifications();
 
   if (robotType === "virtual") {
     return null;
@@ -72,7 +74,14 @@ export function ProgramControls({
                     );
                   }
                 } catch (error) {
-                  console.error("Failed to upload and run programs:", error);
+                  const msg =
+                    error instanceof Error ? error.message : String(error);
+                  console.error("Failed to upload and run programs:", msg);
+                  showError(
+                    "Upload & Run Failed",
+                    msg || "Unknown compilation/upload error",
+                    0,
+                  );
                 }
               }
             }}

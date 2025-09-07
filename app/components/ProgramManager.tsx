@@ -6,6 +6,7 @@ import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import type { PythonFile } from "../types/fileSystem";
 import { FileBrowser } from "./FileBrowser";
+import { useNotifications } from "../hooks/useNotifications";
 
 interface ProgramManagerProps {
   // Directory and file management
@@ -60,6 +61,7 @@ export function ProgramManager({
   className = "",
 }: ProgramManagerProps) {
   const { uploadProgress } = useUploadProgress(debugEvents);
+  const { showError } = useNotifications();
 
   // Get centralized program running state
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
@@ -93,10 +95,15 @@ export function ProgramManager({
       try {
         await uploadAndRunHubMenu(allPrograms, pythonFiles);
       } catch (error) {
-        console.error("Failed to upload and run hub menu:", error);
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("Failed to upload and run hub menu:", msg);
+        showError("Upload & Run Failed", msg || "Unknown error", 0);
       }
     } else {
-      console.error("No upload method available or no numbered programs");
+      showError(
+        "Upload Not Available",
+        "Select numbered programs in Program Manager first (use the # button)",
+      );
     }
   };
 
