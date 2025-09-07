@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "name": "masterpiece",
+  "displayName": "FLL 2022-2023 Masterpiece",
+  "missions": [],
+  "dimensions": {
+    "widthMm": 2051.282051282053,
+    "heightMm": 1135.5238190352543
+  },
+  "createdAt": "2025-09-07T19:32:10.028Z",
+  "updatedAt": "2025-09-07T19:32:10.028Z"
+}
