@@ -1,4 +1,6 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import React from "react";
+import { DebugEventEntry } from "./DebugEventEntry";
 import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import {
   clearDebugEventsAtom,
@@ -13,6 +15,8 @@ export function DebugDetailsModal() {
   const programOutputLog = useAtomValue(programOutputLogAtom);
   const clearDebug = useSetAtom(clearDebugEventsAtom);
   const clearLog = useSetAtom(clearProgramOutputLogAtom);
+
+  // Rendering logic is shared via DebugEventEntry
 
   if (!open) return null;
 
@@ -42,25 +46,7 @@ export function DebugDetailsModal() {
               {lastEvents.length === 0 ? (
                 <div className="text-gray-500">No debug events</div>
               ) : (
-                lastEvents.map((e, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2 rounded bg-gray-50 dark:bg-gray-700/50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">[{e.type}]</span>
-                      <span className="text-[11px] text-gray-500">
-                        {new Date(e.timestamp).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div className="mt-1">{e.message}</div>
-                    {e.details && (
-                      <pre className="mt-1 bg-black/5 dark:bg-black/20 p-1 rounded overflow-x-auto">
-                        <code>{JSON.stringify(e.details, null, 2)}</code>
-                      </pre>
-                    )}
-                  </div>
-                ))
+                lastEvents.map((e, idx) => <DebugEventEntry key={idx} event={e} />)
               )}
             </div>
           </div>

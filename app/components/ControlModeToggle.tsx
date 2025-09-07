@@ -18,12 +18,15 @@ export function ControlModeToggle({
   onExitMissionMode,
 }: ControlModeToggleProps) {
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
-  const { robotType } = useJotaiRobotConnection();
+  const { robotType, isConnected } = useJotaiRobotConnection();
   const missionFeatureEnabled = useAtomValue(missionFeatureEnabledAtom);
+  // Require an active connection plus program running (for real robots)
   const robotControlsEnabled =
-    robotType === "virtual" || (robotType === "real" && isProgramRunning);
-  const disabledReason =
-    robotType === "real" && !isProgramRunning
+    isConnected &&
+    (robotType === "virtual" || (robotType === "real" && isProgramRunning));
+  const disabledReason = !isConnected
+    ? "Connect to a hub to enable controls"
+    : robotType === "real" && !isProgramRunning
       ? "Run a program on the hub to enable controls"
       : !robotType
         ? "Select a robot to enable controls"
@@ -95,11 +98,7 @@ export function ControlModeToggle({
           </button>
         )}
       </div>
-      {!robotControlsEnabled && robotType === "real" && (
-        <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">
-          Run a program on the hub to use Step/Hold/Mission controls.
-        </div>
-      )}
+      {/* Buttons above are disabled with a tooltip explaining the requirement */}
     </div>
   );
 }

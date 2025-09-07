@@ -90,6 +90,8 @@ export function ProgramManager({
   const robotConnection = useJotaiRobotConnection();
   const { uploadAndRunHubMenu } = robotConnection;
 
+  // Access current robot config to compute Step 1 completion
+
   const {
     stableDirectoryHandle,
     createFile: fsCreateFile,
@@ -130,7 +132,7 @@ export function ProgramManager({
       );
     }
 
-    return `# Auto-generated Quick Start program by PyBricks Pilot\n\nfrom pybricks.hubs import PrimeHub\nfrom pybricks.parameters import Port, Direction\nfrom pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor, GyroSensor\nfrom pybricks.robotics import DriveBase\nfrom pybricks.tools import wait, run_task\n\nimport pybrickspilot as pilot\n\nasync def main():\n    hub = PrimeHub()\n    pilot.register_hub(hub)\n\n    # Drivebase motors\n    left = Motor(Port.${d.leftMotorPort}${d.leftReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    right = Motor(Port.${d.rightMotorPort}${d.rightReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    db = DriveBase(left, right, ${Math.round(d.wheelDiameterMm)}, ${Math.round(d.axleTrackMm)})\n    pilot.register_drivebase(db)\n    pilot.register_motor("left", left)\n    pilot.register_motor("right", right)\n\n${motorLines.join("\n") || "    # No extra motors configured"}\n\n${sensorLines.join("\n") || "    # No sensors configured"}\n\n    # Main loop: telemetry + command processing\n    while True:\n        await pilot.send_telemetry()\n        await pilot.process_commands()\n        await wait(100)\n`;
+    return `# Auto-generated Quick Start program by PyBricks Pilot\n\nfrom pybricks.hubs import PrimeHub\nfrom pybricks.parameters import Port, Direction\nfrom pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor, GyroSensor\nfrom pybricks.robotics import DriveBase\nfrom pybricks.tools import wait\n\nimport pybrickspilot as pilot\n\ndef main():\n    hub = PrimeHub()\n    pilot.register_hub(hub)\n\n    # Drivebase motors\n    left = Motor(Port.${d.leftMotorPort}${d.leftReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    right = Motor(Port.${d.rightMotorPort}${d.rightReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    db = DriveBase(left, right, ${Math.round(d.wheelDiameterMm)}, ${Math.round(d.axleTrackMm)})\n    pilot.register_drivebase(db)\n    pilot.register_motor("left", left)\n    pilot.register_motor("right", right)\n\n${motorLines.join("\n") || "    # No extra motors configured"}\n\n${sensorLines.join("\n") || "    # No sensors configured"}\n\n    # Main loop: telemetry + command processing\n    while True:\n        pilot.send_telemetry()\n        pilot.process_commands()\n        wait(100)\n\nmain()\n`;
   }
 
   const handleGenerateQuickStartProgram = async () => {
@@ -144,7 +146,7 @@ export function ProgramManager({
     try {
       const fileName = "001_quickstart.py";
       const code = generateQuickStartCode();
-      await fsCreateFile(stableDirectoryHandle, fileName, code);
+      await fsCreateFile({ name: fileName, content: code });
       await fsAddToPrograms(fileName);
       await fsRefreshFiles();
       addNotification({
@@ -335,6 +337,12 @@ export function ProgramManager({
                 <div className="text-sm font-medium mb-2 text-gray-800 dark:text-gray-200">
                   Quick Start: Get Your Robot Moving
                 </div>
+                {(() => {
+                  const step1Complete = !currentRobotConfig?.isDefault;
+                  const step2Complete = programCount > 0;
+                  const step3Complete = isConnected && isRunning;
+                  return (
+                    <>
                 <ol className="list-decimal ml-4 text-sm text-gray-700 dark:text-gray-300 space-y-1">
                   <li>
                     Configure your robot's motors, sensors, and drivebase.
@@ -344,26 +352,46 @@ export function ProgramManager({
                 </ol>
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
                   <button
-                    onClick={() => openRobotBuilder(true)}
-                    className="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                    onClick={() => {
+                      openRobotBuilder(true);
+                    }}
+                    className="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1"
+                    title="Open Robot Builder"
                   >
-                    🧱 Configure Robot
+                    {step1Complete ? "✅" : "🧱"} Configure Robot
                   </button>
                   <button
                     onClick={handleGenerateQuickStartProgram}
-                    disabled={!hasDirectoryAccess}
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    disabled={!step1Complete || !hasDirectoryAccess}
+                    title={
+                      !step1Complete
+                        ? "Customize your robot in step 1 first"
+                        : !hasDirectoryAccess
+                          ? "Mount a directory to save the program"
+                          : "Generate starter program"
+                    }
+                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
                   >
-                    ✨ Generate Starter Program
+                    {step2Complete ? "✅" : "✨"} Generate Starter Program
                   </button>
                   <button
                     onClick={handleUploadAndRun}
-                    disabled={!isConnected}
-                    className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                    disabled={!step2Complete || !isConnected}
+                    title={
+                      !step2Complete
+                        ? "Generate a program first"
+                        : !isConnected
+                          ? "Connect to the hub"
+                          : "Upload & run menu"
+                    }
+                    className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
                   >
-                    🚀 Upload & Run
+                    {step3Complete ? "✅" : "🚀"} Upload & Run
                   </button>
                 </div>
+                    </>
+                  );
+                })()}
                 <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                   The generated program uses your configured ports and drivebase
                   settings, and includes telemetry & remote control support.
