@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
 import { useNotifications } from "../hooks/useNotifications";
@@ -7,7 +7,7 @@ import { useUploadProgress } from "../hooks/useUploadProgress";
 import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { robotBuilderOpenAtom, robotConfigAtom } from "../store/atoms/robotConfigSimplified";
-import { debugEventsAtom } from "../store/atoms/robotConnection";
+import { debugEventsAtom, programOutputLogAtom } from "../store/atoms/robotConnection";
 import { DebugEventEntry } from "./DebugEventEntry";
 import type { PythonFile } from "../types/fileSystem";
 import { generateQuickStartCode } from "../utils/quickStart";
@@ -82,6 +82,36 @@ export function ProgramControls({
   const [lastUploadError, setLastUploadError] = useState<string | null>(null);
   const debugEvents = useAtomValue(debugEventsAtom);
   const recentEvents = debugEvents.slice(-6).reverse();
+  const programOutputLog = useAtomValue(programOutputLogAtom);
+
+  // Detect when the robot program exits (based on telemetry-driven running flag)
+  const prevRunningRef = useRef(isProgramRunning);
+  useEffect(() => {
+    if (prevRunningRef.current && !isProgramRunning) {
+      // Program just stopped; surface the most relevant recent error/log inline
+      let message: string | null = null;
+      const recent = debugEvents.slice(-20).reverse();
+      const errEvent = recent.find(
+        (e) =>
+          e.type === "error" ||
+          /error|exception|importerror|traceback/i.test(e.message || ""),
+      );
+      if (errEvent) {
+        message = errEvent.message;
+      } else if (programOutputLog && programOutputLog.length > 0) {
+        const tail = programOutputLog.slice(-5);
+        // Try to grab the most informative line (prefer ones containing 'Error' or 'Traceback')
+        const candidate =
+          tail.find((l) => /error|traceback|importerror/i.test(l)) || tail[tail.length - 1];
+        message = candidate;
+      }
+      setLastUploadError(
+        message || "Robot program exited. Open details to inspect recent logs.",
+      );
+      openDetails(true);
+    }
+    prevRunningRef.current = isProgramRunning;
+  }, [isProgramRunning, openDetails]);
 
   const handleUploadAndRunMenu = async () => {
     if (allPrograms.length > 0 && uploadAndRunHubMenu) {

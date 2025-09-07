@@ -52,7 +52,7 @@ except Exception as e:
 
 from pybricks.hubs import PrimeHub
 from pybricks.parameters import Port, Direction
-from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor, GyroSensor
+from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor
 from pybricks.robotics import DriveBase
 
 import pybrickspilot as pilot
@@ -61,13 +61,24 @@ hub = PrimeHub()
 pilot.register_hub(hub)
 
 # Drivebase motors
-left = Motor(Port.${d.leftMotorPort}${d.leftReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})
-right = Motor(Port.${d.rightMotorPort}${d.rightReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})
-db = DriveBase(left, right, ${Math.round(d.wheelDiameterMm)}, ${Math.round(d.axleTrackMm)})
+left = None
+right = None
 
-pilot.register_drivebase(db)
-pilot.register_motor("left", left)
-pilot.register_motor("right", right)
+try:
+  left = Motor(Port.${d.leftMotorPort}${d.leftReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})
+  pilot.register_motor("left", left)
+except Exception as e:
+  print("[PILOT] left motor is not registered properly", e)
+
+try:
+  right = Motor(Port.${d.rightMotorPort}${d.rightReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})
+  pilot.register_motor("right", right)
+except Exception as e:
+  print("[PILOT] right motor is not registered properly", e)
+
+if left is not None and right is not None:
+  db = DriveBase(left, right, ${Math.round(d.wheelDiameterMm)}, ${Math.round(d.axleTrackMm)})
+  pilot.register_drivebase(db)
 
 ${motorLines.join("\n") || "# No extra motors configured"}
 

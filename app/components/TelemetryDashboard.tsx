@@ -457,7 +457,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
           <div className="space-y-6">
             <IMUDisplay hubData={telemetryData?.hub} />
 
-            {/* Program Output Log */}
+            {/* Program Output Log (visible here while program is running) */}
             <ProgramOutputLog
               outputLog={programOutputLog}
               onClear={clearProgramOutputLog}
@@ -479,6 +479,16 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
             Hub is connected but no program is currently running. Upload and run
             a program to see real-time telemetry and controls.
           </p>
+        </div>
+      )}
+
+      {/* Always show Program Output Log if there is content, even when not connected or not running */}
+      {programOutputLog.length > 0 && !isProgramRunning && (
+        <div className="mt-4">
+          <ProgramOutputLog
+            outputLog={programOutputLog}
+            onClear={clearProgramOutputLog}
+          />
         </div>
       )}
 
