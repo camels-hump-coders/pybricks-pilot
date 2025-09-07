@@ -114,7 +114,12 @@ export function useJotaiPybricksHub() {
   }, []);
 
   const uploadAndRunHubMenu = useCallback(
-    async (allPrograms: any[], availableFiles: any[]) => {
+    async (
+      allPrograms: (import("../types/fileSystem").PythonFile & {
+        programNumber: number;
+      })[],
+      availableFiles: import("../types/fileSystem").PythonFile[],
+    ) => {
       await pybricksHubService.uploadAndRunHubMenu(allPrograms, availableFiles);
     },
     [],

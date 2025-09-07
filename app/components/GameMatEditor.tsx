@@ -93,7 +93,7 @@ export function GameMatEditor({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const _fileInputRef = useRef<HTMLInputElement>(null);
 
   const areAllCornersSet = useCallback(() => {
     // Check if all corners have been set (moved from default positions)

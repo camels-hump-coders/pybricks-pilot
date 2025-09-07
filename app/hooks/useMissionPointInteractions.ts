@@ -12,6 +12,11 @@ import { useMissionManager } from "./useMissionManager";
 /**
  * Hook for handling mission point interactions including drag-and-drop
  */
+type CoordinateUtils = {
+  mmToCanvas: (x: number, y: number) => { x: number; y: number };
+  canvasToMm: (x: number, y: number) => { x: number; y: number };
+};
+
 export function useMissionPointInteractions() {
   const { editingMission, updatePoint, selectPoint } = useMissionManager();
   const { pointPlacementMode, handlePointPlacement } = useMissionEditing();
@@ -30,7 +35,7 @@ export function useMissionPointInteractions() {
     (
       canvasX: number,
       canvasY: number,
-      coordinateUtils: any,
+      coordinateUtils: CoordinateUtils,
     ): MissionPointType | null => {
       if (!editingMission) return null;
 
@@ -41,17 +46,16 @@ export function useMissionPointInteractions() {
         if (point.type === "start" || point.type === "end") continue;
 
         // Get the canvas position of the point
-        const pointCanvasPos = coordinateUtils.mmToCanvas(
-          (point as any).x,
-          (point as any).y,
-        );
+        if (point.type === "waypoint" || point.type === "action") {
+          const pointCanvasPos = coordinateUtils.mmToCanvas(point.x, point.y);
 
-        const dx = canvasX - pointCanvasPos.x;
-        const dy = canvasY - pointCanvasPos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+          const dx = canvasX - pointCanvasPos.x;
+          const dy = canvasY - pointCanvasPos.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance <= clickRadius) {
-          return point;
+          if (distance <= clickRadius) {
+            return point;
+          }
         }
       }
 
@@ -62,7 +66,11 @@ export function useMissionPointInteractions() {
 
   // Handle mouse down - start dragging or place new point
   const handleMissionMouseDown = useCallback(
-    (canvasX: number, canvasY: number, coordinateUtils: any): boolean => {
+    (
+      canvasX: number,
+      canvasY: number,
+      coordinateUtils: CoordinateUtils,
+    ): boolean => {
       // If we're in point placement mode, don't handle dragging
       if (pointPlacementMode) {
         return false;
@@ -85,8 +93,8 @@ export function useMissionPointInteractions() {
 
         // Calculate offset from point center to mouse position
         const pointCanvasPos = coordinateUtils.mmToCanvas(
-          (clickedPoint as any).x,
-          (clickedPoint as any).y,
+          clickedPoint.x,
+          clickedPoint.y,
         );
         setDragOffset({
           x: canvasX - pointCanvasPos.x,
@@ -113,7 +121,7 @@ export function useMissionPointInteractions() {
     (
       canvasX: number,
       canvasY: number,
-      coordinateUtils: any,
+      coordinateUtils: CoordinateUtils,
       canvasRef: React.RefObject<HTMLCanvasElement | null>,
     ): void => {
       if (isDraggingMissionPoint && draggedMissionPointId && editingMission) {
@@ -200,7 +208,11 @@ export function useMissionPointInteractions() {
 
   // Handle click - for point placement
   const handleMissionClick = useCallback(
-    (canvasX: number, canvasY: number, coordinateUtils: any): boolean => {
+    (
+      canvasX: number,
+      canvasY: number,
+      coordinateUtils: CoordinateUtils,
+    ): boolean => {
       // If we're in point placement mode, handle the placement
       if (pointPlacementMode) {
         const matPos = coordinateUtils.canvasToMm(canvasX, canvasY);

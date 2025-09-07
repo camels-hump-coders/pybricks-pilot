@@ -1,6 +1,7 @@
 import hljs from "highlight.js/lib/core";
 import python from "highlight.js/lib/languages/python";
 import { useEffect, useState } from "react";
+import React from "react";
 import {
   type GeneratedProgram,
   pseudoCodeGenerator,
@@ -32,8 +33,8 @@ interface PseudoCodePanelProps {
 
 export function PseudoCodePanel({
   telemetryPoints,
-  isVisible,
-  onToggle,
+  isVisible: _isVisible,
+  onToggle: _onToggle,
 }: PseudoCodePanelProps) {
   const [generatedProgram, setGeneratedProgram] =
     useState<GeneratedProgram | null>(null);
@@ -149,7 +150,7 @@ export function PseudoCodePanel({
               <div className="space-y-1">
                 {generatedProgram.commands.map((command, index) => (
                   <div
-                    key={index}
+                    key={`${index}-${command.type}-${command.distance ?? 0}-${command.targetHeading ?? 0}`}
                     className="text-xs p-2 rounded border bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700"
                   >
                     <div className="flex items-center justify-between">

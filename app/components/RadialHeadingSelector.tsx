@@ -106,7 +106,8 @@ export function RadialHeadingSelector({
       <div className="text-xs text-gray-600 dark:text-gray-400">
         Robot Heading
       </div>
-      <div
+      <button
+        type="button"
         className={`relative cursor-pointer bg-gray-100 dark:bg-gray-700 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-blue-400 transition-colors select-none ${isDragging ? "border-blue-500" : ""}`}
         style={{ width: size, height: size }}
         onMouseDown={handleMouseDown}
@@ -156,7 +157,7 @@ export function RadialHeadingSelector({
             top: centerY - 4,
           }}
         />
-      </div>
+      </button>
       <div className="text-xs text-center text-gray-500 dark:text-gray-400">
         {heading}° (
         {directions.find((d) => d.angle === heading)?.desc || "Custom"})

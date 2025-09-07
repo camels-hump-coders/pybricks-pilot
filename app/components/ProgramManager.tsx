@@ -53,7 +53,7 @@ export function ProgramManager({
   onUnmountDirectory,
   onRequestDirectoryAccess,
   onStopProgram,
-  onUploadAndRunFile,
+  onUploadAndRunFile: _onUploadAndRunFile,
   onCreateFile,
   onCreateExampleProject,
   programStatus,

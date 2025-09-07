@@ -136,6 +136,8 @@ export function PositionManagementDialog() {
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <svg
+              role="img"
+              aria-label="Close"
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
@@ -183,6 +185,8 @@ export function PositionManagementDialog() {
                     </span>
                     <div className="w-6 h-6 flex items-center justify-center">
                       <svg
+                        role="img"
+                        aria-label="Protected"
                         className="w-4 h-4 text-gray-400"
                         fill="currentColor"
                         viewBox="0 0 20 20"
@@ -273,6 +277,8 @@ export function PositionManagementDialog() {
                           title="Edit position name"
                         >
                           <svg
+                            role="img"
+                            aria-label="Edit"
                             className="w-4 h-4"
                             fill="none"
                             stroke="currentColor"
@@ -294,6 +300,8 @@ export function PositionManagementDialog() {
                         >
                           {isDeleting === position.id ? (
                             <svg
+                              role="img"
+                              aria-label="Loading"
                               className="w-4 h-4 animate-spin"
                               fill="none"
                               viewBox="0 0 24 24"
@@ -314,6 +322,8 @@ export function PositionManagementDialog() {
                             </svg>
                           ) : (
                             <svg
+                              role="img"
+                              aria-label="Delete"
                               className="w-4 h-4"
                               fill="none"
                               stroke="currentColor"

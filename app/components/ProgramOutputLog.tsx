@@ -52,7 +52,7 @@ export function ProgramOutputLog({
             <div className="p-3 space-y-0.5">
               {outputLog.map((line, index) => (
                 <div
-                  key={index}
+                  key={`${index}-${line.slice(0, 16)}`}
                   className="whitespace-pre-wrap break-all hover:bg-gray-800 dark:hover:bg-gray-600 px-2 py-1 rounded transition-colors"
                 >
                   {line}

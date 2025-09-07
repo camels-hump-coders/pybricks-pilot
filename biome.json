@@ -18,6 +18,9 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
       "a11y": {
         "noLabelWithoutControl": "off",
         "useButtonType": "off",
@@ -29,7 +32,8 @@
         "useUniqueElementIds": "warn"
       },
       "suspicious": {
-        "noArrayIndexKey": "warn"
+        "noArrayIndexKey": "warn",
+        "noExplicitAny": "warn"
       }
     }
   },

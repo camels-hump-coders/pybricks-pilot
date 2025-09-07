@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
@@ -8,8 +8,7 @@ import {
   GameMatConfigSchema,
 } from "../schemas/GameMatConfig";
 import { matConfigFileSystem } from "../services/matConfigFileSystem";
-import type { ProgramStatus, TelemetryData } from "../services/pybricksHub";
-import type { RobotCommand } from "../services/robotInterface";
+// Removed unused imports
 import {
   createMatConfigAtom,
   discoverMatConfigsAtom,
@@ -18,7 +17,6 @@ import {
 import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 import {
   calculateRobotPositionWithDimensions,
-  currentScoreAtom,
   movementPreviewAtom,
   setRobotPositionAtom,
 } from "../store/atoms/gameMat";
@@ -129,24 +127,11 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const robotConnection = useJotaiRobotConnection();
   const {
     telemetryData,
-    programStatus,
     isConnected,
     programOutputLog,
     clearProgramOutputLog,
-    robotType,
-    sendDriveCommand,
-    sendTurnCommand,
-    sendStopCommand,
-    sendContinuousDriveCommand,
-    sendMotorCommand,
-    sendContinuousMotorCommand,
-    sendMotorStopCommand,
-    runProgram,
-    stopProgram,
+    // Unused in this component: motors/program controls handled elsewhere
     uploadAndRunHubMenu,
-    isUploadingProgram,
-    debugEvents,
-    resetTelemetry,
   } = robotConnection;
 
   // Get file system data for program list
@@ -183,7 +168,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   // Use Jotai for current score instead of local state
   // currentScore used inside MatControlsPanel via atom
   const [robotBuilderOpen, setRobotBuilderOpen] = useAtom(robotBuilderOpenAtom);
-  const [isLoadingConfig, setIsLoadingConfig] = useAtom(isMatConfigLoadingAtom);
+  const [_isLoadingConfig, setIsLoadingConfig] = useAtom(isMatConfigLoadingAtom);
   const setActiveRobot = useSetAtom(setActiveRobotAtom);
   const currentRobotConfig = useAtomValue(robotConfigAtom);
 

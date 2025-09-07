@@ -439,7 +439,7 @@ export function RobotBuilder({
 
   const handleAppearanceChange = (
     property: keyof RobotConfig["appearance"],
-    value: any,
+    value: string | boolean,
   ) => {
     setConfig((prev) => ({
       ...prev,
@@ -453,13 +453,16 @@ export function RobotBuilder({
   if (!isOpen) return null;
 
   return (
-    <div
+    <button
+      type="button"
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.currentTarget === e.target) onClose();
+      }}
+      aria-label="Close robot builder overlay"
     >
       <div
         className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col relative"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -1106,9 +1109,10 @@ export function RobotBuilder({
 
             <div className="space-y-2">
               {savedConfigs.map((savedConfig) => (
-                <div
+                <button
                   key={savedConfig.id}
-                  className={`p-3 rounded border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                  type="button"
+                  className={`w-full text-left p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-700 ${
                     savedConfig.id === config.id
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                       : "border-gray-300 dark:border-gray-600"
@@ -1132,7 +1136,7 @@ export function RobotBuilder({
                       Default
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
 
@@ -1147,6 +1151,6 @@ export function RobotBuilder({
           </div>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

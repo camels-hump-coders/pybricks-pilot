@@ -1,3 +1,5 @@
+import type { TelemetryData } from "../services/pybricksHub";
+
 interface MotorControlsProps {
   controlMode: "incremental" | "continuous";
   availableMotors: string[];
@@ -5,7 +7,7 @@ interface MotorControlsProps {
   setMotorSpeed: (speed: number) => void;
   motorAngle: number;
   setMotorAngle: (angle: number) => void;
-  telemetryData: any;
+  telemetryData?: TelemetryData | null;
   onSendMotorCommand: (motorName: string, angle: number, speed: number) => void;
   onStartContinuousMotor: (motorName: string, direction: "ccw" | "cw") => void;
   onStopContinuousMotor: () => void;

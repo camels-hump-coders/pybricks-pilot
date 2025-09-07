@@ -228,7 +228,6 @@ export function EnhancedCompetitionMat({
   } = useCanvasEventHandlers({
     canvasRef,
     showScoring: effectiveShowScoring,
-    scoringState,
     setScoringState,
     coordinateUtils,
     currentSplinePath,

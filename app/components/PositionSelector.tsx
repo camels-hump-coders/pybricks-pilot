@@ -65,6 +65,8 @@ export function PositionSelector({
             )}
           </div>
           <svg
+            role="img"
+            aria-label="Toggle dropdown"
             className={`w-5 h-5 text-gray-400 transform transition-transform ${
               isDropdownOpen ? "rotate-180" : "rotate-0"
             }`}
@@ -164,6 +166,8 @@ export function PositionSelector({
                 >
                   <div className="flex items-center">
                     <svg
+                      role="img"
+                      aria-label="Add position"
                       className="w-4 h-4 mr-2"
                       fill="none"
                       stroke="currentColor"
@@ -189,6 +193,8 @@ export function PositionSelector({
                   >
                     <div className="flex items-center">
                       <svg
+                        role="img"
+                        aria-label="Manage positions"
                         className="w-4 h-4 mr-2"
                         fill="none"
                         stroke="currentColor"
@@ -228,9 +234,11 @@ export function PositionSelector({
 
       {/* Click outside to close */}
       {isDropdownOpen && (
-        <div
+        <button
+          type="button"
           className="fixed inset-0 z-0"
           onClick={() => setIsDropdownOpen(false)}
+          aria-label="Close positions dropdown"
         />
       )}
     </div>

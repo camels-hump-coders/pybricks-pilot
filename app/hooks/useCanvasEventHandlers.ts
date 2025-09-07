@@ -20,11 +20,22 @@ import { useMissionPointInteractions } from "./useMissionPointInteractions";
 import { useSplineInteractions } from "./useSplineInteractions";
 import { useTelemetryInteractions } from "./useTelemetryInteractions";
 
+type ScoringState = {
+  [objectId: string]: {
+    objectives: {
+      [objectiveId: string]: {
+        completed: boolean;
+        points: number;
+        selectedChoiceId?: string;
+      };
+    };
+  };
+};
+
 interface UseCanvasEventHandlersProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   showScoring: boolean;
-  scoringState: any;
-  setScoringState: React.Dispatch<React.SetStateAction<any>>;
+  setScoringState: React.Dispatch<React.SetStateAction<ScoringState>>;
   coordinateUtils: {
     mmToCanvas: (x: number, y: number) => { x: number; y: number };
     canvasToMm: (x: number, y: number) => { x: number; y: number };
@@ -80,7 +91,6 @@ interface UseCanvasEventHandlersProps {
 export function useCanvasEventHandlers({
   canvasRef,
   showScoring,
-  scoringState,
   setScoringState,
   coordinateUtils,
   currentSplinePath,

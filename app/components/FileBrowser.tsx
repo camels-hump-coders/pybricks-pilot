@@ -70,11 +70,17 @@ function _CompactHeadingSelector({
   };
 
   return (
-    <div
+    <button
+      type="button"
       className="relative cursor-pointer bg-gray-100 dark:bg-gray-700 rounded-full border border-gray-300 dark:border-gray-600 hover:border-blue-400 transition-colors select-none"
       style={{ width: size, height: size }}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ")
+          handleClick(e as unknown as React.MouseEvent<HTMLButtonElement>);
+      }}
       title={`Robot heading: ${heading}° (click to change)`}
+      aria-label="Set robot heading"
     >
       {/* Robot direction indicator */}
       <div
@@ -93,7 +99,7 @@ function _CompactHeadingSelector({
           top: centerY - 2,
         }}
       />
-    </div>
+    </button>
   );
 }
 
