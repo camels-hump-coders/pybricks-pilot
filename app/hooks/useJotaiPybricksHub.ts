@@ -1,6 +1,7 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback } from "react";
 import { pybricksHubService } from "../services/pybricksHub";
+import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
 import { telemetryHistory } from "../services/telemetryHistory";
 import { pybricksHubCapabilitiesAtom } from "../store/atoms/pybricksHub";
 
@@ -32,6 +33,8 @@ import type { InstrumentationOptions } from "../utils/codeInstrumentation";
 // This provides cleaner separation from the generic robot interface
 
 export function useJotaiPybricksHub() {
+  // Active robot config (for speed scaling)
+  const robotConfig = useAtomValue(robotConfigAtom);
   // Connection state
   const [isConnected, setIsConnected] = useAtom(isConnectedAtom);
   const [hubInfo, setHubInfo] = useAtom(hubInfoAtom);
@@ -142,27 +145,33 @@ export function useJotaiPybricksHub() {
 
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
-    async (distance: number, speed: number) => {
+    async (distance: number, speedPercent: number) => {
+      // Map percent [0..100] to mm/s using robot capability (default 300mm/s)
+      const maxMmPerSec = robotConfig?.capabilities?.maxSpeed || 300;
+      const mmPerSec = Math.max(1, Math.round((Math.abs(speedPercent) / 100) * maxMmPerSec));
       // Send as command sequence for proper stop behavior handling
       const commands = [
         {
           action: "drive",
           distance,
-          speed,
+          speed: mmPerSec,
         },
       ];
       await pybricksHubService.sendControlCommand(JSON.stringify(commands));
     },
-    [],
+    [robotConfig],
   );
 
-  const sendTurnCommand = useCallback(async (angle: number, speed: number) => {
+  const sendTurnCommand = useCallback(async (angle: number, speedPercent: number) => {
+    // Map percent [0..100] to deg/s; default max at 360°/s
+    const maxDegPerSec = 360;
+    const degPerSec = Math.max(1, Math.round((Math.abs(speedPercent) / 100) * maxDegPerSec));
     // Send as command sequence for proper stop behavior handling
     const commands = [
       {
         action: "turn",
         angle,
-        speed,
+        speed: degPerSec,
       },
     ];
     await pybricksHubService.sendControlCommand(JSON.stringify(commands));
