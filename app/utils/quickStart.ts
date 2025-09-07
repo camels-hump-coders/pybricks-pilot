@@ -77,7 +77,7 @@ except Exception as e:
   print("[PILOT] right motor is not registered properly", e)
 
 if left is not None and right is not None:
-  db = DriveBase(left, right, ${Math.round(d.wheelDiameterMm)}, ${Math.round(d.axleTrackMm)})
+  db = DriveBase(left, right, wheel_diameter=${Math.round(d.wheelDiameterMm)}, axle_track=${Math.round(d.axleTrackMm)})
   pilot.register_drivebase(db)
 
 ${motorLines.join("\n") || "# No extra motors configured"}

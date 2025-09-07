@@ -112,7 +112,7 @@ export function ManualControls({
               <input
                 type="range"
                 min="5"
-                max="180"
+                max="360"
                 step="5"
                 value={angle}
                 onChange={(e) => setAngle(Number(e.target.value))}
