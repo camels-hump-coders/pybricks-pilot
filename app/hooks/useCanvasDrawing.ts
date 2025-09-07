@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { calculateTrajectoryProjection } from "../components/MovementPreview";
 import type { TelemetryPoint } from "../services/telemetryHistory";
 import { telemetryHistory } from "../services/telemetryHistory";
@@ -23,6 +23,7 @@ import {
   showGridOverlayAtom,
 } from "../store/atoms/gameMat";
 import { ghostRobotAtom } from "../store/atoms/ghostPosition";
+import { lowQualityModeAtom } from "../store/atoms/matUIState";
 import {
   editingMissionAtom,
   selectedMissionAtom,
@@ -47,7 +48,6 @@ import { drawRobotOrientedGrid } from "../utils/canvas/robotGridDrawing";
 import { drawSplinePath } from "../utils/canvas/splinePathDrawing";
 import { drawTelemetryPath } from "../utils/canvas/telemetryDrawing";
 import { drawPerpendicularTrajectoryProjection } from "../utils/canvas/trajectoryDrawing";
-import { lowQualityModeAtom } from "../store/atoms/matUIState";
 import type { RobotPosition } from "../utils/robotPosition";
 
 type ScoringState = {
@@ -601,7 +601,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
         data.robotConfig,
       );
     }
-  }, [matImageRef.current, canvasRef.current]);
+  }, [matImageRef.current, canvasRef.current, lowQuality]);
 
   // Event-driven draw; coalesce invalidations via RAF
   const invalidate = useCallback(() => {
@@ -627,7 +627,10 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
   }, [drawCanvas, canvasRef.current]);
 
   // Signal-driven invalidation for relevant inputs
-  useEffect(() => { invalidate(); }, [
+  // biome-ignore lint/correctness/useExhaustiveDependencies: we use this to trigger canvas redraw when things change
+  useEffect(() => {
+    invalidate();
+  }, [
     // Atom-driven inputs
     canvasSize,
     scale,

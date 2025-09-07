@@ -122,6 +122,9 @@ export function RobotBuilder({
   const [config, setConfig] = useState<RobotConfig>(
     initialConfig || DEFAULT_ROBOT_CONFIG,
   );
+  const [activeTab, setActiveTab] = useState<
+    "properties" | "drive" | "motors" | "sensors"
+  >("properties");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -324,6 +327,116 @@ export function RobotBuilder({
     }));
   };
 
+  const handleDrivebaseChange = (field: string, value: any) => {
+    setConfig((prev) => ({
+      ...prev,
+      drivebase: {
+        leftMotorPort: prev.drivebase?.leftMotorPort || "A",
+        rightMotorPort: prev.drivebase?.rightMotorPort || "B",
+        leftReversed: prev.drivebase?.leftReversed || false,
+        rightReversed: prev.drivebase?.rightReversed || false,
+        wheelDiameterMm:
+          prev.drivebase?.wheelDiameterMm || prev.wheels.left.diameter || 56,
+        axleTrackMm:
+          prev.drivebase?.axleTrackMm || prev.dimensions.width * 8 || 120,
+        [field]: value,
+      },
+    }));
+  };
+
+  const addMotor = () => {
+    setConfig((prev) => ({
+      ...prev,
+      motors: [
+        ...(prev.motors || []),
+        {
+          name: `motor${(prev.motors?.length || 0) + 1}`,
+          port: "C",
+          reversed: false,
+        },
+      ],
+    }));
+  };
+
+  const updateMotor = (index: number, field: string, value: any) => {
+    setConfig((prev) => {
+      const motors = [...(prev.motors || [])];
+      motors[index] = { ...motors[index], [field]: value } as any;
+      return { ...prev, motors } as any;
+    });
+  };
+
+  const removeMotor = (index: number) => {
+    setConfig((prev) => {
+      const motors = [...(prev.motors || [])];
+      motors.splice(index, 1);
+      return { ...prev, motors } as any;
+    });
+  };
+
+  const addSensor = () => {
+    setConfig((prev) => ({
+      ...prev,
+      sensors: [
+        ...(prev.sensors || []),
+        {
+          name: `sensor${(prev.sensors?.length || 0) + 1}`,
+          type: "color",
+          port: "D",
+        },
+      ],
+    }));
+  };
+
+  const updateSensor = (index: number, field: string, value: any) => {
+    setConfig((prev) => {
+      const sensors = [...(prev.sensors || [])];
+      sensors[index] = { ...sensors[index], [field]: value } as any;
+      return { ...prev, sensors } as any;
+    });
+  };
+
+  const removeSensor = (index: number) => {
+    setConfig((prev) => {
+      const sensors = [...(prev.sensors || [])];
+      sensors.splice(index, 1);
+      return { ...prev, sensors } as any;
+    });
+  };
+
+  // PORT VALIDATION HELPERS
+  function buildPortUsage() {
+    const usage: Record<string, string[]> = {};
+    const push = (port?: string, label?: string) => {
+      if (!port || !label) return;
+      usage[port] = usage[port] || [];
+      usage[port].push(label);
+    };
+
+    // Drivebase motors
+    push(config.drivebase?.leftMotorPort, "Drive Left Motor");
+    push(config.drivebase?.rightMotorPort, "Drive Right Motor");
+
+    // Additional motors
+    (config.motors || []).forEach((m, i) => {
+      push(m.port as any, m.name || `Motor ${i + 1}`);
+    });
+
+    // Sensors
+    (config.sensors || []).forEach((s, i) => {
+      push(s.port as any, s.name || `Sensor ${i + 1}`);
+    });
+
+    return usage;
+  }
+
+  const portUsage = buildPortUsage();
+  const duplicatePorts = Object.keys(portUsage).filter(
+    (p) => (portUsage[p] || []).length > 1,
+  );
+  const isPortDuplicate = (port?: string) =>
+    !!port && duplicatePorts.includes(port);
+
   const handleAppearanceChange = (
     property: keyof RobotConfig["appearance"],
     value: any,
@@ -392,6 +505,56 @@ export function RobotBuilder({
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="px-4 pt-2">
+          <div className="inline-flex gap-1 rounded-md border border-gray-200 dark:border-gray-700 p-1 bg-gray-50 dark:bg-gray-800">
+            <button
+              type="button"
+              onClick={() => setActiveTab("properties")}
+              className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+                activeTab === "properties"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+                  : "text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-700/60"
+              }`}
+            >
+              Robot Properties
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("drive")}
+              className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+                activeTab === "drive"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+                  : "text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-700/60"
+              }`}
+            >
+              Drivebase & Ports
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("motors")}
+              className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+                activeTab === "motors"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+                  : "text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-700/60"
+              }`}
+            >
+              Motors
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("sensors")}
+              className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors ${
+                activeTab === "sensors"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+                  : "text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-700/60"
+              }`}
+            >
+              Sensors
+            </button>
+          </div>
+        </div>
+
         {/* Warning if no directory is mounted */}
         {!hasDirectoryAccess && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-4 py-2">
@@ -414,187 +577,525 @@ export function RobotBuilder({
         )}
 
         <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
-          {/* Left Panel - Robot Properties */}
-          <div className="w-full lg:w-80 border-r border-gray-200 dark:border-gray-700 p-4 space-y-6 overflow-y-auto max-h-96 lg:max-h-none">
-            {/* Robot Properties */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
-                Robot Properties
-              </h3>
+          {/* Left Panel - Tab content */}
+          {activeTab === "properties" && (
+            <div className="w-full lg:w-96 border-r border-gray-200 dark:border-gray-700 p-4 space-y-6 overflow-y-auto max-h-96 lg:max-h-none">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+                  Robot Properties
+                </h3>
 
-              {/* Robot Name */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Robot Name
-                </label>
-                <input
-                  type="text"
-                  value={config.name}
-                  onChange={(e) =>
-                    setConfig((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  placeholder="Enter robot name"
-                  disabled={config.isDefault}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
-                />
-                {config.isDefault && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Default robot cannot be renamed. Use Duplicate to create a
-                    custom robot.
+                {/* Robot Name */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Robot Name
+                  </label>
+                  <input
+                    type="text"
+                    value={config.name}
+                    onChange={(e) =>
+                      setConfig((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    placeholder="Enter robot name"
+                    disabled={config.isDefault}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                  />
+                  {config.isDefault && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Default robot cannot be renamed. Use Duplicate to create a
+                      custom robot.
+                    </div>
+                  )}
+                </div>
+
+                {/* Dimensions */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Width (studs)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={config.dimensions.width}
+                      onChange={(e) =>
+                        handleDimensionChange(
+                          "width",
+                          parseInt(e.target.value, 10),
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    <div className="text-xs text-gray-500">
+                      {studsToMm(config.dimensions.width)}mm (
+                      {config.dimensions.width} studs)
+                    </div>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Length (studs)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={config.dimensions.length}
+                      onChange={(e) =>
+                        handleDimensionChange(
+                          "length",
+                          parseInt(e.target.value, 10),
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    <div className="text-xs text-gray-500">
+                      {studsToMm(config.dimensions.length)}mm (
+                      {config.dimensions.length} studs)
+                    </div>
+                  </div>
+                </div>
 
-              {/* Dimensions */}
+                {/* Wheel Positions */}
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Wheel Positions (studs from robot edges)
+                  </h4>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400">
+                        Wheel Distance from Left/Right Edge
+                      </label>
+                      <input
+                        type="number"
+                        value={config.wheels.left.distanceFromEdge}
+                        onChange={(e) =>
+                          handleWheelChange(
+                            "distanceFromEdge",
+                            parseFloat(e.target.value),
+                          )
+                        }
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        {config.wheels.left.distanceFromEdge} studs from
+                        left/right edge
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400">
+                        Wheel Distance from Top Edge
+                      </label>
+                      <input
+                        type="number"
+                        value={config.wheels.left.distanceFromTop}
+                        onChange={(e) =>
+                          handleWheelChange(
+                            "distanceFromTop",
+                            parseFloat(e.target.value),
+                          )
+                        }
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        {config.wheels.left.distanceFromTop} studs from top edge
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Appearance */}
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Appearance
+                  </h4>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400">
+                        Primary Color
+                      </label>
+                      <input
+                        type="color"
+                        value={config.appearance.primaryColor}
+                        onChange={(e) =>
+                          handleAppearanceChange("primaryColor", e.target.value)
+                        }
+                        className="w-full h-8 rounded border border-gray-300 dark:border-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400">
+                        Wheel Color
+                      </label>
+                      <input
+                        type="color"
+                        value={config.appearance.wheelColor}
+                        onChange={(e) =>
+                          handleAppearanceChange("wheelColor", e.target.value)
+                        }
+                        className="w-full h-8 rounded border border-gray-300 dark:border-gray-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "drive" && (
+            <div className="w-full lg:w-96 border-r border-gray-200 dark:border-gray-700 p-4 space-y-6 overflow-y-auto max-h-96 lg:max-h-none">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Drivebase & Ports
+              </h4>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Width (studs)
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Left Motor Port
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={config.dimensions.width}
+                  <select
+                    value={config.drivebase?.leftMotorPort || "A"}
                     onChange={(e) =>
-                      handleDimensionChange(
-                        "width",
-                        parseInt(e.target.value, 10),
+                      handleDrivebaseChange(
+                        "leftMotorPort",
+                        e.target.value as any,
                       )
                     }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  <div className="text-xs text-gray-500">
-                    {studsToMm(config.dimensions.width)}mm (
-                    {config.dimensions.width} studs)
-                  </div>
+                  >
+                    {["A", "B", "C", "D", "E", "F"].map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                  {isPortDuplicate(config.drivebase?.leftMotorPort) && (
+                    <div className="mt-1 text-xs text-red-600">
+                      Port {config.drivebase?.leftMotorPort} is assigned to
+                      multiple devices:{" "}
+                      {portUsage[config.drivebase?.leftMotorPort || ""]?.join(
+                        ", ",
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Length (studs)
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Right Motor Port
+                  </label>
+                  <select
+                    value={config.drivebase?.rightMotorPort || "B"}
+                    onChange={(e) =>
+                      handleDrivebaseChange(
+                        "rightMotorPort",
+                        e.target.value as any,
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    {["A", "B", "C", "D", "E", "F"].map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                  {isPortDuplicate(config.drivebase?.rightMotorPort) && (
+                    <div className="mt-1 text-xs text-red-600">
+                      Port {config.drivebase?.rightMotorPort} is assigned to
+                      multiple devices:{" "}
+                      {portUsage[config.drivebase?.rightMotorPort || ""]?.join(
+                        ", ",
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={!!config.drivebase?.leftReversed}
+                      onChange={(e) =>
+                        handleDrivebaseChange("leftReversed", e.target.checked)
+                      }
+                      className="h-4 w-4"
+                    />
+                    Left Reversed
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={!!config.drivebase?.rightReversed}
+                      onChange={(e) =>
+                        handleDrivebaseChange("rightReversed", e.target.checked)
+                      }
+                      className="h-4 w-4"
+                    />
+                    Right Reversed
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Wheel Diameter (mm)
+                    <span className="ml-2 text-gray-500 dark:text-gray-400 align-middle cursor-help group relative">
+                      ℹ️
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2 py-1 whitespace-nowrap z-10">
+                        Affects distance accuracy (DriveBase). Use your wheel's
+                        actual diameter in mm.
+                      </span>
+                    </span>
                   </label>
                   <input
                     type="number"
-                    min="1"
-                    max="50"
-                    value={config.dimensions.length}
+                    value={Math.round(
+                      config.drivebase?.wheelDiameterMm ||
+                        config.wheels.left.diameter,
+                    )}
                     onChange={(e) =>
-                      handleDimensionChange(
-                        "length",
-                        parseInt(e.target.value, 10),
+                      handleDrivebaseChange(
+                        "wheelDiameterMm",
+                        parseFloat(e.target.value),
                       )
                     }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
-                  <div className="text-xs text-gray-500">
-                    {studsToMm(config.dimensions.length)}mm (
-                    {config.dimensions.length} studs)
-                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Axle Track (mm)
+                    <span className="ml-2 text-gray-500 dark:text-gray-400 align-middle cursor-help group relative">
+                      ℹ️
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 hidden group-hover:block bg-gray-900 text-white text-[11px] rounded px-2 py-1 whitespace-nowrap z-10">
+                        Distance between left/right wheel centers. Affects turn
+                        accuracy.
+                      </span>
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    value={Math.round(
+                      config.drivebase?.axleTrackMm ||
+                        config.dimensions.width * 8,
+                    )}
+                    onChange={(e) =>
+                      handleDrivebaseChange(
+                        "axleTrackMm",
+                        parseFloat(e.target.value),
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
                 </div>
               </div>
-
-              {/* Wheel Positions */}
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Wheel Positions (studs from robot edges)
-                </h4>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400">
-                      Wheel Distance from Left/Right Edge
-                    </label>
-                    <input
-                      type="number"
-                      value={config.wheels.left.distanceFromEdge}
-                      onChange={(e) =>
-                        handleWheelChange(
-                          "distanceFromEdge",
-                          parseFloat(e.target.value),
-                        )
-                      }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">
-                      {config.wheels.left.distanceFromEdge} studs from
-                      left/right edge
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400">
-                      Wheel Distance from Top Edge
-                    </label>
-                    <input
-                      type="number"
-                      value={config.wheels.left.distanceFromTop}
-                      onChange={(e) =>
-                        handleWheelChange(
-                          "distanceFromTop",
-                          parseFloat(e.target.value),
-                        )
-                      }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">
-                      {config.wheels.left.distanceFromTop} studs from top edge
-                    </div>
-                  </div>
+              {duplicatePorts.length > 0 && (
+                <div className="mt-3 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-xs text-red-700 dark:text-red-300">
+                  Port conflict: {duplicatePorts.join(", ")} are assigned to
+                  multiple devices. Change ports to avoid conflicts.
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "motors" && (
+            <div className="w-full lg:w-96 border-r border-gray-200 dark:border-gray-700 p-4 space-y-6 overflow-y-auto max-h-96 lg:max-h-none">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Additional Motors
+                </h4>
+                <button
+                  onClick={addMotor}
+                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  + Add
+                </button>
               </div>
-
-              {/* Appearance */}
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Appearance
-                </h4>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400">
-                      Primary Color
-                    </label>
-                    <input
-                      type="color"
-                      value={config.appearance.primaryColor}
-                      onChange={(e) =>
-                        handleAppearanceChange("primaryColor", e.target.value)
-                      }
-                      className="w-full h-8 rounded border border-gray-300 dark:border-gray-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 dark:text-gray-400">
-                      Wheel Color
-                    </label>
-                    <input
-                      type="color"
-                      value={config.appearance.wheelColor}
-                      onChange={(e) =>
-                        handleAppearanceChange("wheelColor", e.target.value)
-                      }
-                      className="w-full h-8 rounded border border-gray-300 dark:border-gray-600"
-                    />
-                  </div>
+              {(config.motors || []).length === 0 && (
+                <div className="text-xs text-gray-500">
+                  No additional motors configured.
                 </div>
+              )}
+              <div className="mt-2 space-y-2">
+                {(config.motors || []).map((m, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Name
+                        </label>
+                        <input
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          value={m.name}
+                          onChange={(e) =>
+                            updateMotor(idx, "name", e.target.value)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Port
+                        </label>
+                        <select
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          value={m.port}
+                          onChange={(e) =>
+                            updateMotor(idx, "port", e.target.value)
+                          }
+                        >
+                          {["A", "B", "C", "D", "E", "F"].map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </select>
+                        {isPortDuplicate(m.port as any) && (
+                          <div className="mt-1 text-[11px] text-red-600">
+                            Port {m.port} is used by multiple devices.
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-end">
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <input
+                            type="checkbox"
+                            checked={!!m.reversed}
+                            onChange={(e) =>
+                              updateMotor(idx, "reversed", e.target.checked)
+                            }
+                            className="h-4 w-4"
+                          />
+                          Reversed
+                        </label>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-right">
+                      <button
+                        onClick={() => removeMotor(idx)}
+                        className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Center Panel - Robot Preview */}
+          {activeTab === "sensors" && (
+            <div className="w-full lg:w-96 border-r border-gray-200 dark:border-gray-700 p-4 space-y-6 overflow-y-auto max-h-96 lg:max-h-none">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Sensors
+                </h4>
+                <button
+                  onClick={addSensor}
+                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  + Add
+                </button>
+              </div>
+              {(config.sensors || []).length === 0 && (
+                <div className="text-xs text-gray-500">
+                  No sensors configured.
+                </div>
+              )}
+              <div className="mt-2 space-y-2">
+                {(config.sensors || []).map((s, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Name
+                        </label>
+                        <input
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          value={s.name}
+                          onChange={(e) =>
+                            updateSensor(idx, "name", e.target.value)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Type
+                        </label>
+                        <select
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          value={s.type}
+                          onChange={(e) =>
+                            updateSensor(idx, "type", e.target.value)
+                          }
+                        >
+                          <option value="color">Color</option>
+                          <option value="ultrasonic">Ultrasonic</option>
+                          <option value="force">Force</option>
+                          <option value="gyro">Gyro</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Port
+                        </label>
+                        <select
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          value={s.port}
+                          onChange={(e) =>
+                            updateSensor(idx, "port", e.target.value)
+                          }
+                        >
+                          {["A", "B", "C", "D", "E", "F"].map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </select>
+                        {isPortDuplicate(s.port as any) && (
+                          <div className="mt-1 text-[11px] text-red-600">
+                            Port {s.port} is used by multiple devices.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 text-right">
+                      <button
+                        onClick={() => removeSensor(idx)}
+                        className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Center Panel - Robot Preview (only for Robot Properties tab) */}
           <div className="flex-1 p-4 flex flex-col min-h-0">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                {config.name}
-              </h3>
-              <div className="text-sm text-gray-500">
-                {studsToMm(config.dimensions.width)}mm ×{" "}
-                {studsToMm(config.dimensions.length)}mm
-                <br />
-                <span className="text-xs">
-                  ({config.dimensions.width} × {config.dimensions.length} studs)
-                </span>
-              </div>
-            </div>
-
-            <RobotPreview config={config} />
+            {activeTab === "properties" && (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    {config.name}
+                  </h3>
+                  <div className="text-sm text-gray-500">
+                    {studsToMm(config.dimensions.width)}mm ×{" "}
+                    {studsToMm(config.dimensions.length)}mm
+                    <br />
+                    <span className="text-xs">
+                      ({config.dimensions.width} × {config.dimensions.length}{" "}
+                      studs)
+                    </span>
+                  </div>
+                </div>
+                <RobotPreview config={config} />
+              </>
+            )}
           </div>
 
           {/* Right Panel - Saved Configurations */}

@@ -1,13 +1,12 @@
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
+import { useNotifications } from "../hooks/useNotifications";
 import { useUploadProgress } from "../hooks/useUploadProgress";
+import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import type { PythonFile } from "../types/fileSystem";
 import { HubMenuInterface } from "./HubMenuInterface";
-import { useNotifications } from "../hooks/useNotifications";
-import { useSetAtom } from "jotai";
-import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 
 interface ProgramControlsProps {
   onStopProgram?: () => Promise<void>;

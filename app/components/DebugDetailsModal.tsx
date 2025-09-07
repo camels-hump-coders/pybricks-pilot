@@ -43,7 +43,10 @@ export function DebugDetailsModal() {
                 <div className="text-gray-500">No debug events</div>
               ) : (
                 lastEvents.map((e, idx) => (
-                  <div key={idx} className="p-2 rounded bg-gray-50 dark:bg-gray-700/50">
+                  <div
+                    key={idx}
+                    className="p-2 rounded bg-gray-50 dark:bg-gray-700/50"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="font-medium">[{e.type}]</span>
                       <span className="text-[11px] text-gray-500">
@@ -100,4 +103,3 @@ export function DebugDetailsModal() {
     </div>
   );
 }
-

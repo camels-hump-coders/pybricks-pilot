@@ -164,8 +164,10 @@ class TelemetryHistoryService {
     const currentPoints = this.currentPath?.points.length || 0;
     const baseDist = 5;
     const baseHeading = 2;
-    const distThreshold = currentPoints > 10000 ? 12 : currentPoints > 5000 ? 8 : baseDist;
-    const headingThreshold = currentPoints > 10000 ? 6 : currentPoints > 5000 ? 4 : baseHeading;
+    const distThreshold =
+      currentPoints > 10000 ? 12 : currentPoints > 5000 ? 8 : baseDist;
+    const headingThreshold =
+      currentPoints > 10000 ? 6 : currentPoints > 5000 ? 4 : baseHeading;
 
     // Only add point if position has changed significantly
     const distChange = Math.sqrt(

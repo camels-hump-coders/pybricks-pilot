@@ -44,8 +44,8 @@ export interface RobotConfig {
 
   // Drivebase + I/O mapping
   drivebase?: {
-    leftMotorPort: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
-    rightMotorPort: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+    leftMotorPort: "A" | "B" | "C" | "D" | "E" | "F";
+    rightMotorPort: "A" | "B" | "C" | "D" | "E" | "F";
     leftReversed?: boolean;
     rightReversed?: boolean;
     wheelDiameterMm: number; // explicit control for Pybricks DriveBase
@@ -54,14 +54,14 @@ export interface RobotConfig {
 
   motors?: Array<{
     name: string;
-    port: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+    port: "A" | "B" | "C" | "D" | "E" | "F";
     reversed?: boolean;
   }>;
 
   sensors?: Array<{
     name: string;
-    type: 'color' | 'ultrasonic' | 'force' | 'gyro' | 'other';
-    port: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+    type: "color" | "ultrasonic" | "force" | "gyro" | "other";
+    port: "A" | "B" | "C" | "D" | "E" | "F";
   }>;
 
   // Metadata
@@ -150,15 +150,16 @@ export const DEFAULT_ROBOT_CONFIG: RobotConfig = {
   },
 
   drivebase: {
-    leftMotorPort: 'A',
-    rightMotorPort: 'B',
+    leftMotorPort: "A",
+    rightMotorPort: "B",
     leftReversed: false,
     rightReversed: false,
     wheelDiameterMm: 56,
-    axleTrackMm: studsToMm( 
-      // compute from wheel x positions (distance between left and right wheel centers)
-      Math.abs(((2) + ((22 - 2))) - 2 * 11) // placeholder, overridden at runtime if needed
-    ) || 120,
+    axleTrackMm:
+      studsToMm(
+        // compute from wheel x positions (distance between left and right wheel centers)
+        Math.abs(2 + (22 - 2) - 2 * 11), // placeholder, overridden at runtime if needed
+      ) || 120,
   },
 
   motors: [],

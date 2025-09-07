@@ -170,7 +170,13 @@ export function useCanvasEventHandlers({
       }
       invalidate?.();
     },
-    [canvasRef, controlMode, coordinateUtils, missionPointInteractions, invalidate],
+    [
+      canvasRef,
+      controlMode,
+      coordinateUtils,
+      missionPointInteractions,
+      invalidate,
+    ],
   );
 
   const handleCanvasClick = useCallback(
@@ -246,75 +252,75 @@ export function useCanvasEventHandlers({
     rafPendingRef.current = false;
     if (!event) return;
 
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-      const rect = canvas.getBoundingClientRect();
-      // Account for canvas scaling: convert display coordinates to actual canvas coordinates
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const canvasX = (event.clientX - rect.left) * scaleX;
-      const canvasY = (event.clientY - rect.top) * scaleY;
+    const rect = canvas.getBoundingClientRect();
+    // Account for canvas scaling: convert display coordinates to actual canvas coordinates
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (event.clientX - rect.left) * scaleX;
+    const canvasY = (event.clientY - rect.top) * scaleY;
 
-      // Update mouse position for mission point placement preview
-      // Convert canvas coordinates to mat coordinates (mm)
-      const matPosition = coordinateUtils.canvasToMm(canvasX, canvasY);
-      setMousePosition({
-        x: matPosition.x,
-        y: matPosition.y,
-        heading: 0, // Default heading, not used for mouse position
-      });
+    // Update mouse position for mission point placement preview
+    // Convert canvas coordinates to mat coordinates (mm)
+    const matPosition = coordinateUtils.canvasToMm(canvasX, canvasY);
+    setMousePosition({
+      x: matPosition.x,
+      y: matPosition.y,
+      heading: 0, // Default heading, not used for mouse position
+    });
 
-      // Handle mission point interactions in mission mode
-      if (controlMode === "mission") {
-        missionPointInteractions.handleMissionMouseMove(
-          canvasX,
-          canvasY,
-          coordinateUtils,
-          canvasRef,
-        );
-      }
-
-      // Handle spline interactions
-      splineInteractions.handleSplineMouseMove(
+    // Handle mission point interactions in mission mode
+    if (controlMode === "mission") {
+      missionPointInteractions.handleMissionMouseMove(
         canvasX,
         canvasY,
-        isDraggingPoint,
-        draggedPointId,
-        isDraggingControlPoint,
-        draggedControlPoint,
-        isDraggingTangencyHandle,
-        draggedTangencyHandle,
+        coordinateUtils,
         canvasRef,
       );
+    }
 
-      // Handle telemetry interactions
-      handleTelemetryMouseMove(canvasX, canvasY, event.pageX, event.pageY);
-
-      // Check for mission hover (only in program mode)
-      if (showScoring && controlMode === "program") {
-        const hoveredObjectId = checkMissionClick(canvasX, canvasY);
-        setHoveredObject(hoveredObjectId);
-      } else {
-        setHoveredObject(null);
-      }
-  }, [
-      canvasRef,
-      coordinateUtils,
-      setMousePosition,
-      controlMode,
-      missionPointInteractions,
-      splineInteractions,
+    // Handle spline interactions
+    splineInteractions.handleSplineMouseMove(
+      canvasX,
+      canvasY,
       isDraggingPoint,
       draggedPointId,
       isDraggingControlPoint,
       draggedControlPoint,
       isDraggingTangencyHandle,
       draggedTangencyHandle,
-      handleTelemetryMouseMove,
-      showScoring,
-      checkMissionClick,
-      setHoveredObject,
+      canvasRef,
+    );
+
+    // Handle telemetry interactions
+    handleTelemetryMouseMove(canvasX, canvasY, event.pageX, event.pageY);
+
+    // Check for mission hover (only in program mode)
+    if (showScoring && controlMode === "program") {
+      const hoveredObjectId = checkMissionClick(canvasX, canvasY);
+      setHoveredObject(hoveredObjectId);
+    } else {
+      setHoveredObject(null);
+    }
+  }, [
+    canvasRef,
+    coordinateUtils,
+    setMousePosition,
+    controlMode,
+    missionPointInteractions,
+    splineInteractions,
+    isDraggingPoint,
+    draggedPointId,
+    isDraggingControlPoint,
+    draggedControlPoint,
+    isDraggingTangencyHandle,
+    draggedTangencyHandle,
+    handleTelemetryMouseMove,
+    showScoring,
+    checkMissionClick,
+    setHoveredObject,
   ]);
 
   const handleCanvasMouseMove = useCallback(

@@ -4,11 +4,11 @@ import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 import { currentScoreAtom } from "../store/atoms/gameMat";
 import {
   isMatConfigLoadingAtom,
+  lowQualityModeAtom,
   matEditorModeAtom,
   showMapSelectorAtom,
   showMatEditorAtom,
   showScoringAtom,
-  lowQualityModeAtom,
 } from "../store/atoms/matUIState";
 
 interface MatControlsPanelProps {
@@ -124,9 +124,12 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
             <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
               ⚡ Low Quality Mode
             </div>
-            <span className="relative group cursor-help text-gray-500 dark:text-gray-400" aria-label="Low Quality Mode info">
+            <span className="relative group cursor-help text-gray-500 dark:text-gray-400">
               ℹ️
-              <div role="tooltip" className="absolute right-0 mt-1 z-20 hidden group-hover:block bg-gray-900 text-white text-xs p-2 rounded shadow-lg w-64">
+              <div
+                role="tooltip"
+                className="absolute right-0 mt-1 z-20 hidden group-hover:block bg-gray-900 text-white text-xs p-2 rounded shadow-lg w-64"
+              >
                 - Skips heavy gradients and shadows
                 <br />- Samples telemetry path to ~2000 points
                 <br />- Slightly reduces stroke widths
@@ -139,7 +142,9 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
             onClick={() => {
               const next = !lowQuality;
               setLowQuality(next);
-              try { localStorage.setItem("ui.lowQualityMode", String(next)); } catch {}
+              try {
+                localStorage.setItem("ui.lowQualityMode", String(next));
+              } catch {}
             }}
             className={`w-full px-3 py-2 rounded text-sm transition-colors ${
               lowQuality

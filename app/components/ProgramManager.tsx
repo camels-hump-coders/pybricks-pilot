@@ -1,14 +1,17 @@
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
 import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
+import { useNotifications } from "../hooks/useNotifications";
 import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
+import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
+import {
+  robotBuilderOpenAtom,
+  robotConfigAtom,
+} from "../store/atoms/robotConfigSimplified";
 import type { PythonFile } from "../types/fileSystem";
 import { FileBrowser } from "./FileBrowser";
-import { useNotifications } from "../hooks/useNotifications";
-import { useSetAtom } from "jotai";
-import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 
 interface ProgramManagerProps {
   // Directory and file management
@@ -65,6 +68,8 @@ export function ProgramManager({
   const { uploadProgress } = useUploadProgress(debugEvents);
   const { showError, addNotification } = useNotifications();
   const openDetails = useSetAtom(showDebugDetailsAtom);
+  const openRobotBuilder = useSetAtom(robotBuilderOpenAtom);
+  const currentRobotConfig = useAtomValue(robotConfigAtom);
 
   // Get centralized program running state
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
@@ -84,6 +89,74 @@ export function ProgramManager({
   // Get robot connection for hub menu upload functionality
   const robotConnection = useJotaiRobotConnection();
   const { uploadAndRunHubMenu } = robotConnection;
+
+  const {
+    stableDirectoryHandle,
+    createFile: fsCreateFile,
+    addToPrograms: fsAddToPrograms,
+    refreshFiles: fsRefreshFiles,
+  } = useJotaiFileSystem();
+
+  function generateQuickStartCode(): string {
+    const cfg = currentRobotConfig;
+    const d = cfg.drivebase || {
+      leftMotorPort: "A",
+      rightMotorPort: "B",
+      leftReversed: false,
+      rightReversed: false,
+      wheelDiameterMm: cfg.wheels.left.diameter || 56,
+      axleTrackMm: cfg.dimensions?.width ? cfg.dimensions.width * 8 : 120,
+    };
+
+    // Build sensor instantiation code
+    const sensors = cfg.sensors || [];
+    const sensorLines: string[] = [];
+    for (const s of sensors) {
+      let cls = "ColorSensor";
+      if (s.type === "ultrasonic") cls = "UltrasonicSensor";
+      else if (s.type === "force") cls = "ForceSensor";
+      else if (s.type === "gyro") cls = "GyroSensor";
+      sensorLines.push(
+        `    try:\n        ${s.name} = ${cls}(Port.${s.port})\n        pilot.register_sensor("${s.name}", ${s.name})\n    except Exception as e:\n        print("[PILOT] Failed to init ${s.type} sensor on ${s.port}:", e)`,
+      );
+    }
+
+    // Additional motors
+    const extraMotors = cfg.motors || [];
+    const motorLines: string[] = [];
+    for (const m of extraMotors) {
+      motorLines.push(
+        `    try:\n        ${m.name} = Motor(Port.${m.port})\n        pilot.register_motor("${m.name}", ${m.name})\n    except Exception as e:\n        print("[PILOT] Failed to init motor ${m.name} on ${m.port}:", e)`,
+      );
+    }
+
+    return `# Auto-generated Quick Start program by PyBricks Pilot\n\nfrom pybricks.hubs import PrimeHub\nfrom pybricks.parameters import Port, Direction\nfrom pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor, GyroSensor\nfrom pybricks.robotics import DriveBase\nfrom pybricks.tools import wait, run_task\n\nimport pybrickspilot as pilot\n\nasync def main():\n    hub = PrimeHub()\n    pilot.register_hub(hub)\n\n    # Drivebase motors\n    left = Motor(Port.${d.leftMotorPort}${d.leftReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    right = Motor(Port.${d.rightMotorPort}${d.rightReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    db = DriveBase(left, right, ${Math.round(d.wheelDiameterMm)}, ${Math.round(d.axleTrackMm)})\n    pilot.register_drivebase(db)\n    pilot.register_motor("left", left)\n    pilot.register_motor("right", right)\n\n${motorLines.join("\n") || "    # No extra motors configured"}\n\n${sensorLines.join("\n") || "    # No sensors configured"}\n\n    # Main loop: telemetry + command processing\n    while True:\n        await pilot.send_telemetry()\n        await pilot.process_commands()\n        await wait(100)\n`;
+  }
+
+  const handleGenerateQuickStartProgram = async () => {
+    if (!hasDirectoryAccess || !stableDirectoryHandle) {
+      showError(
+        "Directory Not Mounted",
+        "Please mount a directory to save the starter program.",
+      );
+      return;
+    }
+    try {
+      const fileName = "001_quickstart.py";
+      const code = generateQuickStartCode();
+      await fsCreateFile(stableDirectoryHandle, fileName, code);
+      await fsAddToPrograms(fileName);
+      await fsRefreshFiles();
+      addNotification({
+        type: "success",
+        title: "Starter Program Created",
+        message: `Created ${fileName} from current robot configuration`,
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      showError("Failed to Create Program", msg);
+    }
+  };
 
   const handleUploadAndRun = async () => {
     // allPrograms already contains numbered programs with programNumber
@@ -257,6 +330,46 @@ export function ProgramManager({
                   : `${programCount} program${programCount !== 1 ? "s" : ""} configured for hub menu`}
               </span>
             </div>
+            {programCount === 0 && (
+              <div className="mt-3 p-3 rounded bg-white/70 dark:bg-gray-800/40 border border-orange-200 dark:border-orange-800">
+                <div className="text-sm font-medium mb-2 text-gray-800 dark:text-gray-200">
+                  Quick Start: Get Your Robot Moving
+                </div>
+                <ol className="list-decimal ml-4 text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  <li>
+                    Configure your robot's motors, sensors, and drivebase.
+                  </li>
+                  <li>Generate a starter program tailored to your robot.</li>
+                  <li>Upload & run the program menu on your hub.</li>
+                </ol>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <button
+                    onClick={() => openRobotBuilder(true)}
+                    className="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                  >
+                    🧱 Configure Robot
+                  </button>
+                  <button
+                    onClick={handleGenerateQuickStartProgram}
+                    disabled={!hasDirectoryAccess}
+                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    ✨ Generate Starter Program
+                  </button>
+                  <button
+                    onClick={handleUploadAndRun}
+                    disabled={!isConnected}
+                    className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                  >
+                    🚀 Upload & Run
+                  </button>
+                </div>
+                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                  The generated program uses your configured ports and drivebase
+                  settings, and includes telemetry & remote control support.
+                </div>
+              </div>
+            )}
           </div>
         )}
 

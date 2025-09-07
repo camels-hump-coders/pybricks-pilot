@@ -17,6 +17,7 @@ function HighlightedPython({ code }: { code: string }) {
     <pre className="p-3 text-xs overflow-x-auto font-mono">
       <code
         className="hljs language-python"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: we need to for our pseudocode highlighting
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </pre>
