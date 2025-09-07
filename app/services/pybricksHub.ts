@@ -373,10 +373,12 @@ class PybricksHubService extends EventTarget {
       isDirectory: false,
     };
 
+    const isCalibration = name.toLowerCase().includes("calibrate");
     const compilationResult = await multiModuleCompiler.compileMultiModule(
       selectedFile,
       content,
       availableFiles,
+      { keepBackground: !isCalibration },
     );
 
     if (!compilationResult.success || !compilationResult.multiFileBlob) {

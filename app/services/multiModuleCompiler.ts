@@ -105,7 +105,39 @@ except Exception as e:
 /**
  * Generates the __main__ module that imports and orchestrates the other modules
  */
-function generateMainModule(userModuleName: string): string {
+function generateMainModule(
+  userModuleName: string,
+  options?: { keepBackground?: boolean },
+): string {
+  const keepBackground = options?.keepBackground !== false; // default true
+  if (!keepBackground) {
+    return `"""
+Auto-generated __main__ module for PybricksPilot ad-hoc program
+Runs the user's main and exits (no persistent background telemetry)
+"""
+
+from pybricks.tools import run_task
+
+# Import the user's main function (robust)
+async def _noop_main():
+    pass
+
+try:
+    from ${userModuleName} import run as main
+except ImportError as e1:
+    try:
+        from ${userModuleName} import main
+    except ImportError as e2:
+        print(f"[PILOT] Error: Could not import main function from ${userModuleName}")
+        print(f"[PILOT] Expected 'async def main()' or 'async def run()' in module")
+        print(f"[PILOT] Import errors: run: {e1} | main: {e2}")
+        main = _noop_main
+
+print("[PILOT] Starting ad-hoc program (no background)")
+run_task(main())
+`;
+  }
+
   return `"""
 Auto-generated __main__ module for PybricksPilot multi-module system
 This module imports and orchestrates the execution of user code and telemetry
@@ -235,6 +267,7 @@ class MultiModuleCompiler extends EventTarget {
     selectedFile: PythonFile,
     fileContent: string,
     availableFiles: PythonFile[],
+    options?: { keepBackground?: boolean },
   ): Promise<MultiModuleCompilationResult> {
     try {
       const modules: string[] = [];
@@ -290,7 +323,10 @@ class MultiModuleCompiler extends EventTarget {
       // Always include __main__ last
       compilationTasks.push(
         mpyCrossCompiler
-          .compileToBytecode("__main__.py", generateMainModule(userModuleName))
+          .compileToBytecode(
+            "__main__.py",
+            generateMainModule(userModuleName, { keepBackground: options?.keepBackground }),
+          )
           .then((result) => ({ name: "__main__", result })),
       );
 
