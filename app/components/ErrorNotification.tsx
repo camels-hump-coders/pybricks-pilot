@@ -7,6 +7,8 @@ export interface NotificationProps {
   message: string;
   duration?: number;
   onClose?: (id: string) => void;
+  primaryActionLabel?: string;
+  onPrimaryAction?: () => void;
 }
 
 function Notification({
@@ -16,6 +18,8 @@ function Notification({
   message,
   duration = 5000,
   onClose,
+  primaryActionLabel,
+  onPrimaryAction,
 }: NotificationProps) {
   const [isVisible, setIsVisible] = useState(true);
 
@@ -74,6 +78,14 @@ function Notification({
           <div>
             <h4 className="font-medium">{title}</h4>
             <p className="text-sm mt-1">{message}</p>
+            {primaryActionLabel && onPrimaryAction && (
+              <button
+                onClick={() => onPrimaryAction()}
+                className="mt-2 text-xs font-medium underline text-blue-700 hover:text-blue-900"
+              >
+                {primaryActionLabel}
+              </button>
+            )}
           </div>
         </div>
         <button

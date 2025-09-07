@@ -21,6 +21,8 @@ export const matEditorModeAtom = atom<"edit" | "new">("edit");
 export const isMatConfigLoadingAtom = atom<boolean>(true);
 // Performance
 export const lowQualityModeAtom = atom<boolean>(false);
+// Debug details modal
+export const showDebugDetailsAtom = atom<boolean>(false);
 
 // Initialize/persist Low Quality mode in localStorage
 const LOW_QUALITY_STORAGE_KEY = "ui.lowQualityMode";

@@ -6,6 +6,8 @@ import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import type { PythonFile } from "../types/fileSystem";
 import { HubMenuInterface } from "./HubMenuInterface";
 import { useNotifications } from "../hooks/useNotifications";
+import { useSetAtom } from "jotai";
+import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 
 interface ProgramControlsProps {
   onStopProgram?: () => Promise<void>;
@@ -27,7 +29,8 @@ export function ProgramControls({
   // Upload progress (for UI display)
   const { uploadProgress } = useUploadProgress();
   const { robotType } = useJotaiRobotConnection();
-  const { showError } = useNotifications();
+  const { showError, addNotification } = useNotifications();
+  const openDetails = useSetAtom(showDebugDetailsAtom);
 
   if (robotType === "virtual") {
     return null;
@@ -77,11 +80,15 @@ export function ProgramControls({
                   const msg =
                     error instanceof Error ? error.message : String(error);
                   console.error("Failed to upload and run programs:", msg);
-                  showError(
-                    "Upload & Run Failed",
-                    msg || "Unknown compilation/upload error",
-                    0,
-                  );
+                  // Sticky error with action
+                  addNotification({
+                    type: "error",
+                    title: "Upload & Run Failed",
+                    message: msg || "Unknown compilation/upload error",
+                    duration: 0,
+                    primaryActionLabel: "View details",
+                    onPrimaryAction: () => openDetails(true),
+                  });
                 }
               }
             }}

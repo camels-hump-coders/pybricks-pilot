@@ -2,6 +2,7 @@ import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { DebugPanel } from "../components/DebugPanel";
 import { NotificationContainer } from "../components/ErrorNotification";
+import { DebugDetailsModal } from "../components/DebugDetailsModal";
 import { ProgramManager } from "../components/ProgramManager";
 import { RobotConnectionSelector } from "../components/RobotConnectionSelector";
 import { TelemetryDashboard } from "../components/TelemetryDashboard";
@@ -455,6 +456,7 @@ print("Hello from ${name}!")
         notifications={notifications}
         onRemove={removeNotification}
       />
+      <DebugDetailsModal />
 
       {/* Debug Panel */}
       <DebugPanel

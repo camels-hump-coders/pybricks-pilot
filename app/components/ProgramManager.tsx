@@ -7,6 +7,8 @@ import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import type { PythonFile } from "../types/fileSystem";
 import { FileBrowser } from "./FileBrowser";
 import { useNotifications } from "../hooks/useNotifications";
+import { useSetAtom } from "jotai";
+import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 
 interface ProgramManagerProps {
   // Directory and file management
@@ -61,7 +63,8 @@ export function ProgramManager({
   className = "",
 }: ProgramManagerProps) {
   const { uploadProgress } = useUploadProgress(debugEvents);
-  const { showError } = useNotifications();
+  const { showError, addNotification } = useNotifications();
+  const openDetails = useSetAtom(showDebugDetailsAtom);
 
   // Get centralized program running state
   const isProgramRunning = useAtomValue(isProgramRunningAtom);
@@ -97,7 +100,14 @@ export function ProgramManager({
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error("Failed to upload and run hub menu:", msg);
-        showError("Upload & Run Failed", msg || "Unknown error", 0);
+        addNotification({
+          type: "error",
+          title: "Upload & Run Failed",
+          message: msg || "Unknown error",
+          duration: 0,
+          primaryActionLabel: "View details",
+          onPrimaryAction: () => openDetails(true),
+        });
       }
     } else {
       showError(
