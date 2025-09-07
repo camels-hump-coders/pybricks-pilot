@@ -257,14 +257,14 @@ export function DebugPanel({ isVisible, onToggle }: DebugPanelProps) {
           </div>
         ) : (
           <div className="space-y-1">
-            {debugEvents.map((event) => {
+            {debugEvents.map((event, idx) => {
               const isExpanded = expandedEvents.has(event.timestamp);
               const hasDetails =
                 event.details && Object.keys(event.details).length > 0;
 
               return (
                 <div
-                  key={event.timestamp}
+                  key={`${event.timestamp}-${idx}`}
                   className="border border-gray-200 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <button

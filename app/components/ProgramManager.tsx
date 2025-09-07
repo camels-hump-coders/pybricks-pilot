@@ -6,10 +6,8 @@ import { useUploadProgress } from "../hooks/useUploadProgress";
 import type { DebugEvent, ProgramStatus } from "../services/pybricksHub";
 import { showDebugDetailsAtom } from "../store/atoms/matUIState";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
-import {
-  robotBuilderOpenAtom,
-  robotConfigAtom,
-} from "../store/atoms/robotConfigSimplified";
+import { robotBuilderOpenAtom, robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import { generateQuickStartCode } from "../utils/quickStart";
 import type { PythonFile } from "../types/fileSystem";
 import { FileBrowser } from "./FileBrowser";
 
@@ -99,41 +97,6 @@ export function ProgramManager({
     refreshFiles: fsRefreshFiles,
   } = useJotaiFileSystem();
 
-  function generateQuickStartCode(): string {
-    const cfg = currentRobotConfig;
-    const d = cfg.drivebase || {
-      leftMotorPort: "A",
-      rightMotorPort: "B",
-      leftReversed: false,
-      rightReversed: false,
-      wheelDiameterMm: cfg.wheels.left.diameter || 56,
-      axleTrackMm: cfg.dimensions?.width ? cfg.dimensions.width * 8 : 120,
-    };
-
-    // Build sensor instantiation code
-    const sensors = cfg.sensors || [];
-    const sensorLines: string[] = [];
-    for (const s of sensors) {
-      let cls = "ColorSensor";
-      if (s.type === "ultrasonic") cls = "UltrasonicSensor";
-      else if (s.type === "force") cls = "ForceSensor";
-      else if (s.type === "gyro") cls = "GyroSensor";
-      sensorLines.push(
-        `    try:\n        ${s.name} = ${cls}(Port.${s.port})\n        pilot.register_sensor("${s.name}", ${s.name})\n    except Exception as e:\n        print("[PILOT] Failed to init ${s.type} sensor on ${s.port}:", e)`,
-      );
-    }
-
-    // Additional motors
-    const extraMotors = cfg.motors || [];
-    const motorLines: string[] = [];
-    for (const m of extraMotors) {
-      motorLines.push(
-        `    try:\n        ${m.name} = Motor(Port.${m.port})\n        pilot.register_motor("${m.name}", ${m.name})\n    except Exception as e:\n        print("[PILOT] Failed to init motor ${m.name} on ${m.port}:", e)`,
-      );
-    }
-
-    return `# Auto-generated Quick Start program by PyBricks Pilot\n\nfrom pybricks.hubs import PrimeHub\nfrom pybricks.parameters import Port, Direction\nfrom pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSensor, GyroSensor\nfrom pybricks.robotics import DriveBase\nfrom pybricks.tools import wait\n\nimport pybrickspilot as pilot\n\ndef main():\n    hub = PrimeHub()\n    pilot.register_hub(hub)\n\n    # Drivebase motors\n    left = Motor(Port.${d.leftMotorPort}${d.leftReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    right = Motor(Port.${d.rightMotorPort}${d.rightReversed ? ", positive_direction=Direction.COUNTERCLOCKWISE" : ""})\n    db = DriveBase(left, right, ${Math.round(d.wheelDiameterMm)}, ${Math.round(d.axleTrackMm)})\n    pilot.register_drivebase(db)\n    pilot.register_motor("left", left)\n    pilot.register_motor("right", right)\n\n${motorLines.join("\n") || "    # No extra motors configured"}\n\n${sensorLines.join("\n") || "    # No sensors configured"}\n\n    # Main loop: telemetry + command processing\n    while True:\n        pilot.send_telemetry()\n        pilot.process_commands()\n        wait(100)\n\nmain()\n`;
-  }
 
   const handleGenerateQuickStartProgram = async () => {
     if (!hasDirectoryAccess || !stableDirectoryHandle) {
@@ -144,8 +107,8 @@ export function ProgramManager({
       return;
     }
     try {
-      const fileName = "001_quickstart.py";
-      const code = generateQuickStartCode();
+      const fileName = "robot.py";
+      const code = generateQuickStartCode(currentRobotConfig);
       await fsCreateFile({ name: fileName, content: code });
       await fsAddToPrograms(fileName);
       await fsRefreshFiles();

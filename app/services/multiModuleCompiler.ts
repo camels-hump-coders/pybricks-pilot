@@ -120,17 +120,22 @@ from pybricks.parameters import Button
 hub = PrimeHub()
 hub.system.set_stop_button(Button.BLUETOOTH)
 
-# Import the user's main function
+# Import the user's main function (robust: never abort command/control)
+async def _noop_main():
+    # Minimal async main that keeps yielding
+    while True:
+        await wait(1000)
+
 try:
     from ${userModuleName} import run as main
-except ImportError as e:
+except ImportError as e1:
     try:
         from ${userModuleName} import main
-    except ImportError as e:
-      print(f"[PILOT] Error: Could not import main function from ${userModuleName}")
-      print(f"[PILOT] Make sure your file has an 'async def main():' function")
-      print(f"[PILOT] Import error: {e}")
-      raise
+    except ImportError as e2:
+        print(f"[PILOT] Error: Could not import main function from ${userModuleName}")
+        print(f"[PILOT] Expected 'async def main()' or 'async def run()' in module")
+        print(f"[PILOT] Import errors: run: {e1} | main: {e2}")
+        main = _noop_main
 
 # Print startup message
 print("[PILOT] Starting PybricksPilot multi-module system")
@@ -143,13 +148,24 @@ async def main_task():
         await main()
     except Exception as e:
         print(f"[PILOT] User program error: {e}")
-        raise
+        # Do not re-raise to keep command/control alive
     finally:
         print("[PILOT] User program completed")
 
 # Run both tasks in parallel
 print("[PILOT] Starting parallel tasks")
-run_task(multitask(pilot.background_telemetry_task(), main_task()))
+try:
+    run_task(multitask(pilot.background_telemetry_task(), main_task()))
+except Exception as e:
+    # Never allow unexpected errors to terminate background telemetry
+    print(f"[PILOT] Orchestrator error: {e}")
+    # Fallback to a safe infinite telemetry loop
+    while True:
+        try:
+            # Run background telemetry cooperatively
+            await wait(1000)
+        except Exception as _:
+            pass
 `;
 }
 
