@@ -63,10 +63,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
   // Helper function to apply a named position
   const applyNamedPosition = async (position: NamedPosition) => {
     try {
-      if (onResetTelemetry) {
-        await onResetTelemetry(false);
-      }
-
+      // First set the UI position and telemetry reference locally to avoid race conditions
       const robotPosition: RobotPosition = {
         x: position.x,
         y: position.y,
@@ -74,6 +71,11 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
       };
 
       setRobotPosition(robotPosition);
+
+      // Then reset drivebase on the hub (distance/angle to 0)
+      if (onResetTelemetry) {
+        await onResetTelemetry(false);
+      }
 
       // Save as last position settings for reset functionality
       // Convert back to edge-based settings if it's a default position
@@ -159,11 +161,7 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
             type="button"
             onClick={async () => {
               try {
-                if (onResetTelemetry) {
-                  await onResetTelemetry(false);
-                }
-
-                // Reset to the last applied position, defaulting to bottom-left with 0 offset
+                // Compute and set the reset position locally first
                 const resetPosition = calculateRobotPositionFromEdges(
                   lastPositionSettings.side,
                   lastPositionSettings.fromBottom,
@@ -174,6 +172,11 @@ export function PositionControls({ onResetTelemetry }: PositionControlsProps) {
                 );
                 setRobotPosition(resetPosition);
                 setIsSettingPosition(false);
+
+                // Apply reset to the hub after position is set to avoid jumping back
+                if (onResetTelemetry) {
+                  await onResetTelemetry(false);
+                }
 
                 // Update UI to show the reset position settings
                 setEdgePositionSettings({

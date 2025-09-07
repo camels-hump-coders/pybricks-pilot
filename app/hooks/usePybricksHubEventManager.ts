@@ -108,10 +108,13 @@ export function usePybricksHubEventManager() {
       // Add debug event to the list
       setDebugEvents((prev) => [...prev, debugEvent].slice(-500)); // Keep last 500 events
 
-      // Handle position reset events
+      // Handle position reset events (make this resilient to plain text too)
       if (
         debugEvent.type === "stdout" &&
-        debugEvent.message.includes("[PILOT:POSITION_RESET]")
+        (debugEvent.message.includes("[PILOT:POSITION_RESET]") ||
+          debugEvent.message.includes(
+            "Drivebase telemetry reset - distance and angle set to 0",
+          ))
       ) {
         console.log("[PybricksHub] Position reset command received");
         // Dispatch a custom event for position reset
