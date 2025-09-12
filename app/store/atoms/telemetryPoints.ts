@@ -90,7 +90,7 @@ const clearTelemetryHistoryAtom = atom(null, (_get, set) => {
 export const pathVisualizationOptionsAtom = atom<PathVisualizationOptions>({
   showPath: true,
   showMarkers: true,
-  colorMode: "none",
+  colorMode: "speed",
   opacity: 0.8,
   strokeWidth: 3,
 });

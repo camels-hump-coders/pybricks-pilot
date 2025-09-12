@@ -166,7 +166,8 @@ export const perpendicularPreviewAtom = atom<{
 
 // Path visualization atoms
 export const showPathAtom = atom<boolean>(true);
-export const pathColorModeAtom = atom<"time" | "speed" | "heading">("time");
+// Unify Color Mode with telemetry path visualization setting
+export { colorModeAtom as pathColorModeAtom } from "./telemetryPoints";
 export const pathOpacityAtom = atom<number>(0.7);
 export const maxPathPointsAtom = atom<number>(1000);
 

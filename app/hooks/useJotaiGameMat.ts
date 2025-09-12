@@ -48,6 +48,7 @@ import {
   updateTangencyHandleAtom,
 } from "../store/atoms/gameMat";
 import { robotConfigAtom } from "../store/atoms/robotConfigSimplified";
+import type { ColorMode } from "../services/telemetryHistory";
 import type { RobotPosition } from "../utils/robotPosition";
 
 export function useJotaiGameMat() {
@@ -159,6 +160,8 @@ export function useJotaiGameMat() {
   useEffect(() => {
     robotConfigRef.current = robotConfig;
   }, [robotConfig]);
+
+  // Color Mode is unified via pathColorModeAtom (re-exported from telemetryPoints)
 
   const updateRobotPositionFromTelemetry = useCallback(
     (telemetryData: {
@@ -305,19 +308,18 @@ export function useJotaiGameMat() {
   }, [setShowPath]);
 
   const cyclePathColorMode = useCallback(() => {
-    setPathColorMode((prev) => {
-      switch (prev) {
-        case "time":
-          return "speed";
-        case "speed":
-          return "heading";
-        case "heading":
-          return "time";
-        default:
-          return "time";
-      }
-    });
-  }, [setPathColorMode]);
+    const order: ColorMode[] = [
+      "none",
+      "speed",
+      "motorLoad",
+      "distanceSensor",
+      "reflectionSensor",
+      "forceSensor",
+    ];
+    const idx = order.indexOf(pathColorMode as unknown as ColorMode);
+    const next = order[(idx + 1) % order.length];
+    setPathColorMode(next as any);
+  }, [pathColorMode, setPathColorMode]);
 
   // Spline path helper functions
   const createSplinePath = useCallback(
