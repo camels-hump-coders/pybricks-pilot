@@ -487,26 +487,6 @@ class PseudoCodeGeneratorService {
       const directionComment =
         command.direction === "backward" ? " # Backward" : "";
 
-      // Simple arc pairing heuristic: drive immediately followed by turn
-      if (
-        command.type === "drive" &&
-        typeof command.distance === "number" &&
-        next &&
-        next.type === "turn" &&
-        typeof next.angle === "number" &&
-        Math.abs(next.angle) >= 5
-      ) {
-        const distance = command.distance || 0;
-        const angleDeg = next.angle || 0;
-        const angleRad = (Math.abs(angleDeg) * Math.PI) / 180;
-        const radius = angleRad > 0 ? Math.abs(distance) / angleRad : 0;
-        const dirArrow = angleDeg >= 0 ? "↶" : "↷";
-        code += `  # arc ${dirArrow} for ${Math.abs(distance).toFixed(1)}mm at r=${radius.toFixed(1)}mm\n`;
-        code += `  await drive_arc(${radius.toFixed(1)}, ${angleDeg.toFixed(1)})${directionComment}\n`;
-        i++; // consume the turn as part of the arc
-        continue;
-      }
-
       if (command.type === "drive") {
         const distance = command.distance || 0;
         code += `  await drive_straight(${distance.toFixed(1)})${directionComment}\n`;

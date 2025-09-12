@@ -42,6 +42,9 @@ export function PseudoCodePanel({
   // Generate pseudo code when telemetry points change
   useEffect(() => {
     if (telemetryPoints.length < 2) {
+      // Clear when not enough telemetry to generate code (e.g., after Reset)
+      setGeneratedProgram(null);
+      setReadableCode("");
       return;
     }
 

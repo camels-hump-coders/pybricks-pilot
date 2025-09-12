@@ -100,24 +100,35 @@ export function useTelemetryUpdates({
         currentDistance - telemetryReferenceRef.current.distance;
       const deltaAngle = currentAngle - telemetryReferenceRef.current.angle;
 
-      // Calculate heading using delta from reference + manual adjustment
+      // Calculate headings (in radians) including manual adjustment for consistent world frame
+      const headingStartDeg = telemetryReferenceRef.current.position.heading;
+      const manualAdjDeg = manualHeadingAdjustmentRef.current || 0;
+      const heading0Rad = ((headingStartDeg + manualAdjDeg) * Math.PI) / 180;
+      const thetaRad = (deltaAngle * Math.PI) / 180; // signed sweep
+
+      // Update heading using delta + manual adjustment
       const currentHeading =
-        (telemetryReferenceRef.current.position.heading +
-          deltaAngle +
-          manualHeadingAdjustmentRef.current) %
-        360;
+        (headingStartDeg + deltaAngle + manualAdjDeg) % 360;
 
-      // Calculate movement using the current heading
-      const headingRad = (currentHeading * Math.PI) / 180;
+      // Arc-aware displacement integration
+      let dx = 0;
+      let dy = 0;
+      const EPS = 1e-6;
+      if (Math.abs(thetaRad) < EPS) {
+        // Straight-line approximation (consistent with our world frame)
+        dx = deltaDistance * Math.sin(heading0Rad);
+        dy = -deltaDistance * Math.cos(heading0Rad);
+      } else {
+        // Closed-form arc displacement for our world frame (x' = v sin h, y' = -v cos h)
+        // R = s / theta, h1 = h0 + theta
+        const R = deltaDistance / thetaRad; // signed radius (preserves direction)
+        const h1 = heading0Rad + thetaRad;
+        dx = R * (Math.cos(heading0Rad) - Math.cos(h1));
+        dy = R * (Math.sin(heading0Rad) - Math.sin(h1));
+      }
 
-      const newX =
-        telemetryReferenceRef.current.position.x +
-        deltaDistance * Math.sin(headingRad);
-      // SIMPLIFIED MODEL: Move center of rotation in heading direction
-      // heading=0° = move UP (decrease Y), heading=180° = move DOWN (increase Y)
-      const newY =
-        telemetryReferenceRef.current.position.y -
-        deltaDistance * Math.cos(headingRad);
+      const newX = telemetryReferenceRef.current.position.x + dx;
+      const newY = telemetryReferenceRef.current.position.y + dy;
 
       const newPosition: RobotPosition = {
         x: newX,
