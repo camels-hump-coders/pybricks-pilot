@@ -5,7 +5,7 @@ import { DEFAULT_ROBOT_CONFIG, studsToMm } from "../../schemas/RobotConfig";
 import type { RobotPosition } from "../../utils/robotPosition";
 
 export interface MovementPreview {
-  type: "drive" | "turn" | null;
+  type: "drive" | "turn" | "arc" | null;
   direction: "forward" | "backward" | "left" | "right" | null;
   positions: {
     primary: RobotPosition | null;
@@ -144,12 +144,14 @@ export const movementPreviewAtom = atom<MovementPreview | null>(null);
 // Perpendicular motion preview atom - for showing all 4 possible movement options
 export interface PerpendicularPreviewGhost {
   position: RobotPosition;
-  type: "drive" | "turn";
+  type: "drive" | "turn" | "arc";
   direction: "forward" | "backward" | "left" | "right";
   color: string; // CSS color for the ghost robot
   label: string; // Description for the movement
   isTrajectoryOverlay?: boolean;
   isHover?: boolean;
+  // Arc-specific: whether the arc motion is backward (affects preview computation)
+  isBackward?: boolean;
 }
 
 export const perpendicularPreviewAtom = atom<{
@@ -157,11 +159,13 @@ export const perpendicularPreviewAtom = atom<{
   ghosts: PerpendicularPreviewGhost[];
   distance: number;
   angle: number;
+  radius?: number;
 }>({
   show: false,
   ghosts: [],
   distance: 100,
   angle: 45,
+  radius: 100,
 });
 
 // Path visualization atoms

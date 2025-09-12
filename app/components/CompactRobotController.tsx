@@ -35,6 +35,7 @@ interface CompactRobotControllerProps {
   onTurnCommand?: (angle: number, speed: number) => Promise<void>;
   onStopCommand?: () => Promise<void>;
   onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
+  onArcCommand?: (radius: number, angle: number, speed: number) => Promise<void>;
   onMotorCommand?: (
     motor: string,
     angle: number,
@@ -84,9 +85,15 @@ interface CompactRobotControllerProps {
 }
 
 interface ExecutingCommand {
-  type: "drive" | "turn";
+  type: "drive" | "turn" | "arc";
   direction: "forward" | "backward" | "left" | "right";
-  originalParams: { distance?: number; angle?: number; speed: number };
+  isBackward?: boolean; // for arcs: true when traversing arc backward
+  originalParams: {
+    distance?: number;
+    angle?: number; // for turn or arc sweep
+    radius?: number; // for arc
+    speed: number;
+  };
 }
 
 export function CompactRobotController({
@@ -94,6 +101,7 @@ export function CompactRobotController({
   onTurnCommand,
   onStopCommand,
   onContinuousDriveCommand,
+  onArcCommand,
   onMotorCommand,
   onContinuousMotorCommand,
   onMotorStopCommand,
@@ -111,6 +119,7 @@ export function CompactRobotController({
   const [distance, setDistance] = useState(100);
   const [angle, setAngle] = useState(45);
   const [driveSpeed, setDriveSpeed] = useState(100);
+  const [arcRadius, setArcRadius] = useState(100);
   const [motorSpeed, setMotorSpeed] = useState(100);
   const [motorAngle, setMotorAngle] = useState(45);
   const [executingCommand, setExecutingCommand] =
@@ -259,17 +268,97 @@ export function CompactRobotController({
           });
         }
 
+        // Arc previews (all four, computed from distance as arc length and arcRadius)
+        const radius = arcRadius;
+        const sweepDeg = (distance / Math.max(1, radius)) * (180 / Math.PI);
+
+        const arcFL = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          sweepDeg,
+          "arc",
+          "left",
+          robotConfig,
+          { radius },
+        );
+        const arcFR = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          sweepDeg,
+          "arc",
+          "right",
+          robotConfig,
+          { radius },
+        );
+        const arcBL = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          sweepDeg,
+          "arc",
+          "left",
+          robotConfig,
+          { radius, isArcBackward: true },
+        );
+        const arcBR = calculatePreviewPosition(
+          currentRobotPosition,
+          distance,
+          sweepDeg,
+          "arc",
+          "right",
+          robotConfig,
+          { radius, isArcBackward: true },
+        );
+
+        if (arcFL)
+          ghosts.push({
+            position: arcFL,
+            type: "arc" as const,
+            direction: "left" as const,
+            color: "#84cc16", // lime-500 forward-left
+            label: `⤴↶ r${radius} ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+        if (arcFR)
+          ghosts.push({
+            position: arcFR,
+            type: "arc" as const,
+            direction: "right" as const,
+            color: "#3b82f6", // blue-500 forward-right
+            label: `⤴↷ r${radius} ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+        if (arcBL)
+          ghosts.push({
+            position: arcBL,
+            type: "arc" as const,
+            direction: "left" as const,
+            color: "#ec4899", // pink-500 backward-left
+            label: `⤵↶ r${radius} ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+        if (arcBR)
+          ghosts.push({
+            position: arcBR,
+            type: "arc" as const,
+            direction: "right" as const,
+            color: "#f43f5e", // rose-500 backward-right
+            label: `⤵↷ r${radius} ${distance}mm`,
+            isTrajectoryOverlay: true,
+          });
+
         return {
           show: true,
           ghosts: ghosts,
           distance: distance,
           angle: angle,
+          radius: arcRadius,
         };
       });
     }
   }, [
     distance,
     angle,
+    arcRadius,
     showTrajectoryOverlay,
     controlMode,
     currentRobotPosition,
@@ -346,6 +435,12 @@ export function CompactRobotController({
     });
   }
 
+  // Helper to compute turn rate for an arc (deg/s)
+  function computeTurnRate(speedMmPerS: number, radiusMm: number, left: boolean) {
+    const rate = (speedMmPerS / Math.max(1, radiusMm)) * (180 / Math.PI);
+    return left ? -rate : rate; // negative for left, positive for right
+  }
+
   async function sendStepDrive(distance: number, speed: number) {
     if (!isFullyConnected) {
       console.warn(
@@ -407,6 +502,72 @@ export function CompactRobotController({
     }
   }
 
+  // Step arc command (discrete)
+  async function sendStepArc(
+    forward: boolean,
+    left: boolean,
+    _sweepAngle: number,
+    speedPct: number,
+  ) {
+    if (!isFullyConnected) {
+      console.warn(
+        "Robot controls disabled: Hub not connected or control code not loaded",
+      );
+      return;
+    }
+
+    const speedMmPerS = speedPct * 10;
+    // Compute sweep from configured distance and radius
+    const sweepAngle = (distance / Math.max(1, arcRadius)) * (180 / Math.PI);
+    const base = Math.abs(sweepAngle);
+    // Map sign per backend so virtual forward left/right match previews
+    // real: +(right), -(left); virtual: +(right), -(left)
+    const angleDeg = left ? -base : +base;
+
+    try {
+      setExecutingCommand({
+        type: "arc",
+        direction: left ? "left" : "right",
+        isBackward: !forward,
+        originalParams: {
+          speed: speedPct,
+          radius: arcRadius,
+          angle: angleDeg,
+          distance: distance,
+        },
+      });
+
+      if (forward && onArcCommand) {
+        await onArcCommand(arcRadius, angleDeg, speedMmPerS);
+      } else {
+        // Emulate arc with continuous drive + timed stop
+        const signedSpeed = forward ? speedMmPerS : -speedMmPerS;
+        let turnRate = computeTurnRate(Math.abs(signedSpeed), arcRadius, left);
+        if (!forward) turnRate = -turnRate;
+        const arcLength = Math.abs(distance);
+        const durationMs = Math.max(
+          10,
+          Math.round((arcLength / Math.max(1, Math.abs(speedMmPerS))) * 1000),
+        );
+        if (_onExecuteCommandSequence) {
+          await _onExecuteCommandSequence([
+            { action: "drive_continuous", speed: signedSpeed, turn_rate: turnRate },
+            { action: "pause", duration: durationMs },
+            { action: "stop" },
+          ] as any);
+        } else {
+          await queueCommand(async () => {
+            await onContinuousDriveCommand?.(signedSpeed, turnRate);
+            await new Promise((r) => setTimeout(r, durationMs));
+            await onStopCommand?.();
+          });
+        }
+      }
+    } finally {
+      setExecutingCommand(null);
+    }
+  }
+
   function sendStop() {
     if (!isFullyConnected) {
       console.warn(
@@ -452,6 +613,19 @@ export function CompactRobotController({
     sendStopCommand();
   }
 
+  // Continuous arc controls (hold mode)
+  function startContinuousArc(forward: boolean, left: boolean) {
+    if (controlMode !== "continuous") return;
+    const speedMmPerS = (forward ? 1 : -1) * driveSpeed * 10;
+    let turnRate = computeTurnRate(Math.abs(speedMmPerS), arcRadius, left);
+    if (!forward) turnRate = -turnRate; // keep ICC on same side when moving backward
+    sendContinuousMovement(speedMmPerS, turnRate);
+  }
+
+  function stopContinuousArc() {
+    sendStopCommand();
+  }
+
   function startContinuousMotor(motorName: string, direction: "ccw" | "cw") {
     if (controlMode !== "continuous") return;
     setActiveMotor(motorName);
@@ -471,13 +645,15 @@ export function CompactRobotController({
   }
 
   function updateDualPreview(
-    type: "drive" | "turn",
+    type: "drive" | "turn" | "arc",
     overrideDistance?: number,
     overrideAngle?: number,
+    overrideRadius?: number,
   ) {
     if (onPreviewUpdate && currentRobotPosition) {
       const currentDistance = overrideDistance ?? distance;
       const currentAngle = overrideAngle ?? angle;
+      const currentRadius = overrideRadius ?? arcRadius;
 
       if (type === "drive") {
         // Show both forward and backward previews for drive
@@ -581,33 +757,97 @@ export function CompactRobotController({
           trajectoryProjection: leftTrajectory,
           secondaryTrajectoryProjection: rightTrajectory,
         });
+      } else if (type === "arc") {
+        // Show both left and right arc previews (forward arcs)
+        const sweepDeg =
+          (currentDistance / Math.max(1, currentRadius)) * (180 / Math.PI);
+        const leftArcEnd = calculatePreviewPosition(
+          currentRobotPosition,
+          currentDistance,
+          sweepDeg,
+          "arc",
+          "left",
+          robotConfig,
+          { radius: currentRadius },
+        );
+        const rightArcEnd = calculatePreviewPosition(
+          currentRobotPosition,
+          currentDistance,
+          sweepDeg,
+          "arc",
+          "right",
+          robotConfig,
+          { radius: currentRadius },
+        );
+
+        const leftTrajectory = calculateTrajectoryProjection(
+          currentRobotPosition,
+          currentDistance,
+          sweepDeg,
+          "arc",
+          "left",
+          2356,
+          1137,
+          robotConfig,
+          { radius: currentRadius },
+        );
+        const rightTrajectory = calculateTrajectoryProjection(
+          currentRobotPosition,
+          currentDistance,
+          sweepDeg,
+          "arc",
+          "right",
+          2356,
+          1137,
+          robotConfig,
+          { radius: currentRadius },
+        );
+
+        onPreviewUpdate({
+          type: "arc",
+          direction: "left",
+          positions: {
+            primary: leftArcEnd,
+            secondary: rightArcEnd,
+          },
+          trajectoryProjection: leftTrajectory,
+          secondaryTrajectoryProjection: rightTrajectory,
+        });
       }
     }
   }
 
   function updatePreview(
-    type: "drive" | "turn" | null,
+    type: "drive" | "turn" | "arc" | null,
     direction: "forward" | "backward" | "left" | "right" | null,
+    opts?: { radius?: number; isArcBackward?: boolean },
   ) {
     if (onPreviewUpdate && currentRobotPosition && type && direction) {
+      const sweepDeg =
+        type === "arc"
+          ? (distance / Math.max(1, opts?.radius ?? arcRadius)) * (180 / Math.PI)
+          : angle;
+
       const previewPosition = calculatePreviewPosition(
         currentRobotPosition,
         distance,
-        angle,
+        sweepDeg,
         type,
         direction,
         robotConfig,
+        { radius: opts?.radius ?? arcRadius, isArcBackward: opts?.isArcBackward },
       );
 
       const trajectoryProjection = calculateTrajectoryProjection(
         currentRobotPosition,
         distance,
-        angle,
+        sweepDeg,
         type,
         direction,
         2356,
         1137,
         robotConfig,
+        { radius: opts?.radius ?? arcRadius, isArcBackward: opts?.isArcBackward },
       );
 
       onPreviewUpdate({
@@ -633,15 +873,26 @@ export function CompactRobotController({
           type === "drive"
             ? direction === "forward"
               ? "#10b981"
-              : "#f97316" // green for forward, orange for backward
-            : direction === "left"
-              ? "#a855f7"
-              : "#06b6d4", // purple for left, cyan for right
+              : "#f97316"
+            : type === "turn"
+              ? direction === "left"
+                ? "#a855f7"
+                : "#06b6d4"
+              : direction === "left"
+                ? opts?.isArcBackward
+                  ? "#ec4899"
+                  : "#84cc16"
+                : opts?.isArcBackward
+                  ? "#f43f5e"
+                  : "#3b82f6",
         label:
           type === "drive"
             ? `${direction === "forward" ? "↑" : "↓"} ${distance}mm`
-            : `${direction === "left" ? "↶" : "↷"} ${angle}°`,
+            : type === "turn"
+              ? `${direction === "left" ? "↶" : "↷"} ${angle}°`
+              : `${opts?.isArcBackward ? "⤵" : "⤴"} r${opts?.radius ?? arcRadius} ${direction === "left" ? "↶" : "↷"} ${angle}°`,
         isHover: true, // Mark this as a hover ghost for bolder rendering
+        isBackward: opts?.isArcBackward,
       };
 
       // If trajectory overlay is on AND in Step mode, add the hover ghost to existing ghosts
@@ -661,6 +912,7 @@ export function CompactRobotController({
           ],
           distance: distance,
           angle: angle,
+          radius: arcRadius,
         };
         setPerpendicularPreview(newPreview);
       } else {
@@ -669,6 +921,7 @@ export function CompactRobotController({
           ghosts: [hoverGhost],
           distance: distance,
           angle: angle,
+          radius: arcRadius,
         };
         setPerpendicularPreview(newPreview);
       }
@@ -697,6 +950,7 @@ export function CompactRobotController({
           ghosts: [],
           distance: distance,
           angle: angle,
+          radius: arcRadius,
         });
       }
     }
@@ -786,6 +1040,8 @@ export function CompactRobotController({
                   setDistance={setDistance}
                   angle={angle}
                   setAngle={setAngle}
+                  arcRadius={arcRadius}
+                  setArcRadius={setArcRadius}
                   driveSpeed={driveSpeed}
                   setDriveSpeed={setDriveSpeed}
                   executingCommand={executingCommand}
@@ -793,10 +1049,15 @@ export function CompactRobotController({
                   onUpdateDualPreview={updateDualPreview}
                   onSendStepDrive={sendStepDrive}
                   onSendStepTurn={sendStepTurn}
+                  onSendStepArc={(forward, left, sweep, speed) =>
+                    sendStepArc(forward, left, sweep, speed)
+                  }
                   onStartContinuousDrive={startContinuousDrive}
                   onStopContinuousDrive={stopContinuousDrive}
                   onStartContinuousTurn={startContinuousTurn}
                   onStopContinuousTurn={stopContinuousTurn}
+                  onStartContinuousArc={startContinuousArc}
+                  onStopContinuousArc={stopContinuousArc}
                   onSendStop={sendStop}
                   onStopExecutingCommand={stopExecutingCommand}
                   showGridOverlay={showGridOverlay}

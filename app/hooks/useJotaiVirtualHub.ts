@@ -324,6 +324,7 @@ export function useJotaiVirtualHub() {
     executeCommandSequence:
       virtualRobotService.executeCommandSequence.bind(virtualRobotService),
     turnAndDrive: virtualRobotService.turnAndDrive.bind(virtualRobotService),
+    arc: virtualRobotService.arc.bind(virtualRobotService),
 
     // Virtual robot specific
     virtualPosition,

@@ -11,9 +11,10 @@ export function calculatePreviewPosition(
   currentPosition: RobotPosition,
   distance: number,
   angle: number,
-  previewType: "drive" | "turn",
+  previewType: "drive" | "turn" | "arc",
   direction: "forward" | "backward" | "left" | "right",
   _robotConfig?: RobotConfig,
+  options?: { radius?: number; isArcBackward?: boolean },
 ): RobotPosition {
   let newX = currentPosition.x;
   let newY = currentPosition.y;
@@ -36,6 +37,40 @@ export function calculatePreviewPosition(
     // Position stays the same - tank turning rotates around center of rotation
     newX = currentPosition.x;
     newY = currentPosition.y;
+  } else if (previewType === "arc") {
+    // Arc movement around a circle with given radius and sweep angle
+    const radius = Math.max(1, options?.radius ?? 100);
+    const isLeft = direction === "left";
+    // Base sweep sign: left = negative (counter-clockwise in screen), right = positive
+    let sweep = angle * (isLeft ? -1 : 1);
+    if (options?.isArcBackward) sweep = -sweep;
+    const headingRad = (currentPosition.heading * Math.PI) / 180;
+
+    // Compute circle center offset from current position using left/right normal
+    // Left normal = (-cos(theta), -sin(theta)), Right normal = (cos(theta), sin(theta))
+    const nx = (isLeft ? -1 : 1) * Math.cos(headingRad);
+    const ny = (isLeft ? -1 : 1) * Math.sin(headingRad);
+    const cx = currentPosition.x + radius * nx;
+    const cy = currentPosition.y + radius * ny;
+
+    // Start angle of the point relative to center (canvas coordinates)
+    const startAngleRad = Math.atan2(currentPosition.y - cy, currentPosition.x - cx);
+
+    // End angle
+    const endAngleRad = startAngleRad + (sweep * Math.PI) / 180;
+
+    // End position on the circle
+    newX = cx + radius * Math.cos(endAngleRad);
+    newY = cy + radius * Math.sin(endAngleRad);
+
+    // Robot heading at end depends on arc traversal direction and forward/back
+    const aDeg = (endAngleRad * 180) / Math.PI;
+    const isIncreasing = sweep > 0; // increasing 'a' parameter
+    if (isIncreasing) {
+      newHeading = ((options?.isArcBackward ? aDeg : aDeg + 180) + 360) % 360;
+    } else {
+      newHeading = ((options?.isArcBackward ? aDeg + 180 : aDeg) + 360) % 360;
+    }
   }
 
   return { x: newX, y: newY, heading: newHeading };
@@ -46,11 +81,12 @@ export function calculateTrajectoryProjection(
   currentPosition: RobotPosition,
   distance: number,
   angle: number,
-  previewType: "drive" | "turn",
+  previewType: "drive" | "turn" | "arc",
   direction: "forward" | "backward" | "left" | "right",
   boardWidth: number = 2356, // Default FLL mat width in mm
   boardHeight: number = 1137, // Default FLL mat height in mm
   robotConfig?: RobotConfig,
+  options?: { radius?: number; isArcBackward?: boolean },
 ): {
   nextMoveEnd: RobotPosition;
   boardEndProjection: RobotPosition;
@@ -64,23 +100,81 @@ export function calculateTrajectoryProjection(
     previewType,
     direction,
     robotConfig,
+    options,
   );
 
   // Then, project the trajectory to the board edge based on the robot's heading
-  const trajectoryPath: RobotPosition[] = [currentPosition, nextMoveEnd];
+  const trajectoryPath: RobotPosition[] = [currentPosition];
+  let boardEndProjection: RobotPosition | null = null;
+
+  // For arc previews, create intermediate points along the arc
+  if (previewType === "arc" && options?.radius) {
+    const radius = Math.max(1, options.radius);
+    const isLeft = direction === "left";
+    // Angle here is sweep magnitude; base sign from left/right, invert if backward
+    let sweepRad = ((isLeft ? -1 : 1) * angle * Math.PI) / 180;
+    if (options?.isArcBackward) sweepRad = -sweepRad;
+    const headingRad = (currentPosition.heading * Math.PI) / 180;
+    const nx = (isLeft ? -1 : 1) * Math.cos(headingRad);
+    const ny = (isLeft ? -1 : 1) * Math.sin(headingRad);
+    const cx = currentPosition.x + radius * nx;
+    const cy = currentPosition.y + radius * ny;
+    const startAngleRad = Math.atan2(currentPosition.y - cy, currentPosition.x - cx);
+
+    const steps = Math.max(
+      6,
+      Math.min(36, Math.round(Math.abs(sweepRad) / (Math.PI / 36))),
+    );
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const a = startAngleRad + sweepRad * t;
+      const px = cx + radius * Math.cos(a);
+      const py = cy + radius * Math.sin(a);
+      // Heading along the arc: depends on sweep direction and forward/back
+      const aDeg = (a * 180) / Math.PI;
+      const isIncreasing = sweepRad > 0;
+      const headingDeg = isIncreasing
+        ? options?.isArcBackward
+          ? aDeg
+          : aDeg + 180
+        : options?.isArcBackward
+          ? aDeg + 180
+          : aDeg;
+      trajectoryPath.push({
+        x: px,
+        y: py,
+        heading: (headingDeg + 360) % 360,
+      });
+    }
+    // Add a short straight extension from the end of the arc in the final heading direction
+    const endPos = trajectoryPath[trajectoryPath.length - 1];
+    const extLen = Math.min(200, Math.max(50, distance * 0.25)); // 50-200mm short line
+    const extRad = (endPos.heading * Math.PI) / 180;
+    const ex = endPos.x + extLen * Math.sin(extRad);
+    const ey = endPos.y - extLen * Math.cos(extRad);
+    trajectoryPath.push({ x: ex, y: ey, heading: endPos.heading });
+  } else {
+    // Default straight-line two-point path
+    trajectoryPath.push(nextMoveEnd);
+  }
 
   // Calculate the board edge projection, considering if this is backwards movement
-  const isBackwards = direction === "backward";
-  const boardEndProjection = calculateBoardEdgeProjection(
-    nextMoveEnd,
-    boardWidth,
-    boardHeight,
-    isBackwards,
-  );
+  const isBackwards =
+    previewType === "arc"
+      ? options?.isArcBackward === true
+      : direction === "backward";
 
-  // Add intermediate points for smoother trajectory visualization
-  if (boardEndProjection) {
-    trajectoryPath.push(boardEndProjection);
+  if (previewType !== "arc") {
+    const lastPoint = trajectoryPath[trajectoryPath.length - 1];
+    boardEndProjection = calculateBoardEdgeProjection(
+      lastPoint,
+      boardWidth,
+      boardHeight,
+      isBackwards,
+    );
+    if (boardEndProjection) {
+      trajectoryPath.push(boardEndProjection);
+    }
   }
 
   return {

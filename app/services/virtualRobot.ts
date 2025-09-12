@@ -834,13 +834,13 @@ class VirtualRobotService extends EventTarget {
     const currentPos = this.getCurrentPosition();
     const currentHeadingRad = (currentPos.heading * Math.PI) / 180;
 
-    // Calculate arc center perpendicular to current heading
-    // For positive angle (left turn): center is to the left of robot
-    // For negative angle (right turn): center is to the right of robot
-    const centerOffsetAngle =
-      currentHeadingRad + (angle > 0 ? Math.PI / 2 : -Math.PI / 2);
-    const centerX = currentPos.x + radius * Math.cos(centerOffsetAngle);
-    const centerY = currentPos.y + radius * Math.sin(centerOffsetAngle);
+    // Calculate arc center using UI coordinate conventions (0° = north)
+    // Left normal = (-cos(theta), -sin(theta)), Right normal = (cos(theta), sin(theta))
+    const isLeft = angle > 0; // we treat positive as left in the virtual robot
+    const nx = (isLeft ? -1 : 1) * Math.cos(currentHeadingRad);
+    const ny = (isLeft ? -1 : 1) * Math.sin(currentHeadingRad);
+    const centerX = currentPos.x + radius * nx;
+    const centerY = currentPos.y + radius * ny;
 
     // Calculate start and end angles relative to center
     const startAngle =
@@ -856,7 +856,7 @@ class VirtualRobotService extends EventTarget {
     );
     console.log(`[VirtualRobot] Starting position:`, currentPos);
 
-    // Use the provided sweep angle directly
+    // Use the provided sweep angle directly (degrees)
     const arcAngle = angle;
 
     const arcLength = (Math.abs(arcAngle) * Math.PI * radius) / 180;
@@ -903,9 +903,11 @@ class VirtualRobotService extends EventTarget {
           (Math.abs(arcAngle * progress) * Math.PI * radius) / 180;
         this.state.driveDistance = initialDistance + currentArcLength;
 
-        // Calculate tangent direction for heading (perpendicular to radius)
-        const tangentAngle = currentAngle + (arcAngle > 0 ? 90 : -90);
-        this.state.heading = tangentAngle % 360;
+        // Heading along the arc: depends on sweep direction and UI heading convention (0° = north)
+        const currentAngleDeg = currentAngle; // currentAngle already in degrees
+        const isIncreasing = arcAngle > 0;
+        const headingDeg = isIncreasing ? currentAngleDeg + 180 : currentAngleDeg;
+        this.state.heading = headingDeg % 360;
         this.config.imuHeading = this.state.heading;
 
         // Update drive angle (total rotation)
@@ -924,9 +926,10 @@ class VirtualRobotService extends EventTarget {
       this.state.driveDistance = initialDistance + arcLength;
       this.state.driveAngle = initialAngle + arcAngle;
 
-      // Final heading - tangent to arc at end point
-      const finalTangentAngle = endAngle + (arcAngle > 0 ? 90 : -90);
-      this.state.heading = finalTangentAngle % 360;
+      // Final heading - consistent with incremental updates
+      const isIncreasing = arcAngle > 0;
+      const finalHeading = isIncreasing ? endAngle + 180 : endAngle;
+      this.state.heading = finalHeading % 360;
       this.config.imuHeading = this.state.heading;
 
       // Send final telemetry

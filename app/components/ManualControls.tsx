@@ -1,9 +1,15 @@
 import type { ControlMode } from "../store/atoms/gameMat";
 
 interface ExecutingCommand {
-  type: "drive" | "turn";
+  type: "drive" | "turn" | "arc";
   direction: "forward" | "backward" | "left" | "right";
-  originalParams: { distance?: number; angle?: number; speed: number };
+  isBackward?: boolean;
+  originalParams: {
+    distance?: number;
+    angle?: number;
+    radius?: number;
+    speed: number;
+  };
 }
 
 interface ManualControlsProps {
@@ -12,24 +18,36 @@ interface ManualControlsProps {
   setDistance: (distance: number) => void;
   angle: number;
   setAngle: (angle: number) => void;
+  arcRadius?: number;
+  setArcRadius?: (radius: number) => void;
   driveSpeed: number;
   setDriveSpeed: (speed: number) => void;
   executingCommand: ExecutingCommand | null;
   onUpdatePreview: (
-    type: "drive" | "turn" | null,
+    type: "drive" | "turn" | "arc" | null,
     direction: "forward" | "backward" | "left" | "right" | null,
+    opts?: { radius?: number; isArcBackward?: boolean },
   ) => void;
   onUpdateDualPreview?: (
-    type: "drive" | "turn",
+    type: "drive" | "turn" | "arc",
     distance?: number,
     angle?: number,
+    radius?: number,
   ) => void;
   onSendStepDrive: (distance: number, speed: number) => void;
   onSendStepTurn: (angle: number, speed: number) => void;
+  onSendStepArc?: (
+    forward: boolean,
+    left: boolean,
+    sweepAngle: number,
+    speedPercent: number,
+  ) => void;
   onStartContinuousDrive: (direction: "forward" | "backward") => void;
   onStopContinuousDrive: () => void;
   onStartContinuousTurn: (direction: "left" | "right") => void;
   onStopContinuousTurn: () => void;
+  onStartContinuousArc?: (forward: boolean, left: boolean) => void;
+  onStopContinuousArc?: () => void;
   onSendStop: () => void;
   onStopExecutingCommand: () => void;
   showGridOverlay?: boolean;
@@ -44,6 +62,8 @@ export function ManualControls({
   setDistance,
   angle,
   setAngle,
+  arcRadius,
+  setArcRadius,
   driveSpeed,
   setDriveSpeed,
   executingCommand,
@@ -51,10 +71,13 @@ export function ManualControls({
   onUpdateDualPreview,
   onSendStepDrive,
   onSendStepTurn,
+  onSendStepArc,
   onStartContinuousDrive,
   onStopContinuousDrive,
   onStartContinuousTurn,
   onStopContinuousTurn,
+  onStartContinuousArc,
+  onStopContinuousArc,
   onSendStop,
   onStopExecutingCommand,
   showGridOverlay,
@@ -133,6 +156,36 @@ export function ManualControls({
                 }}
                 onMouseLeave={() => {
                   // Clear preview when leaving slider
+                  onUpdatePreview(null, null);
+                }}
+                className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-600 dark:text-gray-400 mb-1">
+                Arc Radius: {arcRadius ?? 100}mm
+              </label>
+              <input
+                type="range"
+                min="50"
+                max="2000"
+                step="10"
+                value={arcRadius}
+                onChange={(e) => setArcRadius?.(Number(e.target.value))}
+                onInput={(e) => {
+                  if (onUpdateDualPreview) {
+                    const currentValue = Number(
+                      (e.target as HTMLInputElement).value,
+                    );
+                    onUpdateDualPreview("arc", distance, angle, currentValue);
+                  }
+                }}
+                onMouseEnter={() => {
+                  if (onUpdateDualPreview) {
+                    onUpdateDualPreview("arc", distance, angle, arcRadius);
+                  }
+                }}
+                onMouseLeave={() => {
                   onUpdatePreview(null, null);
                 }}
                 className="w-full h-1 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
@@ -223,8 +276,49 @@ export function ManualControls({
 
       {/* Movement Controls - Cross Layout */}
       <div className="grid grid-cols-3 gap-2 mb-2 sm:mb-3">
-        {/* Empty cell */}
-        <div></div>
+        {/* Arc Forward-Left (upper-left) */}
+        {controlMode === "incremental" ? (
+          executingCommand?.type === "arc" &&
+          executingCommand.direction === "left" &&
+          !executingCommand.isBackward ? (
+            <button
+              onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+              title={`Stop arc ↶ (r=${executingCommand.originalParams?.radius}mm)`}
+            >
+              ⏹
+            </button>
+          ) : (
+            <button
+              onClick={() => onSendStepArc?.(true, true, angle, driveSpeed)}
+              onMouseEnter={() =>
+                onUpdatePreview("arc", "left", {
+                  radius: arcRadius,
+                  isArcBackward: false,
+                })
+              }
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-lime-500 text-white text-sm rounded hover:bg-lime-600 transition-colors flex items-center justify-center"
+              title={`Arc ↶ ${angle}° (r=${arcRadius}mm) forward`}
+              disabled={!!executingCommand}
+            >
+              ⤴↶
+            </button>
+          )
+        ) : (
+          <button
+            onMouseDown={() => onStartContinuousArc?.(true, true)}
+            onMouseUp={onStopContinuousArc}
+            onMouseLeave={onStopContinuousArc}
+            onTouchStart={() => onStartContinuousArc?.(true, true)}
+            onTouchEnd={onStopContinuousArc}
+            className="px-3 py-3 bg-lime-500 text-white text-sm rounded hover:bg-lime-600 active:bg-lime-700 transition-colors flex items-center justify-center"
+            title="Arc forward-left (Hold)"
+          >
+            ⤴↶
+          </button>
+        )}
 
         {/* Forward Button */}
         {controlMode === "incremental" ? (
@@ -264,8 +358,49 @@ export function ManualControls({
           </button>
         )}
 
-        {/* Empty cell */}
-        <div></div>
+        {/* Arc Forward-Right (upper-right) */}
+        {controlMode === "incremental" ? (
+          executingCommand?.type === "arc" &&
+          executingCommand.direction === "right" &&
+          !executingCommand.isBackward ? (
+            <button
+              onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+              title={`Stop arc ↷ (r=${executingCommand.originalParams?.radius}mm)`}
+            >
+              ⏹
+            </button>
+          ) : (
+            <button
+              onClick={() => onSendStepArc?.(true, false, angle, driveSpeed)}
+              onMouseEnter={() =>
+                onUpdatePreview("arc", "right", {
+                  radius: arcRadius,
+                  isArcBackward: false,
+                })
+              }
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
+              title={`Arc ↷ ${angle}° (r=${arcRadius}mm) forward`}
+              disabled={!!executingCommand}
+            >
+              ⤴↷
+            </button>
+          )
+        ) : (
+          <button
+            onMouseDown={() => onStartContinuousArc?.(true, false)}
+            onMouseUp={onStopContinuousArc}
+            onMouseLeave={onStopContinuousArc}
+            onTouchStart={() => onStartContinuousArc?.(true, false)}
+            onTouchEnd={onStopContinuousArc}
+            className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 active:bg-blue-700 transition-colors flex items-center justify-center"
+            title="Arc forward-right (Hold)"
+          >
+            ⤴↷
+          </button>
+        )}
 
         {/* Left Turn Button */}
         {controlMode === "incremental" ? (
@@ -352,8 +487,49 @@ export function ManualControls({
           </button>
         )}
 
-        {/* Empty cell */}
-        <div></div>
+        {/* Arc Backward-Left (lower-left) */}
+        {controlMode === "incremental" ? (
+          executingCommand?.type === "arc" &&
+          executingCommand.direction === "left" &&
+          executingCommand.isBackward ? (
+            <button
+              onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+              title={`Stop arc ↶ (r=${executingCommand.originalParams?.radius}mm) backward`}
+            >
+              ⏹
+            </button>
+          ) : (
+            <button
+              onClick={() => onSendStepArc?.(false, true, angle, driveSpeed)}
+              onMouseEnter={() =>
+                onUpdatePreview("arc", "left", {
+                  radius: arcRadius,
+                  isArcBackward: true,
+                })
+              }
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-pink-500 text-white text-sm rounded hover:bg-pink-600 transition-colors flex items-center justify-center"
+              title={`Arc ↶ ${angle}° (r=${arcRadius}mm) backward`}
+              disabled={!!executingCommand}
+            >
+              ⤵↶
+            </button>
+          )
+        ) : (
+          <button
+            onMouseDown={() => onStartContinuousArc?.(false, true)}
+            onMouseUp={onStopContinuousArc}
+            onMouseLeave={onStopContinuousArc}
+            onTouchStart={() => onStartContinuousArc?.(false, true)}
+            onTouchEnd={onStopContinuousArc}
+            className="px-3 py-3 bg-pink-500 text-white text-sm rounded hover:bg-pink-600 active:bg-pink-700 transition-colors flex items-center justify-center"
+            title="Arc backward-left (Hold)"
+          >
+            ⤵↶
+          </button>
+        )}
 
         {/* Backward Button */}
         {controlMode === "incremental" ? (
@@ -393,8 +569,49 @@ export function ManualControls({
           </button>
         )}
 
-        {/* Empty cell */}
-        <div></div>
+        {/* Arc Backward-Right (lower-right) */}
+        {controlMode === "incremental" ? (
+          executingCommand?.type === "arc" &&
+          executingCommand.direction === "right" &&
+          executingCommand.isBackward ? (
+            <button
+              onClick={onStopExecutingCommand}
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors flex items-center justify-center animate-pulse"
+              title={`Stop arc ↷ (r=${executingCommand.originalParams?.radius}mm) backward`}
+            >
+              ⏹
+            </button>
+          ) : (
+            <button
+              onClick={() => onSendStepArc?.(false, false, angle, driveSpeed)}
+              onMouseEnter={() =>
+                onUpdatePreview("arc", "right", {
+                  radius: arcRadius,
+                  isArcBackward: true,
+                })
+              }
+              onMouseLeave={() => onUpdatePreview(null, null)}
+              className="px-3 py-3 bg-rose-500 text-white text-sm rounded hover:bg-rose-600 transition-colors flex items-center justify-center"
+              title={`Arc ↷ ${angle}° (r=${arcRadius}mm) backward`}
+              disabled={!!executingCommand}
+            >
+              ⤵↷
+            </button>
+          )
+        ) : (
+          <button
+            onMouseDown={() => onStartContinuousArc?.(false, false)}
+            onMouseUp={onStopContinuousArc}
+            onMouseLeave={onStopContinuousArc}
+            onTouchStart={() => onStartContinuousArc?.(false, false)}
+            onTouchEnd={onStopContinuousArc}
+            className="px-3 py-3 bg-rose-500 text-white text-sm rounded hover:bg-rose-600 active:bg-rose-700 transition-colors flex items-center justify-center"
+            title="Arc backward-right (Hold)"
+          >
+            ⤵↷
+          </button>
+        )}
       </div>
     </div>
   );

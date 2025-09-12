@@ -27,6 +27,7 @@ export function drawRobot(
   isGhost = false,
   previewType?: RobotPreviewType,
   direction?: MovementDirection,
+  overrideColor?: string,
 ) {
   const { mmToCanvas, scale } = utils;
 
@@ -55,6 +56,7 @@ export function drawRobot(
       bounds.robotBodyOffsetY,
       previewType,
       direction,
+      overrideColor,
     );
   } else {
     drawRegularRobot(
@@ -81,6 +83,7 @@ function drawGhostRobot(
   robotBodyOffsetY: number,
   previewType?: RobotPreviewType,
   direction?: MovementDirection,
+  overrideColor?: string,
 ) {
   // Different opacity and styling based on preview type
   if (previewType === "perpendicular") {
@@ -99,7 +102,14 @@ function drawGhostRobot(
 
   // Different colors for different movement directions
   let bodyColor: string, borderColor: string;
-  if (previewType === "playback") {
+  if (overrideColor) {
+    // Use explicit override color for body/border
+    bodyColor =
+      previewType === "perpendicular"
+        ? hexToRgba(overrideColor, 0.05)
+        : hexToRgba(overrideColor, 0.15);
+    borderColor = overrideColor;
+  } else if (previewType === "playback") {
     // Playback ghost - purple/magenta theme
     bodyColor = "rgba(147, 51, 234, 0.2)";
     borderColor = "#9333ea";
@@ -164,7 +174,9 @@ function drawGhostRobot(
 
   // Direction indicator for preview - different colors for different directions
   let indicatorColor: string;
-  if (direction === "forward") {
+  if (overrideColor) {
+    indicatorColor = overrideColor;
+  } else if (direction === "forward") {
     indicatorColor = "#00ff00"; // Bright green (matching forward button)
   } else if (direction === "backward") {
     indicatorColor = "#ffa500"; // Bright orange (matching backward button)
@@ -199,6 +211,27 @@ function drawGhostRobot(
   ctx.shadowBlur = 10;
   ctx.strokeRect(-robotWidth / 2, -robotLength / 2, robotWidth, robotLength);
   ctx.shadowBlur = 0; // Reset shadow
+}
+
+// Utility: convert hex or named color to rgba with alpha
+function hexToRgba(color: string, alpha: number): string {
+  if (color.startsWith("rgba") || color.startsWith("rgb")) return color;
+  if (color.startsWith("#") && (color.length === 7 || color.length === 4)) {
+    let r = 0,
+      g = 0,
+      b = 0;
+    if (color.length === 7) {
+      r = parseInt(color.slice(1, 3), 16);
+      g = parseInt(color.slice(3, 5), 16);
+      b = parseInt(color.slice(5, 7), 16);
+    } else if (color.length === 4) {
+      r = parseInt(color[1] + color[1], 16);
+      g = parseInt(color[2] + color[2], 16);
+      b = parseInt(color[3] + color[3], 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return color;
 }
 
 function drawRegularRobot(

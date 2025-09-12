@@ -480,6 +480,7 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
           true, // isGhost
           "perpendicular", // previewType
           ghost.direction, // direction
+          ghost.color, // overrideColor to match button color
         );
 
         ctx.restore();
@@ -495,6 +496,10 @@ export function useCanvasDrawing(props: UseCanvasDrawingProps) {
             2356,
             1137,
             data.robotConfig,
+            {
+              radius: data.perpendicularPreview.radius,
+              isArcBackward: ghost.type === "arc" ? ghost.isBackward : undefined,
+            },
           );
 
           // Draw trajectory path
