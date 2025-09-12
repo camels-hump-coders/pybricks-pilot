@@ -2,6 +2,7 @@ import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import devtoolsJson from 'vite-plugin-devtools-json';
 
 export default defineConfig(() => {
   // Use repository name as base for GitHub Pages deployment
@@ -11,7 +12,7 @@ export default defineConfig(() => {
 
   return {
     base,
-    plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+    plugins: [tailwindcss(), reactRouter(), tsconfigPaths(), devtoolsJson()],
     worker: {
       format: "es" as const,
     },
