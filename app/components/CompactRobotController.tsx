@@ -35,7 +35,13 @@ interface CompactRobotControllerProps {
   onTurnCommand?: (angle: number, speed: number) => Promise<void>;
   onStopCommand?: () => Promise<void>;
   onContinuousDriveCommand?: (speed: number, turnRate: number) => Promise<void>;
-  onArcCommand?: (radius: number, angle: number, speed: number) => Promise<void>;
+  onArcCommand?: (
+    radius: number,
+    distance: number,
+    left: boolean,
+    forward: boolean,
+    speed: number,
+  ) => Promise<void>;
   onMotorCommand?: (
     motor: string,
     angle: number,
@@ -119,7 +125,7 @@ export function CompactRobotController({
   const [distance, setDistance] = useState(100);
   const [angle, setAngle] = useState(45);
   const [driveSpeed, setDriveSpeed] = useState(100);
-  const [arcRadius, setArcRadius] = useState(100);
+  const [arcRadius, setArcRadius] = useState(600);
   const [motorSpeed, setMotorSpeed] = useState(100);
   const [motorAngle, setMotorAngle] = useState(45);
   const [executingCommand, setExecutingCommand] =
@@ -506,8 +512,7 @@ export function CompactRobotController({
   async function sendStepArc(
     forward: boolean,
     left: boolean,
-    _sweepAngle: number,
-    speedPct: number,
+    speed: number,
   ) {
     if (!isFullyConnected) {
       console.warn(
@@ -516,53 +521,19 @@ export function CompactRobotController({
       return;
     }
 
-    const speedMmPerS = speedPct * 10;
-    // Compute sweep from configured distance and radius
-    const sweepAngle = (distance / Math.max(1, arcRadius)) * (180 / Math.PI);
-    const base = Math.abs(sweepAngle);
-    // Map sign per backend so virtual forward left/right match previews
-    // real: +(right), -(left); virtual: +(right), -(left)
-    const angleDeg = left ? -base : +base;
-
     try {
       setExecutingCommand({
         type: "arc",
         direction: left ? "left" : "right",
         isBackward: !forward,
         originalParams: {
-          speed: speedPct,
+          speed,
           radius: arcRadius,
-          angle: angleDeg,
           distance: distance,
         },
       });
 
-      if (forward && onArcCommand) {
-        await onArcCommand(arcRadius, angleDeg, speedMmPerS);
-      } else {
-        // Emulate arc with continuous drive + timed stop
-        const signedSpeed = forward ? speedMmPerS : -speedMmPerS;
-        let turnRate = computeTurnRate(Math.abs(signedSpeed), arcRadius, left);
-        if (!forward) turnRate = -turnRate;
-        const arcLength = Math.abs(distance);
-        const durationMs = Math.max(
-          10,
-          Math.round((arcLength / Math.max(1, Math.abs(speedMmPerS))) * 1000),
-        );
-        if (_onExecuteCommandSequence) {
-          await _onExecuteCommandSequence([
-            { action: "drive_continuous", speed: signedSpeed, turn_rate: turnRate },
-            { action: "pause", duration: durationMs },
-            { action: "stop" },
-          ] as any);
-        } else {
-          await queueCommand(async () => {
-            await onContinuousDriveCommand?.(signedSpeed, turnRate);
-            await new Promise((r) => setTimeout(r, durationMs));
-            await onStopCommand?.();
-          });
-        }
-      }
+      await onArcCommand?.(arcRadius, distance, left, forward, speed);
     } finally {
       setExecutingCommand(null);
     }
@@ -1049,9 +1020,7 @@ export function CompactRobotController({
                   onUpdateDualPreview={updateDualPreview}
                   onSendStepDrive={sendStepDrive}
                   onSendStepTurn={sendStepTurn}
-                  onSendStepArc={(forward, left, sweep, speed) =>
-                    sendStepArc(forward, left, sweep, speed)
-                  }
+                  onSendStepArc={sendStepArc}
                   onStartContinuousDrive={startContinuousDrive}
                   onStopContinuousDrive={stopContinuousDrive}
                   onStartContinuousTurn={startContinuousTurn}

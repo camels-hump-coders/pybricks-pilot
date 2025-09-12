@@ -143,6 +143,44 @@ export function useJotaiPybricksHub() {
     [],
   );
 
+  const sendArcCommand = useCallback(
+    async (
+      radius: number,
+      distance: number,
+      left: boolean,
+      forward: boolean,
+      speedPct: number,
+    ) => {
+      const absRadius = Math.max(1, Math.abs(radius));
+      const absDistance = Math.abs(distance);
+      // Map percent [0..100] to mm/s using robot capability (default 300mm/s)
+      const maxMmPerSec = robotConfig?.capabilities?.maxSpeed || 300;
+      const mmPerSec = Math.max(
+        1,
+        Math.round((Math.abs(speedPct) / 100) * maxMmPerSec),
+      );
+
+      // Convert distance to sweep angle (degrees). Sign: left = negative, right = positive
+      const sweepDeg = (absDistance / absRadius) * (180 / Math.PI);
+      const angle = left ? -sweepDeg : +sweepDeg;
+      const dradius = forward ? +absRadius : -absRadius;
+
+      // Use native arc on hub
+      const commands = [
+        {
+          action: "arc" as const,
+          radius: dradius,
+          angle,
+          speed: mmPerSec
+        },
+      ];
+      await pybricksHubService.sendControlCommand(
+        JSON.stringify(commands),
+      );
+    },
+    [robotConfig],
+  );
+
   // Pybricks hub control commands
   const sendDriveCommand = useCallback(
     async (distance: number, speedPercent: number) => {
@@ -308,6 +346,7 @@ export function useJotaiPybricksHub() {
 
     // Remote control
     sendDriveCommand,
+    sendArcCommand,
     sendTurnCommand,
     sendStopCommand,
     sendContinuousDriveCommand,

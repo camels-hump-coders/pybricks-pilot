@@ -27,9 +27,7 @@ export function RobotControlsSection({
         onTurnCommand={robot.sendTurnCommand}
         onStopCommand={robot.sendStopCommand}
         onContinuousDriveCommand={robot.sendContinuousDriveCommand}
-        onArcCommand={(radius, angle, speed) =>
-          (robot as any).arc ? (robot as any).arc(radius, angle, speed) : Promise.resolve()
-        }
+        onArcCommand={robot.sendArcCommand}
         onMotorCommand={robot.sendMotorCommand}
         onContinuousMotorCommand={robot.sendContinuousMotorCommand}
         onMotorStopCommand={robot.sendMotorStopCommand}

@@ -187,6 +187,27 @@ export function useJotaiVirtualHub() {
     [],
   );
 
+  const sendArcCommand = useCallback(
+    async (
+      radius: number,
+      distance: number,
+      left: boolean,
+      forward: boolean,
+      speed: number,
+    ) => {
+      const absRadius = Math.max(1, Math.abs(radius));
+      const absDistance = Math.abs(distance);
+
+      // Convert distance to sweep angle (degrees). Sign: left = negative, right = positive
+      const sweepDeg = (absDistance / absRadius) * (180 / Math.PI);
+      const angle = left ? -sweepDeg : +sweepDeg;
+      const dradius = forward ? +absRadius : -absRadius;
+
+      await virtualRobotService.arc(dradius, angle, speed);
+    },
+    [],
+  );
+
   const sendTurnCommand = useCallback(async (angle: number, speed: number) => {
     await virtualRobotService.turn(angle, speed);
   }, []);
@@ -313,6 +334,7 @@ export function useJotaiVirtualHub() {
     sendDriveCommand,
     sendTurnCommand,
     sendStopCommand,
+    sendArcCommand,
     sendContinuousDriveCommand,
     sendMotorCommand,
     sendContinuousMotorCommand,

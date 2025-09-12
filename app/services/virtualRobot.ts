@@ -829,6 +829,10 @@ class VirtualRobotService extends EventTarget {
   async arc(radius: number, angle: number, speed: number): Promise<void> {
     if (!this._isConnected) return;
 
+    if (radius < 0) {
+      angle = -1 * angle;
+    }
+
     // Calculate arc center and angles from current robot state
     // The robot should arc from its current position and heading
     const currentPos = this.getCurrentPosition();
@@ -836,34 +840,36 @@ class VirtualRobotService extends EventTarget {
 
     // Calculate arc center using UI coordinate conventions (0° = north)
     // Left normal = (-cos(theta), -sin(theta)), Right normal = (cos(theta), sin(theta))
-    const isLeft = angle > 0; // we treat positive as left in the virtual robot
-    const nx = (isLeft ? -1 : 1) * Math.cos(currentHeadingRad);
-    const ny = (isLeft ? -1 : 1) * Math.sin(currentHeadingRad);
-    const centerX = currentPos.x + radius * nx;
-    const centerY = currentPos.y + radius * ny;
+    // Convention: negative angle = left arc, positive = right arc
+    const nx = Math.cos(currentHeadingRad);
+    const ny = Math.sin(currentHeadingRad);
+    const centerX = currentPos.x + angle * nx;
+    const centerY = currentPos.y + angle * ny;
 
-    // Calculate start and end angles relative to center
+    // Calculate start angle relative to center
     const startAngle =
       Math.atan2(currentPos.y - centerY, currentPos.x - centerX) *
       (180 / Math.PI);
-    const endAngle = startAngle + angle;
+    // We'll compute endAngle after determining traversal sweep (arcAngle)
+    let endAngle: number;
+
+    // Determine traversal direction from angle sign: angle < 0 implies backward traversal
+    endAngle = startAngle + angle;
+
+    const arcLength = (Math.abs(angle) * Math.PI * radius) / 180;
+    const speedAbs = Math.max(1, Math.abs(speed));
+    const duration = (Math.abs(arcLength) / speedAbs) * 1000; // ms
 
     console.log(
-      `[VirtualRobot] Arc command: radius=${radius}mm, sweep=${angle}°, speed=${speed}mm/s`,
+      `[VirtualRobot] Arc command: radius=${radius}mm, angle=${angle}° speed=${speed}mm/s`,
     );
     console.log(
       `[VirtualRobot] Calculated center(${centerX.toFixed(1)}, ${centerY.toFixed(1)}), ${startAngle.toFixed(1)}° to ${endAngle.toFixed(1)}°`,
     );
     console.log(`[VirtualRobot] Starting position:`, currentPos);
 
-    // Use the provided sweep angle directly (degrees)
-    const arcAngle = angle;
-
-    const arcLength = (Math.abs(arcAngle) * Math.PI * radius) / 180;
-    const duration = (arcLength / speed) * 1000; // Convert to milliseconds
-
     console.log(
-      `[VirtualRobot] Arc details: angle=${arcAngle.toFixed(1)}°, length=${arcLength.toFixed(1)}mm, duration=${(duration / 1000).toFixed(1)}s`,
+      `[VirtualRobot] Arc details: angle=${angle.toFixed(1)}°, length=${arcLength.toFixed(1)}mm, duration=${(duration / 1000).toFixed(1)}s`,
     );
 
     const signal = this.abortController.signal;
@@ -887,7 +893,7 @@ class VirtualRobotService extends EventTarget {
         const progress = (Date.now() - startTime) / duration;
 
         // Interpolate along the arc
-        const currentAngle = startAngle + arcAngle * progress;
+        const currentAngle = startAngle + angle * progress;
         const currentAngleRad = (currentAngle * Math.PI) / 180;
 
         // Calculate current position on arc
@@ -900,18 +906,25 @@ class VirtualRobotService extends EventTarget {
 
         // Update accumulated distance (arc length traveled)
         const currentArcLength =
-          (Math.abs(arcAngle * progress) * Math.PI * radius) / 180;
+          (Math.abs(angle * progress) * Math.PI * radius) / 180;
         this.state.driveDistance = initialDistance + currentArcLength;
 
-        // Heading along the arc: depends on sweep direction and UI heading convention (0° = north)
-        const currentAngleDeg = currentAngle; // currentAngle already in degrees
-        const isIncreasing = arcAngle > 0;
-        const headingDeg = isIncreasing ? currentAngleDeg + 180 : currentAngleDeg;
+        // Heading along the arc: depends on sweep direction and forward/backward
+        const currentAngleDeg = currentAngle; // degrees
+        const isIncreasing = angle > 0; // parameter increasing vs decreasing
+        let headingDeg: number;
+        if (radius > 0) {
+          // Forward: tangent points in the motion direction
+          headingDeg = isIncreasing ? currentAngleDeg + 180 : currentAngleDeg;
+        } else {
+          // Backward: opposite tangent
+          headingDeg = isIncreasing ? currentAngleDeg : currentAngleDeg + 180;
+        }
         this.state.heading = headingDeg % 360;
         this.config.imuHeading = this.state.heading;
 
         // Update drive angle (total rotation)
-        const currentTotalRotation = arcAngle * progress;
+        const currentTotalRotation = angle * progress;
         this.state.driveAngle = initialAngle + currentTotalRotation;
 
         // Send telemetry for smooth path tracking
@@ -924,11 +937,17 @@ class VirtualRobotService extends EventTarget {
       this.state.x = endX;
       this.state.y = endY;
       this.state.driveDistance = initialDistance + arcLength;
-      this.state.driveAngle = initialAngle + arcAngle;
+      this.state.driveAngle = initialAngle + angle;
 
       // Final heading - consistent with incremental updates
-      const isIncreasing = arcAngle > 0;
-      const finalHeading = isIncreasing ? endAngle + 180 : endAngle;
+      const isIncreasing = angle > 0;
+      const finalHeading = radius > 0
+        ? isIncreasing
+          ? endAngle + 180
+          : endAngle
+        : isIncreasing
+          ? endAngle
+          : endAngle + 180;
       this.state.heading = finalHeading % 360;
       this.config.imuHeading = this.state.heading;
 

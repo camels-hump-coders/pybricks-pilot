@@ -104,6 +104,7 @@ export function useJotaiRobotConnection() {
     sendDriveCommand: currentRobot.sendDriveCommand,
     sendTurnCommand: currentRobot.sendTurnCommand,
     sendStopCommand: currentRobot.sendStopCommand,
+    sendArcCommand: currentRobot.sendArcCommand,
     sendContinuousDriveCommand: currentRobot.sendContinuousDriveCommand,
     sendMotorCommand: currentRobot.sendMotorCommand,
     sendContinuousMotorCommand: currentRobot.sendContinuousMotorCommand,
@@ -114,7 +115,6 @@ export function useJotaiRobotConnection() {
     // Command sequences and compound movements
     executeCommandSequence: currentRobot.executeCommandSequence,
     turnAndDrive: currentRobot.turnAndDrive,
-    arc: (currentRobot as any).arc,
 
     // Robot-specific features
     ...(robotType === "virtual" && {

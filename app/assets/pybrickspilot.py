@@ -388,7 +388,7 @@ async def _execute_command_sequence(commands):
             is_last_command = i == len(commands) - 1
 
             # Add stop behavior to command based on position in sequence
-            if "action" in cmd and cmd["action"] in ["drive", "turn"]:
+            if "action" in cmd and cmd["action"] in ["drive", "turn", "arc"]:
                 # Clone the command to avoid modifying the original
                 cmd_with_stop = cmd.copy()
                 if is_last_command:
@@ -442,7 +442,7 @@ async def _execute_single_command(command):
         )  # Default to hold for single commands
 
         # Debug: Print drivebase status for troubleshooting
-        if action in ["drive", "turn", "stop"]:
+        if action in ["drive", "turn", "arc", "stop"]:
             print(
                 "[PILOT] Command:",
                 action,

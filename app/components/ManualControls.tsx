@@ -39,7 +39,6 @@ interface ManualControlsProps {
   onSendStepArc?: (
     forward: boolean,
     left: boolean,
-    sweepAngle: number,
     speedPercent: number,
   ) => void;
   onStartContinuousDrive: (direction: "forward" | "backward") => void;
@@ -291,7 +290,7 @@ export function ManualControls({
             </button>
           ) : (
             <button
-              onClick={() => onSendStepArc?.(true, true, angle, driveSpeed)}
+              onClick={() => onSendStepArc?.(true, true, driveSpeed)}
               onMouseEnter={() =>
                 onUpdatePreview("arc", "left", {
                   radius: arcRadius,
@@ -300,7 +299,7 @@ export function ManualControls({
               }
               onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-lime-500 text-white text-sm rounded hover:bg-lime-600 transition-colors flex items-center justify-center"
-              title={`Arc ↶ ${angle}° (r=${arcRadius}mm) forward`}
+              title={`Arc ↶ ${distance}mm (r=${arcRadius}mm) forward`}
               disabled={!!executingCommand}
             >
               ⤴↶
@@ -373,7 +372,7 @@ export function ManualControls({
             </button>
           ) : (
             <button
-              onClick={() => onSendStepArc?.(true, false, angle, driveSpeed)}
+              onClick={() => onSendStepArc?.(true, false, driveSpeed)}
               onMouseEnter={() =>
                 onUpdatePreview("arc", "right", {
                   radius: arcRadius,
@@ -382,7 +381,7 @@ export function ManualControls({
               }
               onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
-              title={`Arc ↷ ${angle}° (r=${arcRadius}mm) forward`}
+              title={`Arc ↷ ${distance}mm (r=${arcRadius}mm) forward`}
               disabled={!!executingCommand}
             >
               ⤴↷
@@ -502,7 +501,7 @@ export function ManualControls({
             </button>
           ) : (
             <button
-              onClick={() => onSendStepArc?.(false, true, angle, driveSpeed)}
+              onClick={() => onSendStepArc?.(false, true, driveSpeed)}
               onMouseEnter={() =>
                 onUpdatePreview("arc", "left", {
                   radius: arcRadius,
@@ -511,7 +510,7 @@ export function ManualControls({
               }
               onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-pink-500 text-white text-sm rounded hover:bg-pink-600 transition-colors flex items-center justify-center"
-              title={`Arc ↶ ${angle}° (r=${arcRadius}mm) backward`}
+              title={`Arc ↶ ${distance}mm (r=${arcRadius}mm) backward`}
               disabled={!!executingCommand}
             >
               ⤵↶
@@ -584,7 +583,7 @@ export function ManualControls({
             </button>
           ) : (
             <button
-              onClick={() => onSendStepArc?.(false, false, angle, driveSpeed)}
+              onClick={() => onSendStepArc?.(false, false, driveSpeed)}
               onMouseEnter={() =>
                 onUpdatePreview("arc", "right", {
                   radius: arcRadius,
@@ -593,7 +592,7 @@ export function ManualControls({
               }
               onMouseLeave={() => onUpdatePreview(null, null)}
               className="px-3 py-3 bg-rose-500 text-white text-sm rounded hover:bg-rose-600 transition-colors flex items-center justify-center"
-              title={`Arc ↷ ${angle}° (r=${arcRadius}mm) backward`}
+              title={`Arc ↷ ${distance}mm (r=${arcRadius}mm) backward`}
               disabled={!!executingCommand}
             >
               ⤵↷
