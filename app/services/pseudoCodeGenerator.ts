@@ -159,10 +159,14 @@ class PseudoCodeGeneratorService {
     let accumulatedHeading = 0;
 
     // Arc stability tracking across samples to avoid false-positive arcs
-    const ARC_MIN_SAMPLES = 3;
-    const ARC_MM_PER_DEG = 2.5; // heuristic scale to compare distance vs heading
-    const ARC_RATIO_MIN = 0.5;
-    const ARC_RATIO_MAX = 2.5;
+    // Arc stability heuristics (tuned for real-world arcs)
+    const ARC_MIN_SAMPLES = 2; // need at least 2 consecutive samples showing arc-like motion
+    const ARC_MIN_DIST_MM = 20; // minimal arc distance window
+    const ARC_MIN_HEAD_DEG = 2; // minimal arc heading window
+    // Typical mm per deg for large radii: (pi/180)*R; for R≈600mm, ~10.5
+    const ARC_MM_PER_DEG = 10.0; // scale heading to approximate distance for ratio
+    const ARC_RATIO_MIN = 0.4; // acceptable distance-to-heading ratio bounds
+    const ARC_RATIO_MAX = 2.0;
     let arcStreakSamples = 0;
     let arcStreakDistance = 0;
     let arcStreakHeading = 0;
@@ -244,8 +248,8 @@ class PseudoCodeGeneratorService {
         const headMag = Math.abs(accumulatedHeading);
         let isArc = false;
         if (
-          distMag >= this.MIN_DISTANCE_THRESHOLD &&
-          headMag >= this.MIN_HEADING_THRESHOLD &&
+          distMag >= ARC_MIN_DIST_MM &&
+          headMag >= ARC_MIN_HEAD_DEG &&
           arcStreakSamples >= ARC_MIN_SAMPLES
         ) {
           const streakHeadAsDist = Math.abs(arcStreakHeading) * ARC_MM_PER_DEG;
@@ -364,8 +368,8 @@ class PseudoCodeGeneratorService {
           ? Math.abs(arcStreakDistance) / streakHeadAsDist2
           : Infinity;
         const isArc2 =
-          distMag2 >= this.MIN_DISTANCE_THRESHOLD &&
-          headMag2 >= this.MIN_HEADING_THRESHOLD &&
+          distMag2 >= ARC_MIN_DIST_MM &&
+          headMag2 >= ARC_MIN_HEAD_DEG &&
           arcStreakSamples >= ARC_MIN_SAMPLES &&
           ratio2 >= ARC_RATIO_MIN &&
           ratio2 <= ARC_RATIO_MAX;
@@ -612,7 +616,8 @@ class PseudoCodeGeneratorService {
 
       if (command.type === "arc" && typeof command.radius === "number" && typeof command.angle === "number") {
         const radiusOut = Math.max(1, command.radius || 0);
-        const apiAngle = -(command.angle || 0); // flip for API
+        // Flip back: use the arc angle as-is for API
+        const apiAngle = (command.angle || 0);
         const dirArrow = apiAngle >= 0 ? "↶" : "↷";
         code += `  # arc ${dirArrow} for ${Math.abs(command.distance || 0).toFixed(1)}mm at r=${radiusOut.toFixed(1)}mm\n`;
         code += `  await drive_arc(${radiusOut.toFixed(1)}, ${apiAngle.toFixed(1)})${directionComment}\n`;
