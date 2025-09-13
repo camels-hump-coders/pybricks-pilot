@@ -61,13 +61,45 @@ export function HubMenuInterface() {
   };
 
   const handleRunSelected = async () => {
-    if (!hubMenuStatus) return;
+    // Determine the currently shown selection (fallback to first program)
+    const desiredProgram =
+      (pendingSelection !== null
+        ? pendingSelection
+        : hubMenuStatus?.selectedProgram) || numberedPrograms[0]?.programNumber;
+    if (!desiredProgram) return;
 
     try {
-      const command = JSON.stringify({
-        action: "run_selected",
+      // Always send an explicit select before run to ensure hub state syncs even for the default
+      const selectCmd = JSON.stringify({
+        action: "select_program",
+        program_number: desiredProgram,
       });
-      await pybricksHubService.sendControlCommand(command);
+      await pybricksHubService.sendControlCommand(selectCmd);
+
+      // Wait for confirmation (or timeout) that the hub selected this program
+      await new Promise<void>((resolve) => {
+        let timeout: number | undefined;
+        const onStatus = (event: Event) => {
+          const { detail } = event as CustomEvent<HubMenuStatus>;
+          if (detail?.selectedProgram === desiredProgram) {
+            cleanup();
+            resolve();
+          }
+        };
+        const cleanup = () => {
+          document.removeEventListener("hubMenuStatus", onStatus);
+          if (timeout !== undefined) window.clearTimeout(timeout);
+        };
+        document.addEventListener("hubMenuStatus", onStatus);
+        // Fallback timeout to avoid hanging if no status comes in
+        timeout = window.setTimeout(() => {
+          cleanup();
+          resolve();
+        }, 300);
+      });
+
+      const runCmd = JSON.stringify({ action: "run_selected" });
+      await pybricksHubService.sendControlCommand(runCmd);
     } catch (error) {
       console.error("Failed to run selected program:", error);
     }
@@ -75,9 +107,9 @@ export function HubMenuInterface() {
 
   // Use pending selection for optimistic UI, otherwise use robot's reported value
   const displayedSelection =
-    pendingSelection !== null
+    (pendingSelection !== null
       ? pendingSelection
-      : hubMenuStatus?.selectedProgram;
+      : hubMenuStatus?.selectedProgram) || numberedPrograms[0]?.programNumber || 1;
 
   return (
     <div className="flex items-center gap-2">

@@ -2,9 +2,10 @@ import { normalizeHeading } from "../utils/headingUtils";
 import type { TelemetryPath, TelemetryPoint } from "./telemetryHistory";
 
 interface MovementCommand {
-  type: "drive" | "turn";
+  type: "drive" | "turn" | "arc";
   distance?: number; // mm - raw encoder distance delta
   angle?: number; // degrees - raw encoder angle delta
+  radius?: number; // mm - for arc commands
   targetHeading?: number; // degrees - final heading
   startHeading?: number; // degrees - starting heading for turn commands
   duration?: number; // ms
@@ -157,6 +158,17 @@ class PseudoCodeGeneratorService {
     let accumulatedDistance = 0;
     let accumulatedHeading = 0;
 
+    // Arc stability tracking across samples to avoid false-positive arcs
+    const ARC_MIN_SAMPLES = 3;
+    const ARC_MM_PER_DEG = 2.5; // heuristic scale to compare distance vs heading
+    const ARC_RATIO_MIN = 0.5;
+    const ARC_RATIO_MAX = 2.5;
+    let arcStreakSamples = 0;
+    let arcStreakDistance = 0;
+    let arcStreakHeading = 0;
+    let prevInstantDistSign = 0;
+    let prevInstantHeadSign = 0;
+
     // Process points in pairs to detect movements
     for (let i = 1; i < telemetryPoints.length; i++) {
       const prevPoint = telemetryPoints[i - 1];
@@ -167,7 +179,7 @@ class PseudoCodeGeneratorService {
         continue;
       }
 
-      // Calculate deltas from raw encoder data
+      // Calculate deltas from raw encoder data (instantaneous)
       const deltaDistance =
         currentPoint.drivebase.distance - prevPoint.drivebase.distance;
 
@@ -191,6 +203,26 @@ class PseudoCodeGeneratorService {
 
       const timeDelta = currentPoint.timestamp - prevPoint.timestamp;
 
+      // Update arc streak stability (sample-level)
+      const distSign = Math.sign(deltaDistance);
+      const headSign = Math.sign(deltaHeading);
+      const bothChanging = Math.abs(deltaDistance) > 0 && Math.abs(deltaHeading) > 0;
+      const sameSigns =
+        distSign !== 0 && headSign !== 0 &&
+        (prevInstantDistSign === 0 || prevInstantDistSign === distSign) &&
+        (prevInstantHeadSign === 0 || prevInstantHeadSign === headSign);
+      if (bothChanging && sameSigns) {
+        arcStreakSamples += 1;
+        arcStreakDistance += deltaDistance;
+        arcStreakHeading += deltaHeading;
+      } else {
+        arcStreakSamples = bothChanging ? 1 : 0;
+        arcStreakDistance = bothChanging ? deltaDistance : 0;
+        arcStreakHeading = bothChanging ? deltaHeading : 0;
+      }
+      prevInstantDistSign = distSign;
+      prevInstantHeadSign = headSign;
+
       // Accumulate deltas that don't meet thresholds
       accumulatedDistance += deltaDistance;
       accumulatedHeading += deltaHeading;
@@ -207,14 +239,32 @@ class PseudoCodeGeneratorService {
           currentCommand = null;
         }
 
+        // Detect arc early only when motion appears to be a stable arc
+        const distMag = Math.abs(accumulatedDistance);
+        const headMag = Math.abs(accumulatedHeading);
+        let isArc = false;
+        if (
+          distMag >= this.MIN_DISTANCE_THRESHOLD &&
+          headMag >= this.MIN_HEADING_THRESHOLD &&
+          arcStreakSamples >= ARC_MIN_SAMPLES
+        ) {
+          const streakHeadAsDist = Math.abs(arcStreakHeading) * ARC_MM_PER_DEG;
+          const ratio = streakHeadAsDist > 0
+            ? Math.abs(arcStreakDistance) / streakHeadAsDist
+            : Infinity;
+          isArc = ratio >= ARC_RATIO_MIN && ratio <= ARC_RATIO_MAX;
+        }
+
         // Determine the new movement type
         const lastCommandType =
           commands.length > 0 ? commands[commands.length - 1].type : undefined;
-        const movementType = this.determineMovementTypeForSwitch(
-          accumulatedDistance,
-          accumulatedHeading,
-          lastCommandType,
-        );
+        const movementType: "drive" | "turn" | "arc" = isArc
+          ? "arc"
+          : this.determineMovementTypeForSwitch(
+              accumulatedDistance,
+              accumulatedHeading,
+              lastCommandType as "drive" | "turn" | undefined,
+            );
 
         // Check if we're switching command types
         const isSwitching = this.isCommandTypeSwitching(
@@ -246,22 +296,36 @@ class PseudoCodeGeneratorService {
           deltasToUse.heading,
         );
 
-        currentCommand = {
-          type: movementType,
-          timestamp: prevPoint.timestamp,
-          isCmdKeyPressed: currentPoint.isCmdKeyPressed,
-          direction: initialDirection,
-          // For turn commands, we'll set startHeading in updateCurrentCommandFromRaw
-        };
-
-        // Update current command based on remaining telemetry
-        this.updateCurrentCommandFromRaw(
-          currentCommand,
-          deltasToUse.distance,
-          deltasToUse.heading,
-          timeDelta,
-          currentPoint,
-        );
+        if (movementType === "arc") {
+          const angleDeg = deltasToUse.heading;
+          const angleRad = Math.abs(angleDeg) * (Math.PI / 180);
+          const distanceMm = deltasToUse.distance;
+          const radiusMm = angleRad > 1e-6 ? Math.abs(distanceMm) / angleRad : 0;
+          currentCommand = {
+            type: "arc",
+            timestamp: prevPoint.timestamp,
+            isCmdKeyPressed: currentPoint.isCmdKeyPressed,
+            direction: initialDirection,
+            distance: distanceMm,
+            angle: angleDeg,
+            radius: radiusMm,
+            duration: timeDelta,
+          };
+        } else {
+          currentCommand = {
+            type: movementType,
+            timestamp: prevPoint.timestamp,
+            isCmdKeyPressed: currentPoint.isCmdKeyPressed,
+            direction: initialDirection,
+          };
+          this.updateCurrentCommandFromRaw(
+            currentCommand,
+            deltasToUse.distance,
+            deltasToUse.heading,
+            timeDelta,
+            currentPoint,
+          );
+        }
 
         totalDistance += Math.abs(deltasToUse.distance);
 
@@ -290,39 +354,70 @@ class PseudoCodeGeneratorService {
         );
 
       // If there are still remaining deltas after applying to the previous command,
-      // create a new command for them
+      // create a new command (prefer arc when both are significant)
       if (Math.abs(updatedDistance) > 0 || Math.abs(updatedHeading) > 0) {
-        const accumulatedMovementType = this.determineMovementType(
-          updatedDistance,
-          updatedHeading,
-        );
+        const distMag2 = Math.abs(updatedDistance);
+        const headMag2 = Math.abs(updatedHeading);
+        // Only finalize as arc if the final residuals resemble a stable arc streak too
+        const streakHeadAsDist2 = Math.abs(arcStreakHeading) * ARC_MM_PER_DEG;
+        const ratio2 = streakHeadAsDist2 > 0
+          ? Math.abs(arcStreakDistance) / streakHeadAsDist2
+          : Infinity;
+        const isArc2 =
+          distMag2 >= this.MIN_DISTANCE_THRESHOLD &&
+          headMag2 >= this.MIN_HEADING_THRESHOLD &&
+          arcStreakSamples >= ARC_MIN_SAMPLES &&
+          ratio2 >= ARC_RATIO_MIN &&
+          ratio2 <= ARC_RATIO_MAX;
 
-        const newCommand: MovementCommand = {
-          type: accumulatedMovementType,
-          timestamp: endPosition.timestamp,
-          isCmdKeyPressed: false, // These are typically small corrections
-          direction: this.determineDirectionFromRaw(
+        if (isArc2) {
+          const angleDeg = updatedHeading;
+          const angleRad = Math.abs(angleDeg) * (Math.PI / 180);
+          const radiusMm = angleRad > 1e-6 ? Math.abs(updatedDistance) / angleRad : 0;
+          const newArc: MovementCommand = {
+            type: "arc",
+            timestamp: endPosition.timestamp,
+            isCmdKeyPressed: false,
+            direction: this.determineDirectionFromRaw(
+              updatedDistance,
+              updatedHeading,
+            ),
+            distance: updatedDistance,
+            angle: updatedHeading,
+            radius: radiusMm,
+          };
+          totalDistance += Math.abs(updatedDistance);
+          commands.push(newArc);
+        } else {
+          const accumulatedMovementType = this.determineMovementType(
             updatedDistance,
             updatedHeading,
-          ),
-        };
-
-        if (accumulatedMovementType === "drive") {
-          newCommand.distance = updatedDistance;
-          totalDistance += Math.abs(updatedDistance);
-        } else {
-          newCommand.angle = updatedHeading;
-          if (endPosition.hub?.imu?.heading !== undefined) {
-            newCommand.targetHeading = normalizeHeading(
-              endPosition.hub.imu.heading,
-            );
-            newCommand.startHeading = normalizeHeading(
-              endPosition.hub.imu.heading - updatedHeading,
-            );
+          );
+          const newCommand: MovementCommand = {
+            type: accumulatedMovementType,
+            timestamp: endPosition.timestamp,
+            isCmdKeyPressed: false,
+            direction: this.determineDirectionFromRaw(
+              updatedDistance,
+              updatedHeading,
+            ),
+          };
+          if (accumulatedMovementType === "drive") {
+            newCommand.distance = updatedDistance;
+            totalDistance += Math.abs(updatedDistance);
+          } else {
+            newCommand.angle = updatedHeading;
+            if (endPosition.hub?.imu?.heading !== undefined) {
+              newCommand.targetHeading = normalizeHeading(
+                endPosition.hub.imu.heading,
+              );
+              newCommand.startHeading = normalizeHeading(
+                endPosition.hub.imu.heading - updatedHeading,
+              );
+            }
           }
+          commands.push(newCommand);
         }
-
-        commands.push(newCommand);
       }
     }
 
@@ -453,6 +548,35 @@ class PseudoCodeGeneratorService {
               // Don't add the current command to the summarized list
               continue;
             }
+          } else if (currentCommand.type === "arc") {
+            // Merge consecutive arcs with same direction and turning sense
+            const prevAngle = previousCommand.angle || 0;
+            const currAngle = currentCommand.angle || 0;
+            const sameTurnSense =
+              (prevAngle >= 0 && currAngle >= 0) ||
+              (prevAngle < 0 && currAngle < 0);
+            const sameDirection =
+              previousCommand.direction === currentCommand.direction;
+
+            if (sameTurnSense && sameDirection) {
+              const prevDist = Math.abs(previousCommand.distance || 0);
+              const currDist = Math.abs(currentCommand.distance || 0);
+              const totalDist = prevDist + currDist;
+              const totalAngleDeg = prevAngle + currAngle;
+              const totalAngleRad = Math.abs(totalAngleDeg) * (Math.PI / 180);
+              const fittedRadius =
+                totalAngleRad > 1e-6
+                  ? totalDist / totalAngleRad
+                  : previousCommand.radius || 0;
+
+              previousCommand.distance = totalDist;
+              previousCommand.angle = totalAngleDeg;
+              previousCommand.radius = fittedRadius;
+              previousCommand.duration =
+                (previousCommand.duration || 0) +
+                (currentCommand.duration || 0);
+              continue;
+            }
           }
         }
       }
@@ -483,9 +607,17 @@ class PseudoCodeGeneratorService {
 
     for (let i = 0; i < program.commands.length; i++) {
       const command = program.commands[i];
-      const next = program.commands[i + 1];
       const directionComment =
         command.direction === "backward" ? " # Backward" : "";
+
+      if (command.type === "arc" && typeof command.radius === "number" && typeof command.angle === "number") {
+        const radiusOut = Math.max(1, command.radius || 0);
+        const apiAngle = -(command.angle || 0); // flip for API
+        const dirArrow = apiAngle >= 0 ? "↶" : "↷";
+        code += `  # arc ${dirArrow} for ${Math.abs(command.distance || 0).toFixed(1)}mm at r=${radiusOut.toFixed(1)}mm\n`;
+        code += `  await drive_arc(${radiusOut.toFixed(1)}, ${apiAngle.toFixed(1)})${directionComment}\n`;
+        continue;
+      }
 
       if (command.type === "drive") {
         const distance = command.distance || 0;

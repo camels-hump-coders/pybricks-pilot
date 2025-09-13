@@ -157,7 +157,11 @@ export function PseudoCodePanel({
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium">
-                        {command.type === "drive" ? "🚗 Drive" : "🔄 Turn"}
+                        {command.type === "drive"
+                          ? "🚗 Drive"
+                          : command.type === "turn"
+                            ? "🔄 Turn"
+                            : "➿ Arc"}
                       </span>
                       <span className="text-gray-500">{`#${index + 1}`}</span>
                     </div>
@@ -175,13 +179,25 @@ export function PseudoCodePanel({
                             </span>
                           )}
                         </>
-                      ) : (
+                      ) : command.type === "turn" ? (
                         <>
                           Target:{" "}
                           {command.targetHeading !== undefined
                             ? normalizeHeading(command.targetHeading).toFixed(1)
                             : "N/A"}
                           °
+                        </>
+                      ) : (
+                        <>
+                          Radius: {command.radius?.toFixed(1)}mm
+                          <span className="ml-2">
+                            Angle: {(command.angle ?? 0).toFixed(1)}°
+                          </span>
+                          {command.distance !== undefined && (
+                            <span className="ml-2">
+                              Distance: {Math.abs(command.distance).toFixed(1)}mm
+                            </span>
+                          )}
                         </>
                       )}
                     </div>
