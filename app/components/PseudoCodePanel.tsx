@@ -3,6 +3,7 @@ import python from "highlight.js/lib/languages/python";
 import React, { useEffect, useState } from "react";
 import {
   type GeneratedProgram,
+  type MotorAngleMode,
   pseudoCodeGenerator,
 } from "../services/pseudoCodeGenerator.js";
 import type { TelemetryPoint } from "../services/telemetryHistory.js";
@@ -38,6 +39,9 @@ export function PseudoCodePanel({
   const [generatedProgram, setGeneratedProgram] =
     useState<GeneratedProgram | null>(null);
   const [readableCode, setReadableCode] = useState<string>("");
+  const [motorAngleMode, setMotorAngleMode] = useState<MotorAngleMode>(
+    pseudoCodeGenerator.getMotorAngleMode(),
+  );
 
   // Generate pseudo code when telemetry points change
   useEffect(() => {
@@ -48,6 +52,7 @@ export function PseudoCodePanel({
       return;
     }
 
+    pseudoCodeGenerator.setMotorAngleMode(motorAngleMode);
     // Use live preview to show current movement as it happens
     const program = pseudoCodeGenerator.generateLivePreview(telemetryPoints);
 
@@ -55,7 +60,7 @@ export function PseudoCodePanel({
 
     const code = pseudoCodeGenerator.generateReadableCode(program);
     setReadableCode(code);
-  }, [telemetryPoints]);
+  }, [telemetryPoints, motorAngleMode]);
 
   // Copy code to clipboard
   const copyToClipboard = async () => {
@@ -78,6 +83,19 @@ export function PseudoCodePanel({
         >
           📋 Copy
         </button>
+        <div className="ml-auto flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <span>Motor angles:</span>
+          <select
+            value={motorAngleMode}
+            onChange={(event) =>
+              setMotorAngleMode(event.target.value as MotorAngleMode)
+            }
+            className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800"
+          >
+            <option value="relative">Relative</option>
+            <option value="absolute">Absolute</option>
+          </select>
+        </div>
       </div>
 
       {/* Content */}
@@ -152,7 +170,7 @@ export function PseudoCodePanel({
               <div className="space-y-1">
                 {generatedProgram.commands.map((command, index) => (
                   <div
-                    key={`${index}-${command.type}-${command.distance ?? 0}-${command.targetHeading ?? 0}`}
+                    key={`${index}-${command.type}-${command.timestamp ?? 0}`}
                     className="text-xs p-2 rounded border bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700"
                   >
                     <div className="flex items-center justify-between">
@@ -161,7 +179,9 @@ export function PseudoCodePanel({
                           ? "🚗 Drive"
                           : command.type === "turn"
                             ? "🔄 Turn"
-                            : "➿ Arc"}
+                            : command.type === "arc"
+                              ? "➿ Arc"
+                              : "⚙️ Motor"}
                       </span>
                       <span className="text-gray-500">{`#${index + 1}`}</span>
                     </div>
@@ -187,7 +207,7 @@ export function PseudoCodePanel({
                             : "N/A"}
                           °
                         </>
-                      ) : (
+                      ) : command.type === "arc" ? (
                         <>
                           Radius: {command.radius?.toFixed(1)}mm
                           <span className="ml-2">
@@ -196,6 +216,23 @@ export function PseudoCodePanel({
                           {command.distance !== undefined && (
                             <span className="ml-2">
                               Distance: {Math.abs(command.distance).toFixed(1)}mm
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          Motor: {command.motorName ?? "Unknown"}
+                          <span className="ml-2">
+                            Δ {(command.motorAngleDelta ?? 0).toFixed(1)}°
+                          </span>
+                          {command.motorTargetAngle !== undefined && (
+                            <span className="ml-2">
+                              Target: {command.motorTargetAngle.toFixed(1)}°
+                            </span>
+                          )}
+                          {command.motorStartAngle !== undefined && (
+                            <span className="ml-2">
+                              Start: {command.motorStartAngle.toFixed(1)}°
                             </span>
                           )}
                         </>
