@@ -1,8 +1,10 @@
 import { normalizeHeading } from "../utils/headingUtils";
 import type { TelemetryPath, TelemetryPoint } from "./telemetryHistory";
 
+export type MotorAngleMode = "relative" | "absolute";
+
 interface MovementCommand {
-  type: "drive" | "turn" | "arc";
+  type: "drive" | "turn" | "arc" | "motor";
   distance?: number; // mm - raw encoder distance delta
   angle?: number; // degrees - raw encoder angle delta
   radius?: number; // mm - for arc commands
@@ -12,6 +14,10 @@ interface MovementCommand {
   timestamp: number;
   isCmdKeyPressed: boolean; // true if this was a manual correction (CMD key held)
   direction?: "forward" | "backward"; // track movement direction
+  motorName?: string;
+  motorAngleDelta?: number;
+  motorStartAngle?: number;
+  motorTargetAngle?: number;
 }
 
 export interface GeneratedProgram {
@@ -30,6 +36,14 @@ interface RawTelemetryPoint {
     distance: number; // Raw encoder distance
     angle: number; // Raw encoder angle
   };
+  motors?: {
+    [name: string]: {
+      angle: number;
+      speed: number;
+      load?: number;
+      error?: string;
+    };
+  };
   hub?: {
     imu?: {
       heading: number; // IMU heading
@@ -37,9 +51,23 @@ interface RawTelemetryPoint {
   };
 }
 
+interface MotorMovementSegment {
+  startAngle: number;
+  startTimestamp: number;
+  accumulatedDelta: number;
+  duration: number;
+  lastAngle: number;
+  lastTimestamp: number;
+  isCmdKeyPressed: boolean;
+}
+
 class PseudoCodeGeneratorService {
   private readonly MIN_DISTANCE_THRESHOLD = 10;
   private readonly MIN_HEADING_THRESHOLD = 5;
+  private readonly MOTOR_START_THRESHOLD = 0.5;
+  private readonly MOTOR_MIN_ANGLE_THRESHOLD = 5;
+  private readonly MOTOR_STOP_SPEED_THRESHOLD = 5;
+  private motorAngleMode: MotorAngleMode = "relative";
 
   /**
    * This service generates pseudo code from robot telemetry data.
@@ -51,6 +79,14 @@ class PseudoCodeGeneratorService {
    * - Ensures small movements are captured even when they occur during transitions
    * - Handles both distance and heading changes intelligently
    */
+  setMotorAngleMode(mode: MotorAngleMode): void {
+    this.motorAngleMode = mode;
+  }
+
+  getMotorAngleMode(): MotorAngleMode {
+    return this.motorAngleMode;
+  }
+
   /**
    * Generate pseudo code from telemetry path
    */
@@ -73,6 +109,7 @@ class PseudoCodeGeneratorService {
       (point) => ({
         timestamp: point.timestamp,
         drivebase: point.data.drivebase,
+        motors: point.data.motors,
         isCmdKeyPressed: point.isCmdKeyPressed,
         hub: point.data.hub,
       }),
@@ -99,6 +136,7 @@ class PseudoCodeGeneratorService {
     const rawTelemetryPoints: RawTelemetryPoint[] = points.map((point) => ({
       timestamp: point.timestamp,
       drivebase: point.data.drivebase,
+      motors: point.data.motors,
       isCmdKeyPressed: point.isCmdKeyPressed,
       hub: point.data.hub,
     }));
@@ -125,6 +163,7 @@ class PseudoCodeGeneratorService {
     const rawTelemetryPoints: RawTelemetryPoint[] = points.map((point) => ({
       timestamp: point.timestamp,
       drivebase: point.data.drivebase,
+      motors: point.data.motors,
       hub: point.data.hub,
       isCmdKeyPressed: point.isCmdKeyPressed,
     }));
@@ -210,9 +249,11 @@ class PseudoCodeGeneratorService {
       // Update arc streak stability (sample-level)
       const distSign = Math.sign(deltaDistance);
       const headSign = Math.sign(deltaHeading);
-      const bothChanging = Math.abs(deltaDistance) > 0 && Math.abs(deltaHeading) > 0;
+      const bothChanging =
+        Math.abs(deltaDistance) > 0 && Math.abs(deltaHeading) > 0;
       const sameSigns =
-        distSign !== 0 && headSign !== 0 &&
+        distSign !== 0 &&
+        headSign !== 0 &&
         (prevInstantDistSign === 0 || prevInstantDistSign === distSign) &&
         (prevInstantHeadSign === 0 || prevInstantHeadSign === headSign);
       if (bothChanging && sameSigns) {
@@ -253,9 +294,10 @@ class PseudoCodeGeneratorService {
           arcStreakSamples >= ARC_MIN_SAMPLES
         ) {
           const streakHeadAsDist = Math.abs(arcStreakHeading) * ARC_MM_PER_DEG;
-          const ratio = streakHeadAsDist > 0
-            ? Math.abs(arcStreakDistance) / streakHeadAsDist
-            : Infinity;
+          const ratio =
+            streakHeadAsDist > 0
+              ? Math.abs(arcStreakDistance) / streakHeadAsDist
+              : Infinity;
           isArc = ratio >= ARC_RATIO_MIN && ratio <= ARC_RATIO_MAX;
         }
 
@@ -304,7 +346,8 @@ class PseudoCodeGeneratorService {
           const angleDeg = deltasToUse.heading;
           const angleRad = Math.abs(angleDeg) * (Math.PI / 180);
           const distanceMm = deltasToUse.distance;
-          const radiusMm = angleRad > 1e-6 ? Math.abs(distanceMm) / angleRad : 0;
+          const radiusMm =
+            angleRad > 1e-6 ? Math.abs(distanceMm) / angleRad : 0;
           currentCommand = {
             type: "arc",
             timestamp: prevPoint.timestamp,
@@ -364,9 +407,10 @@ class PseudoCodeGeneratorService {
         const headMag2 = Math.abs(updatedHeading);
         // Only finalize as arc if the final residuals resemble a stable arc streak too
         const streakHeadAsDist2 = Math.abs(arcStreakHeading) * ARC_MM_PER_DEG;
-        const ratio2 = streakHeadAsDist2 > 0
-          ? Math.abs(arcStreakDistance) / streakHeadAsDist2
-          : Infinity;
+        const ratio2 =
+          streakHeadAsDist2 > 0
+            ? Math.abs(arcStreakDistance) / streakHeadAsDist2
+            : Infinity;
         const isArc2 =
           distMag2 >= ARC_MIN_DIST_MM &&
           headMag2 >= ARC_MIN_HEAD_DEG &&
@@ -377,7 +421,8 @@ class PseudoCodeGeneratorService {
         if (isArc2) {
           const angleDeg = updatedHeading;
           const angleRad = Math.abs(angleDeg) * (Math.PI / 180);
-          const radiusMm = angleRad > 1e-6 ? Math.abs(updatedDistance) / angleRad : 0;
+          const radiusMm =
+            angleRad > 1e-6 ? Math.abs(updatedDistance) / angleRad : 0;
           const newArc: MovementCommand = {
             type: "arc",
             timestamp: endPosition.timestamp,
@@ -425,9 +470,24 @@ class PseudoCodeGeneratorService {
       }
     }
 
+    const motorCommands = this.generateMotorCommands(telemetryPoints);
+    const allCommandsWithIndex = [...commands, ...motorCommands].map(
+      (command, index) => ({ command, index }),
+    );
+
+    // Ensure chronological ordering while keeping stable sorting for equal timestamps
+    const sortedCommands = allCommandsWithIndex
+      .sort((a, b) => {
+        if (a.command.timestamp === b.command.timestamp) {
+          return a.index - b.index;
+        }
+        return a.command.timestamp - b.command.timestamp;
+      })
+      .map((entry) => entry.command);
+
     // Summarize commands by combining sequential commands of the same type
     // and handling corrections appropriately
-    const summarizedCommands = this.summarizeCommands(commands);
+    const summarizedCommands = this.summarizeCommands(sortedCommands);
 
     return {
       commands: summarizedCommands,
@@ -581,6 +641,44 @@ class PseudoCodeGeneratorService {
                 (currentCommand.duration || 0);
               continue;
             }
+          } else if (currentCommand.type === "motor") {
+            if (
+              previousCommand.type === "motor" &&
+              previousCommand.motorName === currentCommand.motorName
+            ) {
+              const previousDelta = previousCommand.motorAngleDelta || 0;
+              const currentDelta = currentCommand.motorAngleDelta || 0;
+              const sameSignedValue =
+                (previousDelta >= 0 && currentDelta >= 0) ||
+                (previousDelta < 0 && currentDelta < 0);
+              const cmdKeyHeld = currentCommand.isCmdKeyPressed || false;
+
+              if (sameSignedValue || cmdKeyHeld) {
+                const combinedDelta = previousDelta + currentDelta;
+
+                previousCommand.motorAngleDelta = combinedDelta;
+                if (previousCommand.motorStartAngle === undefined) {
+                  previousCommand.motorStartAngle =
+                    currentCommand.motorStartAngle;
+                }
+
+                const inferredTarget =
+                  currentCommand.motorTargetAngle !== undefined
+                    ? currentCommand.motorTargetAngle
+                    : previousCommand.motorStartAngle !== undefined
+                      ? previousCommand.motorStartAngle + combinedDelta
+                      : previousCommand.motorTargetAngle;
+
+                if (inferredTarget !== undefined) {
+                  previousCommand.motorTargetAngle = inferredTarget;
+                }
+
+                previousCommand.duration =
+                  (previousCommand.duration || 0) +
+                  (currentCommand.duration || 0);
+                continue;
+              }
+            }
           }
         }
       }
@@ -590,6 +688,150 @@ class PseudoCodeGeneratorService {
     }
 
     return summarized;
+  }
+
+  /**
+   * Generate pseudo code commands for individual motors from telemetry data
+   */
+  private generateMotorCommands(
+    telemetryPoints: RawTelemetryPoint[],
+  ): MovementCommand[] {
+    if (telemetryPoints.length < 2) {
+      return [];
+    }
+
+    const motorCommands: MovementCommand[] = [];
+    const motorNames = new Set<string>();
+
+    telemetryPoints.forEach((point) => {
+      if (point.motors) {
+        for (const name of Object.keys(point.motors)) {
+          motorNames.add(name);
+        }
+      }
+    });
+
+    motorNames.forEach((motorName) => {
+      let segment: MotorMovementSegment | null = null;
+
+      for (let i = 1; i < telemetryPoints.length; i++) {
+        const prevPoint = telemetryPoints[i - 1];
+        const currentPoint = telemetryPoints[i];
+        const prevMotor = prevPoint.motors?.[motorName];
+        const currentMotor = currentPoint.motors?.[motorName];
+
+        if (!prevMotor || !currentMotor) {
+          if (segment) {
+            this.finalizeMotorSegment(motorCommands, motorName, segment);
+            segment = null;
+          }
+          continue;
+        }
+
+        const timeDelta = currentPoint.timestamp - prevPoint.timestamp;
+        const delta = currentMotor.angle - prevMotor.angle;
+
+        if (!segment) {
+          if (Math.abs(delta) >= this.MOTOR_START_THRESHOLD) {
+            segment = {
+              startAngle: prevMotor.angle,
+              startTimestamp: prevPoint.timestamp,
+              accumulatedDelta: delta,
+              duration: timeDelta,
+              lastAngle: currentMotor.angle,
+              lastTimestamp: currentPoint.timestamp,
+              isCmdKeyPressed:
+                prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed,
+            };
+          }
+          continue;
+        }
+
+        const prevAccumulated = segment.accumulatedDelta;
+        const prevSign = Math.sign(prevAccumulated);
+        const deltaSign = Math.sign(delta);
+        const directionChanged =
+          prevSign !== 0 && deltaSign !== 0 && prevSign !== deltaSign;
+
+        if (directionChanged) {
+          if (Math.abs(prevAccumulated) >= this.MOTOR_MIN_ANGLE_THRESHOLD) {
+            this.finalizeMotorSegment(motorCommands, motorName, segment);
+          }
+
+          segment =
+            Math.abs(delta) >= this.MOTOR_START_THRESHOLD
+              ? {
+                  startAngle: prevMotor.angle,
+                  startTimestamp: prevPoint.timestamp,
+                  accumulatedDelta: delta,
+                  duration: timeDelta,
+                  lastAngle: currentMotor.angle,
+                  lastTimestamp: currentPoint.timestamp,
+                  isCmdKeyPressed:
+                    prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed,
+                }
+              : null;
+          continue;
+        }
+
+        segment.accumulatedDelta = prevAccumulated + delta;
+        segment.duration += timeDelta;
+        segment.lastAngle = currentMotor.angle;
+        segment.lastTimestamp = currentPoint.timestamp;
+        if (prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed) {
+          segment.isCmdKeyPressed = true;
+        }
+
+        const approxSpeed =
+          currentMotor.speed !== undefined
+            ? Math.abs(currentMotor.speed)
+            : timeDelta > 0
+              ? Math.abs(delta) / Math.max(timeDelta / 1000, 1e-6)
+              : 0;
+        const smallDelta = Math.abs(delta) < this.MOTOR_START_THRESHOLD;
+        const shouldFinalize =
+          Math.abs(segment.accumulatedDelta) >=
+            this.MOTOR_MIN_ANGLE_THRESHOLD &&
+          approxSpeed <= this.MOTOR_STOP_SPEED_THRESHOLD &&
+          smallDelta;
+
+        if (shouldFinalize) {
+          this.finalizeMotorSegment(motorCommands, motorName, segment);
+          segment = null;
+        }
+      }
+
+      if (segment) {
+        this.finalizeMotorSegment(motorCommands, motorName, segment);
+      }
+    });
+
+    return motorCommands;
+  }
+
+  private finalizeMotorSegment(
+    commandList: MovementCommand[],
+    motorName: string,
+    segment: MotorMovementSegment,
+  ): void {
+    const angleDelta = segment.accumulatedDelta;
+    if (Math.abs(angleDelta) < this.MOTOR_MIN_ANGLE_THRESHOLD) {
+      return;
+    }
+
+    const startAngle = segment.startAngle;
+    const targetAngle = startAngle + angleDelta;
+
+    commandList.push({
+      type: "motor",
+      timestamp: segment.startTimestamp,
+      isCmdKeyPressed: segment.isCmdKeyPressed,
+      duration: segment.duration,
+      motorName,
+      motorAngleDelta: angleDelta,
+      motorStartAngle: startAngle,
+      motorTargetAngle: targetAngle,
+    });
   }
 
   /**
@@ -614,10 +856,42 @@ class PseudoCodeGeneratorService {
       const directionComment =
         command.direction === "backward" ? " # Backward" : "";
 
-      if (command.type === "arc" && typeof command.radius === "number" && typeof command.angle === "number") {
+      if (command.type === "motor") {
+        const motorName = command.motorName ?? "motor";
+        const fallbackTarget =
+          command.motorTargetAngle !== undefined
+            ? command.motorTargetAngle
+            : command.motorStartAngle !== undefined &&
+                command.motorAngleDelta !== undefined
+              ? command.motorStartAngle + command.motorAngleDelta
+              : undefined;
+
+        if (this.motorAngleMode === "absolute") {
+          const targetAngle = fallbackTarget ?? 0;
+          const originComment =
+            command.motorStartAngle !== undefined
+              ? `  # from ${command.motorStartAngle.toFixed(1)}°`
+              : "";
+          code += `  await motor_move_to("${motorName}", ${targetAngle.toFixed(1)})${originComment}\n`;
+        } else {
+          const delta = command.motorAngleDelta || 0;
+          const targetComment =
+            fallbackTarget !== undefined
+              ? `  # target ${fallbackTarget.toFixed(1)}°`
+              : "";
+          code += `  await motor_rotate("${motorName}", ${delta.toFixed(1)})${targetComment}\n`;
+        }
+        continue;
+      }
+
+      if (
+        command.type === "arc" &&
+        typeof command.radius === "number" &&
+        typeof command.angle === "number"
+      ) {
         const radiusOut = Math.max(1, command.radius || 0);
         // Flip back: use the arc angle as-is for API
-        const apiAngle = (command.angle || 0);
+        const apiAngle = command.angle || 0;
         const dirArrow = apiAngle >= 0 ? "↶" : "↷";
         code += `  # arc ${dirArrow} for ${Math.abs(command.distance || 0).toFixed(1)}mm at r=${radiusOut.toFixed(1)}mm\n`;
         code += `  await drive_arc(${radiusOut.toFixed(1)}, ${apiAngle.toFixed(1)})${directionComment}\n`;
@@ -749,8 +1023,8 @@ class PseudoCodeGeneratorService {
    * Detect if we're switching between command types
    */
   private isCommandTypeSwitching(
-    currentType: "drive" | "turn",
-    lastCommandType?: "drive" | "turn",
+    currentType: "drive" | "turn" | "arc",
+    lastCommandType?: "drive" | "turn" | "arc",
   ): boolean {
     return lastCommandType !== undefined && lastCommandType !== currentType;
   }
