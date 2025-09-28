@@ -2,7 +2,7 @@ import { normalizeHeading } from "../utils/headingUtils";
 import type { TelemetryPath, TelemetryPoint } from "./telemetryHistory";
 
 interface MovementCommand {
-  type: "drive" | "turn" | "arc";
+  type: "drive" | "turn" | "arc" | "motor";
   distance?: number; // mm - raw encoder distance delta
   angle?: number; // degrees - raw encoder angle delta
   radius?: number; // mm - for arc commands
@@ -11,7 +11,10 @@ interface MovementCommand {
   duration?: number; // ms
   timestamp: number;
   isCmdKeyPressed: boolean; // true if this was a manual correction (CMD key held)
-  direction?: "forward" | "backward"; // track movement direction
+  direction?: "forward" | "backward" | "cw" | "ccw"; // track movement direction
+  motorName?: string;
+  motorDirection?: "cw" | "ccw";
+  speed?: number; // deg/s estimate for motor commands
 }
 
 export interface GeneratedProgram {
@@ -23,6 +26,11 @@ export interface GeneratedProgram {
 }
 
 // New interface for raw telemetry data
+interface RawMotorTelemetry {
+  angle?: number;
+  speed?: number;
+}
+
 interface RawTelemetryPoint {
   timestamp: number;
   isCmdKeyPressed: boolean;
@@ -30,6 +38,7 @@ interface RawTelemetryPoint {
     distance: number; // Raw encoder distance
     angle: number; // Raw encoder angle
   };
+  motors?: Record<string, RawMotorTelemetry>;
   hub?: {
     imu?: {
       heading: number; // IMU heading
@@ -40,6 +49,9 @@ interface RawTelemetryPoint {
 class PseudoCodeGeneratorService {
   private readonly MIN_DISTANCE_THRESHOLD = 10;
   private readonly MIN_HEADING_THRESHOLD = 5;
+  private readonly MOTOR_MIN_ANGLE_THRESHOLD = 5;
+  private readonly MOTOR_MIN_SPEED_THRESHOLD = 15;
+  private readonly MOTOR_IDLE_TIMEOUT_MS = 250;
 
   /**
    * This service generates pseudo code from robot telemetry data.
@@ -74,6 +86,7 @@ class PseudoCodeGeneratorService {
         timestamp: point.timestamp,
         drivebase: point.data.drivebase,
         isCmdKeyPressed: point.isCmdKeyPressed,
+        motors: point.data.motors,
         hub: point.data.hub,
       }),
     );
@@ -100,6 +113,7 @@ class PseudoCodeGeneratorService {
       timestamp: point.timestamp,
       drivebase: point.data.drivebase,
       isCmdKeyPressed: point.isCmdKeyPressed,
+      motors: point.data.motors,
       hub: point.data.hub,
     }));
 
@@ -126,6 +140,7 @@ class PseudoCodeGeneratorService {
       timestamp: point.timestamp,
       drivebase: point.data.drivebase,
       hub: point.data.hub,
+      motors: point.data.motors,
       isCmdKeyPressed: point.isCmdKeyPressed,
     }));
 
@@ -151,6 +166,8 @@ class PseudoCodeGeneratorService {
     const commands: MovementCommand[] = [];
     let currentCommand: MovementCommand | null = null;
     let totalDistance = 0;
+    const ongoingMotorCommands = new Map<string, MovementCommand>();
+    const motorIdleTimers = new Map<string, number>();
     const startPosition = telemetryPoints[0];
     const endPosition = telemetryPoints[telemetryPoints.length - 1];
 
@@ -207,12 +224,25 @@ class PseudoCodeGeneratorService {
 
       const timeDelta = currentPoint.timestamp - prevPoint.timestamp;
 
+      this.processMotorTelemetry(
+        ongoingMotorCommands,
+        motorIdleTimers,
+        commands,
+        prevPoint,
+        currentPoint,
+        timeDelta,
+        deltaDistance,
+        deltaHeading,
+      );
+
       // Update arc streak stability (sample-level)
       const distSign = Math.sign(deltaDistance);
       const headSign = Math.sign(deltaHeading);
-      const bothChanging = Math.abs(deltaDistance) > 0 && Math.abs(deltaHeading) > 0;
+      const bothChanging =
+        Math.abs(deltaDistance) > 0 && Math.abs(deltaHeading) > 0;
       const sameSigns =
-        distSign !== 0 && headSign !== 0 &&
+        distSign !== 0 &&
+        headSign !== 0 &&
         (prevInstantDistSign === 0 || prevInstantDistSign === distSign) &&
         (prevInstantHeadSign === 0 || prevInstantHeadSign === headSign);
       if (bothChanging && sameSigns) {
@@ -253,22 +283,23 @@ class PseudoCodeGeneratorService {
           arcStreakSamples >= ARC_MIN_SAMPLES
         ) {
           const streakHeadAsDist = Math.abs(arcStreakHeading) * ARC_MM_PER_DEG;
-          const ratio = streakHeadAsDist > 0
-            ? Math.abs(arcStreakDistance) / streakHeadAsDist
-            : Infinity;
+          const ratio =
+            streakHeadAsDist > 0
+              ? Math.abs(arcStreakDistance) / streakHeadAsDist
+              : Infinity;
           isArc = ratio >= ARC_RATIO_MIN && ratio <= ARC_RATIO_MAX;
         }
 
         // Determine the new movement type
-        const lastCommandType =
-          commands.length > 0 ? commands[commands.length - 1].type : undefined;
-        const movementType: "drive" | "turn" | "arc" = isArc
-          ? "arc"
-          : this.determineMovementTypeForSwitch(
-              accumulatedDistance,
-              accumulatedHeading,
-              lastCommandType as "drive" | "turn" | undefined,
-            );
+    const lastCommandType =
+      commands.length > 0 ? commands[commands.length - 1].type : undefined;
+    const movementType: "drive" | "turn" | "arc" = isArc
+      ? "arc"
+      : this.determineMovementTypeForSwitch(
+          accumulatedDistance,
+          accumulatedHeading,
+          lastCommandType,
+        );
 
         // Check if we're switching command types
         const isSwitching = this.isCommandTypeSwitching(
@@ -304,7 +335,8 @@ class PseudoCodeGeneratorService {
           const angleDeg = deltasToUse.heading;
           const angleRad = Math.abs(angleDeg) * (Math.PI / 180);
           const distanceMm = deltasToUse.distance;
-          const radiusMm = angleRad > 1e-6 ? Math.abs(distanceMm) / angleRad : 0;
+          const radiusMm =
+            angleRad > 1e-6 ? Math.abs(distanceMm) / angleRad : 0;
           currentCommand = {
             type: "arc",
             timestamp: prevPoint.timestamp,
@@ -364,9 +396,10 @@ class PseudoCodeGeneratorService {
         const headMag2 = Math.abs(updatedHeading);
         // Only finalize as arc if the final residuals resemble a stable arc streak too
         const streakHeadAsDist2 = Math.abs(arcStreakHeading) * ARC_MM_PER_DEG;
-        const ratio2 = streakHeadAsDist2 > 0
-          ? Math.abs(arcStreakDistance) / streakHeadAsDist2
-          : Infinity;
+        const ratio2 =
+          streakHeadAsDist2 > 0
+            ? Math.abs(arcStreakDistance) / streakHeadAsDist2
+            : Infinity;
         const isArc2 =
           distMag2 >= ARC_MIN_DIST_MM &&
           headMag2 >= ARC_MIN_HEAD_DEG &&
@@ -377,7 +410,8 @@ class PseudoCodeGeneratorService {
         if (isArc2) {
           const angleDeg = updatedHeading;
           const angleRad = Math.abs(angleDeg) * (Math.PI / 180);
-          const radiusMm = angleRad > 1e-6 ? Math.abs(updatedDistance) / angleRad : 0;
+          const radiusMm =
+            angleRad > 1e-6 ? Math.abs(updatedDistance) / angleRad : 0;
           const newArc: MovementCommand = {
             type: "arc",
             timestamp: endPosition.timestamp,
@@ -425,6 +459,8 @@ class PseudoCodeGeneratorService {
       }
     }
 
+    this.flushMotorCommands(ongoingMotorCommands, motorIdleTimers, commands);
+
     // Summarize commands by combining sequential commands of the same type
     // and handling corrections appropriately
     const summarizedCommands = this.summarizeCommands(commands);
@@ -444,6 +480,207 @@ class PseudoCodeGeneratorService {
         heading: normalizeHeading(endPosition.hub?.imu?.heading || 0),
       },
     };
+  }
+
+  private processMotorTelemetry(
+    ongoingMotorCommands: Map<string, MovementCommand>,
+    motorIdleTimers: Map<string, number>,
+    commands: MovementCommand[],
+    prevPoint: RawTelemetryPoint,
+    currentPoint: RawTelemetryPoint,
+    timeDelta: number,
+    deltaDistance: number,
+    deltaHeading: number,
+  ): void {
+    const prevMotors = prevPoint.motors;
+    const currentMotors = currentPoint.motors;
+
+    if (!prevMotors && !currentMotors) {
+      return;
+    }
+
+    const drivebaseMoving =
+      Math.abs(deltaDistance) >= this.MIN_DISTANCE_THRESHOLD ||
+      Math.abs(deltaHeading) >= this.MIN_HEADING_THRESHOLD;
+
+    const motorNames = new Set<string>([
+      ...Object.keys(prevMotors || {}),
+      ...Object.keys(currentMotors || {}),
+    ]);
+
+    for (const motorName of motorNames) {
+      const prevMotor = prevMotors?.[motorName];
+      const currentMotor = currentMotors?.[motorName];
+      const ongoingCommand = ongoingMotorCommands.get(motorName);
+
+      if (
+        !prevMotor ||
+        prevMotor.angle === undefined ||
+        !currentMotor ||
+        currentMotor.angle === undefined
+      ) {
+        if (ongoingCommand) {
+          const idle = (motorIdleTimers.get(motorName) || 0) + timeDelta;
+          motorIdleTimers.set(motorName, idle);
+          if (idle >= this.MOTOR_IDLE_TIMEOUT_MS) {
+            this.finalizeMotorCommand(
+              motorName,
+              ongoingMotorCommands,
+              motorIdleTimers,
+              commands,
+            );
+          }
+        }
+        continue;
+      }
+
+      const deltaAngle = currentMotor.angle - prevMotor.angle;
+      const speedMagnitude = Math.abs(currentMotor.speed ?? 0);
+      const significantAngle =
+        Math.abs(deltaAngle) >= this.MOTOR_MIN_ANGLE_THRESHOLD;
+      const significantSpeed = speedMagnitude >= this.MOTOR_MIN_SPEED_THRESHOLD;
+
+      if (ongoingCommand) {
+        if (!drivebaseMoving && (significantAngle || significantSpeed)) {
+          ongoingCommand.angle = (ongoingCommand.angle || 0) + deltaAngle;
+          ongoingCommand.duration =
+            (ongoingCommand.duration || 0) + Math.max(timeDelta, 0);
+          ongoingCommand.speed = this.estimateMotorSpeed(
+            ongoingCommand.angle || 0,
+            ongoingCommand.duration || 0,
+            currentMotor.speed,
+            ongoingCommand.speed,
+          );
+          const direction = (ongoingCommand.angle || 0) >= 0 ? "cw" : "ccw";
+          ongoingCommand.direction = direction;
+          ongoingCommand.motorDirection = direction;
+          ongoingCommand.isCmdKeyPressed =
+            ongoingCommand.isCmdKeyPressed ||
+            currentPoint.isCmdKeyPressed ||
+            prevPoint.isCmdKeyPressed;
+          motorIdleTimers.set(motorName, 0);
+        } else {
+          const idle = (motorIdleTimers.get(motorName) || 0) + timeDelta;
+          motorIdleTimers.set(motorName, idle);
+          if (idle >= this.MOTOR_IDLE_TIMEOUT_MS) {
+            this.finalizeMotorCommand(
+              motorName,
+              ongoingMotorCommands,
+              motorIdleTimers,
+              commands,
+            );
+          }
+        }
+        continue;
+      }
+
+      if (drivebaseMoving) {
+        continue;
+      }
+
+      if (significantAngle || significantSpeed) {
+        const initialDuration = Math.max(timeDelta, 0);
+        const direction = deltaAngle >= 0 ? "cw" : "ccw";
+        const newCommand: MovementCommand = {
+          type: "motor",
+          motorName,
+          motorDirection: direction,
+          direction,
+          angle: deltaAngle,
+          speed: this.estimateMotorSpeed(
+            deltaAngle,
+            initialDuration,
+            currentMotor.speed,
+          ),
+          timestamp: prevPoint.timestamp,
+          duration: initialDuration,
+          isCmdKeyPressed:
+            currentPoint.isCmdKeyPressed || prevPoint.isCmdKeyPressed,
+        };
+
+        ongoingMotorCommands.set(motorName, newCommand);
+        motorIdleTimers.set(motorName, 0);
+      }
+    }
+  }
+
+  private finalizeMotorCommand(
+    motorName: string,
+    ongoingMotorCommands: Map<string, MovementCommand>,
+    motorIdleTimers: Map<string, number>,
+    commands: MovementCommand[],
+  ): void {
+    const command = ongoingMotorCommands.get(motorName);
+    if (!command) {
+      return;
+    }
+
+    const totalAngle = command.angle ?? 0;
+    if (Math.abs(totalAngle) < this.MOTOR_MIN_ANGLE_THRESHOLD) {
+      ongoingMotorCommands.delete(motorName);
+      motorIdleTimers.delete(motorName);
+      return;
+    }
+
+    command.motorDirection = totalAngle >= 0 ? "cw" : "ccw";
+    command.direction = command.motorDirection;
+
+    if (!command.speed || command.speed <= 0) {
+      command.speed = this.estimateMotorSpeed(
+        totalAngle,
+        command.duration || 0,
+        undefined,
+        command.speed,
+      );
+    }
+
+    commands.push(command);
+    ongoingMotorCommands.delete(motorName);
+    motorIdleTimers.delete(motorName);
+  }
+
+  private flushMotorCommands(
+    ongoingMotorCommands: Map<string, MovementCommand>,
+    motorIdleTimers: Map<string, number>,
+    commands: MovementCommand[],
+  ): void {
+    for (const motorName of ongoingMotorCommands.keys()) {
+      this.finalizeMotorCommand(
+        motorName,
+        ongoingMotorCommands,
+        motorIdleTimers,
+        commands,
+      );
+    }
+  }
+
+  private estimateMotorSpeed(
+    angleDelta: number,
+    durationMs: number,
+    currentSpeed?: number,
+    previousEstimate?: number,
+  ): number {
+    const candidates: number[] = [];
+    if (currentSpeed !== undefined) {
+      candidates.push(Math.abs(currentSpeed));
+    }
+    if (previousEstimate !== undefined) {
+      candidates.push(Math.abs(previousEstimate));
+    }
+    if (durationMs > 0 && Math.abs(angleDelta) > 0) {
+      const computed = Math.abs(angleDelta) / (durationMs / 1000);
+      if (!Number.isNaN(computed) && Number.isFinite(computed)) {
+        candidates.push(computed);
+      }
+    }
+
+    if (candidates.length === 0) {
+      return 180;
+    }
+
+    const average =
+      candidates.reduce((sum, value) => sum + value, 0) / candidates.length;
+    return Math.max(average, 30);
   }
 
   /**
@@ -613,12 +850,23 @@ class PseudoCodeGeneratorService {
     code += `  robot = None\n`;
     code += `  print("[PILOT] Warning: robot.py not found – set up hardware manually")\n\n`;
 
-    code += `from pybrickspilot import (\n`;
-    code += `  drive_arc,\n`;
-    code += `  drive_straight,\n`;
-    code += `  reset_heading_reference,\n`;
-    code += `  turn_to_heading,\n`;
-    code += `)\n\n`;
+    const helperImports = [
+      "drive_arc",
+      "drive_straight",
+      "reset_heading_reference",
+      "turn_to_heading",
+    ];
+    const hasMotorCommands = program.commands.some(
+      (command) => command.type === "motor",
+    );
+
+    if (hasMotorCommands) {
+      helperImports.push("run_motor_angle", "run_motor_speed", "stop_motor");
+    }
+
+    code += "from pybrickspilot import (\n";
+    code += helperImports.map((name) => `  ${name},\n`).join("");
+    code += ")\n\n";
 
     code += `async def run():\n`;
     code += `  """Generated pseudo code from robot movements"""\n`;
@@ -626,14 +874,17 @@ class PseudoCodeGeneratorService {
 
     for (let i = 0; i < program.commands.length; i++) {
       const command = program.commands[i];
-      const directionComment =
-        command.direction === "backward" ? " # Backward" : "";
-
-      if (command.type === "arc" && typeof command.radius === "number" && typeof command.angle === "number") {
+      if (
+        command.type === "arc" &&
+        typeof command.radius === "number" &&
+        typeof command.angle === "number"
+      ) {
         const radiusOut = Math.max(1, command.radius || 0);
         // Flip back: use the arc angle as-is for API
-        const apiAngle = (command.angle || 0);
+        const apiAngle = command.angle || 0;
         const dirArrow = apiAngle >= 0 ? "↶" : "↷";
+        const directionComment =
+          command.direction === "backward" ? " # Backward" : "";
         code += `  # arc ${dirArrow} for ${Math.abs(command.distance || 0).toFixed(1)}mm at r=${radiusOut.toFixed(1)}mm\n`;
         code += `  await drive_arc(${radiusOut.toFixed(1)}, ${apiAngle.toFixed(1)})${directionComment}\n`;
         continue;
@@ -641,7 +892,20 @@ class PseudoCodeGeneratorService {
 
       if (command.type === "drive") {
         const distance = command.distance || 0;
+        const directionComment =
+          command.direction === "backward" ? " # Backward" : "";
         code += `  await drive_straight(${distance.toFixed(1)})${directionComment}\n`;
+      } else if (command.type === "motor" && command.motorName) {
+        const angle = command.angle || 0;
+        const speed = Math.abs(command.speed || 0);
+        const directionSymbol = command.motorDirection === "ccw" ? "↺" : "↻";
+        const durationSeconds = command.duration
+          ? ` over ${(command.duration / 1000).toFixed(2)}s`
+          : "";
+        code += `  # motor ${command.motorName} ${directionSymbol} ${Math.abs(angle).toFixed(1)}°${durationSeconds}\n`;
+        const motorLiteral = JSON.stringify(command.motorName);
+        const speedArg = speed > 0 ? `, speed=${speed.toFixed(1)}` : "";
+        code += `  await run_motor_angle(${motorLiteral}, ${angle.toFixed(1)}${speedArg})\n`;
       } else {
         const targetHeading = command.targetHeading || 0;
         code += `  await turn_to_heading(${normalizeHeading(targetHeading).toFixed(1)})\n`;
@@ -673,7 +937,7 @@ class PseudoCodeGeneratorService {
   private determineMovementTypeForSwitch(
     deltaDistance: number,
     deltaHeading: number,
-    lastCommandType?: "drive" | "turn",
+    lastCommandType?: "drive" | "turn" | "arc" | "motor",
   ): "drive" | "turn" {
     const distanceMagnitude = Math.abs(deltaDistance);
     const headingMagnitude = Math.abs(deltaHeading);
@@ -703,7 +967,11 @@ class PseudoCodeGeneratorService {
     }
 
     // Fallback to last command type if available, otherwise drive
-    return lastCommandType || "drive";
+    if (lastCommandType === "turn") {
+      return "turn";
+    }
+
+    return "drive";
   }
 
   /**
@@ -764,8 +1032,8 @@ class PseudoCodeGeneratorService {
    * Detect if we're switching between command types
    */
   private isCommandTypeSwitching(
-    currentType: "drive" | "turn",
-    lastCommandType?: "drive" | "turn",
+    currentType: "drive" | "turn" | "arc" | "motor",
+    lastCommandType?: "drive" | "turn" | "arc" | "motor",
   ): boolean {
     return lastCommandType !== undefined && lastCommandType !== currentType;
   }

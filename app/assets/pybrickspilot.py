@@ -995,6 +995,19 @@ def _ensure_drivebase():
         )
 
 
+def _ensure_motor(name):
+    if name not in _motors:
+        available = ", ".join(sorted(_motors.keys())) or "none"
+        raise RuntimeError(
+            "[PILOT] Motor '"
+            + str(name)
+            + "' is not registered. Available motors: "
+            + available
+        )
+
+    return _motors[name]
+
+
 def _resolve_stop_behavior(stop_behavior):
     behavior = (stop_behavior or "hold").lower()
     if behavior in ["coast_smart", "smart", "coast-smart"]:
@@ -1154,6 +1167,135 @@ async def turn_to_heading(target_heading_deg, speed=90, tolerance=1.0, stop_beha
     new_heading = get_relative_heading()
     print("[PILOT] turn_to_heading completed. Final heading:", new_heading)
     return new_heading
+
+
+async def run_motor_angle(
+    motor_name,
+    angle_deg,
+    speed_deg_per_sec=None,
+    stop_behavior="hold",
+):
+    """Rotate a registered motor by the requested angle in degrees."""
+
+    motor = _ensure_motor(motor_name)
+
+    try:
+        target_angle = float(angle_deg)
+    except Exception:
+        raise ValueError("run_motor_angle angle must be numeric")
+
+    if math.fabs(target_angle) <= 1e-6:
+        print("[PILOT] run_motor_angle skipped: angle too small")
+        return 0
+
+    requested_speed = speed_deg_per_sec
+    if requested_speed is None:
+        requested_speed = 180.0
+
+    try:
+        requested_speed = float(requested_speed)
+    except Exception:
+        raise ValueError("run_motor_angle speed must be numeric")
+
+    speed = math.fabs(requested_speed)
+    angle = math.fabs(target_angle)
+
+    if target_angle < 0:
+        speed = -speed
+
+    try:
+        await motor.run_angle(
+            speed,
+            angle,
+            then=_resolve_stop_behavior(stop_behavior),
+            wait=True,
+        )
+    except AttributeError:
+        # Fallback for motors that only expose run_target
+        try:
+            current = 0
+            if hasattr(motor, "angle"):
+                current = float(motor.angle())
+            target = current + target_angle
+            await motor.run_target(
+                math.fabs(requested_speed),
+                target,
+                then=_resolve_stop_behavior(stop_behavior),
+                wait=True,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                "[PILOT] run_motor_angle failed for '"
+                + str(motor_name)
+                + "': "
+                + str(e)
+            )
+    except Exception as e:
+        raise RuntimeError(
+            "[PILOT] run_motor_angle error for '"
+            + str(motor_name)
+            + "': "
+            + str(e)
+        )
+
+    print(
+        "[PILOT] run_motor_angle completed:",
+        motor_name,
+        "angle=",
+        target_angle,
+        "speed=",
+        requested_speed,
+    )
+    return target_angle
+
+
+async def run_motor_speed(
+    motor_name,
+    speed_deg_per_sec,
+    duration_ms=None,
+    stop_behavior="coast",
+):
+    """Spin a registered motor at the requested speed, optionally for a duration."""
+
+    motor = _ensure_motor(motor_name)
+
+    try:
+        requested_speed = float(speed_deg_per_sec)
+    except Exception:
+        raise ValueError("run_motor_speed speed must be numeric")
+
+    motor.run(requested_speed)
+    print(
+        "[PILOT] run_motor_speed started:",
+        motor_name,
+        "speed=",
+        requested_speed,
+        "duration=",
+        duration_ms,
+    )
+
+    if duration_ms is not None:
+        try:
+            await wait(int(duration_ms))
+        except Exception as e:
+            print("[PILOT] run_motor_speed wait error:", e)
+
+        motor.stop(_resolve_stop_behavior(stop_behavior))
+        print(
+            "[PILOT] run_motor_speed stopped after duration:",
+            motor_name,
+            "stop=",
+            stop_behavior,
+        )
+
+
+async def stop_motor(motor_name, stop_behavior="hold"):
+    """Stop a registered motor using the provided stop behavior."""
+
+    motor = _ensure_motor(motor_name)
+
+    motor.stop(_resolve_stop_behavior(stop_behavior))
+    print("[PILOT] stop_motor:", motor_name, "stop=", stop_behavior)
 
 
 # Convenience functions for quick setup

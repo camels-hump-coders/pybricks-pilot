@@ -1,19 +1,14 @@
 import { useAtomValue } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
+import { useNotifications } from "../hooks/useNotifications";
 import {
   type GeneratedProgram,
   pseudoCodeGenerator,
 } from "../services/pseudoCodeGenerator.js";
 import type { TelemetryPoint } from "../services/telemetryHistory.js";
-import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
-import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
-import { useNotifications } from "../hooks/useNotifications";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { normalizeHeading } from "../utils/headingUtils";
 
@@ -27,10 +22,7 @@ type MonacoEditorInstance = {
   setValue: (value: string) => void;
   getModel: () => { getFullModelRange: () => unknown } | null;
   pushUndoStop: () => void;
-  executeEdits: (
-    source: string,
-    edits: Array<Record<string, unknown>>,
-  ) => void;
+  executeEdits: (source: string, edits: Array<Record<string, unknown>>) => void;
   getSelection: () => unknown;
   setSelection: (selection: unknown) => void;
 };
@@ -76,7 +68,9 @@ let completionDisposable: Disposable | null = null;
 
 async function loadMonaco(): Promise<MonacoInstance> {
   if (typeof window === "undefined") {
-    throw new Error("Monaco editor can only be loaded in a browser environment");
+    throw new Error(
+      "Monaco editor can only be loaded in a browser environment",
+    );
   }
 
   if (window.monaco) {
@@ -136,7 +130,8 @@ function registerHelperCompletions(monaco: MonacoInstance) {
     {
       label: "drive_straight",
       detail: "drive_straight(distance_mm: float)",
-      documentation: "Drive straight for the specified distance in millimeters.",
+      documentation:
+        "Drive straight for the specified distance in millimeters.",
       insertText: "await drive_straight(${1:distance_mm})",
     },
     {
@@ -159,6 +154,31 @@ function registerHelperCompletions(monaco: MonacoInstance) {
       documentation:
         "Recalibrate the helper functions so heading 0 aligns with the current IMU reading.",
       insertText: "reset_heading_reference()",
+    },
+    {
+      label: "run_motor_angle",
+      detail:
+        "run_motor_angle(motor_name: str, angle_deg: float, speed_deg_per_sec: float = 180)",
+      documentation:
+        "Rotate a registered motor by the requested angle at an optional speed.",
+      insertText:
+        'await run_motor_angle("${1:motor_name}", ${2:angle_deg}, speed=${3:speed_deg_per_sec})',
+    },
+    {
+      label: "run_motor_speed",
+      detail:
+        "run_motor_speed(motor_name: str, speed_deg_per_sec: float, duration_ms: int | None = None)",
+      documentation:
+        "Spin a motor at a target speed, optionally stopping after a duration.",
+      insertText:
+        'await run_motor_speed("${1:motor_name}", ${2:speed_deg_per_sec}, duration_ms=${3:duration_ms})',
+    },
+    {
+      label: "stop_motor",
+      detail: 'stop_motor(motor_name: str, stop_behavior: str = "hold")',
+      documentation:
+        "Stop a registered motor using the selected stop behavior (hold, brake, coast).",
+      insertText: 'await stop_motor("${1:motor_name}")',
     },
   ];
 
@@ -298,7 +318,9 @@ function MonacoCodeEditor({
     const model = editor.getModel();
     const selection = editor.getSelection?.();
     if (model && typeof editor.executeEdits === "function") {
-      const fullRange = (model as { getFullModelRange: () => unknown }).getFullModelRange();
+      const fullRange = (
+        model as { getFullModelRange: () => unknown }
+      ).getFullModelRange();
       editor.executeEdits("external-update", [
         {
           range: fullRange,
@@ -417,7 +439,10 @@ export function PseudoCodePanel({
     const content = editorCode || latestGeneratedCode;
 
     if (!content.trim()) {
-      showError("Nothing to run", "Generate movements before running pseudo code.");
+      showError(
+        "Nothing to run",
+        "Generate movements before running pseudo code.",
+      );
       return;
     }
 
@@ -445,7 +470,8 @@ export function PseudoCodePanel({
     isDirty || editorCode.length > 0 || latestGeneratedCode.length === 0
       ? editorCode
       : latestGeneratedCode;
-  const canReset = Boolean(latestGeneratedCode) && editorCode !== latestGeneratedCode;
+  const canReset =
+    Boolean(latestGeneratedCode) && editorCode !== latestGeneratedCode;
   const runDisabled =
     !uploadAndRunAdhocProgram ||
     !isConnected ||
@@ -491,9 +517,7 @@ export function PseudoCodePanel({
       const root = document.documentElement;
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
       const updateTheme = () => {
-        setIsDarkMode(
-          root.classList.contains("dark") || mediaQuery.matches,
-        );
+        setIsDarkMode(root.classList.contains("dark") || mediaQuery.matches);
       };
 
       updateTheme();
@@ -706,7 +730,8 @@ export function PseudoCodePanel({
                           </span>
                           {command.distance !== undefined && (
                             <span className="ml-2">
-                              Distance: {Math.abs(command.distance).toFixed(1)}mm
+                              Distance: {Math.abs(command.distance).toFixed(1)}
+                              mm
                             </span>
                           )}
                         </>
