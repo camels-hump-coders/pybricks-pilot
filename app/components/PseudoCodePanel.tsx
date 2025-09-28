@@ -363,6 +363,7 @@ export function PseudoCodePanel({
   const [generatedProgram, setGeneratedProgram] =
     useState<GeneratedProgram | null>(null);
   const [latestGeneratedCode, setLatestGeneratedCode] = useState<string>("");
+  const latestGeneratedCodeRef = useRef("");
   const [editorCode, setEditorCode] = useState<string>("");
   const [isDirty, setIsDirty] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -385,6 +386,7 @@ export function PseudoCodePanel({
       // Clear when not enough telemetry to generate code (e.g., after Reset)
       setGeneratedProgram(null);
       setLatestGeneratedCode("");
+      latestGeneratedCodeRef.current = "";
       if (!isDirty) {
         setEditorCode("");
       }
@@ -398,10 +400,28 @@ export function PseudoCodePanel({
 
     const code = pseudoCodeGenerator.generateReadableCode(program);
     setLatestGeneratedCode(code);
+    latestGeneratedCodeRef.current = code;
+    if (!isEditing) {
+      setIsDirty(false);
+      setEditorCode(code);
+      return;
+    }
+
     if (!isDirty) {
       setEditorCode(code);
     }
-  }, [telemetryPoints, isDirty]);
+  }, [telemetryPoints, isDirty, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setIsDirty(false);
+      setEditorCode(latestGeneratedCodeRef.current);
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    latestGeneratedCodeRef.current = latestGeneratedCode;
+  }, [latestGeneratedCode]);
 
   // Copy code to clipboard
   const copyToClipboard = async () => {
@@ -417,13 +437,15 @@ export function PseudoCodePanel({
   const handleEditorChange = useCallback(
     (value: string) => {
       setEditorCode(value);
-      setIsDirty(value !== latestGeneratedCode);
+      if (isEditing) {
+        setIsDirty(value !== latestGeneratedCodeRef.current);
+      }
     },
-    [latestGeneratedCode],
+    [isEditing],
   );
 
   const handleResetToGenerated = () => {
-    setEditorCode(latestGeneratedCode);
+    setEditorCode(latestGeneratedCodeRef.current);
     setIsDirty(false);
   };
 
@@ -466,12 +488,12 @@ export function PseudoCodePanel({
     }
   };
 
-  const currentCode =
-    isDirty || editorCode.length > 0 || latestGeneratedCode.length === 0
-      ? editorCode
-      : latestGeneratedCode;
+  const currentCode = isEditing
+    ? editorCode
+    : latestGeneratedCode || editorCode;
   const canReset =
-    Boolean(latestGeneratedCode) && editorCode !== latestGeneratedCode;
+    Boolean(latestGeneratedCode) &&
+    (isDirty || editorCode !== latestGeneratedCode);
   const runDisabled =
     !uploadAndRunAdhocProgram ||
     !isConnected ||
@@ -481,7 +503,7 @@ export function PseudoCodePanel({
   const editButtonLabel = isEditing ? "👁 Preview" : "✏️ Edit";
   const runButtonLabel = isUploading ? "⏳ Running..." : "▶️ Run";
   const copyDisabled = !currentCode.trim();
-  const showCustomCodeNotice = editorCode !== latestGeneratedCode;
+  const showCustomCodeNotice = isDirty;
   const editorMinHeight = 220;
   const editorMaxHeight = 720;
 
