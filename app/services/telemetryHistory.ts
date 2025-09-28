@@ -6,6 +6,7 @@ export interface TelemetryPoint {
   y: number; // Position in mm
   heading: number; // Rotation in degrees
   isCmdKeyPressed: boolean;
+  movementId: number;
   data: TelemetryData;
 }
 
@@ -42,6 +43,8 @@ class TelemetryHistoryService {
   private lastPosition = { x: 0, y: 0, heading: 0 };
   private selectedPathChangeCallback: ((pathId: string | null) => void) | null =
     null;
+  private currentMovementId = 0;
+  private pendingMovementBoundaries = 0;
 
   /**
    * Configure the maximum number of points to retain
@@ -138,6 +141,8 @@ class TelemetryHistoryService {
       points: [],
     };
     this.isRecording = true;
+    this.currentMovementId = 0;
+    this.pendingMovementBoundaries = 0;
   }
 
   stopRecording(): void {
@@ -158,6 +163,11 @@ class TelemetryHistoryService {
   ): void {
     if (!this.isRecording || !this.currentPath) {
       return;
+    }
+
+    if (this.pendingMovementBoundaries > 0) {
+      this.currentMovementId += this.pendingMovementBoundaries;
+      this.pendingMovementBoundaries = 0;
     }
 
     // Adaptive decimation: increase thresholds when paths grow large
@@ -183,6 +193,7 @@ class TelemetryHistoryService {
       y,
       heading,
       isCmdKeyPressed,
+      movementId: this.currentMovementId,
       data: { ...telemetry }, // Clone the telemetry data
     };
 
@@ -234,6 +245,8 @@ class TelemetryHistoryService {
   clearHistory(): void {
     this.allPaths = [];
     this.currentPath = null;
+    this.currentMovementId = 0;
+    this.pendingMovementBoundaries = 0;
   }
 
   clearCurrentPath(): void {
@@ -267,11 +280,17 @@ class TelemetryHistoryService {
   startNewPath(): void {
     this.stopRecording(); // Stop current recording and save to allPaths
     this.startRecording(); // Start new recording
+    this.currentMovementId = 0;
+    this.pendingMovementBoundaries = 0;
 
     // Auto-select the new path
     if (this.currentPath && this.selectedPathChangeCallback) {
       this.selectedPathChangeCallback(this.currentPath.id);
     }
+  }
+
+  markMovementBoundary(): void {
+    this.pendingMovementBoundaries += 1;
   }
 
   // Ensure recording is active when telemetry data is available
@@ -301,6 +320,7 @@ class TelemetryHistoryService {
       y,
       heading,
       isCmdKeyPressed: false,
+      movementId: this.currentMovementId,
       data: initialTelemetry,
     };
 

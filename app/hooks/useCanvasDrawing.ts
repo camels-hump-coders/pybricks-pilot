@@ -63,6 +63,8 @@ type PerpendicularPreview = {
   ghosts: PerpendicularPreviewGhost[];
   distance: number;
   angle: number;
+  radius?: number;
+  isArcBackward?: boolean;
 };
 
 interface UseCanvasDrawingProps {

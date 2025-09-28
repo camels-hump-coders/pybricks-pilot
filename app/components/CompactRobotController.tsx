@@ -64,7 +64,7 @@ interface CompactRobotControllerProps {
     allPrograms: PythonFile[],
   ) => Promise<void>;
   onPreviewUpdate?: (preview: {
-    type: "drive" | "turn" | null;
+    type: "drive" | "turn" | "arc" | null;
     direction: "forward" | "backward" | "left" | "right" | null;
     positions: {
       primary: RobotPosition | null;
@@ -546,6 +546,7 @@ export function CompactRobotController({
       );
       return;
     }
+    telemetryHistory.markMovementBoundary();
     onStopCommand?.();
   }
 
@@ -560,6 +561,7 @@ export function CompactRobotController({
   }
 
   function sendStopCommand() {
+    telemetryHistory.markMovementBoundary();
     return queueCommand(() => onStopCommand?.() || Promise.resolve());
   }
 

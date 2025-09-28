@@ -15,6 +15,7 @@ interface MovementCommand {
   motorName?: string;
   motorDirection?: "cw" | "ccw";
   speed?: number; // deg/s estimate for motor commands
+  movementId?: number;
 }
 
 export interface GeneratedProgram {
@@ -44,6 +45,7 @@ interface RawTelemetryPoint {
       heading: number; // IMU heading
     };
   };
+  movementId?: number;
 }
 
 class PseudoCodeGeneratorService {
@@ -88,6 +90,7 @@ class PseudoCodeGeneratorService {
         isCmdKeyPressed: point.isCmdKeyPressed,
         motors: point.data.motors,
         hub: point.data.hub,
+        movementId: point.movementId,
       }),
     );
 
@@ -115,6 +118,7 @@ class PseudoCodeGeneratorService {
       isCmdKeyPressed: point.isCmdKeyPressed,
       motors: point.data.motors,
       hub: point.data.hub,
+      movementId: point.movementId,
     }));
 
     return this.generateFromRawTelemetry(rawTelemetryPoints);
@@ -142,6 +146,7 @@ class PseudoCodeGeneratorService {
       hub: point.data.hub,
       motors: point.data.motors,
       isCmdKeyPressed: point.isCmdKeyPressed,
+      movementId: point.movementId,
     }));
 
     return this.generateFromRawTelemetry(rawTelemetryPoints);
@@ -195,10 +200,56 @@ class PseudoCodeGeneratorService {
       const prevPoint = telemetryPoints[i - 1];
       const currentPoint = telemetryPoints[i];
 
+      const prevMovementId = prevPoint.movementId ?? 0;
+      const currentMovementId =
+        currentPoint.movementId ?? prevMovementId;
+      const movementChanged = currentMovementId !== prevMovementId;
+
+      if (movementChanged) {
+        if (currentCommand) {
+          commands.push(currentCommand);
+          currentCommand = null;
+        }
+
+        if (
+          Math.abs(accumulatedDistance) > 0 ||
+          Math.abs(accumulatedHeading) > 0
+        ) {
+          const { updatedDistance, updatedHeading } =
+            this.applyAccumulatedDeltasToPreviousCommand(
+              commands,
+              accumulatedDistance,
+              accumulatedHeading,
+              prevPoint.timestamp,
+            );
+          const appliedDistance =
+            Math.abs(accumulatedDistance) - Math.abs(updatedDistance);
+          if (appliedDistance > 0) {
+            totalDistance += appliedDistance;
+          }
+          // Any remaining deltas are discarded to avoid leaking into the next segment
+        }
+
+        accumulatedDistance = 0;
+        accumulatedHeading = 0;
+        arcStreakSamples = 0;
+        arcStreakDistance = 0;
+        arcStreakHeading = 0;
+        prevInstantDistSign = 0;
+        prevInstantHeadSign = 0;
+        this.flushMotorCommands(
+          ongoingMotorCommands,
+          motorIdleTimers,
+          commands,
+        );
+      }
+
       // Skip if we don't have drive base data
       if (!prevPoint.drivebase || !currentPoint.drivebase) {
         continue;
       }
+
+      const segmentId = currentMovementId;
 
       // Calculate deltas from raw encoder data (instantaneous)
       const deltaDistance =
@@ -233,6 +284,7 @@ class PseudoCodeGeneratorService {
         timeDelta,
         deltaDistance,
         deltaHeading,
+        segmentId,
       );
 
       // Update arc streak stability (sample-level)
@@ -346,6 +398,7 @@ class PseudoCodeGeneratorService {
             angle: angleDeg,
             radius: radiusMm,
             duration: timeDelta,
+            movementId: segmentId,
           };
         } else {
           currentCommand = {
@@ -353,6 +406,7 @@ class PseudoCodeGeneratorService {
             timestamp: prevPoint.timestamp,
             isCmdKeyPressed: currentPoint.isCmdKeyPressed,
             direction: initialDirection,
+            movementId: segmentId,
           };
           this.updateCurrentCommandFromRaw(
             currentCommand,
@@ -423,6 +477,7 @@ class PseudoCodeGeneratorService {
             distance: updatedDistance,
             angle: updatedHeading,
             radius: radiusMm,
+            movementId: endPosition.movementId ?? 0,
           };
           totalDistance += Math.abs(updatedDistance);
           commands.push(newArc);
@@ -439,6 +494,7 @@ class PseudoCodeGeneratorService {
               updatedDistance,
               updatedHeading,
             ),
+            movementId: endPosition.movementId ?? 0,
           };
           if (accumulatedMovementType === "drive") {
             newCommand.distance = updatedDistance;
@@ -491,6 +547,7 @@ class PseudoCodeGeneratorService {
     timeDelta: number,
     deltaDistance: number,
     deltaHeading: number,
+    segmentId: number,
   ): void {
     const prevMotors = prevPoint.motors;
     const currentMotors = currentPoint.motors;
@@ -596,6 +653,7 @@ class PseudoCodeGeneratorService {
           duration: initialDuration,
           isCmdKeyPressed:
             currentPoint.isCmdKeyPressed || prevPoint.isCmdKeyPressed,
+          movementId: segmentId,
         };
 
         ongoingMotorCommands.set(motorName, newCommand);
@@ -697,11 +755,13 @@ class PseudoCodeGeneratorService {
 
       if (summarized.length > 0) {
         const previousCommand = summarized[summarized.length - 1];
+        const sameSegment =
+          previousCommand.movementId === currentCommand.movementId;
 
         // Check if we should combine commands
         let shouldCombine = false;
 
-        if (previousCommand.type === currentCommand.type) {
+        if (previousCommand.type === currentCommand.type && sameSegment) {
           if (currentCommand.type === "drive") {
             const previousDistance = previousCommand.distance || 0;
             const currentDistance = currentCommand.distance || 0;
