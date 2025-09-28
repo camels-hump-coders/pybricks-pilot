@@ -1,7 +1,11 @@
-import hljs from "highlight.js/lib/core";
-import python from "highlight.js/lib/languages/python";
 import { useAtomValue } from "jotai";
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   type GeneratedProgram,
   pseudoCodeGenerator,
@@ -13,19 +17,313 @@ import { useNotifications } from "../hooks/useNotifications";
 import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { normalizeHeading } from "../utils/headingUtils";
 
-// Register python language once (module scope)
-hljs.registerLanguage("python", python);
+type Disposable = { dispose: () => void };
 
-function HighlightedPython({ code }: { code: string }) {
-  const html = hljs.highlight(code || "", { language: "python" }).value;
+type MonacoEditorInstance = {
+  dispose: () => void;
+  updateOptions: (options: Record<string, unknown>) => void;
+  onDidChangeModelContent: (listener: () => void) => Disposable;
+  getValue: () => string;
+  setValue: (value: string) => void;
+  getModel: () => { getFullModelRange: () => unknown } | null;
+  pushUndoStop: () => void;
+  executeEdits: (
+    source: string,
+    edits: Array<Record<string, unknown>>,
+  ) => void;
+  getSelection: () => unknown;
+  setSelection: (selection: unknown) => void;
+};
+
+type MonacoInstance = {
+  editor: {
+    create: (
+      container: HTMLElement,
+      options: Record<string, unknown>,
+    ) => MonacoEditorInstance;
+    setTheme: (theme: string) => void;
+  };
+  languages: {
+    registerCompletionItemProvider: (
+      languageId: string,
+      provider: {
+        triggerCharacters?: string[];
+        provideCompletionItems: () => {
+          suggestions: Array<Record<string, unknown>>;
+        };
+      },
+    ) => Disposable;
+    CompletionItemKind: Record<string, number>;
+    CompletionItemInsertTextRule: Record<string, number>;
+  };
+};
+
+declare global {
+  interface Window {
+    require?: {
+      config: (config: { paths: Record<string, string> }) => void;
+      <T>(modules: string[], onLoad: (...modules: T[]) => void): void;
+    };
+    monaco?: MonacoInstance;
+  }
+}
+
+const MONACO_BASE_URL =
+  "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.0/min";
+
+let monacoLoaderPromise: Promise<MonacoInstance> | null = null;
+let completionDisposable: Disposable | null = null;
+
+async function loadMonaco(): Promise<MonacoInstance> {
+  if (typeof window === "undefined") {
+    throw new Error("Monaco editor can only be loaded in a browser environment");
+  }
+
+  if (window.monaco) {
+    return window.monaco;
+  }
+
+  if (!monacoLoaderPromise) {
+    monacoLoaderPromise = new Promise<MonacoInstance>((resolve, reject) => {
+      const existingLoader = document.querySelector<HTMLScriptElement>(
+        `script[data-origin="monaco-loader"]`,
+      );
+
+      const finalize = () => {
+        if (window.require) {
+          window.require.config({ paths: { vs: `${MONACO_BASE_URL}/vs` } });
+          window.require(["vs/editor/editor.main"], () => {
+            if (window.monaco) {
+              resolve(window.monaco);
+            } else {
+              monacoLoaderPromise = null;
+              reject(new Error("Monaco failed to initialize"));
+            }
+          });
+        } else {
+          monacoLoaderPromise = null;
+          reject(new Error("Monaco AMD loader not available"));
+        }
+      };
+
+      if (existingLoader) {
+        finalize();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = `${MONACO_BASE_URL}/vs/loader.min.js`;
+      script.async = true;
+      script.dataset.origin = "monaco-loader";
+      script.onload = finalize;
+      script.onerror = () => {
+        monacoLoaderPromise = null;
+        reject(new Error("Failed to load Monaco loader script"));
+      };
+      document.body.append(script);
+    });
+  }
+
+  return monacoLoaderPromise;
+}
+
+function registerHelperCompletions(monaco: MonacoInstance) {
+  if (completionDisposable) {
+    return;
+  }
+
+  const helperFunctions = [
+    {
+      label: "drive_straight",
+      detail: "drive_straight(distance_mm: float)",
+      documentation: "Drive straight for the specified distance in millimeters.",
+      insertText: "await drive_straight(${1:distance_mm})",
+    },
+    {
+      label: "drive_arc",
+      detail: "drive_arc(radius_mm: float, angle_deg: float)",
+      documentation:
+        "Drive an arc with the provided radius (mm) and angle (degrees).",
+      insertText: "await drive_arc(${1:radius_mm}, ${2:angle_deg})",
+    },
+    {
+      label: "turn_to_heading",
+      detail: "turn_to_heading(target_heading_deg: float)",
+      documentation:
+        "Turn in place until the hub reaches the desired absolute heading.",
+      insertText: "await turn_to_heading(${1:heading_deg})",
+    },
+    {
+      label: "reset_heading_reference",
+      detail: "reset_heading_reference()",
+      documentation:
+        "Recalibrate the helper functions so heading 0 aligns with the current IMU reading.",
+      insertText: "reset_heading_reference()",
+    },
+  ];
+
+  completionDisposable = monaco.languages.registerCompletionItemProvider(
+    "python",
+    {
+      triggerCharacters: ["_", "d", "r", "t"],
+      provideCompletionItems: () => ({
+        suggestions: helperFunctions.map((fn) => ({
+          label: fn.label,
+          kind: monaco.languages.CompletionItemKind.Function,
+          detail: fn.detail,
+          documentation: fn.documentation,
+          insertText: fn.insertText,
+          insertTextRules:
+            monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        })),
+      }),
+    },
+  );
+}
+
+interface MonacoCodeEditorProps {
+  value: string;
+  onChange: (nextValue: string) => void;
+  readOnly: boolean;
+  height: number;
+  isDarkMode: boolean;
+}
+
+function MonacoCodeEditor({
+  value,
+  onChange,
+  readOnly,
+  height,
+  isDarkMode,
+}: MonacoCodeEditorProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<MonacoEditorInstance | null>(null);
+  const monacoRef = useRef<MonacoInstance | null>(null);
+  const disposablesRef = useRef<Disposable[]>([]);
+  const applyingChangeRef = useRef(false);
+  const latestValueRef = useRef(value);
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    loadMonaco()
+      .then((monaco) => {
+        if (!isMounted || !containerRef.current) {
+          return;
+        }
+
+        monacoRef.current = monaco;
+        registerHelperCompletions(monaco);
+
+        const editor = monaco.editor.create(containerRef.current, {
+          value: latestValueRef.current,
+          language: "python",
+          automaticLayout: true,
+          fontSize: 12,
+          minimap: { enabled: false },
+          readOnly,
+          wordWrap: "on",
+          renderLineHighlight: "all",
+          scrollbar: {
+            verticalScrollbarSize: 8,
+            horizontalScrollbarSize: 8,
+          },
+        });
+
+        monaco.editor.setTheme(isDarkMode ? "vs-dark" : "vs");
+
+        editorRef.current = editor;
+
+        const changeDisposable = editor.onDidChangeModelContent(() => {
+          if (applyingChangeRef.current) {
+            return;
+          }
+          const nextValue = editor.getValue();
+          latestValueRef.current = nextValue;
+          onChange(nextValue);
+        });
+
+        disposablesRef.current.push(changeDisposable);
+      })
+      .catch((error) => {
+        console.error("Failed to initialize Monaco editor", error);
+      });
+
+    return () => {
+      isMounted = false;
+      disposablesRef.current.forEach((disposable) => {
+        disposable.dispose();
+      });
+      disposablesRef.current = [];
+      editorRef.current?.dispose();
+      editorRef.current = null;
+      monacoRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) {
+      return;
+    }
+    const monaco = monacoRef.current;
+    if (monaco) {
+      monaco.editor.setTheme(isDarkMode ? "vs-dark" : "vs");
+    }
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) {
+      return;
+    }
+    editor.updateOptions({ readOnly });
+  }, [readOnly]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) {
+      return;
+    }
+    const current = editor.getValue();
+    if (value === current) {
+      return;
+    }
+
+    applyingChangeRef.current = true;
+    const model = editor.getModel();
+    const selection = editor.getSelection?.();
+    if (model && typeof editor.executeEdits === "function") {
+      const fullRange = (model as { getFullModelRange: () => unknown }).getFullModelRange();
+      editor.executeEdits("external-update", [
+        {
+          range: fullRange,
+          text: value,
+        },
+      ]);
+      if (typeof editor.pushUndoStop === "function") {
+        editor.pushUndoStop();
+      }
+    } else {
+      editor.setValue(value);
+    }
+    if (selection && editor.setSelection) {
+      editor.setSelection(selection);
+    }
+    applyingChangeRef.current = false;
+  }, [value]);
+
   return (
-    <pre className="p-3 text-xs overflow-x-auto font-mono">
-      <code
-        className="hljs language-python"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: we need to for our pseudocode highlighting
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </pre>
+    <div
+      ref={containerRef}
+      className="w-full h-full"
+      style={{ height }}
+      data-testid="pseudo-code-editor"
+    />
   );
 }
 
@@ -47,6 +345,11 @@ export function PseudoCodePanel({
   const [isDirty, setIsDirty] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [editorHeight, setEditorHeight] = useState(320);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const isDraggingHandle = useRef(false);
+  const dragStartY = useRef(0);
+  const dragStartHeight = useRef(320);
 
   const { pythonFiles } = useJotaiFileSystem();
   const availableFiles = useMemo(() => pythonFiles ?? [], [pythonFiles]);
@@ -89,11 +392,13 @@ export function PseudoCodePanel({
     }
   };
 
-  const handleEditorChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const next = event.target.value;
-    setEditorCode(next);
-    setIsDirty(next !== latestGeneratedCode);
-  };
+  const handleEditorChange = useCallback(
+    (value: string) => {
+      setEditorCode(value);
+      setIsDirty(value !== latestGeneratedCode);
+    },
+    [latestGeneratedCode],
+  );
 
   const handleResetToGenerated = () => {
     setEditorCode(latestGeneratedCode);
@@ -151,6 +456,73 @@ export function PseudoCodePanel({
   const runButtonLabel = isUploading ? "⏳ Running..." : "▶️ Run";
   const copyDisabled = !currentCode.trim();
   const showCustomCodeNotice = editorCode !== latestGeneratedCode;
+  const editorMinHeight = 220;
+  const editorMaxHeight = 720;
+
+  const handleResizePointerMove = useCallback((event: PointerEvent) => {
+    const delta = event.clientY - dragStartY.current;
+    const nextHeight = Math.min(
+      Math.max(dragStartHeight.current + delta, editorMinHeight),
+      editorMaxHeight,
+    );
+    setEditorHeight(nextHeight);
+  }, []);
+
+  const stopDragging = useCallback(() => {
+    isDraggingHandle.current = false;
+    window.removeEventListener("pointermove", handleResizePointerMove);
+    window.removeEventListener("pointerup", stopDragging);
+  }, [handleResizePointerMove]);
+
+  const handleResizePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      isDraggingHandle.current = true;
+      dragStartY.current = event.clientY;
+      dragStartHeight.current = editorHeight;
+      window.addEventListener("pointermove", handleResizePointerMove);
+      window.addEventListener("pointerup", stopDragging);
+    },
+    [editorHeight, handleResizePointerMove, stopDragging],
+  );
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const root = document.documentElement;
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const updateTheme = () => {
+        setIsDarkMode(
+          root.classList.contains("dark") || mediaQuery.matches,
+        );
+      };
+
+      updateTheme();
+
+      const observer = new MutationObserver(updateTheme);
+      observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+
+      const mediaListener = (event: MediaQueryListEvent) => {
+        if (!root.classList.contains("dark")) {
+          setIsDarkMode(event.matches);
+        }
+      };
+      mediaQuery.addEventListener("change", mediaListener);
+
+      return () => {
+        observer.disconnect();
+        mediaQuery.removeEventListener("change", mediaListener);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (isDraggingHandle.current) {
+        window.removeEventListener("pointermove", handleResizePointerMove);
+        window.removeEventListener("pointerup", stopDragging);
+      }
+    };
+  }, [handleResizePointerMove, stopDragging]);
 
   return (
     <div className="w-full bg-white dark:bg-gray-800">
@@ -199,7 +571,7 @@ export function PseudoCodePanel({
       </div>
 
       {/* Content */}
-      <div className="p-3 max-h-96 overflow-y-auto">
+      <div className="p-3 space-y-3">
         {!generatedProgram || generatedProgram.commands.length === 0 ? (
           <div className="text-center text-gray-500 dark:text-gray-400 py-8">
             <div className="text-2xl mb-2">🤖</div>
@@ -262,18 +634,25 @@ export function PseudoCodePanel({
                   </span>
                 )}
               </div>
-              {isEditing ? (
-                <textarea
+              <div
+                className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 flex flex-col"
+                style={{ height: `${editorHeight + 12}px` }}
+              >
+                <MonacoCodeEditor
                   value={currentCode}
                   onChange={handleEditorChange}
-                  className="w-full h-64 p-2 text-xs font-mono rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100"
-                  spellCheck={false}
+                  readOnly={!isEditing}
+                  height={editorHeight}
+                  isDarkMode={isDarkMode}
                 />
-              ) : (
-                <div className="rounded text-xs overflow-x-auto bg-gray-100 dark:bg-gray-900">
-                  <HighlightedPython code={currentCode} />
+                <div
+                  role="presentation"
+                  className="h-2 cursor-row-resize bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] text-gray-500 dark:text-gray-300 select-none"
+                  onPointerDown={handleResizePointerDown}
+                >
+                  ⇳
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Command List */}
