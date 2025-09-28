@@ -23,6 +23,7 @@ Usage:
 """
 
 # MicroPython compatible imports
+import math
 import ujson as json
 
 from pybricks.tools import StopWatch
@@ -46,6 +47,9 @@ _motors = {}
 _sensors = {}
 _drivebase = None
 _gyro_sensor = None
+
+# Pseudo program helpers
+_pseudo_heading_reference = None
 
 # Telemetry configuration
 _telemetry_enabled = True
@@ -977,6 +981,179 @@ def send_position_reset():
         print("[PILOT] Position reset command sent to browser")
     except Exception as e:
         print("[PILOT] Position reset send error:", e)
+
+
+# ---------------------------------------------------------------------------
+# Generated pseudo program helpers
+# ---------------------------------------------------------------------------
+
+
+def _ensure_drivebase():
+    if _drivebase is None:
+        raise RuntimeError(
+            "[PILOT] Drivebase is not registered. Import robot.py or register it manually."
+        )
+
+
+def _resolve_stop_behavior(stop_behavior):
+    behavior = (stop_behavior or "hold").lower()
+    if behavior in ["coast_smart", "smart", "coast-smart"]:
+        return Stop.COAST_SMART
+    if behavior == "coast":
+        return Stop.COAST
+    if behavior == "brake":
+        return Stop.BRAKE
+    return Stop.HOLD
+
+
+def _read_raw_heading():
+    if _gyro_sensor is None:
+        return None
+
+    try:
+        if hasattr(_gyro_sensor, "angle"):
+            return float(_gyro_sensor.angle())
+        if hasattr(_gyro_sensor, "heading"):
+            return float(_gyro_sensor.heading())
+    except Exception as e:
+        print("[PILOT] Failed to read gyro heading:", e)
+    return None
+
+
+def _normalize_heading(angle):
+    if angle is None:
+        return None
+    normalized = float(angle)
+    while normalized <= -180:
+        normalized += 360
+    while normalized > 180:
+        normalized -= 360
+    return normalized
+
+
+def reset_heading_reference():
+    """Capture the current gyro heading as the 0° reference for pseudo programs."""
+
+    global _pseudo_heading_reference
+    raw = _read_raw_heading()
+    if raw is None:
+        _pseudo_heading_reference = None
+        print("[PILOT] Warning: No gyro available; turn_to_heading will use relative turns")
+        return
+
+    _pseudo_heading_reference = raw
+    print("[PILOT] Heading reference reset to", _normalize_heading(0))
+
+
+def get_relative_heading():
+    """Return the current heading relative to the stored reference."""
+
+    raw = _read_raw_heading()
+    if raw is None:
+        return None
+
+    if _pseudo_heading_reference is None:
+        return _normalize_heading(raw)
+
+    return _normalize_heading(raw - _pseudo_heading_reference)
+
+
+async def drive_straight(distance_mm, speed=None, stop_behavior="hold"):
+    """Drive straight for the requested distance in millimeters."""
+
+    _ensure_drivebase()
+
+    try:
+        distance = float(distance_mm)
+    except Exception:
+        raise ValueError("drive_straight distance must be numeric")
+
+    if speed is not None:
+        try:
+            _drivebase.settings(straight_speed=float(speed))
+        except Exception as e:
+            print("[PILOT] Failed to set straight speed:", e)
+
+    await _drivebase.straight(distance, then=_resolve_stop_behavior(stop_behavior), wait=True)
+    print("[PILOT] drive_straight completed:", distance, "mm")
+
+
+async def drive_arc(radius_mm, angle_deg, speed=None, stop_behavior="hold"):
+    """Drive an arc with the provided radius (mm) and angle (deg)."""
+
+    _ensure_drivebase()
+
+    try:
+        radius = float(radius_mm)
+        angle = float(angle_deg)
+    except Exception:
+        raise ValueError("drive_arc radius and angle must be numeric")
+
+    if speed is not None:
+        try:
+            _drivebase.settings(straight_speed=float(speed))
+        except Exception as e:
+            print("[PILOT] Failed to set straight speed for arc:", e)
+
+    await _drivebase.curve(radius, angle, then=_resolve_stop_behavior(stop_behavior), wait=True)
+    print(
+        "[PILOT] drive_arc completed: radius=",
+        radius,
+        "angle=",
+        angle,
+        "deg",
+    )
+
+
+async def turn_to_heading(target_heading_deg, speed=90, tolerance=1.0, stop_behavior="hold"):
+    """Turn the robot to an absolute heading in degrees (-180..180)."""
+
+    _ensure_drivebase()
+
+    try:
+        target = float(target_heading_deg)
+    except Exception:
+        raise ValueError("turn_to_heading target must be numeric")
+
+    if speed is not None:
+        try:
+            _drivebase.settings(turn_rate=float(speed))
+        except Exception as e:
+            print("[PILOT] Failed to set turn rate:", e)
+
+    relative_heading = get_relative_heading()
+
+    if relative_heading is None:
+        # No gyro available: fallback to simple relative turn
+        print(
+            "[PILOT] turn_to_heading using relative turn (no gyro). Target=",
+            target,
+        )
+        await _drivebase.turn(target, then=_resolve_stop_behavior(stop_behavior), wait=True)
+        return _normalize_heading(target)
+
+    # Initialize heading reference on first call if needed
+    if _pseudo_heading_reference is None:
+        reset_heading_reference()
+        relative_heading = get_relative_heading()
+        if relative_heading is None:
+            print(
+                "[PILOT] Warning: Could not establish heading reference; using relative turn",
+            )
+            await _drivebase.turn(target, then=_resolve_stop_behavior(stop_behavior), wait=True)
+            return _normalize_heading(target)
+
+    # Compute difference and normalize to shortest direction
+    delta = _normalize_heading(target - relative_heading)
+
+    if math.fabs(delta) <= float(tolerance):
+        print("[PILOT] Already within heading tolerance:", relative_heading)
+        return relative_heading
+
+    await _drivebase.turn(delta, then=_resolve_stop_behavior(stop_behavior), wait=True)
+    new_heading = get_relative_heading()
+    print("[PILOT] turn_to_heading completed. Final heading:", new_heading)
+    return new_heading
 
 
 # Convenience functions for quick setup

@@ -1,11 +1,16 @@
 import hljs from "highlight.js/lib/core";
 import python from "highlight.js/lib/languages/python";
-import React, { useEffect, useState } from "react";
+import { useAtomValue } from "jotai";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   type GeneratedProgram,
   pseudoCodeGenerator,
 } from "../services/pseudoCodeGenerator.js";
 import type { TelemetryPoint } from "../services/telemetryHistory.js";
+import { useJotaiFileSystem } from "../hooks/useJotaiFileSystem";
+import { useJotaiRobotConnection } from "../hooks/useJotaiRobotConnection";
+import { useNotifications } from "../hooks/useNotifications";
+import { isProgramRunningAtom } from "../store/atoms/programRunning";
 import { normalizeHeading } from "../utils/headingUtils";
 
 // Register python language once (module scope)
@@ -37,14 +42,27 @@ export function PseudoCodePanel({
 }: PseudoCodePanelProps) {
   const [generatedProgram, setGeneratedProgram] =
     useState<GeneratedProgram | null>(null);
-  const [readableCode, setReadableCode] = useState<string>("");
+  const [latestGeneratedCode, setLatestGeneratedCode] = useState<string>("");
+  const [editorCode, setEditorCode] = useState<string>("");
+  const [isDirty, setIsDirty] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const { pythonFiles } = useJotaiFileSystem();
+  const availableFiles = useMemo(() => pythonFiles ?? [], [pythonFiles]);
+  const { uploadAndRunAdhocProgram, isConnected } = useJotaiRobotConnection();
+  const isProgramRunning = useAtomValue(isProgramRunningAtom);
+  const { showError, addNotification } = useNotifications();
 
   // Generate pseudo code when telemetry points change
   useEffect(() => {
     if (telemetryPoints.length < 2) {
       // Clear when not enough telemetry to generate code (e.g., after Reset)
       setGeneratedProgram(null);
-      setReadableCode("");
+      setLatestGeneratedCode("");
+      if (!isDirty) {
+        setEditorCode("");
+      }
       return;
     }
 
@@ -54,30 +72,130 @@ export function PseudoCodePanel({
     setGeneratedProgram(program);
 
     const code = pseudoCodeGenerator.generateReadableCode(program);
-    setReadableCode(code);
-  }, [telemetryPoints]);
+    setLatestGeneratedCode(code);
+    if (!isDirty) {
+      setEditorCode(code);
+    }
+  }, [telemetryPoints, isDirty]);
 
   // Copy code to clipboard
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(readableCode);
+      const textToCopy = editorCode || latestGeneratedCode;
+      await navigator.clipboard.writeText(textToCopy);
       // Could add a toast notification here
     } catch (err) {
       console.error("Failed to copy code to clipboard:", err);
     }
   };
 
+  const handleEditorChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const next = event.target.value;
+    setEditorCode(next);
+    setIsDirty(next !== latestGeneratedCode);
+  };
+
+  const handleResetToGenerated = () => {
+    setEditorCode(latestGeneratedCode);
+    setIsDirty(false);
+  };
+
+  const handleRunPseudoCode = async () => {
+    if (!uploadAndRunAdhocProgram) {
+      showError(
+        "Robot not connected",
+        "Connect to a real hub to run the generated pseudo code.",
+      );
+      return;
+    }
+
+    const content = editorCode || latestGeneratedCode;
+
+    if (!content.trim()) {
+      showError("Nothing to run", "Generate movements before running pseudo code.");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      await uploadAndRunAdhocProgram(
+        "generated_pseudo.py",
+        content,
+        availableFiles,
+      );
+      addNotification({
+        type: "success",
+        title: "Pseudo code running",
+        message: "Uploaded generated_pseudo.py to the connected hub.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      showError("Failed to run pseudo code", message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const currentCode =
+    isDirty || editorCode.length > 0 || latestGeneratedCode.length === 0
+      ? editorCode
+      : latestGeneratedCode;
+  const canReset = Boolean(latestGeneratedCode) && editorCode !== latestGeneratedCode;
+  const runDisabled =
+    !uploadAndRunAdhocProgram ||
+    !isConnected ||
+    !currentCode.trim() ||
+    isUploading ||
+    isProgramRunning;
+  const editButtonLabel = isEditing ? "👁 Preview" : "✏️ Edit";
+  const runButtonLabel = isUploading ? "⏳ Running..." : "▶️ Run";
+  const copyDisabled = !currentCode.trim();
+  const showCustomCodeNotice = editorCode !== latestGeneratedCode;
+
   return (
     <div className="w-full bg-white dark:bg-gray-800">
       {/* Controls */}
-      <div className="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex flex-wrap items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
         <button
           onClick={copyToClipboard}
-          disabled={!readableCode || readableCode === "// No movement detected"}
+          disabled={copyDisabled}
           className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           📋 Copy
         </button>
+        <button
+          onClick={() => setIsEditing((prev) => !prev)}
+          disabled={copyDisabled}
+          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {editButtonLabel}
+        </button>
+        <button
+          onClick={handleResetToGenerated}
+          disabled={!canReset}
+          className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+        >
+          ↺ Reset
+        </button>
+        <button
+          onClick={handleRunPseudoCode}
+          disabled={runDisabled}
+          className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {runButtonLabel}
+        </button>
+        {(!isConnected || isProgramRunning) && (
+          <div className="ml-auto flex items-center gap-2 text-xs">
+            {!isConnected && (
+              <span className="text-red-500">Connect to a hub to run code</span>
+            )}
+            {isProgramRunning && (
+              <span className="text-yellow-600">
+                Program running – stop it before uploading
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -136,12 +254,26 @@ export function PseudoCodePanel({
 
             {/* Generated Code */}
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Generated Code:
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                <span>Generated Code:</span>
+                {showCustomCodeNotice && (
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                    Editing custom pseudo code
+                  </span>
+                )}
               </div>
-              <div className="rounded text-xs overflow-x-auto bg-gray-100 dark:bg-gray-900">
-                <HighlightedPython code={readableCode} />
-              </div>
+              {isEditing ? (
+                <textarea
+                  value={currentCode}
+                  onChange={handleEditorChange}
+                  className="w-full h-64 p-2 text-xs font-mono rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100"
+                  spellCheck={false}
+                />
+              ) : (
+                <div className="rounded text-xs overflow-x-auto bg-gray-100 dark:bg-gray-900">
+                  <HighlightedPython code={currentCode} />
+                </div>
+              )}
             </div>
 
             {/* Command List */}
