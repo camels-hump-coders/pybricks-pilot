@@ -23,7 +23,7 @@ Usage:
 """
 
 # MicroPython compatible imports
-import math
+import umath as math
 import ujson as json
 
 from pybricks.tools import StopWatch
