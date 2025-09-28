@@ -600,14 +600,29 @@ class PseudoCodeGeneratorService {
       return "# No movement detected";
     }
 
-    let code = `# Generated pseudo code from robot movements\n`;
+    let code = `"""Generated pseudo code from robot movements"""\n\n`;
     code += `# Total distance: ${program.totalDistance.toFixed(1)}mm\n`;
     code += `# Total time: ${(program.totalTime / 1000).toFixed(1)}s\n`;
     code += `# Start position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.startPosition.heading).toFixed(1)}°\n`;
-    code += `# End position: (${program.startPosition.x.toFixed(1)}, ${program.startPosition.y.toFixed(1)}) @ ${normalizeHeading(program.endPosition.heading).toFixed(1)}°\n\n`;
+    code += `# End position: (${program.endPosition.x.toFixed(1)}, ${program.endPosition.y.toFixed(1)}) @ ${normalizeHeading(program.endPosition.heading).toFixed(1)}°\n`;
+    code += `# Edit this script to iterate quickly, then run it directly from Pybricks Pilot.\n\n`;
+
+    code += `try:\n`;
+    code += `  import robot  # Optional: provides hardware setup from Quick Start\n`;
+    code += `except ImportError:\n`;
+    code += `  robot = None\n`;
+    code += `  print("[PILOT] Warning: robot.py not found – set up hardware manually")\n\n`;
+
+    code += `from pybrickspilot import (\n`;
+    code += `  drive_arc,\n`;
+    code += `  drive_straight,\n`;
+    code += `  reset_heading_reference,\n`;
+    code += `  turn_to_heading,\n`;
+    code += `)\n\n`;
 
     code += `async def run():\n`;
     code += `  """Generated pseudo code from robot movements"""\n`;
+    code += `  reset_heading_reference()\n`;
 
     for (let i = 0; i < program.commands.length; i++) {
       const command = program.commands[i];
