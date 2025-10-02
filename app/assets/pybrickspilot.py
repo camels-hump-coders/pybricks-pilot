@@ -641,6 +641,8 @@ async def _execute_single_command(command):
             try:
                 _drivebase.reset()
                 _hub.imu.reset_heading(0)
+                for motor in _motors:
+                    motor.reset_angle(0)
                 print("[PILOT] Drivebase telemetry reset - distance and angle set to 0")
             except Exception as e:
                 print("[PILOT] Drivebase reset error:", e)
