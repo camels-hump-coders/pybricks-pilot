@@ -148,6 +148,7 @@ export default function Home() {
     showSuccess,
     showError,
     showInfo,
+    showWarning,
   } = useNotifications();
 
   // Robot configuration discovery
@@ -172,6 +173,34 @@ export default function Home() {
       });
     }
   }, [discoverRobotConfigs, stableDirectoryAccess]);
+
+  useEffect(() => {
+    const handleRobotAlert = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        code?: string;
+        message?: string;
+      }>).detail;
+
+      const title = detail?.code === "DRIVE_STALL" || detail?.code === "TURN_STALL"
+        ? "Robot Stall Detected"
+        : "Robot Alert";
+
+      const message = detail?.message || "The robot reported an alert condition.";
+      showWarning(title, message, 0);
+    };
+
+    document.addEventListener(
+      "robotAlert",
+      handleRobotAlert as EventListener,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "robotAlert",
+        handleRobotAlert as EventListener,
+      );
+    };
+  }, [showWarning]);
 
   // Enhanced error handling with notifications
   const handleConnect = async (options: any) => {

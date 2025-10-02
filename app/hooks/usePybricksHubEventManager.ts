@@ -77,6 +77,32 @@ export function usePybricksHubEventManager() {
 
         // Check for hub menu status messages
         const output = normalized;
+        if (output.includes("[PILOT:ALERT]")) {
+          try {
+            const alertText = output.split("[PILOT:ALERT]").pop()?.trim() || "";
+            let code: string | undefined;
+            let message: string = alertText;
+
+            const match = alertText.match(/([^:]+):\s*(.*)/);
+            if (match) {
+              code = match[1].trim();
+              message = match[2].trim();
+            }
+
+            const alertEvent = new CustomEvent("robotAlert", {
+              detail: {
+                code: code || "ALERT",
+                message,
+                raw: output,
+                timestamp: Date.now(),
+              },
+            });
+            document.dispatchEvent(alertEvent);
+          } catch (error) {
+            console.warn("Failed to parse pilot alert:", output, error);
+          }
+        }
+
         if (output.includes("[PILOT:MENU_STATUS]")) {
           try {
             // Parse hub menu status: [PILOT:MENU_STATUS] selected=1 total=3 state=menu

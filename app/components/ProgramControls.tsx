@@ -102,6 +102,7 @@ export function ProgramControls({
     const p = (f.relativePath || f.name || "").toLowerCase();
     return p.endsWith("/robot.py") || p === "robot.py";
   });
+  const lastProcessedLogIndexRef = useRef(programOutputLog?.length || 0);
 
   const syncRobotPyToCurrentConfig = async () => {
     try {
@@ -134,6 +135,7 @@ export function ProgramControls({
     // Program just started: clear any prior error banner
     if (!prevRunningRef.current && isProgramRunning) {
       setLastUploadError(null);
+      lastProcessedLogIndexRef.current = programOutputLog?.length || 0;
     }
 
     if (prevRunningRef.current && !isProgramRunning) {
@@ -161,6 +163,30 @@ export function ProgramControls({
     }
     prevRunningRef.current = isProgramRunning;
   }, [isProgramRunning, debugEvents.length, programOutputLog?.length || 0]);
+
+  useEffect(() => {
+    if (!programOutputLog || programOutputLog.length === 0) {
+      lastProcessedLogIndexRef.current = 0;
+      return;
+    }
+
+    const previousIndex = lastProcessedLogIndexRef.current;
+    if (programOutputLog.length <= previousIndex) {
+      return;
+    }
+
+    const newEntries = programOutputLog.slice(previousIndex);
+    lastProcessedLogIndexRef.current = programOutputLog.length;
+
+    const errorEntry = newEntries
+      .slice()
+      .reverse()
+      .find((line) => /error|traceback|exception/i.test(line));
+
+    if (errorEntry) {
+      setLastUploadError(normalizeProgramLine(errorEntry));
+    }
+  }, [programOutputLog?.length]);
 
   const handleUploadAndRunMenu = async () => {
     if (allPrograms.length > 0 && uploadAndRunHubMenu) {
