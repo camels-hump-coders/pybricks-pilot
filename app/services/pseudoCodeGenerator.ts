@@ -67,6 +67,22 @@ class PseudoCodeGeneratorService {
   private readonly MOTOR_START_THRESHOLD = 0.5;
   private readonly MOTOR_MIN_ANGLE_THRESHOLD = 5;
   private readonly MOTOR_STOP_SPEED_THRESHOLD = 5;
+  private readonly DRIVEBASE_MOTOR_NAMES = new Set([
+    "left",
+    "right",
+    "driveleft",
+    "driveright",
+    "leftdrive",
+    "rightdrive",
+    "leftmotor",
+    "rightmotor",
+    "leftwheel",
+    "rightwheel",
+    "drivebaseleft",
+    "drivebaseright",
+    "leftdb",
+    "rightdb",
+  ]);
   private motorAngleMode: MotorAngleMode = "relative";
 
   /**
@@ -702,10 +718,16 @@ class PseudoCodeGeneratorService {
 
     const motorCommands: MovementCommand[] = [];
     const motorNames = new Set<string>();
+    const hasDrivebaseTelemetry = telemetryPoints.some(
+      (point) => point.drivebase !== undefined,
+    );
 
     telemetryPoints.forEach((point) => {
       if (point.motors) {
         for (const name of Object.keys(point.motors)) {
+          if (hasDrivebaseTelemetry && this.isDrivebaseMotorName(name)) {
+            continue;
+          }
           motorNames.add(name);
         }
       }
@@ -832,6 +854,12 @@ class PseudoCodeGeneratorService {
       motorStartAngle: startAngle,
       motorTargetAngle: targetAngle,
     });
+  }
+
+  private isDrivebaseMotorName(name: string): boolean {
+    const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    return this.DRIVEBASE_MOTOR_NAMES.has(normalized);
   }
 
   /**
