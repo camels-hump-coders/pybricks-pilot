@@ -40,6 +40,8 @@ class TelemetryHistoryService {
   private isRecording = false;
   private isProgramRunning = false;
   private lastPosition = { x: 0, y: 0, heading: 0 };
+  private lastRecordedMotorAngles = new Map<string, number>();
+  private readonly MOTOR_SAMPLE_THRESHOLD = 5; // degrees of motor movement before adding a point
   private selectedPathChangeCallback: ((pathId: string | null) => void) | null =
     null;
 
@@ -138,6 +140,8 @@ class TelemetryHistoryService {
       points: [],
     };
     this.isRecording = true;
+    this.lastRecordedMotorAngles.clear();
+    this.lastPosition = { x: 0, y: 0, heading: 0 };
   }
 
   stopRecording(): void {
@@ -147,6 +151,8 @@ class TelemetryHistoryService {
     this.allPaths.push(this.currentPath);
     this.currentPath = null;
     this.isRecording = false;
+    this.lastRecordedMotorAngles.clear();
+    this.lastPosition = { x: 0, y: 0, heading: 0 };
   }
 
   addTelemetryPoint(
@@ -174,8 +180,15 @@ class TelemetryHistoryService {
       (x - this.lastPosition.x) ** 2 + (y - this.lastPosition.y) ** 2,
     );
     const headingChange = Math.abs(heading - this.lastPosition.heading);
+    const motorChangeDetected = this.hasMotorMovement(telemetry.motors);
 
-    if (distChange < distThreshold && headingChange < headingThreshold) return;
+    if (
+      !motorChangeDetected &&
+      distChange < distThreshold &&
+      headingChange < headingThreshold
+    ) {
+      return;
+    }
 
     const point: TelemetryPoint = {
       timestamp: Date.now(),
@@ -188,6 +201,7 @@ class TelemetryHistoryService {
 
     this.currentPath.points.push(point);
     this.lastPosition = { x, y, heading };
+    this.updateLastRecordedMotorAngles(telemetry.motors);
 
     // Periodically clean up old data (every 100 points to avoid performance issues)
     if (this.currentPath.points.length % 100 === 0) {
@@ -234,12 +248,57 @@ class TelemetryHistoryService {
   clearHistory(): void {
     this.allPaths = [];
     this.currentPath = null;
+    this.lastRecordedMotorAngles.clear();
   }
 
   clearCurrentPath(): void {
     if (this.currentPath) {
       this.currentPath.points = [];
       this.currentPath.startTime = Date.now();
+      this.lastRecordedMotorAngles.clear();
+      this.lastPosition = { x: 0, y: 0, heading: 0 };
+    }
+  }
+
+  private hasMotorMovement(
+    motors?: TelemetryData["motors"],
+  ): boolean {
+    if (!motors || Object.keys(motors).length === 0) {
+      return false;
+    }
+
+    if (this.lastRecordedMotorAngles.size === 0) {
+      return true;
+    }
+
+    for (const [name, data] of Object.entries(motors)) {
+      const previous = this.lastRecordedMotorAngles.get(name);
+      if (previous === undefined) {
+        return true;
+      }
+      if (Math.abs(data.angle - previous) >= this.MOTOR_SAMPLE_THRESHOLD) {
+        return true;
+      }
+    }
+
+    for (const name of this.lastRecordedMotorAngles.keys()) {
+      if (!(name in motors)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private updateLastRecordedMotorAngles(
+    motors?: TelemetryData["motors"],
+  ): void {
+    this.lastRecordedMotorAngles.clear();
+    if (!motors) {
+      return;
+    }
+    for (const [name, data] of Object.entries(motors)) {
+      this.lastRecordedMotorAngles.set(name, data.angle);
     }
   }
 

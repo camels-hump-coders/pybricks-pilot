@@ -102,6 +102,7 @@ export function ProgramControls({
     const p = (f.relativePath || f.name || "").toLowerCase();
     return p.endsWith("/robot.py") || p === "robot.py";
   });
+  const lastProcessedLogIndexRef = useRef(programOutputLog?.length || 0);
 
   const syncRobotPyToCurrentConfig = async () => {
     try {
@@ -134,6 +135,7 @@ export function ProgramControls({
     // Program just started: clear any prior error banner
     if (!prevRunningRef.current && isProgramRunning) {
       setLastUploadError(null);
+      lastProcessedLogIndexRef.current = programOutputLog?.length || 0;
     }
 
     if (prevRunningRef.current && !isProgramRunning) {
@@ -161,6 +163,48 @@ export function ProgramControls({
     }
     prevRunningRef.current = isProgramRunning;
   }, [isProgramRunning, debugEvents.length, programOutputLog?.length || 0]);
+
+  useEffect(() => {
+    if (!programOutputLog || programOutputLog.length === 0) {
+      lastProcessedLogIndexRef.current = 0;
+      return;
+    }
+
+    const previousIndex = lastProcessedLogIndexRef.current;
+    if (programOutputLog.length <= previousIndex) {
+      return;
+    }
+
+    const newEntries = programOutputLog.slice(previousIndex);
+    lastProcessedLogIndexRef.current = programOutputLog.length;
+
+    const errorEntry = newEntries
+      .slice()
+      .reverse()
+      .find((line) => /error|traceback|exception/i.test(line));
+
+    if (errorEntry) {
+      setLastUploadError(normalizeProgramLine(errorEntry));
+    }
+  }, [programOutputLog?.length]);
+
+  useEffect(() => {
+    const handleRobotAlert = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        code?: string;
+        message?: string;
+      }>).detail;
+      if (!detail) return;
+      const label = detail.code ? `${detail.code}: ${detail.message ?? ""}` : detail.message;
+      if (!label) return;
+      setLastUploadError(label.trim());
+    };
+
+    document.addEventListener("robotAlert", handleRobotAlert as EventListener);
+    return () => {
+      document.removeEventListener("robotAlert", handleRobotAlert as EventListener);
+    };
+  }, []);
 
   const handleUploadAndRunMenu = async () => {
     if (allPrograms.length > 0 && uploadAndRunHubMenu) {
@@ -260,15 +304,25 @@ export function ProgramControls({
       </div>
       {lastUploadError && (
         <div className="mt-2 text-xs p-2 rounded border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20 text-red-700 dark:text-red-300 flex items-center justify-between gap-2">
-          <span className="truncate">{lastUploadError}</span>
-          <button
-            type="button"
-            onClick={() => openDetails(true)}
-            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-            title="Open Debug details"
-          >
-            View details
-          </button>
+          <span className="truncate pr-2">{lastUploadError}</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => openDetails(true)}
+              className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+              title="Open Debug details"
+            >
+              View details
+            </button>
+            <button
+              type="button"
+              onClick={() => setLastUploadError(null)}
+              className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              title="Dismiss this error"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
       {lastUploadError && (

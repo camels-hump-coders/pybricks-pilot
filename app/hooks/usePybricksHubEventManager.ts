@@ -77,6 +77,32 @@ export function usePybricksHubEventManager() {
 
         // Check for hub menu status messages
         const output = normalized;
+        if (output.includes("[PILOT:ALERT]")) {
+          try {
+            const alertText = output.split("[PILOT:ALERT]").pop()?.trim() || "";
+            let code: string | undefined;
+            let message: string = alertText;
+
+            const match = alertText.match(/([^:]+):\s*(.*)/);
+            if (match) {
+              code = match[1].trim();
+              message = match[2].trim();
+            }
+
+            const alertEvent = new CustomEvent("robotAlert", {
+              detail: {
+                code: code || "ALERT",
+                message,
+                raw: output,
+                timestamp: Date.now(),
+              },
+            });
+            document.dispatchEvent(alertEvent);
+          } catch (error) {
+            console.warn("Failed to parse pilot alert:", output, error);
+          }
+        }
+
         if (output.includes("[PILOT:MENU_STATUS]")) {
           try {
             // Parse hub menu status: [PILOT:MENU_STATUS] selected=1 total=3 state=menu
@@ -107,6 +133,32 @@ export function usePybricksHubEventManager() {
 
       // Add debug event to the list
       setDebugEvents((prev) => [...prev, debugEvent].slice(-500)); // Keep last 500 events
+
+      if (debugEvent.type === "stdout" && debugEvent.message?.includes("[PILOT:ALERT]")) {
+        try {
+          const alertText = debugEvent.message.split("[PILOT:ALERT]").pop()?.trim() || "";
+          let code: string | undefined;
+          let message: string = alertText;
+
+          const match = alertText.match(/([^:]+):\s*(.*)/);
+          if (match) {
+            code = match[1].trim();
+            message = match[2].trim();
+          }
+
+          const alertEvent = new CustomEvent("robotAlert", {
+            detail: {
+              code: code || "ALERT",
+              message,
+              raw: debugEvent.message,
+              timestamp: Date.now(),
+            },
+          });
+          document.dispatchEvent(alertEvent);
+        } catch (error) {
+          console.warn("Failed to parse pilot alert from debug event:", debugEvent.message, error);
+        }
+      }
 
       // Handle position reset events (make this resilient to plain text too)
       if (

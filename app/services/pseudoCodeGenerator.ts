@@ -67,6 +67,22 @@ class PseudoCodeGeneratorService {
   private readonly MOTOR_START_THRESHOLD = 0.5;
   private readonly MOTOR_MIN_ANGLE_THRESHOLD = 5;
   private readonly MOTOR_STOP_SPEED_THRESHOLD = 5;
+  private readonly DRIVEBASE_MOTOR_NAMES = new Set([
+    "left",
+    "right",
+    "driveleft",
+    "driveright",
+    "leftdrive",
+    "rightdrive",
+    "leftmotor",
+    "rightmotor",
+    "leftwheel",
+    "rightwheel",
+    "drivebaseleft",
+    "drivebaseright",
+    "leftdb",
+    "rightdb",
+  ]);
   private motorAngleMode: MotorAngleMode = "relative";
 
   /**
@@ -188,6 +204,8 @@ class PseudoCodeGeneratorService {
     }
 
     const commands: MovementCommand[] = [];
+    const motorCommands: MovementCommand[] = [];
+    const activeMotorSegments = new Map<string, MotorMovementSegment>();
     let currentCommand: MovementCommand | null = null;
     let totalDistance = 0;
     const startPosition = telemetryPoints[0];
@@ -216,6 +234,13 @@ class PseudoCodeGeneratorService {
     for (let i = 1; i < telemetryPoints.length; i++) {
       const prevPoint = telemetryPoints[i - 1];
       const currentPoint = telemetryPoints[i];
+
+      this.updateMotorSegments(
+        motorCommands,
+        activeMotorSegments,
+        prevPoint,
+        currentPoint,
+      );
 
       // Skip if we don't have drive base data
       if (!prevPoint.drivebase || !currentPoint.drivebase) {
@@ -302,8 +327,10 @@ class PseudoCodeGeneratorService {
         }
 
         // Determine the new movement type
-        const lastCommandType =
+        const rawLastCommandType =
           commands.length > 0 ? commands[commands.length - 1].type : undefined;
+        const lastCommandType =
+          rawLastCommandType === "motor" ? undefined : rawLastCommandType;
         const movementType: "drive" | "turn" | "arc" = isArc
           ? "arc"
           : this.determineMovementTypeForSwitch(
@@ -381,6 +408,10 @@ class PseudoCodeGeneratorService {
         accumulatedHeading = 0;
       }
     }
+
+    activeMotorSegments.forEach((segment, motorName) => {
+      this.finalizeMotorSegment(motorCommands, motorName, segment);
+    });
 
     // Add final command if exists
     if (currentCommand) {
@@ -470,7 +501,6 @@ class PseudoCodeGeneratorService {
       }
     }
 
-    const motorCommands = this.generateMotorCommands(telemetryPoints);
     const allCommandsWithIndex = [...commands, ...motorCommands].map(
       (command, index) => ({ command, index }),
     );
@@ -690,123 +720,121 @@ class PseudoCodeGeneratorService {
     return summarized;
   }
 
-  /**
-   * Generate pseudo code commands for individual motors from telemetry data
-   */
-  private generateMotorCommands(
-    telemetryPoints: RawTelemetryPoint[],
-  ): MovementCommand[] {
-    if (telemetryPoints.length < 2) {
-      return [];
-    }
-
-    const motorCommands: MovementCommand[] = [];
-    const motorNames = new Set<string>();
-
-    telemetryPoints.forEach((point) => {
-      if (point.motors) {
-        for (const name of Object.keys(point.motors)) {
-          motorNames.add(name);
-        }
-      }
-    });
+  private updateMotorSegments(
+    motorCommands: MovementCommand[],
+    activeSegments: Map<string, MotorMovementSegment>,
+    prevPoint: RawTelemetryPoint,
+    currentPoint: RawTelemetryPoint,
+  ): void {
+    const prevMotors = prevPoint.motors || {};
+    const currentMotors = currentPoint.motors || {};
+    const motorNames = new Set([
+      ...Object.keys(prevMotors),
+      ...Object.keys(currentMotors),
+    ]);
 
     motorNames.forEach((motorName) => {
-      let segment: MotorMovementSegment | null = null;
+      const prevMotor = prevMotors[motorName];
+      const currentMotor = currentMotors[motorName];
 
-      for (let i = 1; i < telemetryPoints.length; i++) {
-        const prevPoint = telemetryPoints[i - 1];
-        const currentPoint = telemetryPoints[i];
-        const prevMotor = prevPoint.motors?.[motorName];
-        const currentMotor = currentPoint.motors?.[motorName];
-
-        if (!prevMotor || !currentMotor) {
-          if (segment) {
-            this.finalizeMotorSegment(motorCommands, motorName, segment);
-            segment = null;
-          }
-          continue;
+      if (!prevMotor || !currentMotor) {
+        const existing = activeSegments.get(motorName);
+        if (existing) {
+          this.finalizeMotorSegment(motorCommands, motorName, existing);
+          activeSegments.delete(motorName);
         }
-
-        const timeDelta = currentPoint.timestamp - prevPoint.timestamp;
-        const delta = currentMotor.angle - prevMotor.angle;
-
-        if (!segment) {
-          if (Math.abs(delta) >= this.MOTOR_START_THRESHOLD) {
-            segment = {
-              startAngle: prevMotor.angle,
-              startTimestamp: prevPoint.timestamp,
-              accumulatedDelta: delta,
-              duration: timeDelta,
-              lastAngle: currentMotor.angle,
-              lastTimestamp: currentPoint.timestamp,
-              isCmdKeyPressed:
-                prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed,
-            };
-          }
-          continue;
-        }
-
-        const prevAccumulated = segment.accumulatedDelta;
-        const prevSign = Math.sign(prevAccumulated);
-        const deltaSign = Math.sign(delta);
-        const directionChanged =
-          prevSign !== 0 && deltaSign !== 0 && prevSign !== deltaSign;
-
-        if (directionChanged) {
-          if (Math.abs(prevAccumulated) >= this.MOTOR_MIN_ANGLE_THRESHOLD) {
-            this.finalizeMotorSegment(motorCommands, motorName, segment);
-          }
-
-          segment =
-            Math.abs(delta) >= this.MOTOR_START_THRESHOLD
-              ? {
-                  startAngle: prevMotor.angle,
-                  startTimestamp: prevPoint.timestamp,
-                  accumulatedDelta: delta,
-                  duration: timeDelta,
-                  lastAngle: currentMotor.angle,
-                  lastTimestamp: currentPoint.timestamp,
-                  isCmdKeyPressed:
-                    prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed,
-                }
-              : null;
-          continue;
-        }
-
-        segment.accumulatedDelta = prevAccumulated + delta;
-        segment.duration += timeDelta;
-        segment.lastAngle = currentMotor.angle;
-        segment.lastTimestamp = currentPoint.timestamp;
-        if (prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed) {
-          segment.isCmdKeyPressed = true;
-        }
-
-        const approxSpeed =
-          currentMotor.speed !== undefined
-            ? Math.abs(currentMotor.speed)
-            : timeDelta > 0
-              ? Math.abs(delta) / Math.max(timeDelta / 1000, 1e-6)
-              : 0;
-        const smallDelta = Math.abs(delta) < this.MOTOR_START_THRESHOLD;
-        const shouldFinalize =
-          Math.abs(segment.accumulatedDelta) >=
-            this.MOTOR_MIN_ANGLE_THRESHOLD &&
-          approxSpeed <= this.MOTOR_STOP_SPEED_THRESHOLD &&
-          smallDelta;
-
-        if (shouldFinalize) {
-          this.finalizeMotorSegment(motorCommands, motorName, segment);
-          segment = null;
-        }
+        return;
       }
 
-      if (segment) {
+      const isDrivebaseMotor = this.isDrivebaseMotorName(motorName);
+      if (
+        isDrivebaseMotor &&
+        prevPoint.drivebase !== undefined &&
+        currentPoint.drivebase !== undefined
+      ) {
+        const existing = activeSegments.get(motorName);
+        if (existing) {
+          this.finalizeMotorSegment(motorCommands, motorName, existing);
+          activeSegments.delete(motorName);
+        }
+        return;
+      }
+
+      const timeDelta = currentPoint.timestamp - prevPoint.timestamp;
+      const delta = currentMotor.angle - prevMotor.angle;
+
+      let segment = activeSegments.get(motorName) || null;
+
+      if (!segment) {
+        if (Math.abs(delta) >= this.MOTOR_START_THRESHOLD) {
+          segment = {
+            startAngle: prevMotor.angle,
+            startTimestamp: prevPoint.timestamp,
+            accumulatedDelta: delta,
+            duration: timeDelta,
+            lastAngle: currentMotor.angle,
+            lastTimestamp: currentPoint.timestamp,
+            isCmdKeyPressed:
+              prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed,
+          };
+          activeSegments.set(motorName, segment);
+        }
+        return;
+      }
+
+      const prevAccumulated = segment.accumulatedDelta;
+      const prevSign = Math.sign(prevAccumulated);
+      const deltaSign = Math.sign(delta);
+      const directionChanged =
+        prevSign !== 0 && deltaSign !== 0 && prevSign !== deltaSign;
+
+      if (directionChanged) {
+        if (Math.abs(prevAccumulated) >= this.MOTOR_MIN_ANGLE_THRESHOLD) {
+          this.finalizeMotorSegment(motorCommands, motorName, segment);
+        }
+
+        activeSegments.delete(motorName);
+
+        if (Math.abs(delta) >= this.MOTOR_START_THRESHOLD) {
+          activeSegments.set(motorName, {
+            startAngle: prevMotor.angle,
+            startTimestamp: prevPoint.timestamp,
+            accumulatedDelta: delta,
+            duration: timeDelta,
+            lastAngle: currentMotor.angle,
+            lastTimestamp: currentPoint.timestamp,
+            isCmdKeyPressed:
+              prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed,
+          });
+        }
+        return;
+      }
+
+      segment.accumulatedDelta = prevAccumulated + delta;
+      segment.duration += timeDelta;
+      segment.lastAngle = currentMotor.angle;
+      segment.lastTimestamp = currentPoint.timestamp;
+      if (prevPoint.isCmdKeyPressed || currentPoint.isCmdKeyPressed) {
+        segment.isCmdKeyPressed = true;
+      }
+
+      const approxSpeed =
+        currentMotor.speed !== undefined
+          ? Math.abs(currentMotor.speed)
+          : timeDelta > 0
+            ? Math.abs(delta) / Math.max(timeDelta / 1000, 1e-6)
+            : 0;
+      const smallDelta = Math.abs(delta) < this.MOTOR_START_THRESHOLD;
+      const shouldFinalize =
+        Math.abs(segment.accumulatedDelta) >= this.MOTOR_MIN_ANGLE_THRESHOLD &&
+        approxSpeed <= this.MOTOR_STOP_SPEED_THRESHOLD &&
+        smallDelta;
+
+      if (shouldFinalize) {
         this.finalizeMotorSegment(motorCommands, motorName, segment);
+        activeSegments.delete(motorName);
       }
     });
-
-    return motorCommands;
   }
 
   private finalizeMotorSegment(
@@ -832,6 +860,12 @@ class PseudoCodeGeneratorService {
       motorStartAngle: startAngle,
       motorTargetAngle: targetAngle,
     });
+  }
+
+  private isDrivebaseMotorName(name: string): boolean {
+    const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    return this.DRIVEBASE_MOTOR_NAMES.has(normalized);
   }
 
   /**

@@ -48,6 +48,7 @@ import { ProgramOutputLog } from "./ProgramOutputLog";
 import { RobotBuilder } from "./RobotBuilder";
 import { RobotControlsSection } from "./RobotControlsSection";
 import { SensorDisplay } from "./SensorDisplay";
+import { telemetryHistory } from "../services/telemetryHistory";
 
 // Load built-in maps using the same logic as MapSelector
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
@@ -132,6 +133,7 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     clearProgramOutputLog,
     // Unused in this component: motors/program controls handled elsewhere
     uploadAndRunHubMenu,
+    resetTelemetry,
   } = robotConnection;
 
   // Get file system data for program list
@@ -154,6 +156,19 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
         "programs",
       );
       await uploadAndRunHubMenu(allPrograms, pythonFiles);
+
+      if (typeof resetTelemetry === "function") {
+        try {
+          await resetTelemetry(false);
+        } catch (error) {
+          console.warn(
+            "[TelemetryDashboard] Failed to reset telemetry after Up&Run:",
+            error,
+          );
+        }
+      }
+
+      telemetryHistory.onMatReset();
     } else {
       throw new Error("No upload method available");
     }
