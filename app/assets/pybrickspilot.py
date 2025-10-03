@@ -27,7 +27,7 @@ import ujson as json
 
 from pybricks.tools import StopWatch
 from pybricks.tools import read_input_byte
-from pybricks.tools import run_task, multitask, wait
+from pybricks.tools import run_task, wait
 from pybricks.parameters import Color, Button, Stop
 
 _stopwatch = None
@@ -62,6 +62,21 @@ _menu_state = "idle"  # idle, menu, running
 _menu_last_button_time = 0
 _menu_button_debounce_ms = 300
 _menu_run_requested = False  # Flag for UI-requested program run
+
+# Stall detection configuration
+STALL_CHECK_INTERVAL_MS = 100
+STALL_DURATION_MS = 1000  # ms
+STALL_PROGRESS_TOLERANCE_MM = 5
+STALL_ROTATION_TOLERANCE_DEG = 3
+
+
+class StallDetected(Exception):
+    """Raised when a drivebase or motor reports stalled for too long."""
+
+
+def _emit_browser_alert(code: str, message: str) -> None:
+    """Print an alert line that the browser can parse and surface."""
+    print("[PILOT:ALERT]", f"{code}: {message}")
 
 
 def register_hub(hub):
@@ -403,13 +418,19 @@ async def _execute_command_sequence(commands):
                     )
 
                 # Execute the individual command with stop behavior
-                await _execute_single_command(cmd_with_stop)
+                completed = await _execute_single_command(cmd_with_stop)
+                if not completed:
+                    print("[PILOT] Command sequence aborted")
+                    break
             else:
                 # For non-movement commands, execute normally
                 print(f"[PILOT] Executing non-movement command {i+1}/{len(commands)}")
-                await _execute_single_command(cmd)
-
-        print("[PILOT] Command sequence completed")
+                completed = await _execute_single_command(cmd)
+                if not completed:
+                    print("[PILOT] Command sequence aborted")
+                    break
+        else:
+            print("[PILOT] Command sequence completed")
 
     except Exception as e:
         print("[PILOT] Command sequence error:", e)
@@ -419,7 +440,7 @@ async def _execute_command(command):
     """Execute a received command or command sequence."""
     if command is None:
         return
-    
+
     try:
         # Check if this is a command sequence (array of commands)
         if isinstance(command, list):
@@ -433,6 +454,154 @@ async def _execute_command(command):
         print("[PILOT] Command execution error:", e)
 
 
+async def _run_drive_with_stall(distance, stop_param):
+    """Run straight movement and abort if the drivebase remains stalled."""
+    if _drivebase is None:
+        return False
+
+    if abs(distance) <= STALL_PROGRESS_TOLERANCE_MM:
+        await _drivebase.straight(distance, then=stop_param, wait=True)
+        return False
+
+    task = run_task(_drivebase.straight(distance, then=stop_param, wait=True))
+    stall_start = None
+
+    try:
+        while True:
+            if task.done():
+                await task
+                return False
+
+            await wait(STALL_CHECK_INTERVAL_MS)
+
+            if _drivebase.stalled():
+                if stall_start is None:
+                    stall_start = get_time_ms()
+                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                    raise StallDetected()
+            else:
+                stall_start = None
+    except StallDetected:
+        task.cancel()
+        try:
+            await task
+        except Exception:
+            pass
+        try:
+            await _drivebase.stop()
+        except Exception:
+            pass
+        return True
+
+
+async def _run_turn_with_stall(angle, stop_param):
+    """Run a turn and abort if the drivebase stalls."""
+    if _drivebase is None:
+        return False
+
+    if abs(angle) <= STALL_ROTATION_TOLERANCE_DEG:
+        await _drivebase.turn(angle, then=stop_param, wait=True)
+        return False
+
+    task = run_task(_drivebase.turn(angle, then=stop_param, wait=True))
+    stall_start = None
+
+    try:
+        while True:
+            if task.done():
+                await task
+                return False
+
+            await wait(STALL_CHECK_INTERVAL_MS)
+
+            if _drivebase.stalled():
+                if stall_start is None:
+                    stall_start = get_time_ms()
+                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                    raise StallDetected()
+            else:
+                stall_start = None
+    except StallDetected:
+        task.cancel()
+        try:
+            await task
+        except Exception:
+            pass
+        try:
+            await _drivebase.stop()
+        except Exception:
+            pass
+        return True
+
+
+async def _run_arc_with_stall(radius, angle, stop_param, use_curve=False):
+    """Run an arc/curve and abort if stalled."""
+    if _drivebase is None:
+        return False
+
+    arc_callable = _drivebase.curve if use_curve else _drivebase.arc
+    task = run_task(arc_callable(radius, angle, then=stop_param, wait=True))
+    stall_start = None
+
+    try:
+        while True:
+            if task.done():
+                await task
+                return False
+
+            await wait(STALL_CHECK_INTERVAL_MS)
+
+            if _drivebase.stalled():
+                if stall_start is None:
+                    stall_start = get_time_ms()
+                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                    raise StallDetected()
+            else:
+                stall_start = None
+    except StallDetected:
+        task.cancel()
+        try:
+            await task
+        except Exception:
+            pass
+        try:
+            await _drivebase.stop()
+        except Exception:
+            pass
+        return True
+
+
+async def _run_motor_angle_with_stall(motor, speed, angle):
+    """Run a motor angle movement with stall detection."""
+    task = run_task(motor.run_angle(speed, angle))
+    stall_start = None
+
+    try:
+        while True:
+            if task.done():
+                await task
+                return False
+
+            await wait(STALL_CHECK_INTERVAL_MS)
+
+            if motor.stalled():
+                if stall_start is None:
+                    stall_start = get_time_ms()
+                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                    raise StallDetected()
+            else:
+                stall_start = None
+    except StallDetected:
+        task.cancel()
+        try:
+            await task
+        except Exception:
+            pass
+        try:
+            await motor.stop()
+        except Exception:
+            pass
+        return True
 async def _execute_single_command(command):
     """Execute a single command with optional stop behavior."""
     try:
@@ -468,7 +637,14 @@ async def _execute_single_command(command):
 
             # Use straight() method with appropriate stop behavior
             _drivebase.settings(straight_speed=speed)
-            await _drivebase.straight(distance, then=stop_param, wait=True)
+            stalled = await _run_drive_with_stall(distance, stop_param)
+            if stalled:
+                _emit_browser_alert(
+                    "DRIVE_STALL",
+                    "Drive movement stalled for over 1s. Command aborted.",
+                )
+                print("[PILOT] Drive command aborted due to stall")
+                return False
             print(
                 "[PILOT] Executed drive:",
                 distance,
@@ -477,6 +653,7 @@ async def _execute_single_command(command):
                 "mm/s with",
                 stop_behavior,
             )
+            return True
 
         elif action == "turn" and _drivebase:
             # Turn command: {"action": "turn", "angle": 90, "speed": 100, "stop_behavior": "hold"}
@@ -494,7 +671,14 @@ async def _execute_single_command(command):
 
             # Use turn() method with appropriate stop behavior
             _drivebase.settings(turn_rate=speed)
-            await _drivebase.turn(angle, then=stop_param, wait=True)
+            stalled = await _run_turn_with_stall(angle, stop_param)
+            if stalled:
+                _emit_browser_alert(
+                    "TURN_STALL",
+                    "Turn movement stalled for over 1s. Command aborted.",
+                )
+                print("[PILOT] Turn command aborted due to stall")
+                return False
             print(
                 "[PILOT] Executed turn:",
                 angle,
@@ -503,6 +687,7 @@ async def _execute_single_command(command):
                 "°/s with",
                 stop_behavior,
             )
+            return True
 
         elif action == "stop":
             # Stop command: {"action": "stop"} or {"action": "stop", "motor": "motor_name"}
@@ -515,6 +700,7 @@ async def _execute_single_command(command):
             elif _drivebase:
                 await _drivebase.stop()
                 print("[PILOT] Executed stop")
+            return True
 
         elif action == "drive_continuous" and _drivebase:
             # Continuous drive command: {"action": "drive_continuous", "speed": 100, "turn_rate": 0}
@@ -523,6 +709,7 @@ async def _execute_single_command(command):
             # Use drive() method for continuous movement
             await _drivebase.drive(speed, turn_rate)
             print("[PILOT] Continuous drive:", speed, "mm/s, turn:", turn_rate, "°/s")
+            return True
 
         elif action == "turn_and_drive" and _drivebase:
             # Turn and drive command: {"action": "turn_and_drive", "angle": 90, "distance": 100, "speed": 200}
@@ -543,12 +730,25 @@ async def _execute_single_command(command):
             # Execute turn first, then drive
             if angle != 0:
                 _drivebase.settings(turn_rate=speed)
-                await _drivebase.turn(angle, then=Stop.COAST_SMART, wait=True)
-                
+                stalled_turn = await _run_turn_with_stall(angle, Stop.COAST_SMART)
+                if stalled_turn:
+                    _emit_browser_alert(
+                        "TURN_STALL",
+                        "Turn stalled during turn_and_drive sequence. Aborted.",
+                    )
+                    print("[PILOT] turn_and_drive aborted during turn due to stall")
+                    return False
+
             if distance != 0:
                 _drivebase.settings(straight_speed=speed)
-                await _drivebase.straight(distance, then=stop_param, wait=True)
-                
+                stalled_drive = await _run_drive_with_stall(distance, stop_param)
+                if stalled_drive:
+                    _emit_browser_alert(
+                        "DRIVE_STALL",
+                        "Drive stalled during turn_and_drive sequence. Aborted.",
+                    )
+                    print("[PILOT] turn_and_drive aborted during drive due to stall")
+                    return False
             print(
                 "[PILOT] Executed turn_and_drive:",
                 angle,
@@ -559,6 +759,7 @@ async def _execute_single_command(command):
                 "units/s with",
                 stop_behavior,
             )
+            return True
 
         elif action == "arc" and _drivebase:
             # Arc command: {"action": "arc", "radius": 100, "angle": 90, "speed": 200}
@@ -593,12 +794,24 @@ async def _execute_single_command(command):
 
                 # Use Pybricks drivebase arc method
                 _drivebase.settings(straight_speed=speed)
-                if hasattr(_drivebase, "arc"):
-                    await _drivebase.arc(radius, angle, then=stop_param, wait=True)
-                else:
-                    await _drivebase.curve(radius, angle, then=stop_param, wait=True)
+                use_curve = not hasattr(_drivebase, "arc")
+                stalled_arc = await _run_arc_with_stall(
+                    radius,
+                    angle,
+                    stop_param,
+                    use_curve=use_curve,
+                )
+                if stalled_arc:
+                    _emit_browser_alert(
+                        "DRIVE_STALL",
+                        "Arc movement stalled for over 1s. Command aborted.",
+                    )
+                    print("[PILOT] Arc command aborted due to stall")
+                    return False
             else:
                 print("[PILOT] Arc command missing angle parameter")
+                return False
+            return True
 
         elif action == "motor":
             # Motor command: {"action": "motor", "motor": "left", "angle": 90, "speed": 100}
@@ -610,7 +823,21 @@ async def _execute_single_command(command):
                 speed = command.get("speed", 100)
 
                 if angle is not None:
-                    await motor.run_angle(speed, angle)
+                    stalled_motor = await _run_motor_angle_with_stall(
+                        motor,
+                        speed,
+                        angle,
+                    )
+                    if stalled_motor:
+                        _emit_browser_alert(
+                            "MOTOR_STALL",
+                            f"Motor '{motor_name}' stalled for over 1s. Command aborted.",
+                        )
+                        print(
+                            "[PILOT] Motor command aborted due to stall for",
+                            motor_name,
+                        )
+                        return False
                     print(
                         "[PILOT] Motor '" + motor_name + "':",
                         angle,
@@ -624,8 +851,10 @@ async def _execute_single_command(command):
                     print(
                         "[PILOT] Motor '" + motor_name + "': running at", speed, "°/s"
                     )
+                return True
             else:
                 print("[PILOT] Unknown motor:", motor_name)
+                return False
 
         elif action == "set_telemetry":
             # Telemetry control: {"action": "set_telemetry", "enabled": true, "interval": 100}
@@ -635,6 +864,7 @@ async def _execute_single_command(command):
             set_telemetry_enabled(enabled)
             if interval:
                 set_telemetry_interval(interval)
+            return True
 
         elif action == "reset_drivebase" and _drivebase:
             # Reset drivebase telemetry: {"action": "reset_drivebase"}
@@ -646,6 +876,7 @@ async def _execute_single_command(command):
                 print("[PILOT] Drivebase telemetry reset - distance and angle set to 0")
             except Exception as e:
                 print("[PILOT] Drivebase reset error:", e)
+            return True
 
         elif action == "select_program" and _menu_active:
             # Select a specific program in the menu: {"action": "select_program", "program_number": 1}
@@ -659,6 +890,7 @@ async def _execute_single_command(command):
                         print("[PILOT:MENU] UI selected:", prog["name"])
                         _send_menu_status()
                         break
+            return True
 
         elif action == "run_selected" and _menu_active and _menu_state == "menu":
             # Run the currently selected program: {"action": "run_selected"}
@@ -667,12 +899,15 @@ async def _execute_single_command(command):
             # For now, just set a flag that the menu loop can check
             global _menu_run_requested
             _menu_run_requested = True
+            return True
 
         else:
             print("[PILOT] Unknown command action:", action)
+            return False
 
     except Exception as e:
         print("[PILOT] Command execution error:", e)
+    return False
 
 
 async def process_commands():
