@@ -27,7 +27,7 @@ import ujson as json
 
 from pybricks.tools import StopWatch
 from pybricks.tools import read_input_byte
-from pybricks.tools import run_task, wait
+from pybricks.tools import wait, multitask
 from pybricks.parameters import Color, Button, Stop
 
 _stopwatch = None
@@ -463,30 +463,32 @@ async def _run_drive_with_stall(distance, stop_param):
         await _drivebase.straight(distance, then=stop_param, wait=True)
         return False
 
-    task = run_task(_drivebase.straight(distance, then=stop_param, wait=True))
-    stall_start = None
+    async def drive_task():
+        await _drivebase.straight(distance, then=stop_param, wait=True)
+
+    async def monitor_task():
+        stall_start = None
+        try:
+            while True:
+                await wait(STALL_CHECK_INTERVAL_MS)
+                if _drivebase is None:
+                    return
+                if _drivebase.stalled():
+                    if stall_start is None:
+                        stall_start = get_time_ms()
+                    elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                        raise StallDetected()
+                else:
+                    stall_start = None
+        except StallDetected:
+            raise
+        except BaseException:
+            return
 
     try:
-        while True:
-            if task.done():
-                await task
-                return False
-
-            await wait(STALL_CHECK_INTERVAL_MS)
-
-            if _drivebase.stalled():
-                if stall_start is None:
-                    stall_start = get_time_ms()
-                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
-                    raise StallDetected()
-            else:
-                stall_start = None
+        await multitask(drive_task(), monitor_task(), race=True)
+        return False
     except StallDetected:
-        task.cancel()
-        try:
-            await task
-        except Exception:
-            pass
         try:
             await _drivebase.stop()
         except Exception:
@@ -503,30 +505,32 @@ async def _run_turn_with_stall(angle, stop_param):
         await _drivebase.turn(angle, then=stop_param, wait=True)
         return False
 
-    task = run_task(_drivebase.turn(angle, then=stop_param, wait=True))
-    stall_start = None
+    async def turn_task():
+        await _drivebase.turn(angle, then=stop_param, wait=True)
+
+    async def monitor_task():
+        stall_start = None
+        try:
+            while True:
+                await wait(STALL_CHECK_INTERVAL_MS)
+                if _drivebase is None:
+                    return
+                if _drivebase.stalled():
+                    if stall_start is None:
+                        stall_start = get_time_ms()
+                    elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                        raise StallDetected()
+                else:
+                    stall_start = None
+        except StallDetected:
+            raise
+        except BaseException:
+            return
 
     try:
-        while True:
-            if task.done():
-                await task
-                return False
-
-            await wait(STALL_CHECK_INTERVAL_MS)
-
-            if _drivebase.stalled():
-                if stall_start is None:
-                    stall_start = get_time_ms()
-                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
-                    raise StallDetected()
-            else:
-                stall_start = None
+        await multitask(turn_task(), monitor_task(), race=True)
+        return False
     except StallDetected:
-        task.cancel()
-        try:
-            await task
-        except Exception:
-            pass
         try:
             await _drivebase.stop()
         except Exception:
@@ -540,30 +544,32 @@ async def _run_arc_with_stall(radius, angle, stop_param, use_curve=False):
         return False
 
     arc_callable = _drivebase.curve if use_curve else _drivebase.arc
-    task = run_task(arc_callable(radius, angle, then=stop_param, wait=True))
-    stall_start = None
+    async def arc_task():
+        await arc_callable(radius, angle, then=stop_param, wait=True)
+
+    async def monitor_task():
+        stall_start = None
+        try:
+            while True:
+                await wait(STALL_CHECK_INTERVAL_MS)
+                if _drivebase is None:
+                    return
+                if _drivebase.stalled():
+                    if stall_start is None:
+                        stall_start = get_time_ms()
+                    elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                        raise StallDetected()
+                else:
+                    stall_start = None
+        except StallDetected:
+            raise
+        except BaseException:
+            return
 
     try:
-        while True:
-            if task.done():
-                await task
-                return False
-
-            await wait(STALL_CHECK_INTERVAL_MS)
-
-            if _drivebase.stalled():
-                if stall_start is None:
-                    stall_start = get_time_ms()
-                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
-                    raise StallDetected()
-            else:
-                stall_start = None
+        await multitask(arc_task(), monitor_task(), race=True)
+        return False
     except StallDetected:
-        task.cancel()
-        try:
-            await task
-        except Exception:
-            pass
         try:
             await _drivebase.stop()
         except Exception:
@@ -573,30 +579,30 @@ async def _run_arc_with_stall(radius, angle, stop_param, use_curve=False):
 
 async def _run_motor_angle_with_stall(motor, speed, angle):
     """Run a motor angle movement with stall detection."""
-    task = run_task(motor.run_angle(speed, angle))
-    stall_start = None
+    async def motor_task():
+        await motor.run_angle(speed, angle)
+
+    async def monitor_task():
+        stall_start = None
+        try:
+            while True:
+                await wait(STALL_CHECK_INTERVAL_MS)
+                if motor.stalled():
+                    if stall_start is None:
+                        stall_start = get_time_ms()
+                    elif get_time_ms() - stall_start >= STALL_DURATION_MS:
+                        raise StallDetected()
+                else:
+                    stall_start = None
+        except StallDetected:
+            raise
+        except BaseException:
+            return
 
     try:
-        while True:
-            if task.done():
-                await task
-                return False
-
-            await wait(STALL_CHECK_INTERVAL_MS)
-
-            if motor.stalled():
-                if stall_start is None:
-                    stall_start = get_time_ms()
-                elif get_time_ms() - stall_start >= STALL_DURATION_MS:
-                    raise StallDetected()
-            else:
-                stall_start = None
+        await multitask(motor_task(), monitor_task(), race=True)
+        return False
     except StallDetected:
-        task.cancel()
-        try:
-            await task
-        except Exception:
-            pass
         try:
             await motor.stop()
         except Exception:
