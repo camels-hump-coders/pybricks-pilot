@@ -14,6 +14,7 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import faviconUrl from "./assets/favicon.svg?url";
 import socialShareUrl from "./assets/social-share.png?url";
+import { Navigation } from "./components/Navigation";
 import { SecretPiToggle } from "./components/SecretPiToggle";
 import { ServiceEventSync } from "./components/ServiceEventSync";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -120,6 +121,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <ServiceEventSync>
           <ThemeProvider>
+            <Navigation />
             <Outlet />
             {/* Hidden feature toggle for Mission mode */}
             <SecretPiToggle />

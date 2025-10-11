@@ -16,7 +16,8 @@
     "rootDirs": [".", "./.react-router/types"],
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./app/*"]
+      "~/*": ["./app/*"],
+      "@monaco-editor/react": ["./app/types/monaco-editor-react"]
     },
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
