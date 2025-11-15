@@ -49,6 +49,7 @@ import { RobotBuilder } from "./RobotBuilder";
 import { RobotControlsSection } from "./RobotControlsSection";
 import { SensorDisplay } from "./SensorDisplay";
 import { telemetryHistory } from "../services/telemetryHistory";
+import { decodeScoringState } from "../utils/scoringShare";
 
 // Load built-in maps using the same logic as MapSelector
 const seasonConfigs = import.meta.glob("../assets/seasons/**/config.json", {
@@ -178,7 +179,8 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
   const [showMapSelector, setShowMapSelector] = useAtom(showMapSelectorAtom);
   const [matEditorMode, setMatEditorMode] = useAtom(matEditorModeAtom);
   // Use Jotai for custom mat config instead of local state
-  const { customMatConfig, setCustomMatConfig } = useJotaiGameMat();
+  const { customMatConfig, setCustomMatConfig, setScoringState } =
+    useJotaiGameMat();
   const [showScoring, setShowScoring] = useAtom(showScoringAtom);
   // Use Jotai for current score instead of local state
   // currentScore used inside MatControlsPanel via atom
@@ -212,6 +214,26 @@ export function TelemetryDashboard({ className = "" }: { className?: string }) {
     };
     loadDefaultMat();
   }, [setCustomMatConfig, setShowScoring, setIsLoadingConfig]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const encodedScore = params.get("score");
+    if (!encodedScore) {
+      return;
+    }
+
+    const sharedState = decodeScoringState(encodedScore);
+    if (!sharedState) {
+      return;
+    }
+
+    setScoringState(sharedState);
+    setShowScoring(true);
+  }, [setScoringState, setShowScoring]);
 
   useEffect(() => {
     if (currentRobotConfig && customMatConfig) {

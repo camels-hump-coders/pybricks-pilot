@@ -1,4 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
+import { useState } from "react";
 import { useJotaiGameMat } from "../hooks/useJotaiGameMat";
 import { hasDirectoryAccessAtom } from "../store/atoms/fileSystem";
 import { currentScoreAtom } from "../store/atoms/gameMat";
@@ -10,13 +11,14 @@ import {
   showMatEditorAtom,
   showScoringAtom,
 } from "../store/atoms/matUIState";
+import { encodeScoringState, hasScoringData } from "../utils/scoringShare";
 
 interface MatControlsPanelProps {
   onClearMat: () => void;
 }
 
 export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
-  const { customMatConfig } = useJotaiGameMat();
+  const { customMatConfig, scoringState } = useJotaiGameMat();
   const hasDirectoryAccess = useAtomValue(hasDirectoryAccessAtom);
   const currentScore = useAtomValue(currentScoreAtom);
   const [showScoring, setShowScoring] = useAtom(showScoringAtom);
@@ -25,6 +27,49 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
   const [, setMatEditorMode] = useAtom(matEditorModeAtom);
   const isLoadingConfig = useAtomValue(isMatConfigLoadingAtom);
   const [lowQuality, setLowQuality] = useAtom(lowQualityModeAtom);
+  const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
+
+  const canShareScore = hasScoringData(scoringState);
+
+  const handleShareScore = async () => {
+    if (!canShareScore || typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const encodedScore = encodeScoringState(scoringState);
+      const url = new URL(window.location.href);
+      url.searchParams.set("score", encodedScore);
+
+      if (customMatConfig?.name) {
+        url.searchParams.set("mat", customMatConfig.name);
+      } else {
+        url.searchParams.delete("mat");
+      }
+
+      const shareUrl = url.toString();
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = shareUrl;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      setShareStatus("copied");
+      window.setTimeout(() => setShareStatus("idle"), 2500);
+    } catch (error) {
+      console.error("Failed to copy scoring link", error);
+      setShareStatus("error");
+      window.setTimeout(() => setShareStatus("idle"), 3000);
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
@@ -114,6 +159,26 @@ export function MatControlsPanel({ onClearMat }: MatControlsPanelProps) {
               className="px-2 py-1.5 rounded text-xs font-medium border bg-red-50 dark:bg-red-900 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300"
             >
               🧹 Clear Custom Mat
+            </button>
+            <button
+              type="button"
+              onClick={handleShareScore}
+              disabled={!canShareScore}
+              className={`col-span-2 px-2 py-1.5 rounded text-xs font-medium border flex items-center justify-center gap-2 ${
+                canShareScore
+                  ? "bg-blue-50 dark:bg-blue-900 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-800"
+                  : "bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              <span>🔗 Share Score</span>
+              {shareStatus === "copied" && (
+                <span className="text-green-600 dark:text-green-300">
+                  Copied!
+                </span>
+              )}
+              {shareStatus === "error" && (
+                <span className="text-red-600 dark:text-red-300">Failed</span>
+              )}
             </button>
           </div>
         )}
